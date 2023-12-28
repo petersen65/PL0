@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -61,10 +62,11 @@ const (
 	reservedWords      = 11   // number of reserved words
 	identifierTableLen = 100  // length of identifier table
 	digitsMax          = 14   // maximum number of digits in numbers
-	identifierLen      = 10   // length of identifier
+	identifierMax      = 10   // maximum length of identifier
 	addressMax         = 2047 // maximum address
 	blockNestingMax    = 3    // maximum depth of block nesting
 	codeArrayMax       = 200  // size of code array
+	integerBitSize     = 64   // number of bits of a signed integer
 )
 
 type (
@@ -82,10 +84,11 @@ type (
 	}
 
 	scanner struct {
-		sourceIndex int
-		sourceCode  []byte
-		lastToken   token
-		tokenMap    map[string]token
+		sourceIndex   int
+		sourceCode    []byte
+		lastCharacter rune
+		lastValue     any
+		tokenMap      map[string]token
 	}
 
 	parser struct{}
@@ -161,30 +164,97 @@ func (s *scanner) LoadSource(sourceFilePath string) error {
 		return err
 	} else {
 		s.sourceIndex = 0
-		s.lastToken = null
 		s.sourceCode = content
-		return nil
-	}
-}
+		s.lastValue = nil
 
-func (s *scanner) GetToken() token {
-	if s.sourceIndex < len(s.sourceCode) {
-		if runeValue, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:]); runeValue == utf8.RuneError {
-			s.lastToken = null
+		if !s.nextCharacter() {
+			return fmt.Errorf("error: unexpected end of file")
 		} else {
-			s.sourceIndex += width
-
-			// Add your logic to generate token from runeValue
+			return nil
 		}
-	} else {
-		s.lastToken = eof
 	}
-
-	return s.lastToken
 }
 
-func (s *scanner) nextRune() (rune, bool) {
-	return 0, true
+func (s *scanner) GetToken() (token, error) {
+	for s.lastCharacter == ' ' || s.lastCharacter == '\t' || s.lastCharacter == '\n' || s.lastCharacter == '\r' {
+		if !s.nextCharacter() {
+			return eof, nil
+		}
+	}
+
+	if s.lastCharacter >= 'a' && s.lastCharacter <= 'z' || s.lastCharacter >= 'A' && s.lastCharacter <= 'Z' {
+		s.lastValue = ""
+
+		for s.lastCharacter >= 'a' && s.lastCharacter <= 'z' || s.lastCharacter >= 'A' && s.lastCharacter <= 'Z' || s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
+
+			if !s.nextCharacter() {
+				return eof, fmt.Errorf("error: unexpected end of file while reading identifier %s", s.lastValue)
+			}
+		}
+
+		if token, ok := s.tokenMap[s.lastValue.(string)]; ok {
+			return token, nil
+		}
+
+		if len(s.lastValue.(string)) > identifierMax {
+			return identifier, fmt.Errorf("error: identifier %s too long", s.lastValue)
+		}
+
+		return identifier, nil
+	} else if s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+		s.lastValue = ""
+
+		for s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
+
+			if !s.nextCharacter() {
+				return eof, fmt.Errorf("error: unexpected end of file while reading number %s", s.lastValue)
+			}
+		}
+
+		if len(s.lastValue.(string)) > digitsMax {
+			return number, fmt.Errorf("error: number %s too large", s.lastValue)
+		}
+
+		if intValue, err := strconv.ParseInt(s.lastValue.(string), 10, integerBitSize); err != nil {
+			return number, fmt.Errorf("error: cannot parse number %s into integer value", s.lastValue)
+		} else {
+			s.lastValue = intValue
+			return number, nil
+		}
+	} else if s.lastCharacter == ':' {
+		if s.nextCharacter() && s.lastCharacter == '=' {
+			if !s.nextCharacter() {
+				return eof, fmt.Errorf("error: unexpected end of file")
+			}
+
+			return becomes, nil
+		} else {
+			return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
+		}
+	} else if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
+		return token, nil
+	} else {
+		return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
+	}
+}
+
+func (s *scanner) nextCharacter() bool {
+	if s.sourceIndex < len(s.sourceCode) {
+		character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
+		s.sourceIndex += width
+
+		if character == utf8.RuneError {
+			s.lastCharacter = 0
+		} else {
+			s.lastCharacter = character
+		}
+
+		return true
+	} else {
+		return false
+	}
 }
 
 func main() {
@@ -193,15 +263,14 @@ func main() {
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: pl0 <source file>")
-		fmt.Println("Error: no source file specified")
+		fmt.Println("error: no source file specified")
 	} else {
 		scanner := NewScanner()
 
 		if err := scanner.LoadSource(os.Args[1]); err != nil {
-			fmt.Println("Error: source file not found")
-			return
+			fmt.Println("error: source file not found")
 		} else {
-			fmt.Println("Source file loaded")
+			fmt.Println("Compiling source file")
 		}
 	}
 }
