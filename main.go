@@ -1,9 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"unicode/utf8"
+)
 
 const (
-	null = symbol(iota)
+	null = token(iota)
+	eof
 	identifier
 	number
 	plus
@@ -36,72 +41,167 @@ const (
 )
 
 const (
-	lit = instruction(iota) // lit 0,a  :  load constant
-	opr                     // opr 0,a  :  execute operation
-	lod                     // lod l,a  :  load variable
-	sto                     // sto l,a  :  store variable
-	cal                     // cal l,a  :  call procedure
-	inc                     // inc 0,a  :  increment t-register
-	jmp                     // jmp 0,a  :  jump to a
-	jpc                     // jpc 0,a  :  jump conditional to a
+	lit = assembler(iota) // lit 0,a  :  load constant
+	opr                   // opr 0,a  :  execute operation
+	lod                   // lod l,a  :  load variable
+	sto                   // sto l,a  :  store variable
+	cal                   // cal l,a  :  call procedure
+	inc                   // inc 0,a  :  increment t-register
+	jmp                   // jmp 0,a  :  jump to a
+	jpc                   // jpc 0,a  :  jump conditional to a
 )
 
 const (
-	reservedWords      = 11   // Number of reserved words
-	identifierTableLen = 100  // Length of identifier table
-	digitsMax          = 14   // Maximum number of digits in numbers
-	identifierLen      = 10   // Length of identifier
-	addressMax         = 2047 // Maximum address
-	blockNestingMax    = 3    // Maximum depth of block nesting
-	codeArrayMax       = 200  // Size of code array
+	constant = object(iota)
+	variable
+	procedure
 )
 
-type symbol int
-type instruction int
+const (
+	reservedWords      = 11   // number of reserved words
+	identifierTableLen = 100  // length of identifier table
+	digitsMax          = 14   // maximum number of digits in numbers
+	identifierLen      = 10   // length of identifier
+	addressMax         = 2047 // maximum address
+	blockNestingMax    = 3    // maximum depth of block nesting
+	codeArrayMax       = 200  // size of code array
+)
 
-/*
-type alfa = packed array [1..al] of char;
-    object = (constant,varible,proc);
-    symset = set of symbol;
-    fct = (lit,opr,lod,sto,cal,int,jmp,jpc);   {functions}
-    instruction = packed record
-                     f: fct;           {function code}
-                     l: 0..levmax;     {level}
-                     a: 0..amax        {displacement address}
-                  end;
-				  
-var ch: char;         {last character read}
-    sym: symbol;      {last symbol read}
-    id: alfa;         {last identifier read}
-    num: integer;     {last number read}
-    cc: integer;      {character count}
-    ll: integer;      {line length}
-    kk, err: integer;
-    cx: integer;      {code allocation index}
-    line: array [1..81] of char;
-    a: alfa;
-    code: array [0..cxmax] of instruction;
-    word: array [1..norw] of alfa;
-    wsym: array [1..norw] of symbol;
-    ssym: array [char] of symbol;
-    mnemonic: array [fct] of
-                 packed array [1..5] of char;
-    declbegsys, statbegsys, facbegsys: symset;
-    table: array [0..txmax] of
-           record name: alfa;
-              case kind: object of
-              constant: (val: integer);
-              varible, proc: (level, adr: integer)
-           end;
-*/
+type (
+	token     int
+	assembler int
+	object    int
 
-type scanner struct{}
+	alfa   [identifierLen]rune
+	symset map[token]bool
 
-type parser struct{}
+	instruction struct {
+		f assembler // function code
+		l int       // level
+		a int       // displacement address
+	}
 
-type emitter struct{}
+	scanner struct {
+		sourceIndex int
+		sourceCode  []byte
+		lastToken   token
+		tokenMap    map[string]token
+	}
+
+	parser struct{}
+
+	emitter struct{}
+)
+
+var (
+	ch   rune  // last character read
+	sym  token // last symbol read
+	id   alfa  // last identifier read
+	num  int   // last number read
+	cc   int   // character count
+	ll   int   // line length
+	kk   int
+	err  int
+	cx   int      // code allocation index
+	line [81]rune // line buffer
+	a    alfa     // temporary string
+
+	code                              [codeArrayMax]instruction
+	word                              [reservedWords]alfa
+	wsym                              [reservedWords]token
+	ssym                              [128]token
+	mnemonic                          [opr]alfa // mnemonic for operators
+	declbegsys, statbegsys, facbegsys symset
+
+	table [identifierTableLen]struct {
+		name  alfa
+		kind  object
+		val   int
+		level int
+		adr   int
+	}
+)
+
+func NewScanner() *scanner {
+	return &scanner{
+		tokenMap: map[string]token{
+			"+":         plus,
+			"-":         minus,
+			"*":         times,
+			"/":         devide,
+			"=":         equal,
+			"#":         notEqual,
+			"<":         less,
+			"<=":        lessEqual,
+			">":         greater,
+			">=":        greaterEqual,
+			"(":         leftParenthesis,
+			")":         rightParenthesis,
+			",":         comma,
+			";":         semicolon,
+			".":         period,
+			":=":        becomes,
+			"odd":       oddSymbol,
+			"begin":     beginSymbol,
+			"end":       endSymbol,
+			"if":        ifSymbol,
+			"then":      thenSymbol,
+			"while":     whileSymbol,
+			"do":        doSymbol,
+			"call":      callSymbol,
+			"const":     constSymbol,
+			"var":       varSymbol,
+			"procedure": procedureSymbol,
+		},
+	}
+}
+
+func (s *scanner) LoadSource(sourceFilePath string) error {
+	if content, err := os.ReadFile(sourceFilePath); err != nil {
+		return err
+	} else {
+		s.sourceIndex = 0
+		s.lastToken = null
+		s.sourceCode = content
+		return nil
+	}
+}
+
+func (s *scanner) GetToken() token {
+	if s.sourceIndex < len(s.sourceCode) {
+		if runeValue, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:]); runeValue == utf8.RuneError {
+			s.lastToken = null
+		} else {
+			s.sourceIndex += width
+
+			// Add your logic to generate token from runeValue
+		}
+	} else {
+		s.lastToken = eof
+	}
+
+	return s.lastToken
+}
+
+func (s *scanner) nextRune() (rune, bool) {
+	return 0, true
+}
 
 func main() {
 	fmt.Println("PL0 Compiler Version 0.1")
 	fmt.Println("Written in Go by Michael Petersen 2024")
+
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: pl0 <source file>")
+		fmt.Println("Error: no source file specified")
+	} else {
+		scanner := NewScanner()
+
+		if err := scanner.LoadSource(os.Args[1]); err != nil {
+			fmt.Println("Error: source file not found")
+			return
+		} else {
+			fmt.Println("Source file loaded")
+		}
+	}
 }
