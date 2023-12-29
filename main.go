@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -74,7 +75,7 @@ type (
 	assembler int
 	object    int
 
-	alfa   [identifierLen]rune
+	alfa   [identifierMax]rune
 	symset map[token]bool
 
 	instruction struct {
@@ -89,6 +90,7 @@ type (
 		lastCharacter rune
 		lastValue     any
 		tokenMap      map[string]token
+		tokenNames    map[token]string
 	}
 
 	parser struct{}
@@ -156,6 +158,39 @@ func NewScanner() *scanner {
 			"var":       varSymbol,
 			"procedure": procedureSymbol,
 		},
+		tokenNames: map[token]string{
+			null:             "null",
+			eof:              "eof",
+			identifier:       "identifier",
+			number:           "number",
+			plus:             "plus",
+			minus:            "minus",
+			times:            "times",
+			devide:           "devide",
+			equal:            "equal",
+			notEqual:         "notEqual",
+			less:             "less",
+			lessEqual:        "lessEqual",
+			greater:          "greater",
+			greaterEqual:     "greaterEqual",
+			leftParenthesis:  "leftParenthesis",
+			rightParenthesis: "rightParenthesis",
+			comma:            "comma",
+			semicolon:        "semicolon",
+			period:           "period",
+			becomes:          "becomes",
+			oddSymbol:        "odd",
+			beginSymbol:      "begin",
+			endSymbol:        "end",
+			ifSymbol:         "if",
+			thenSymbol:       "then",
+			whileSymbol:      "while",
+			doSymbol:         "do",
+			callSymbol:       "call",
+			constSymbol:      "const",
+			varSymbol:        "var",
+			procedureSymbol:  "procedure",
+		},
 	}
 }
 
@@ -176,16 +211,16 @@ func (s *scanner) LoadSource(sourceFilePath string) error {
 }
 
 func (s *scanner) GetToken() (token, error) {
-	for s.lastCharacter == ' ' || s.lastCharacter == '\t' || s.lastCharacter == '\n' || s.lastCharacter == '\r' {
+	for unicode.IsSpace(s.lastCharacter) {
 		if !s.nextCharacter() {
 			return eof, nil
 		}
 	}
 
-	if s.lastCharacter >= 'a' && s.lastCharacter <= 'z' || s.lastCharacter >= 'A' && s.lastCharacter <= 'Z' {
+	if unicode.IsLetter(s.lastCharacter) {
 		s.lastValue = ""
 
-		for s.lastCharacter >= 'a' && s.lastCharacter <= 'z' || s.lastCharacter >= 'A' && s.lastCharacter <= 'Z' || s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+		for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
@@ -202,10 +237,10 @@ func (s *scanner) GetToken() (token, error) {
 		}
 
 		return identifier, nil
-	} else if s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+	} else if unicode.IsDigit(s.lastCharacter) {
 		s.lastValue = ""
 
-		for s.lastCharacter >= '0' && s.lastCharacter <= '9' {
+		for unicode.IsDigit(s.lastCharacter) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
@@ -234,10 +269,19 @@ func (s *scanner) GetToken() (token, error) {
 			return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
 		}
 	} else if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
+		if !s.nextCharacter() {
+			return eof, fmt.Errorf("error: unexpected end of file")
+		}
+		
 		return token, nil
 	} else {
 		return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
 	}
+}
+
+func (s *scanner) GetTokenName() (string, error) {
+	token, err := s.GetToken()
+	return s.tokenNames[token], err
 }
 
 func (s *scanner) nextCharacter() bool {
@@ -271,6 +315,15 @@ func main() {
 			fmt.Println("error: source file not found")
 		} else {
 			fmt.Println("Compiling source file")
+
+			for {
+				if token, err := scanner.GetTokenName(); err != nil {
+					fmt.Println(err)
+					break
+				} else {
+					fmt.Println(token)
+				}
+			}
 		}
 	}
 }
