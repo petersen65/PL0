@@ -42,22 +42,22 @@ const (
 	procedureSymbol
 )
 
-const (
-	lit = assembler(iota) // lit 0,a  :  load constant
-	opr                   // opr 0,a  :  execute operation
-	lod                   // lod l,a  :  load variable
-	sto                   // sto l,a  :  store variable
-	cal                   // cal l,a  :  call procedure
-	inc                   // inc 0,a  :  increment t-register
-	jmp                   // jmp 0,a  :  jump to a
-	jpc                   // jpc 0,a  :  jump conditional to a
-)
+// const (
+// 	lit = assembler(iota) // lit 0,a  :  load constant
+// 	opr                   // opr 0,a  :  execute operation
+// 	lod                   // lod l,a  :  load variable
+// 	sto                   // sto l,a  :  store variable
+// 	cal                   // cal l,a  :  call procedure
+// 	inc                   // inc 0,a  :  increment t-register
+// 	jmp                   // jmp 0,a  :  jump to a
+// 	jpc                   // jpc 0,a  :  jump conditional to a
+// )
 
-const (
-	constant = object(iota)
-	variable
-	procedure
-)
+// const (
+// 	constant = object(iota)
+// 	variable
+// 	procedure
+// )
 
 const (
 	reservedWords      = 11   // number of reserved words
@@ -72,17 +72,17 @@ const (
 
 type (
 	token     int
-	assembler int
-	object    int
+	// assembler int
+	// object    int
 
-	alfa   [identifierMax]rune
-	symset map[token]bool
+	// alfa   [identifierMax]rune
+	// symset map[token]bool
 
-	instruction struct {
-		f assembler // function code
-		l int       // level
-		a int       // displacement address
-	}
+	// instruction struct {
+	// 	f assembler // function code
+	// 	l int       // level
+	// 	a int       // displacement address
+	// }
 
 	scanner struct {
 		sourceIndex   int
@@ -93,39 +93,39 @@ type (
 		tokenNames    map[token]string
 	}
 
-	parser struct{}
+	// parser struct{}
 
-	emitter struct{}
+	// emitter struct{}
 )
 
-var (
-	ch   rune  // last character read
-	sym  token // last symbol read
-	id   alfa  // last identifier read
-	num  int   // last number read
-	cc   int   // character count
-	ll   int   // line length
-	kk   int
-	err  int
-	cx   int      // code allocation index
-	line [81]rune // line buffer
-	a    alfa     // temporary string
+// var (
+// 	ch   rune  // last character read
+// 	sym  token // last symbol read
+// 	id   alfa  // last identifier read
+// 	num  int   // last number read
+// 	cc   int   // character count
+// 	ll   int   // line length
+// 	kk   int
+// 	err  int
+// 	cx   int      // code allocation index
+// 	line [81]rune // line buffer
+// 	a    alfa     // temporary string
 
-	code                              [codeArrayMax]instruction
-	word                              [reservedWords]alfa
-	wsym                              [reservedWords]token
-	ssym                              [128]token
-	mnemonic                          [opr]alfa // mnemonic for operators
-	declbegsys, statbegsys, facbegsys symset
+// 	code                              [codeArrayMax]instruction
+// 	word                              [reservedWords]alfa
+// 	wsym                              [reservedWords]token
+// 	ssym                              [128]token
+// 	mnemonic                          [opr]alfa // mnemonic for operators
+// 	declbegsys, statbegsys, facbegsys symset
 
-	table [identifierTableLen]struct {
-		name  alfa
-		kind  object
-		val   int
-		level int
-		adr   int
-	}
-)
+// 	table [identifierTableLen]struct {
+// 		name  alfa
+// 		kind  object
+// 		val   int
+// 		level int
+// 		adr   int
+// 	}
+// )
 
 func NewScanner() *scanner {
 	return &scanner{
@@ -200,7 +200,7 @@ func (s *scanner) LoadSource(sourceFilePath string) error {
 	} else {
 		s.sourceIndex = 0
 		s.sourceCode = content
-		s.lastValue = nil
+		s.lastValue = ""
 
 		if !s.nextCharacter() {
 			return fmt.Errorf("error: unexpected end of file")
@@ -211,6 +211,8 @@ func (s *scanner) LoadSource(sourceFilePath string) error {
 }
 
 func (s *scanner) GetToken() (token, error) {
+	s.lastValue = ""
+
 	for unicode.IsSpace(s.lastCharacter) {
 		if !s.nextCharacter() {
 			return eof, nil
@@ -218,13 +220,11 @@ func (s *scanner) GetToken() (token, error) {
 	}
 
 	if unicode.IsLetter(s.lastCharacter) {
-		s.lastValue = ""
-
 		for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return eof, fmt.Errorf("error: unexpected end of file while reading identifier %s", s.lastValue)
+				return identifier, fmt.Errorf("error: unexpected end of file while reading identifier %s", s.lastValue)
 			}
 		}
 
@@ -238,13 +238,11 @@ func (s *scanner) GetToken() (token, error) {
 
 		return identifier, nil
 	} else if unicode.IsDigit(s.lastCharacter) {
-		s.lastValue = ""
-
 		for unicode.IsDigit(s.lastCharacter) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return eof, fmt.Errorf("error: unexpected end of file while reading number %s", s.lastValue)
+				return number, fmt.Errorf("error: unexpected end of file while reading number %s", s.lastValue)
 			}
 		}
 
@@ -261,7 +259,7 @@ func (s *scanner) GetToken() (token, error) {
 	} else if s.lastCharacter == ':' {
 		if s.nextCharacter() && s.lastCharacter == '=' {
 			if !s.nextCharacter() {
-				return eof, fmt.Errorf("error: unexpected end of file")
+				return becomes, fmt.Errorf("error: unexpected end of file")
 			}
 
 			return becomes, nil
@@ -269,10 +267,27 @@ func (s *scanner) GetToken() (token, error) {
 			return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
 		}
 	} else if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
-		if !s.nextCharacter() {
-			return eof, fmt.Errorf("error: unexpected end of file")
+		if token == less || token == greater {
+			s.lastValue = string(s.lastCharacter)
 		}
-		
+
+		if !s.nextCharacter() {
+			if token == period {
+				s.lastCharacter = ' '
+			} else {
+				return token, fmt.Errorf("error: unexpected end of file")
+			}
+		}
+
+		if (token == less || token == greater) && s.lastCharacter == '=' {
+			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
+			token = s.tokenMap[s.lastValue.(string)]
+
+			if !s.nextCharacter() {
+				return token, fmt.Errorf("error: unexpected end of file while reading operator %s", s.lastValue)
+			}
+		}
+
 		return token, nil
 	} else {
 		return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
@@ -301,9 +316,13 @@ func (s *scanner) nextCharacter() bool {
 	}
 }
 
+func (s *scanner) GetTokenValue() any {
+	return s.lastValue
+}
+
 func main() {
-	fmt.Println("PL0 Compiler Version 0.1")
-	fmt.Println("Written in Go by Michael Petersen 2024")
+	fmt.Println("PL/0 Compiler Version 0.1")
+	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: pl0 <source file>")
@@ -314,13 +333,28 @@ func main() {
 		if err := scanner.LoadSource(os.Args[1]); err != nil {
 			fmt.Println("error: source file not found")
 		} else {
-			fmt.Println("Compiling source file")
+			fmt.Println("Compiling source file:", os.Args[1])
 
 			for {
-				if token, err := scanner.GetTokenName(); err != nil {
+				token, err := scanner.GetTokenName()
+
+				if err != nil {
 					fmt.Println(err)
-					break
-				} else {
+					return
+				}
+
+				switch token { 
+				case "identifier":
+					fmt.Println(token, scanner.GetTokenValue().(string))
+
+				case "number":
+					fmt.Println(token, scanner.GetTokenValue().(int64))
+
+				case "eof":
+					fmt.Println("Compilation successful")
+					return
+
+				default:
 					fmt.Println(token)
 				}
 			}
