@@ -42,6 +42,18 @@ const (
 	procedureSymbol
 )
 
+const (
+	_ = failure(iota)
+	eofReached
+	eofIdentifier
+	eofNumber
+	eofOperator
+	tooLongIdentifier
+	tooLongNumber
+	illegalInteger
+	unexpectedCharacter
+)
+
 // const (
 // 	lit = assembler(iota) // lit 0,a  :  load constant
 // 	opr                   // opr 0,a  :  execute operation
@@ -71,7 +83,8 @@ const (
 )
 
 type (
-	token     int
+	token   int
+	failure int
 	// assembler int
 	// object    int
 
@@ -87,10 +100,12 @@ type (
 	scanner struct {
 		sourceIndex   int
 		sourceCode    []byte
+		line, column  int
 		lastCharacter rune
 		lastValue     any
 		tokenMap      map[string]token
 		tokenNames    map[token]string
+		errorMap      map[failure]string
 	}
 
 	// parser struct{}
@@ -191,6 +206,16 @@ func NewScanner() *scanner {
 			varSymbol:        "var",
 			procedureSymbol:  "procedure",
 		},
+		errorMap: map[failure]string{
+			eofReached:          "unexpected end of file",
+			eofIdentifier:       "unexpected end of file while reading identifier %s",
+			eofNumber:           "unexpected end of file while reading number %s",
+			eofOperator:         "unexpected end of file while reading operator %s",
+			tooLongIdentifier:   "identifier %s is too long",
+			tooLongNumber:       "number %s is too long",
+			illegalInteger:      "cannot parse number %s into integer value",
+			unexpectedCharacter: "unexpected character %c",
+		},
 	}
 }
 
@@ -200,10 +225,12 @@ func (s *scanner) LoadSource(sourceFilePath string) error {
 	} else {
 		s.sourceIndex = 0
 		s.sourceCode = content
+		s.line = 0
+		s.column = 0
 		s.lastValue = ""
 
 		if !s.nextCharacter() {
-			return fmt.Errorf("error: unexpected end of file")
+			return s.error(eofReached, nil)
 		} else {
 			return nil
 		}
@@ -224,7 +251,7 @@ func (s *scanner) GetToken() (token, error) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return identifier, fmt.Errorf("error: unexpected end of file while reading identifier %s", s.lastValue)
+				return identifier, s.error(eofIdentifier, s.lastValue)
 			}
 		}
 
@@ -233,7 +260,7 @@ func (s *scanner) GetToken() (token, error) {
 		}
 
 		if len(s.lastValue.(string)) > identifierMax {
-			return identifier, fmt.Errorf("error: identifier %s too long", s.lastValue)
+			return identifier, s.error(tooLongIdentifier, s.lastValue)
 		}
 
 		return identifier, nil
@@ -242,16 +269,16 @@ func (s *scanner) GetToken() (token, error) {
 			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return number, fmt.Errorf("error: unexpected end of file while reading number %s", s.lastValue)
+				return number, s.error(eofNumber, s.lastValue)
 			}
 		}
 
 		if len(s.lastValue.(string)) > digitsMax {
-			return number, fmt.Errorf("error: number %s too large", s.lastValue)
+			return number, s.error(tooLongNumber, s.lastValue)
 		}
 
 		if intValue, err := strconv.ParseInt(s.lastValue.(string), 10, integerBitSize); err != nil {
-			return number, fmt.Errorf("error: cannot parse number %s into integer value", s.lastValue)
+			return number, s.error(illegalInteger, s.lastValue)
 		} else {
 			s.lastValue = intValue
 			return number, nil
@@ -259,12 +286,12 @@ func (s *scanner) GetToken() (token, error) {
 	} else if s.lastCharacter == ':' {
 		if s.nextCharacter() && s.lastCharacter == '=' {
 			if !s.nextCharacter() {
-				return becomes, fmt.Errorf("error: unexpected end of file")
+				return becomes, s.error(eofReached, nil)
 			}
 
 			return becomes, nil
 		} else {
-			return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
+			return null, s.error(unexpectedCharacter, s.lastCharacter)
 		}
 	} else if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
 		if token == less || token == greater {
@@ -275,7 +302,7 @@ func (s *scanner) GetToken() (token, error) {
 			if token == period {
 				s.lastCharacter = ' '
 			} else {
-				return token, fmt.Errorf("error: unexpected end of file")
+				return token, s.error(eofReached, nil)
 			}
 		}
 
@@ -284,19 +311,27 @@ func (s *scanner) GetToken() (token, error) {
 			token = s.tokenMap[s.lastValue.(string)]
 
 			if !s.nextCharacter() {
-				return token, fmt.Errorf("error: unexpected end of file while reading operator %s", s.lastValue)
+				return token, s.error(eofOperator, s.lastValue)
 			}
 		}
 
 		return token, nil
 	} else {
-		return null, fmt.Errorf("syntax error: unexpected character %c", s.lastCharacter)
+		return null, s.error(unexpectedCharacter, s.lastCharacter)
 	}
 }
 
 func (s *scanner) GetTokenName() (string, error) {
 	token, err := s.GetToken()
 	return s.tokenNames[token], err
+}
+
+func (s *scanner) GetTokenPosition() (int, int) {
+	return s.line, s.column
+}
+
+func (s *scanner) GetTokenValue() any {
+	return s.lastValue
 }
 
 func (s *scanner) nextCharacter() bool {
@@ -310,14 +345,34 @@ func (s *scanner) nextCharacter() bool {
 			s.lastCharacter = character
 		}
 
+		if s.line == 0 {
+			s.line = 1
+			s.column = 0
+		} 
+		
+		if character == '\n' {
+			s.line++
+			s.column = 0
+		} else {
+			s.column++
+		}
+
 		return true
 	} else {
 		return false
 	}
 }
 
-func (s *scanner) GetTokenValue() any {
-	return s.lastValue
+func (s *scanner) error(code failure, value any) error {
+	var message string
+
+	if value != nil {
+		message = fmt.Sprintf(s.errorMap[code], value)
+	} else {
+		message = s.errorMap[code]
+	}
+
+	return fmt.Errorf("error %v [%v,%v]: %v", code, s.line, s.column, message)
 }
 
 func main() {
@@ -343,7 +398,7 @@ func main() {
 					return
 				}
 
-				switch token { 
+				switch token {
 				case "identifier":
 					fmt.Println(token, scanner.GetTokenValue().(string))
 
