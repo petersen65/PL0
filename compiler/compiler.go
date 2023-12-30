@@ -9,19 +9,6 @@ import (
 	"github.com/petersen65/PL0/scanner"
 )
 
-func CompileFile(path string) error {
-	if content, err := os.ReadFile(path); err != nil {
-		return err
-	} else {
-		scanner := scanner.NewScanner()
-		scanner.ResetSource(content)
-		fmt.Println("Compiling source file:", path)
-		runScanner(scanner)
-	}
-
-	return nil
-}
-
 func CompileContent(content []byte) error {
 	scanner := scanner.NewScanner()
 	scanner.ResetSource(content)
@@ -29,6 +16,14 @@ func CompileContent(content []byte) error {
 	runScanner(scanner)
 
 	return nil
+}
+
+func CompileFile(path string) error {
+	if content, err := os.ReadFile(path); err != nil {
+		return err
+	} else {
+		return CompileContent(content)
+	}
 }
 
 func CompileReader(reader io.Reader) error {

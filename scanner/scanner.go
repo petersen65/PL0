@@ -13,7 +13,6 @@ const (
 	digitsMax          = 14   // maximum number of digits in numbers
 	identifierMax      = 10   // maximum length of identifier
 	addressMax         = 2047 // maximum address
-	blockNestingMax    = 3    // maximum depth of block nesting
 	codeArrayMax       = 200  // size of code array
 	integerBitSize     = 64   // number of bits of a signed integer
 )
@@ -269,5 +268,5 @@ func (s *scanner) error(code failure, value any) error {
 		message = s.errorMap[code]
 	}
 
-	return fmt.Errorf("error %v [%v,%v]: %v", code, s.line, s.column, message)
+	return fmt.Errorf("scanner error %v [%v,%v]: %v", code, s.line, s.column, message)
 }
