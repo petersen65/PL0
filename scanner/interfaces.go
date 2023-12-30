@@ -21,17 +21,17 @@ const (
 	Semicolon
 	Period
 	Becomes
-	OddSymbol
-	BeginSymbol
-	EndSymbol
-	IfSymbol
-	ThenSymbol
-	WhileSymbol
-	DoSymbol
-	CallSymbol
-	ConstSymbol
-	VarSymbol
-	ProcedureSymbol
+	OddWord
+	BeginWord
+	EndWord
+	IfWord
+	ThenWord
+	WhileWord
+	DoWord
+	CallWord
+	ConstWord
+	VarWord
+	ProcedureWord
 )
 
 type Token int

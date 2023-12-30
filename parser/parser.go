@@ -31,15 +31,15 @@ type parser struct {
 func NewParser() Parser {
 	return &parser{
 		declarations: tokenSet{
-			scanner.ConstSymbol,
-			scanner.VarSymbol,
-			scanner.ProcedureSymbol,
+			scanner.ConstWord,
+			scanner.VarWord,
+			scanner.ProcedureWord,
 		},
 		statements: tokenSet{
-			scanner.BeginSymbol,
-			scanner.CallSymbol,
-			scanner.IfSymbol,
-			scanner.WhileSymbol,
+			scanner.BeginWord,
+			scanner.CallWord,
+			scanner.IfWord,
+			scanner.WhileWord,
 		},
 		expressions: tokenSet{
 			scanner.Identifier,
@@ -47,7 +47,7 @@ func NewParser() Parser {
 			scanner.LeftParenthesis,
 		},
 		errorMap: map[failure]string{
-			maxBlockLevel: "depth of block nesting exceeded (%v)",
+			maxBlockLevel:  "depth of block nesting exceeded (%v)",
 			expectedPeriod: "expected period at end of the program",
 		},
 	}
@@ -60,7 +60,7 @@ func (p *parser) Parse(s scanner.Scanner) error {
 		p.level = 0
 		p.scanner = s
 		p.lastToken = lastToken
-		
+
 		if err := p.block(append(append(p.declarations, p.statements...), scanner.Period)); err != nil {
 			return err
 		} else if p.lastToken != scanner.Period {
@@ -78,11 +78,11 @@ func (p *parser) block(ts tokenSet) error {
 
 	for {
 		switch p.lastToken {
-		case scanner.ConstSymbol:
-		
-		case scanner.VarSymbol:
-	
-		case scanner.ProcedureSymbol:
+		case scanner.ConstWord:
+
+		case scanner.VarWord:
+
+		case scanner.ProcedureWord:
 		}
 
 		if !slices.Contains(p.declarations, p.lastToken) {
