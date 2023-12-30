@@ -37,7 +37,7 @@ const (
 type Token int
 
 type Scanner interface {
-	LoadSource(sourceFilePath string) error
+	ResetSource(content []byte) error
 	GetToken() (Token, error)
 	GetTokenName() (string, error)
 	GetTokenPosition() (int, int)
