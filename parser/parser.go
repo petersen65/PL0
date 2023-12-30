@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/petersen65/PL0/emitter"
 	"github.com/petersen65/PL0/scanner"
 )
 
@@ -17,35 +18,48 @@ const (
 	expectedPeriod
 )
 
-type failure int
-type tokenSet []scanner.Token
+type (
+	failure int
+	tokens  []scanner.Token
+	symbols map[string]symbol
 
-type parser struct {
-	level                                 int
-	scanner                               scanner.Scanner
-	lastToken                             scanner.Token
-	declarations, statements, expressions tokenSet
-	errorMap                              map[failure]string
-}
+	symbol struct {
+		kind    scanner.Token
+		level   int
+		value   any
+		address uint64
+	}
+
+	parser struct {
+		level                                 int
+		scanner                               scanner.Scanner
+		emitter                               emitter.Emitter
+		lastToken                             scanner.Token
+		declarations, statements, expressions tokens
+		table                                 symbols
+		errorMap                              map[failure]string
+	}
+)
 
 func NewParser() Parser {
 	return &parser{
-		declarations: tokenSet{
+		declarations: tokens{
 			scanner.ConstWord,
 			scanner.VarWord,
 			scanner.ProcedureWord,
 		},
-		statements: tokenSet{
+		statements: tokens{
 			scanner.BeginWord,
 			scanner.CallWord,
 			scanner.IfWord,
 			scanner.WhileWord,
 		},
-		expressions: tokenSet{
+		expressions: tokens{
 			scanner.Identifier,
 			scanner.Number,
 			scanner.LeftParenthesis,
 		},
+		table: make(symbols, 0),
 		errorMap: map[failure]string{
 			maxBlockLevel:  "depth of block nesting exceeded (%v)",
 			expectedPeriod: "expected period at end of the program",
@@ -53,12 +67,13 @@ func NewParser() Parser {
 	}
 }
 
-func (p *parser) Parse(s scanner.Scanner) error {
+func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) error {
 	if lastToken, err := s.GetToken(); err != nil {
 		return err
 	} else {
 		p.level = 0
 		p.scanner = s
+		p.emitter = e
 		p.lastToken = lastToken
 
 		if err := p.block(append(append(p.declarations, p.statements...), scanner.Period)); err != nil {
@@ -71,7 +86,7 @@ func (p *parser) Parse(s scanner.Scanner) error {
 	}
 }
 
-func (p *parser) block(ts tokenSet) error {
+func (p *parser) block(ts tokens) error {
 	if p.level > blockNestingMax {
 		return p.error(maxBlockLevel, p.level)
 	}
@@ -91,6 +106,20 @@ func (p *parser) block(ts tokenSet) error {
 	}
 
 	return nil
+}
+
+func (p *parser) addSymbol(name string, kind scanner.Token, level int, value any, address uint64) {
+	p.table[name] = symbol{
+		kind:    kind,
+		level:   level,
+		value:   value,
+		address: address,
+	}
+}
+
+func (p *parser) findSymbol(name string) (symbol, bool) {
+	s, ok := p.table[name]
+	return s, ok
 }
 
 func (p *parser) error(code failure, value any) error {

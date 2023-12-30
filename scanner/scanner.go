@@ -29,18 +29,20 @@ const (
 	unexpectedCharacter
 )
 
-type failure int
+type (
+	failure int
 
-type scanner struct {
-	sourceIndex   int
-	sourceCode    []byte
-	line, column  int
-	lastCharacter rune
-	lastValue     any
-	tokenMap      map[string]Token
-	tokenNames    map[Token]string
-	errorMap      map[failure]string
-}
+	scanner struct {
+		sourceIndex   int
+		sourceCode    []byte
+		line, column  int
+		lastCharacter rune
+		lastValue     any
+		tokenMap      map[string]Token
+		tokenNames    map[Token]string
+		errorMap      map[failure]string
+	}
+)
 
 func NewScanner() Scanner {
 	return &scanner{
