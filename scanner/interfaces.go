@@ -41,5 +41,6 @@ type Scanner interface {
 	GetToken() (Token, error)
 	GetTokenName() (string, error)
 	GetTokenPosition() (int, int)
+	GetTokenLine() []byte
 	GetTokenValue() any
 }

@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	digitsMax          = 14   // maximum number of digits in numbers
-	identifierMax      = 10   // maximum length of identifier
-	integerBitSize     = 64   // number of bits of a signed integer
+	digitsMax      = 14 // maximum number of digits in numbers
+	identifierMax  = 10 // maximum length of identifier
+	integerBitSize = 64 // number of bits of a signed integer
 )
 
 const (
@@ -34,6 +34,7 @@ type (
 		line, column  int
 		lastCharacter rune
 		lastValue     any
+		currentLine   []byte
 		tokenMap      map[string]Token
 		tokenNames    map[Token]string
 		errorMap      map[failure]string
@@ -123,6 +124,7 @@ func (s *scanner) ResetSource(content []byte) error {
 	s.line = 0
 	s.column = 0
 	s.lastValue = ""
+	s.currentLine = []byte{}
 
 	if !s.nextCharacter() {
 		return s.error(eofReached, nil)
@@ -224,6 +226,10 @@ func (s *scanner) GetTokenPosition() (int, int) {
 	return s.line, s.column
 }
 
+func (s *scanner) GetTokenLine() []byte {
+	return s.currentLine
+}
+
 func (s *scanner) GetTokenValue() any {
 	return s.lastValue
 }
@@ -231,10 +237,9 @@ func (s *scanner) GetTokenValue() any {
 func (s *scanner) nextCharacter() bool {
 	if s.sourceIndex < len(s.sourceCode) {
 		character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
-		s.sourceIndex += width
 
 		if character == utf8.RuneError {
-			s.lastCharacter = 0
+			s.lastCharacter = ' '
 		} else {
 			s.lastCharacter = character
 		}
@@ -242,19 +247,41 @@ func (s *scanner) nextCharacter() bool {
 		if s.line == 0 {
 			s.line = 1
 			s.column = 0
+			s.setCurrentLine()
 		}
 
 		if character == '\n' {
 			s.line++
 			s.column = 0
+			s.setCurrentLine()
 		} else {
 			s.column++
 		}
 
+		s.sourceIndex += width
 		return true
 	}
 
 	return false
+}
+
+func (s *scanner) setCurrentLine() {
+	s.currentLine = []byte{}
+
+	for i := s.sourceIndex; i < len(s.sourceCode); {
+		character, width := utf8.DecodeRune(s.sourceCode[i:])
+
+		if character == '\n' {
+			break
+		}
+
+		if character == utf8.RuneError {
+			character = ' '
+		}
+
+		s.currentLine = utf8.AppendRune(s.currentLine, character)
+		i += width
+	}
 }
 
 func (s *scanner) error(code failure, value any) error {
