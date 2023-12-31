@@ -35,6 +35,7 @@ type (
 		lastCharacter rune
 		lastValue     any
 		currentLine   []byte
+		endOfFile     bool
 		tokenMap      map[string]Token
 		tokenNames    map[Token]string
 		errorMap      map[failure]string
@@ -125,6 +126,7 @@ func (s *scanner) ResetSource(content []byte) error {
 	s.column = 0
 	s.lastValue = ""
 	s.currentLine = []byte{}
+	s.endOfFile = false
 
 	if !s.nextCharacter() {
 		return s.error(eofReached, nil)
@@ -136,9 +138,13 @@ func (s *scanner) ResetSource(content []byte) error {
 func (s *scanner) GetToken() (Token, error) {
 	s.lastValue = ""
 
+	if s.endOfFile {
+		return Eof, s.error(eofReached, nil)
+	}
+
 	for unicode.IsSpace(s.lastCharacter) {
 		if !s.nextCharacter() {
-			return Eof, nil
+			return Eof, s.error(eofReached, nil)
 		}
 	}
 
@@ -194,12 +200,8 @@ func (s *scanner) GetToken() (Token, error) {
 			s.lastValue = string(s.lastCharacter)
 		}
 
-		if !s.nextCharacter() {
-			if token == Period {
-				s.lastCharacter = ' '
-			} else {
-				return token, s.error(eofReached, nil)
-			}
+		if !s.nextCharacter() && token != Period {
+			return token, s.error(eofReached, nil)
 		}
 
 		if (token == Less || token == Greater) && s.lastCharacter == '=' {
@@ -235,34 +237,35 @@ func (s *scanner) GetTokenValue() any {
 }
 
 func (s *scanner) nextCharacter() bool {
-	if s.sourceIndex < len(s.sourceCode) {
-		character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
-
-		if character == utf8.RuneError {
-			s.lastCharacter = ' '
-		} else {
-			s.lastCharacter = character
-		}
-
-		if s.line == 0 {
-			s.line = 1
-			s.column = 0
-			s.setCurrentLine()
-		}
-
-		if character == '\n' {
-			s.line++
-			s.column = 0
-			s.setCurrentLine()
-		} else {
-			s.column++
-		}
-
-		s.sourceIndex += width
-		return true
+	if s.sourceIndex >= len(s.sourceCode) {
+		s.endOfFile = true
+		return false
 	}
 
-	return false
+	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
+
+	if character == utf8.RuneError {
+		s.lastCharacter = ' '
+	} else {
+		s.lastCharacter = character
+	}
+
+	if s.line == 0 {
+		s.line = 1
+		s.column = 0
+		s.setCurrentLine()
+	}
+
+	if character == '\n' {
+		s.line++
+		s.column = 0
+		s.setCurrentLine()
+	} else {
+		s.column++
+	}
+
+	s.sourceIndex += width
+	return true
 }
 
 func (s *scanner) setCurrentLine() {

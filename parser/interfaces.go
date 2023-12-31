@@ -5,6 +5,17 @@ import (
 	"github.com/petersen65/PL0/scanner"
 )
 
-type Parser interface {
-	Parse(s scanner.Scanner, e emitter.Emitter) error
-}
+type (
+	Report []Diagnostic
+
+	Diagnostic struct {
+		Err          error
+		Message      string
+		Line, Column int
+		Source       []byte
+	}
+	
+	Parser interface {
+		Parse(s scanner.Scanner, e emitter.Emitter) Report
+	}
+)

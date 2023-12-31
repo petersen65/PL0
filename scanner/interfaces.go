@@ -34,13 +34,15 @@ const (
 	ProcedureWord
 )
 
-type Token int
+type (
+	Token int
 
-type Scanner interface {
-	ResetSource(content []byte) error
-	GetToken() (Token, error)
-	GetTokenName() (string, error)
-	GetTokenPosition() (int, int)
-	GetTokenLine() []byte
-	GetTokenValue() any
-}
+	Scanner interface {
+		ResetSource(content []byte) error
+		GetToken() (Token, error)
+		GetTokenName() (string, error)
+		GetTokenPosition() (int, int)
+		GetTokenLine() []byte
+		GetTokenValue() any
+	}
+)

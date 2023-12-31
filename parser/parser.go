@@ -37,14 +37,15 @@ type (
 	}
 
 	parser struct {
-		level                                 int
+		blockLevel                            int
 		varOffset                             uint64
-		scanner                               scanner.Scanner
-		emitter                               emitter.Emitter
 		lastToken                             scanner.Token
 		declarations, statements, expressions tokens
 		symbolTable                           map[string]symbol
 		errorMap                              map[failure]string
+		scanner                               scanner.Scanner
+		emitter                               emitter.Emitter
+		report                                Report
 	}
 )
 
@@ -66,7 +67,6 @@ func NewParser() Parser {
 			scanner.Number,
 			scanner.LeftParenthesis,
 		},
-		symbolTable: make(map[string]symbol, 0),
 		errorMap: map[failure]string{
 			maxBlockLevel:  "depth of block nesting exceeded (%v)",
 			expectedPeriod: "expected period at end of the program",
@@ -74,32 +74,40 @@ func NewParser() Parser {
 	}
 }
 
-func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) error {
+func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) Report {
 	if lastToken, err := s.GetToken(); err != nil {
-		return err
+		p.diagnostic(err, nil)
+		return p.report
 	} else {
-		p.level = 0
+		p.blockLevel = 0
 		p.varOffset = 0
+		p.lastToken = lastToken
 		p.scanner = s
 		p.emitter = e
-		p.lastToken = lastToken
+		p.symbolTable = make(map[string]symbol)
+		p.report = make(Report, 0)
 
-		if err := p.block(append(append(p.declarations, p.statements...), scanner.Period)); err != nil {
-			return err
-		} else if p.lastToken != scanner.Period {
-			return p.error(expectedPeriod, nil)
+		p.block(append(append(p.declarations, p.statements...), scanner.Period))
+
+		if p.lastToken != scanner.Period {
+			p.diagnostic(p.error(expectedPeriod, nil), nil)
+		}
+
+		if len(p.report) > 0 {
+			return p.report
 		}
 
 		return nil
 	}
 }
 
-func (p *parser) block(ts tokens) error {
-	if p.level > blockNestingMax {
-		return p.error(maxBlockLevel, p.level)
+func (p *parser) block(ts tokens) {
+	if p.blockLevel > blockNestingMax {
+		p.diagnostic(p.error(maxBlockLevel, p.blockLevel), nil)
+		return
 	}
 
-	p.level++
+	p.blockLevel++
 
 	for {
 		switch p.lastToken {
@@ -114,15 +122,13 @@ func (p *parser) block(ts tokens) error {
 			break
 		}
 	}
-
-	return nil
 }
 
 func (p *parser) addSymbol(name string, kind entry, level int, value any) {
 	s := symbol{
-		kind:   kind,
-		level:  level,
-		value:  value,
+		kind:  kind,
+		level: level,
+		value: value,
 	}
 
 	if kind == variable {
@@ -130,7 +136,7 @@ func (p *parser) addSymbol(name string, kind entry, level int, value any) {
 		p.varOffset++
 	}
 
-	p.symbolTable[name] = s	
+	p.symbolTable[name] = s
 }
 
 func (p *parser) findSymbol(name string) (symbol, bool) {
@@ -138,22 +144,32 @@ func (p *parser) findSymbol(name string) (symbol, bool) {
 	return s, ok
 }
 
-func (p *parser) errorAndForward(expected, expanded tokens, code failure) error {
-	if slices.Contains(expected, p.lastToken) {
-		return nil
-	}
+func (p *parser) rebase(expected, expanded tokens, code failure) {
+	if !slices.Contains(expected, p.lastToken) {
+		p.diagnostic(p.error(code, p.lastToken), expected)
 
-	fmt.Println(p.error(code, p.lastToken))
+		for next := append(expected, expanded...); !slices.Contains(next, p.lastToken) && p.lastToken != scanner.Eof; {
+			lastToken, err := p.scanner.GetToken()
 
-	for next := append(expected, expanded...); !slices.Contains(next, p.lastToken); {
-		if lastToken, err := p.scanner.GetToken(); err != nil {
-			return err
-		} else {
+			if err != nil {
+				p.diagnostic(err, next)
+			} 
+			
 			p.lastToken = lastToken
 		}
 	}
+}
 
-	return nil
+func (p *parser) diagnostic(err error, msg any) {
+	line, column := p.scanner.GetTokenPosition()
+
+	p.report = append(p.report, Diagnostic{
+		Err:     err,
+		Message: fmt.Sprintf("%v", msg),
+		Line:    line,
+		Column:  column,
+		Source:  p.scanner.GetTokenLine(),
+	})
 }
 
 func (p *parser) error(code failure, value any) error {
