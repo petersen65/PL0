@@ -13,6 +13,12 @@ const (
 )
 
 const (
+	constant = entry(iota)
+	variable
+	procedure
+)
+
+const (
 	_ = failure(iota + 2000)
 	maxBlockLevel
 	expectedPeriod
@@ -20,23 +26,24 @@ const (
 
 type (
 	failure int
+	entry   int
 	tokens  []scanner.Token
-	symbols map[string]symbol
 
 	symbol struct {
-		kind    scanner.Token
-		level   int
-		value   any
-		address uint64
+		kind   entry
+		level  int
+		value  any
+		offset uint64
 	}
 
 	parser struct {
 		level                                 int
+		varOffset                             uint64
 		scanner                               scanner.Scanner
 		emitter                               emitter.Emitter
 		lastToken                             scanner.Token
 		declarations, statements, expressions tokens
-		table                                 symbols
+		symbolTable                           map[string]symbol
 		errorMap                              map[failure]string
 	}
 )
@@ -59,7 +66,7 @@ func NewParser() Parser {
 			scanner.Number,
 			scanner.LeftParenthesis,
 		},
-		table: make(symbols, 0),
+		symbolTable: make(map[string]symbol, 0),
 		errorMap: map[failure]string{
 			maxBlockLevel:  "depth of block nesting exceeded (%v)",
 			expectedPeriod: "expected period at end of the program",
@@ -72,6 +79,7 @@ func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) error {
 		return err
 	} else {
 		p.level = 0
+		p.varOffset = 0
 		p.scanner = s
 		p.emitter = e
 		p.lastToken = lastToken
@@ -91,6 +99,8 @@ func (p *parser) block(ts tokens) error {
 		return p.error(maxBlockLevel, p.level)
 	}
 
+	p.level++
+
 	for {
 		switch p.lastToken {
 		case scanner.ConstWord:
@@ -108,18 +118,42 @@ func (p *parser) block(ts tokens) error {
 	return nil
 }
 
-func (p *parser) addSymbol(name string, kind scanner.Token, level int, value any, address uint64) {
-	p.table[name] = symbol{
-		kind:    kind,
-		level:   level,
-		value:   value,
-		address: address,
+func (p *parser) addSymbol(name string, kind entry, level int, value any) {
+	s := symbol{
+		kind:   kind,
+		level:  level,
+		value:  value,
 	}
+
+	if kind == variable {
+		s.offset = p.varOffset
+		p.varOffset++
+	}
+
+	p.symbolTable[name] = s	
 }
 
 func (p *parser) findSymbol(name string) (symbol, bool) {
-	s, ok := p.table[name]
+	s, ok := p.symbolTable[name]
 	return s, ok
+}
+
+func (p *parser) errorAndForward(expected, expanded tokens, code failure) error {
+	if slices.Contains(expected, p.lastToken) {
+		return nil
+	}
+
+	fmt.Println(p.error(code, p.lastToken))
+
+	for next := append(expected, expanded...); !slices.Contains(next, p.lastToken); {
+		if lastToken, err := p.scanner.GetToken(); err != nil {
+			return err
+		} else {
+			p.lastToken = lastToken
+		}
+	}
+
+	return nil
 }
 
 func (p *parser) error(code failure, value any) error {

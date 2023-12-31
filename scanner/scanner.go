@@ -8,12 +8,8 @@ import (
 )
 
 const (
-	reservedWords      = 11   // number of reserved words
-	identifierTableLen = 100  // length of identifier table
 	digitsMax          = 14   // maximum number of digits in numbers
 	identifierMax      = 10   // maximum length of identifier
-	addressMax         = 2047 // maximum address
-	codeArrayMax       = 200  // size of code array
 	integerBitSize     = 64   // number of bits of a signed integer
 )
 

@@ -15,6 +15,6 @@ type (
 	Operation int
 
 	Emitter interface {
-		Emit(o Operation, level int, address uint64)
+		Emit(o Operation, level int, address uint64) error
 	}
 )
