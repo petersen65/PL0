@@ -37,10 +37,19 @@ const (
 type (
 	Token int
 
+	Report []Diagnostic
+
+	Diagnostic struct {
+		Token                 Token
+		TokenName, TokenValue string
+		Line, Column          int
+		CurrentLine           []byte
+	}
+
 	Scanner interface {
 		ResetSource(content []byte) error
+		Scan() (Report, error)
 		GetToken() (Token, error)
-		GetTokenName() (string, error)
 		GetTokenPosition() (int, int)
 		GetTokenLine() []byte
 		GetTokenValue() any

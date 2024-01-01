@@ -5,15 +5,18 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/petersen65/PL0/scanner"
 )
 
 func CompileContent(content []byte) error {
+	fmt.Println("Compiling source content with length:", len(content), "bytes")
+
 	scanner := scanner.NewScanner()
 	scanner.ResetSource(content)
-	fmt.Println("Compiling source content with length:", len(content))
-	runScanner(scanner)
+	report, err := scanner.Scan()
+	PrintScannerReport(report, err)
 
 	return nil
 }
@@ -43,28 +46,19 @@ func CompileHttp(url string) error {
 	}
 }
 
-func runScanner(scanner scanner.Scanner) {
-	for {
-		token, err := scanner.GetTokenName()
+func PrintScannerReport(report scanner.Report, err error) {
+	var lastLine int
 
-		if err != nil {
-			fmt.Println(err)
-			return
+	for _, d := range report {
+		if d.Line != lastLine {
+			fmt.Printf("\n%v: %v\n", d.Line, strings.TrimSpace(string(d.CurrentLine)))
+			lastLine = d.Line
 		}
+		
+		fmt.Printf("%v,%v\t%v %v\n", d.Line, d.Column, d.TokenName, d.TokenValue)
+	}
 
-		switch token {
-		case "identifier":
-			fmt.Println(token, scanner.GetTokenValue().(string))
-
-		case "number":
-			fmt.Println(token, scanner.GetTokenValue().(int64))
-
-		case "eof":
-			fmt.Println("Compilation successful")
-			return
-
-		default:
-			fmt.Println(token)
-		}
+	if err != nil {
+		fmt.Printf("\n%v", err)
 	}
 }

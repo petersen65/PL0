@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -114,7 +115,7 @@ func NewScanner() Scanner {
 			tooLongIdentifier:   "identifier %s is too long",
 			tooLongNumber:       "number %s is too long",
 			illegalInteger:      "cannot parse number %s into integer value",
-			unexpectedCharacter: "unexpected character %c",
+			unexpectedCharacter: "unexpected character '%c'",
 		},
 	}
 }
@@ -135,85 +136,128 @@ func (s *scanner) ResetSource(content []byte) error {
 	}
 }
 
+func (s *scanner) Scan() (Report, error) {
+	report := Report{}
+
+	for {
+		token, err := s.GetToken()
+		line, column := s.GetTokenPosition()
+
+		report = append(report, Diagnostic{
+			Token:       token,
+			TokenName:   s.tokenNames[token],
+			TokenValue:  fmt.Sprintf("%v", s.GetTokenValue()),
+			Line:        line,
+			Column:      column,
+			CurrentLine: s.GetTokenLine(),
+		})
+
+		if err != nil {
+			return report, err
+		}
+
+		if token == Eof {
+			return report, nil
+		}
+	}
+}
+
 func (s *scanner) GetToken() (Token, error) {
 	s.lastValue = ""
 
 	if s.endOfFile {
-		return Eof, s.error(eofReached, nil)
+		return Eof, nil
 	}
 
 	for unicode.IsSpace(s.lastCharacter) {
 		if !s.nextCharacter() {
-			return Eof, s.error(eofReached, nil)
+			return Eof, nil
 		}
 	}
 
-	if unicode.IsLetter(s.lastCharacter) {
+	switch {
+	case unicode.IsLetter(s.lastCharacter):
+		var builder strings.Builder
+
 		for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
-			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
+			builder.WriteRune(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return Identifier, s.error(eofIdentifier, s.lastValue)
+				return Identifier, s.error(eofIdentifier, builder.String())
 			}
 		}
 
-		if token, ok := s.tokenMap[s.lastValue.(string)]; ok {
+		if token, ok := s.tokenMap[builder.String()]; ok {
 			return token, nil
 		}
 
-		if len(s.lastValue.(string)) > identifierMax {
-			return Identifier, s.error(tooLongIdentifier, s.lastValue)
+		if len(builder.String()) > identifierMax {
+			return Identifier, s.error(tooLongIdentifier, builder.String())
 		}
 
+		s.lastValue = builder.String()
 		return Identifier, nil
-	} else if unicode.IsDigit(s.lastCharacter) {
+
+	case unicode.IsDigit(s.lastCharacter):
+		var builder strings.Builder
+
 		for unicode.IsDigit(s.lastCharacter) {
-			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
+			builder.WriteRune(s.lastCharacter)
 
 			if !s.nextCharacter() {
-				return Number, s.error(eofNumber, s.lastValue)
+				return Number, s.error(eofNumber, builder.String())
 			}
 		}
 
-		if len(s.lastValue.(string)) > digitsMax {
-			return Number, s.error(tooLongNumber, s.lastValue)
+		if len(builder.String()) > digitsMax {
+			return Number, s.error(tooLongNumber, builder.String())
 		}
 
-		if intValue, err := strconv.ParseInt(s.lastValue.(string), 10, integerBitSize); err != nil {
-			return Number, s.error(illegalInteger, s.lastValue)
+		if intValue, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
+			return Number, s.error(illegalInteger, builder.String())
 		} else {
 			s.lastValue = intValue
 			return Number, nil
 		}
-	} else if s.lastCharacter == ':' {
-		if s.nextCharacter() && s.lastCharacter == '=' {
+
+	case s.lastCharacter == ':':
+		if !s.nextCharacter() {
+			return Becomes, s.error(eofOperator, ":=")
+		}
+
+		if s.lastCharacter == '=' {
 			if !s.nextCharacter() {
-				return Becomes, s.error(eofReached, nil)
+				return Becomes, s.error(eofOperator, ":=")
 			}
 
 			return Becomes, nil
 		} else {
-			return Null, s.error(unexpectedCharacter, s.lastCharacter)
-		}
-	} else if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
-		if token == Less || token == Greater {
-			s.lastValue = string(s.lastCharacter)
+			return Becomes, s.error(unexpectedCharacter, s.lastCharacter)
 		}
 
-		if !s.nextCharacter() && token != Period {
-			return token, s.error(eofReached, nil)
-		}
+	default:
+		var builder strings.Builder
 
-		if (token == Less || token == Greater) && s.lastCharacter == '=' {
-			s.lastValue = s.lastValue.(string) + string(s.lastCharacter)
-			token = s.tokenMap[s.lastValue.(string)]
-
-			if !s.nextCharacter() {
-				return token, s.error(eofOperator, s.lastValue)
+		if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
+			if token == Less || token == Greater {
+				builder.WriteRune(s.lastCharacter)
 			}
-		}
 
-		return token, nil
+			if !s.nextCharacter() && token != Period {
+				return token, s.error(eofReached, nil)
+			}
+
+			if (token == Less || token == Greater) && s.lastCharacter == '=' {
+				builder.WriteRune(s.lastCharacter)
+				token = s.tokenMap[builder.String()]
+
+				if !s.nextCharacter() {
+					return token, s.error(eofOperator, builder.String())
+				}
+			}
+
+			return token, nil
+		}
 	}
 
 	return Null, s.error(unexpectedCharacter, s.lastCharacter)
@@ -270,8 +314,13 @@ func (s *scanner) nextCharacter() bool {
 
 func (s *scanner) setCurrentLine() {
 	s.currentLine = []byte{}
+	startIndex := s.sourceIndex
 
-	for i := s.sourceIndex; i < len(s.sourceCode); {
+	if startIndex != 0 {
+		startIndex++
+	}
+
+	for i := startIndex; i < len(s.sourceCode); {
 		character, width := utf8.DecodeRune(s.sourceCode[i:])
 
 		if character == '\n' {
@@ -282,7 +331,10 @@ func (s *scanner) setCurrentLine() {
 			character = ' '
 		}
 
-		s.currentLine = utf8.AppendRune(s.currentLine, character)
+		if character != '\r' {
+			s.currentLine = utf8.AppendRune(s.currentLine, character)
+		}
+
 		i += width
 	}
 }
