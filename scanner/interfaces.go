@@ -47,11 +47,6 @@ type (
 	}
 
 	Scanner interface {
-		ResetSource(content []byte) error
-		Scan() (Report, error)
-		GetToken() (Token, error)
-		GetTokenPosition() (int, int)
-		GetTokenLine() []byte
-		GetTokenValue() any
+		Scan(content []byte) (Report, error)
 	}
 )

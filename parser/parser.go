@@ -37,15 +37,16 @@ type (
 	}
 
 	parser struct {
+		scannerIndex                          int
+		scannerReport                         scanner.Report
+		parserReport                          Report
+		emitter                               emitter.Emitter
 		blockLevel                            int
 		varOffset                             uint64
 		lastToken                             scanner.Token
 		declarations, statements, expressions tokens
 		symbolTable                           map[string]symbol
 		errorMap                              map[failure]string
-		scanner                               scanner.Scanner
-		emitter                               emitter.Emitter
-		report                                Report
 	}
 )
 
@@ -74,13 +75,11 @@ func NewParser() Parser {
 	}
 }
 
-func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) Report {
+func (p *parser) Parse(report scanner.Report, emitter emitter.Emitter) (Report, error) {
 	if lastToken, err := s.GetToken(); err != nil {
 		p.diagnostic(err, nil)
 		return p.report
 	} else {
-		p.blockLevel = 0
-		p.varOffset = 0
 		p.lastToken = lastToken
 		p.scanner = s
 		p.emitter = e
@@ -98,6 +97,20 @@ func (p *parser) Parse(s scanner.Scanner, e emitter.Emitter) Report {
 		}
 
 		return nil
+	}
+}
+
+func (p *parser) reset(report scanner.Report, emitter emitter.Emitter) error {
+	p.scannerIndex = 0
+	p.scannerReport = report
+	p.parserReport = make(Report, 0)
+	p.emitter = emitter
+	p.blockLevel = 0
+	p.varOffset = 0
+	p.symbolTable = make(map[string]symbol)
+
+	if len(p.scannerReport) == 0 || !p.nextToken() {
+		return p.error(eofReached, nil)
 	}
 }
 
@@ -122,6 +135,17 @@ func (p *parser) block(ts tokens) {
 			break
 		}
 	}
+}
+
+func (p *parser) nextToken() bool {
+	if p.scannerIndex >= len(p.scannerReport) {
+		p.lastToken = scanner.Eof
+		return false
+	}
+
+	p.lastToken = p.scannerReport[p.scannerIndex].Token
+	p.scannerIndex++
+	return true	
 }
 
 func (p *parser) addSymbol(name string, kind entry, level int, value any) {
@@ -153,8 +177,8 @@ func (p *parser) rebase(expected, expanded tokens, code failure) {
 
 			if err != nil {
 				p.diagnostic(err, next)
-			} 
-			
+			}
+
 			p.lastToken = lastToken
 		}
 	}

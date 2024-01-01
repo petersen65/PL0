@@ -120,36 +120,23 @@ func NewScanner() Scanner {
 	}
 }
 
-func (s *scanner) ResetSource(content []byte) error {
-	s.sourceIndex = 0
-	s.sourceCode = content
-	s.line = 0
-	s.column = 0
-	s.lastValue = ""
-	s.currentLine = []byte{}
-	s.endOfFile = false
-
-	if !s.nextCharacter() {
-		return s.error(eofReached, nil)
-	} else {
-		return nil
-	}
-}
-
-func (s *scanner) Scan() (Report, error) {
+func (s *scanner) Scan(content []byte) (Report, error) {
 	report := Report{}
 
+	if err := s.reset(content); err != nil {
+		return report, err
+	}
+
 	for {
-		token, err := s.GetToken()
-		line, column := s.GetTokenPosition()
+		token, err := s.getToken()
 
 		report = append(report, Diagnostic{
 			Token:       token,
 			TokenName:   s.tokenNames[token],
-			TokenValue:  fmt.Sprintf("%v", s.GetTokenValue()),
-			Line:        line,
-			Column:      column,
-			CurrentLine: s.GetTokenLine(),
+			TokenValue:  fmt.Sprintf("%v", s.lastValue),
+			Line:        s.line,
+			Column:      s.column,
+			CurrentLine: s.currentLine,
 		})
 
 		if err != nil {
@@ -162,7 +149,23 @@ func (s *scanner) Scan() (Report, error) {
 	}
 }
 
-func (s *scanner) GetToken() (Token, error) {
+func (s *scanner) reset(content []byte) error {
+	s.sourceIndex = 0
+	s.sourceCode = content
+	s.line = 0
+	s.column = 0
+	s.lastValue = ""
+	s.currentLine = []byte{}
+	s.endOfFile = false
+
+	if len(content) == 0 || !s.nextCharacter() {
+		return s.error(eofReached, nil)
+	} else {
+		return nil
+	}
+}
+
+func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
 
 	if s.endOfFile {
@@ -261,23 +264,6 @@ func (s *scanner) GetToken() (Token, error) {
 	}
 
 	return Null, s.error(unexpectedCharacter, s.lastCharacter)
-}
-
-func (s *scanner) GetTokenName() (string, error) {
-	token, err := s.GetToken()
-	return s.tokenNames[token], err
-}
-
-func (s *scanner) GetTokenPosition() (int, int) {
-	return s.line, s.column
-}
-
-func (s *scanner) GetTokenLine() []byte {
-	return s.currentLine
-}
-
-func (s *scanner) GetTokenValue() any {
-	return s.lastValue
 }
 
 func (s *scanner) nextCharacter() bool {

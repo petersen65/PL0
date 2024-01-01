@@ -16,6 +16,6 @@ type (
 	}
 	
 	Parser interface {
-		Parse(s scanner.Scanner, e emitter.Emitter) Report
+		Parse(s scanner.Report, e emitter.Emitter) (Report, error)
 	}
 )
