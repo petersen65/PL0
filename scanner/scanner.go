@@ -120,17 +120,17 @@ func NewScanner() Scanner {
 	}
 }
 
-func (s *scanner) Scan(content []byte) (Report, error) {
-	report := Report{}
+func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
+	concreteSyntax := ConcreteSyntax{}
 
 	if err := s.reset(content); err != nil {
-		return report, err
+		return concreteSyntax, err
 	}
 
 	for {
 		token, err := s.getToken()
 
-		report = append(report, Diagnostic{
+		concreteSyntax = append(concreteSyntax, TokenDescription{
 			Token:       token,
 			TokenName:   s.tokenNames[token],
 			TokenValue:  fmt.Sprintf("%v", s.lastValue),
@@ -140,11 +140,11 @@ func (s *scanner) Scan(content []byte) (Report, error) {
 		})
 
 		if err != nil {
-			return report, err
+			return concreteSyntax, err
 		}
 
 		if token == Eof {
-			return report, nil
+			return concreteSyntax, nil
 		}
 	}
 }
@@ -160,9 +160,9 @@ func (s *scanner) reset(content []byte) error {
 
 	if len(content) == 0 || !s.nextCharacter() {
 		return s.error(eofReached, nil)
-	} else {
-		return nil
 	}
+	
+	return nil
 }
 
 func (s *scanner) getToken() (Token, error) {

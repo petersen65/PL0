@@ -6,9 +6,9 @@ import (
 )
 
 type (
-	Report []Diagnostic
+	ErrorReport []Error
 
-	Diagnostic struct {
+	Error struct {
 		Err          error
 		Message      string
 		Line, Column int
@@ -16,6 +16,6 @@ type (
 	}
 	
 	Parser interface {
-		Parse(s scanner.Report, e emitter.Emitter) (Report, error)
+		Parse(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) (ErrorReport, error)
 	}
 )

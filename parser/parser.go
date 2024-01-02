@@ -20,6 +20,8 @@ const (
 
 const (
 	_ = failure(iota + 2000)
+	eofReached
+	parsingErrors
 	maxBlockLevel
 	expectedPeriod
 )
@@ -37,15 +39,15 @@ type (
 	}
 
 	parser struct {
-		scannerIndex                          int
-		scannerReport                         scanner.Report
-		parserReport                          Report
+		concreteSyntaxIndex                   int
+		concreteSyntax                        scanner.ConcreteSyntax
 		emitter                               emitter.Emitter
+		lastTokenDescription                  scanner.TokenDescription
 		blockLevel                            int
 		varOffset                             uint64
-		lastToken                             scanner.Token
 		declarations, statements, expressions tokens
 		symbolTable                           map[string]symbol
+		errorReport                           ErrorReport
 		errorMap                              map[failure]string
 	}
 )
@@ -69,61 +71,58 @@ func NewParser() Parser {
 			scanner.LeftParenthesis,
 		},
 		errorMap: map[failure]string{
+			eofReached:     "unexpected end of file",
+			parsingErrors:  "%v parsing errors occurred",
 			maxBlockLevel:  "depth of block nesting exceeded (%v)",
 			expectedPeriod: "expected period at end of the program",
 		},
 	}
 }
 
-func (p *parser) Parse(report scanner.Report, emitter emitter.Emitter) (Report, error) {
-	if lastToken, err := s.GetToken(); err != nil {
-		p.diagnostic(err, nil)
-		return p.report
+func (p *parser) Parse(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) (ErrorReport, error) {
+	if err := p.reset(concreteSyntax, emitter); err != nil {
+		return p.errorReport, err
+	}
+
+	p.block(append(append(p.declarations, p.statements...), scanner.Period))
+
+	if p.lastTokenDescription.Token != scanner.Period {
+		p.appendError(p.error(expectedPeriod, nil), p.lastTokenDescription.TokenName)
+	}
+
+	if len(p.errorReport) > 0 {
+		return p.errorReport, p.error(parsingErrors, len(p.errorReport))
 	} else {
-		p.lastToken = lastToken
-		p.scanner = s
-		p.emitter = e
-		p.symbolTable = make(map[string]symbol)
-		p.report = make(Report, 0)
-
-		p.block(append(append(p.declarations, p.statements...), scanner.Period))
-
-		if p.lastToken != scanner.Period {
-			p.diagnostic(p.error(expectedPeriod, nil), nil)
-		}
-
-		if len(p.report) > 0 {
-			return p.report
-		}
-
-		return nil
+		return p.errorReport, nil
 	}
 }
 
-func (p *parser) reset(report scanner.Report, emitter emitter.Emitter) error {
-	p.scannerIndex = 0
-	p.scannerReport = report
-	p.parserReport = make(Report, 0)
+func (p *parser) reset(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) error {
+	p.concreteSyntaxIndex = 0
+	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
 	p.blockLevel = 0
 	p.varOffset = 0
 	p.symbolTable = make(map[string]symbol)
+	p.errorReport = make(ErrorReport, 0)
 
-	if len(p.scannerReport) == 0 || !p.nextToken() {
+	if len(p.concreteSyntax) == 0 || !p.nextTokenDescription() {
 		return p.error(eofReached, nil)
 	}
+
+	return nil
 }
 
 func (p *parser) block(ts tokens) {
 	if p.blockLevel > blockNestingMax {
-		p.diagnostic(p.error(maxBlockLevel, p.blockLevel), nil)
+		p.appendError(p.error(maxBlockLevel, p.blockLevel), nil)
 		return
 	}
 
 	p.blockLevel++
 
 	for {
-		switch p.lastToken {
+		switch p.lastTokenDescription.Token {
 		case scanner.ConstWord:
 
 		case scanner.VarWord:
@@ -131,21 +130,20 @@ func (p *parser) block(ts tokens) {
 		case scanner.ProcedureWord:
 		}
 
-		if !slices.Contains(p.declarations, p.lastToken) {
+		if !slices.Contains(p.declarations, p.lastTokenDescription.Token) {
 			break
 		}
 	}
 }
 
-func (p *parser) nextToken() bool {
-	if p.scannerIndex >= len(p.scannerReport) {
-		p.lastToken = scanner.Eof
+func (p *parser) nextTokenDescription() bool {
+	if p.concreteSyntaxIndex >= len(p.concreteSyntax) {
 		return false
 	}
 
-	p.lastToken = p.scannerReport[p.scannerIndex].Token
-	p.scannerIndex++
-	return true	
+	p.lastTokenDescription = p.concreteSyntax[p.concreteSyntaxIndex]
+	p.concreteSyntaxIndex++
+	return true
 }
 
 func (p *parser) addSymbol(name string, kind entry, level int, value any) {
@@ -169,30 +167,27 @@ func (p *parser) findSymbol(name string) (symbol, bool) {
 }
 
 func (p *parser) rebase(expected, expanded tokens, code failure) {
-	if !slices.Contains(expected, p.lastToken) {
-		p.diagnostic(p.error(code, p.lastToken), expected)
+	if !slices.Contains(expected, p.lastTokenDescription.Token) {
+		p.appendError(p.error(code, p.lastTokenDescription.Token), expected)
 
-		for next := append(expected, expanded...); !slices.Contains(next, p.lastToken) && p.lastToken != scanner.Eof; {
-			lastToken, err := p.scanner.GetToken()
-
-			if err != nil {
-				p.diagnostic(err, next)
+		for next := append(expected, expanded...); !slices.Contains(next, p.lastTokenDescription.Token) && p.lastTokenDescription.Token != scanner.Eof; {
+			if !p.nextTokenDescription() {
+				p.appendError(p.error(eofReached, nil), next)
+				break
 			}
-
-			p.lastToken = lastToken
 		}
 	}
 }
 
-func (p *parser) diagnostic(err error, msg any) {
-	line, column := p.scanner.GetTokenPosition()
+func (p *parser) appendError(err error, message any) {
+	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
 
-	p.report = append(p.report, Diagnostic{
+	p.errorReport = append(p.errorReport, Error{
 		Err:     err,
-		Message: fmt.Sprintf("%v", msg),
+		Message: fmt.Sprintf("%v", message),
 		Line:    line,
 		Column:  column,
-		Source:  p.scanner.GetTokenLine(),
+		Source:  p.lastTokenDescription.CurrentLine,
 	})
 }
 
@@ -205,6 +200,6 @@ func (p *parser) error(code failure, value any) error {
 		message = p.errorMap[code]
 	}
 
-	line, column := p.scanner.GetTokenPosition()
+	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
 	return fmt.Errorf("parser error %v [%v,%v]: %v", code, line, column, message)
 }

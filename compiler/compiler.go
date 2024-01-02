@@ -14,9 +14,8 @@ func CompileContent(content []byte) error {
 	fmt.Println("Compiling source content with length:", len(content), "bytes")
 
 	scanner := scanner.NewScanner()
-	scanner.ResetSource(content)
-	report, err := scanner.Scan()
-	PrintScannerReport(report, err)
+	concreteSyntax, err := scanner.Scan(content)
+	PrintConcreteSyntax(concreteSyntax, err)
 
 	return nil
 }
@@ -46,10 +45,10 @@ func CompileHttp(url string) error {
 	}
 }
 
-func PrintScannerReport(report scanner.Report, err error) {
+func PrintConcreteSyntax(concreteSyntax scanner.ConcreteSyntax, err error) {
 	var lastLine int
 
-	for _, d := range report {
+	for _, d := range concreteSyntax {
 		if d.Line != lastLine {
 			fmt.Printf("\n%v: %v\n", d.Line, strings.TrimSpace(string(d.CurrentLine)))
 			lastLine = d.Line

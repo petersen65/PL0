@@ -35,11 +35,10 @@ const (
 )
 
 type (
-	Token int
+	Token          int
+	ConcreteSyntax []TokenDescription
 
-	Report []Diagnostic
-
-	Diagnostic struct {
+	TokenDescription struct {
 		Token                 Token
 		TokenName, TokenValue string
 		Line, Column          int
@@ -47,6 +46,6 @@ type (
 	}
 
 	Scanner interface {
-		Scan(content []byte) (Report, error)
+		Scan(content []byte) (ConcreteSyntax, error)
 	}
 )
