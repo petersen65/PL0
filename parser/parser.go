@@ -27,6 +27,7 @@ const (
 	expectedIdentifier
 	expectedEqual
 	expectedNumber
+	expectedSemicolon
 )
 
 type (
@@ -81,6 +82,7 @@ func NewParser() Parser {
 			expectedIdentifier: "expected identifier, found %v",
 			expectedEqual:      "expected equal sign, found %v",
 			expectedNumber:     "expected number, found %v",
+			expectedSemicolon:  "expected semicolon, found %v",
 		},
 	}
 }
@@ -142,12 +144,56 @@ func (p *parser) block(ts tokens) {
 	}
 }
 
-func (p *parser) constWord() error {
-	for {
-		if !p.nextTokenDescription() {
-			return p.appendError(p.error(eofReached, nil))
-		}
+/*
+parse "ident = number"
+begin 
+	if sym = ident then
+    begin 
+		getsym;
+        
+		if sym in [eql, becomes] then
+        begin 
+			if sym = becomes then error(1);
+            getsym;
+            
+			if sym = number then
+            begin 
+				enter(constant); 
+				getsym
+            end
+            else error(2)
+        end 
+		else error(3)
+    end 
+	else error(4)
+end
+*/
 
+/*
+if sym = constsym then
+begin 
+	getsym;
+    
+	repeat 
+		parse "ident = number"
+        
+		while sym = comma do
+        begin 
+			getsym; 
+			parse "ident = number"
+        end;
+        
+		if sym = semicolon then getsym else error(5)
+    until sym <> ident
+end;
+*/
+
+func (p *parser) constWord() error {
+	if !p.nextTokenDescription() {
+		return p.appendError(p.error(eofReached, nil))
+	}
+
+	for {
 		if p.lastTokenDescription.Token != scanner.Identifier {
 			return p.appendError(p.error(expectedIdentifier, p.lastTokenDescription.TokenName))
 		}
@@ -173,6 +219,18 @@ func (p *parser) constWord() error {
 		}
 
 		p.addSymbol(constantName, constant, p.blockLevel, p.lastTokenDescription.TokenValue)
+
+		if !p.nextTokenDescription() {
+			return p.appendError(p.error(eofReached, nil))
+		}
+
+		if p.lastTokenDescription.Token != scanner.Comma {
+			break
+		}
+	}
+
+	if p.lastTokenDescription.Token != scanner.Semicolon {
+		p.appendError(p.error(expectedSemicolon, p.lastTokenDescription.TokenName))
 	}
 
 	return nil
