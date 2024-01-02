@@ -12,9 +12,9 @@ type (
 		Err          error
 		Message      string
 		Line, Column int
-		Source       []byte
+		CurrentLine  []byte
 	}
-	
+
 	Parser interface {
 		Parse(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) (ErrorReport, error)
 	}

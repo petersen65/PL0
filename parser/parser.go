@@ -183,11 +183,11 @@ func (p *parser) appendError(err error, message any) {
 	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
 
 	p.errorReport = append(p.errorReport, Error{
-		Err:     err,
-		Message: fmt.Sprintf("%v", message),
-		Line:    line,
-		Column:  column,
-		Source:  p.lastTokenDescription.CurrentLine,
+		Err:         err,
+		Message:     fmt.Sprintf("%v", message),
+		Line:        line,
+		Column:      column,
+		CurrentLine: p.lastTokenDescription.CurrentLine,
 	})
 }
 
