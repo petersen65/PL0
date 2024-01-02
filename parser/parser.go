@@ -24,6 +24,9 @@ const (
 	parsingErrors
 	maxBlockLevel
 	expectedPeriod
+	expectedIdentifier
+	expectedEqual
+	expectedNumber
 )
 
 type (
@@ -71,10 +74,13 @@ func NewParser() Parser {
 			scanner.LeftParenthesis,
 		},
 		errorMap: map[failure]string{
-			eofReached:     "unexpected end of file",
-			parsingErrors:  "%v parsing errors occurred",
-			maxBlockLevel:  "depth of block nesting exceeded (%v)",
-			expectedPeriod: "expected period at end of the program",
+			eofReached:         "unexpected end of file",
+			parsingErrors:      "%v parsing errors occurred",
+			maxBlockLevel:      "depth of block nesting exceeded: %v",
+			expectedPeriod:     "expected period at end of the program, found %v",
+			expectedIdentifier: "expected identifier, found %v",
+			expectedEqual:      "expected equal sign, found %v",
+			expectedNumber:     "expected number, found %v",
 		},
 	}
 }
@@ -87,7 +93,7 @@ func (p *parser) Parse(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Em
 	p.block(append(append(p.declarations, p.statements...), scanner.Period))
 
 	if p.lastTokenDescription.Token != scanner.Period {
-		p.appendError(p.error(expectedPeriod, nil), p.lastTokenDescription.TokenName)
+		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
 	}
 
 	if len(p.errorReport) > 0 {
@@ -115,7 +121,7 @@ func (p *parser) reset(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Em
 
 func (p *parser) block(ts tokens) {
 	if p.blockLevel > blockNestingMax {
-		p.appendError(p.error(maxBlockLevel, p.blockLevel), nil)
+		p.appendError(p.error(maxBlockLevel, p.blockLevel))
 		return
 	}
 
@@ -134,6 +140,42 @@ func (p *parser) block(ts tokens) {
 			break
 		}
 	}
+}
+
+func (p *parser) constWord() error {
+	for {
+		if !p.nextTokenDescription() {
+			return p.appendError(p.error(eofReached, nil))
+		}
+
+		if p.lastTokenDescription.Token != scanner.Identifier {
+			return p.appendError(p.error(expectedIdentifier, p.lastTokenDescription.TokenName))
+		}
+
+		constantName := p.lastTokenDescription.TokenValue
+
+		if !p.nextTokenDescription() {
+			return p.appendError(p.error(eofReached, nil))
+		}
+
+		if p.lastTokenDescription.Token == scanner.Becomes {
+			p.appendError(p.error(expectedEqual, p.lastTokenDescription.TokenName))
+		} else if p.lastTokenDescription.Token != scanner.Equal {
+			return p.appendError(p.error(expectedEqual, p.lastTokenDescription.TokenName))
+		}
+
+		if !p.nextTokenDescription() {
+			return p.appendError(p.error(eofReached, nil))
+		}
+
+		if p.lastTokenDescription.Token != scanner.Number {
+			return p.appendError(p.error(expectedNumber, p.lastTokenDescription.TokenName))
+		}
+
+		p.addSymbol(constantName, constant, p.blockLevel, p.lastTokenDescription.TokenValue)
+	}
+
+	return nil
 }
 
 func (p *parser) nextTokenDescription() bool {
@@ -168,27 +210,26 @@ func (p *parser) findSymbol(name string) (symbol, bool) {
 
 func (p *parser) rebase(expected, expanded tokens, code failure) {
 	if !slices.Contains(expected, p.lastTokenDescription.Token) {
-		p.appendError(p.error(code, p.lastTokenDescription.Token), expected)
+		p.appendError(p.error(code, p.lastTokenDescription.Token))
 
 		for next := append(expected, expanded...); !slices.Contains(next, p.lastTokenDescription.Token) && p.lastTokenDescription.Token != scanner.Eof; {
 			if !p.nextTokenDescription() {
-				p.appendError(p.error(eofReached, nil), next)
+				p.appendError(p.error(eofReached, nil))
 				break
 			}
 		}
 	}
 }
 
-func (p *parser) appendError(err error, message any) {
-	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
-
+func (p *parser) appendError(err error) error {
 	p.errorReport = append(p.errorReport, Error{
 		Err:         err,
-		Message:     fmt.Sprintf("%v", message),
-		Line:        line,
-		Column:      column,
+		Line:        p.lastTokenDescription.Line,
+		Column:      p.lastTokenDescription.Column,
 		CurrentLine: p.lastTokenDescription.CurrentLine,
 	})
+
+	return err
 }
 
 func (p *parser) error(code failure, value any) error {

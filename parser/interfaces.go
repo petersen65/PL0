@@ -10,7 +10,6 @@ type (
 
 	Error struct {
 		Err          error
-		Message      string
 		Line, Column int
 		CurrentLine  []byte
 	}

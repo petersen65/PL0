@@ -161,7 +161,7 @@ func (s *scanner) reset(content []byte) error {
 	if len(content) == 0 || !s.nextCharacter() {
 		return s.error(eofReached, nil)
 	}
-	
+
 	return nil
 }
 
@@ -180,87 +180,103 @@ func (s *scanner) getToken() (Token, error) {
 
 	switch {
 	case unicode.IsLetter(s.lastCharacter):
-		var builder strings.Builder
-
-		for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
-			builder.WriteRune(s.lastCharacter)
-
-			if !s.nextCharacter() {
-				return Identifier, s.error(eofIdentifier, builder.String())
-			}
-		}
-
-		if token, ok := s.tokenMap[builder.String()]; ok {
-			return token, nil
-		}
-
-		if len(builder.String()) > identifierMax {
-			return Identifier, s.error(tooLongIdentifier, builder.String())
-		}
-
-		s.lastValue = builder.String()
-		return Identifier, nil
+		return s.identifierOrWord()
 
 	case unicode.IsDigit(s.lastCharacter):
-		var builder strings.Builder
-
-		for unicode.IsDigit(s.lastCharacter) {
-			builder.WriteRune(s.lastCharacter)
-
-			if !s.nextCharacter() {
-				return Number, s.error(eofNumber, builder.String())
-			}
-		}
-
-		if len(builder.String()) > digitsMax {
-			return Number, s.error(tooLongNumber, builder.String())
-		}
-
-		if intValue, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
-			return Number, s.error(illegalInteger, builder.String())
-		} else {
-			s.lastValue = intValue
-			return Number, nil
-		}
+		return s.number()
 
 	case s.lastCharacter == ':':
+		return s.becomes()
+
+	default:
+		return s.operator()
+	}
+}
+
+func (s *scanner) identifierOrWord() (Token, error) {
+	var builder strings.Builder
+
+	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
+		builder.WriteRune(s.lastCharacter)
+
+		if !s.nextCharacter() {
+			return Identifier, s.error(eofIdentifier, builder.String())
+		}
+	}
+
+	if token, ok := s.tokenMap[builder.String()]; ok {
+		return token, nil
+	}
+
+	if len(builder.String()) > identifierMax {
+		return Identifier, s.error(tooLongIdentifier, builder.String())
+	}
+
+	s.lastValue = builder.String()
+	return Identifier, nil
+}
+
+func (s *scanner) number() (Token, error) {
+	var builder strings.Builder
+
+	for unicode.IsDigit(s.lastCharacter) {
+		builder.WriteRune(s.lastCharacter)
+
+		if !s.nextCharacter() {
+			return Number, s.error(eofNumber, builder.String())
+		}
+	}
+
+	if len(builder.String()) > digitsMax {
+		return Number, s.error(tooLongNumber, builder.String())
+	}
+
+	if intValue, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
+		return Number, s.error(illegalInteger, builder.String())
+	} else {
+		s.lastValue = intValue
+		return Number, nil
+	}
+}
+
+func (s *scanner) becomes() (Token, error) {
+	if !s.nextCharacter() {
+		return Becomes, s.error(eofOperator, ":=")
+	}
+
+	if s.lastCharacter == '=' {
 		if !s.nextCharacter() {
 			return Becomes, s.error(eofOperator, ":=")
 		}
 
-		if s.lastCharacter == '=' {
+		return Becomes, nil
+	} else {
+		return Becomes, s.error(unexpectedCharacter, s.lastCharacter)
+	}
+}
+
+func (s *scanner) operator() (Token, error) {
+	var builder strings.Builder
+
+	if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
+		if token == Less || token == Greater {
+			builder.WriteRune(s.lastCharacter)
+		}
+
+		if !s.nextCharacter() && token != Period {
+			return token, s.error(eofReached, nil)
+		}
+
+		if (token == Less || token == Greater) && s.lastCharacter == '=' {
+			builder.WriteRune(s.lastCharacter)
+			token = s.tokenMap[builder.String()]
+
 			if !s.nextCharacter() {
-				return Becomes, s.error(eofOperator, ":=")
+				return token, s.error(eofOperator, builder.String())
 			}
-
-			return Becomes, nil
-		} else {
-			return Becomes, s.error(unexpectedCharacter, s.lastCharacter)
 		}
 
-	default:
-		var builder strings.Builder
-
-		if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
-			if token == Less || token == Greater {
-				builder.WriteRune(s.lastCharacter)
-			}
-
-			if !s.nextCharacter() && token != Period {
-				return token, s.error(eofReached, nil)
-			}
-
-			if (token == Less || token == Greater) && s.lastCharacter == '=' {
-				builder.WriteRune(s.lastCharacter)
-				token = s.tokenMap[builder.String()]
-
-				if !s.nextCharacter() {
-					return token, s.error(eofOperator, builder.String())
-				}
-			}
-
-			return token, nil
-		}
+		return token, nil
 	}
 
 	return Null, s.error(unexpectedCharacter, s.lastCharacter)
