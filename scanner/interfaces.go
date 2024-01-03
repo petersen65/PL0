@@ -36,6 +36,7 @@ const (
 
 type (
 	Token          int
+	Tokens         []Token
 	ConcreteSyntax []TokenDescription
 
 	TokenDescription struct {

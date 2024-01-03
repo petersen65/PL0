@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -42,6 +43,22 @@ type (
 		errorMap      map[failure]string
 	}
 )
+
+func (token Token) Set() Tokens {
+	return Tokens{token}
+}
+
+func (token Token) Union(set Tokens) Tokens {
+	return append(Tokens{token}, set...)
+}
+
+func (token Token) In(set Tokens) bool {
+	return slices.Contains(set, token)
+}
+
+func (tokens Tokens) Union(set Tokens) Tokens {
+	return append(tokens, set...)
+}
 
 func NewScanner() Scanner {
 	return &scanner{
