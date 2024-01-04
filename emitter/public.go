@@ -18,6 +18,8 @@ type (
 
 	Emitter interface {
 		Emit(operation Operation, level int, address Address) (CodeIndex, error)
+		UpdateAddress(codeIndex CodeIndex, address Address) error
+		GetCurrentAddress() Address
 	}
 )
 
@@ -39,4 +41,17 @@ func (e *emitter) Emit(operation Operation, level int, address Address) (CodeInd
 	})
 
 	return CodeIndex(len(e.code) - 1), nil
+}
+
+func (e *emitter) UpdateAddress(codeIndex CodeIndex, address Address) error {
+	if int(codeIndex) >= len(e.code) {
+		return e.error(codeIndexOutOfRange, codeIndex)
+	}
+
+	e.code[codeIndex].address = address
+	return nil
+}
+
+func (e *emitter) GetCurrentAddress() Address {
+	return Address(len(e.code))
 }

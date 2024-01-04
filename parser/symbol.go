@@ -51,6 +51,18 @@ func (p *parser) addProcedure(name string) {
 	})
 }
 
+func (p *parser) removeLevel(level int) {
+	filteredTable := make([]symbol, 0)
+
+	for _, s := range p.symbolTable {
+		if s.level != level {
+			filteredTable = append(filteredTable, s)
+		}
+	}
+	
+	p.symbolTable = filteredTable
+}
+
 func (p *parser) findSymbol(name string) (symbol, bool) {
 	for i := len(p.symbolTable) - 1; i >= 0; i-- {
 		if p.symbolTable[i].name == name {

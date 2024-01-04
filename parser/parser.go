@@ -38,19 +38,6 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 }
 
 func (p *parser) block(expected scn.Tokens) {
-	/*
-	   	var dx: integer;     {data allocation index}
-	       tx0: integer;     {initial table index}
-	       cx0: integer;     {initial code index}
-	*/
-
-	/*
-		dx:=3;
-		tx0:=tx;
-		table[tx].adr:=cx; update adress of current procedure
-		gen(jmp,0,0);
-	*/
-
 	blockProcedure, ok := p.findKind(procedure)
 
 	if !ok || blockProcedure.level != p.blockLevel {
@@ -61,8 +48,14 @@ func (p *parser) block(expected scn.Tokens) {
 		p.appendError(p.error(maxBlockLevel, p.blockLevel))
 	}
 
+	codeIndex, err := p.emitter.Emit(emt.Jmp, p.blockLevel, 0) // jump forward to block code beginning
+
+	if err != nil {
+		p.appendError(err)
+	}
+
+	var varOffset uint64 = variableOffsetMin // space for static link, dynamic link, and return address
 	p.blockLevel++
-	var varOffset uint64 = variableOffsetMin
 
 	for {
 		switch p.lastToken() {
@@ -83,26 +76,21 @@ func (p *parser) block(expected scn.Tokens) {
 		}
 	}
 
-	/*
-		code[table[tx0].adr].a := cx;
+	p.removeLevel(p.blockLevel)
+	p.blockLevel--
+	p.emitter.UpdateAddress(codeIndex, p.emitter.GetCurrentAddress()) // update jump address with block code beginning
 
-		with table[tx0] do
-		begin
-			adr := cx; {start adr of code}
-		end;
-
-		cx0 := 0{cx};
-		gen(int, 0, dx);
-	*/
+	if _, err := p.emitter.Emit(emt.Inc, p.blockLevel, emt.Address(varOffset)); err != nil {
+		p.appendError(err)
+	}
 
 	p.statement(set(expected, scn.Semicolon, scn.EndWord))
 
-	/*
-		gen(opr, 0, 0); {return}
-	*/
+	if _, err := p.emitter.Emit(emt.Opr, p.blockLevel, 0); err != nil { // return from block code end
+		p.appendError(err)
+	}
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
-	p.blockLevel--
 }
 
 func (p *parser) constWord() error {

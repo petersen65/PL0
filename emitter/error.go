@@ -9,12 +9,14 @@ const (
 const (
 	_ = failure(iota + 3000)
 	instructionsExceeded
+	codeIndexOutOfRange
 )
 
 type failure int
 
 var errorMap = map[failure]string{
 	instructionsExceeded: "maximum number of instructions reached: %v",
+	codeIndexOutOfRange:  "provided code index is out of range: %v",
 }
 
 func (e *emitter) error(code failure, value any) error {
