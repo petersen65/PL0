@@ -7,20 +7,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/petersen65/PL0/emitter"
-	"github.com/petersen65/PL0/parser"
-	"github.com/petersen65/PL0/scanner"
+	emt "github.com/petersen65/PL0/emitter"
+	par "github.com/petersen65/PL0/parser"
+	scn "github.com/petersen65/PL0/scanner"
 )
 
 func CompileContent(content []byte) error {
 	fmt.Println("Compiling source content with length:", len(content), "bytes")
 
-	scanner := scanner.NewScanner()
+	scanner := scn.NewScanner()
 	concreteSyntax, err := scanner.Scan(content)
 	PrintConcreteSyntax(concreteSyntax, err)
 
-	emitter := emitter.NewEmitter()
-	parser := parser.NewParser()
+	emitter := emt.NewEmitter()
+	parser := par.NewParser()
 	errorReport, err := parser.Parse(concreteSyntax, emitter)
 	PrintErrorReport(errorReport, err)
 
@@ -52,7 +52,7 @@ func CompileHttp(url string) error {
 	}
 }
 
-func PrintConcreteSyntax(concreteSyntax scanner.ConcreteSyntax, err error) {
+func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, err error) {
 	var lastLine int
 
 	for _, td := range concreteSyntax {
@@ -60,7 +60,7 @@ func PrintConcreteSyntax(concreteSyntax scanner.ConcreteSyntax, err error) {
 			fmt.Printf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))
 			lastLine = td.Line
 		}
-		
+
 		fmt.Printf("%v,%v\t%v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)
 	}
 
@@ -69,13 +69,13 @@ func PrintConcreteSyntax(concreteSyntax scanner.ConcreteSyntax, err error) {
 	}
 }
 
-func PrintErrorReport(errorReport parser.ErrorReport, err error) {
+func PrintErrorReport(errorReport par.ErrorReport, err error) {
 	if err != nil {
 		fmt.Printf("\n%v", err)
 	}
 
 	for _, e := range errorReport {
 		fmt.Printf("\n%v: %v\n", e.Line, strings.TrimSpace(string(e.CurrentLine)))
-		fmt.Printf("%v,%v\t%v,%v\n", e.Line, e.Column, e.Err, e.Message)
+		fmt.Printf("%v,%v\t%v\n", e.Line, e.Column, e.Err)
 	}
 }

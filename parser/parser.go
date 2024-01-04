@@ -1,124 +1,24 @@
 package parser
 
 import (
-	"fmt"
-	"slices"
-
-	"github.com/petersen65/PL0/emitter"
-	"github.com/petersen65/PL0/scanner"
-)
-
-const (
-	blockNestingMax = 3 // maximum depth of block nesting
-)
-
-const (
-	constant = entry(iota)
-	variable
-	procedure
-)
-
-const (
-	_ = failure(iota + 2000)
-	eofReached
-	parsingErrors
-	maxBlockLevel
-	expectedPeriod
-	expectedIdentifier
-	expectedEqual
-	expectedNumber
-	expectedSemicolon
-	expectedStatementsIdentifiers
-	expectedStatementsIdentifiersProcedures
-	unexpectedTokens
+	emt "github.com/petersen65/PL0/emitter"
+	scn "github.com/petersen65/PL0/scanner"
 )
 
 type (
-	failure int
-	entry   int
-
-	symbol struct {
-		kind   entry
-		level  int
-		value  any
-		offset uint64
-	}
-
 	parser struct {
-		concreteSyntaxIndex                   int
-		concreteSyntax                        scanner.ConcreteSyntax
-		emitter                               emitter.Emitter
-		lastTokenDescription, eof             scanner.TokenDescription
-		blockLevel                            int
-		varOffset                             uint64
-		declarations, statements, expressions scanner.Tokens
-		symbolTable                           map[string]symbol
-		errorReport                           ErrorReport
-		errorMap                              map[failure]string
+		concreteSyntaxIndex       int
+		concreteSyntax            scn.ConcreteSyntax
+		emitter                   emt.Emitter
+		lastTokenDescription, eof scn.TokenDescription
+		blockLevel                int
+		varOffset                 uint64
+		symbolTable               map[string]symbol
+		errorReport               ErrorReport
 	}
 )
 
-func NewParser() Parser {
-	return &parser{
-		declarations: scanner.Tokens{
-			scanner.ConstWord,
-			scanner.VarWord,
-			scanner.ProcedureWord,
-		},
-		statements: scanner.Tokens{
-			scanner.BeginWord,
-			scanner.CallWord,
-			scanner.IfWord,
-			scanner.WhileWord,
-		},
-		expressions: scanner.Tokens{
-			scanner.Identifier,
-			scanner.Number,
-			scanner.LeftParenthesis,
-		},
-		errorMap: map[failure]string{
-			eofReached:                              "unexpected end of file",
-			parsingErrors:                           "%v parsing errors occurred",
-			maxBlockLevel:                           "depth of block nesting exceeded: %v",
-			expectedPeriod:                          "expected period at end of the program, found %v",
-			expectedIdentifier:                      "expected identifier, found %v",
-			expectedEqual:                           "expected equal sign, found %v",
-			expectedNumber:                          "expected number, found %v",
-			expectedSemicolon:                       "expected semicolon, found %v",
-			expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
-			expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
-			unexpectedTokens:                        "unexpected set of tokens, found %v",
-		},
-	}
-}
-
-func (p *parser) Parse(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) (ErrorReport, error) {
-	if err := p.reset(concreteSyntax, emitter); err != nil {
-		return p.errorReport, err
-	}
-
-	/*
-		cc := 0;
-		cx := 0;
-		ll := 0;
-		ch := ' ';
-		kk := al;
-	*/
-
-	p.block(append(append(p.declarations, p.statements...), scanner.Period))
-
-	if p.lastTokenDescription.Token != scanner.Period {
-		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
-	}
-
-	if len(p.errorReport) > 0 {
-		return p.errorReport, p.error(parsingErrors, len(p.errorReport))
-	} else {
-		return p.errorReport, nil
-	}
-}
-
-func (p *parser) reset(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Emitter) error {
+func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) error {
 	p.concreteSyntaxIndex = 0
 	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
@@ -134,7 +34,7 @@ func (p *parser) reset(concreteSyntax scanner.ConcreteSyntax, emitter emitter.Em
 	return nil
 }
 
-func (p *parser) block(expected scanner.Tokens) {
+func (p *parser) block(expected scn.Tokens) {
 	/*
 	   	var dx: integer;     {data allocation index}
 	       tx0: integer;     {initial table index}
@@ -155,23 +55,20 @@ func (p *parser) block(expected scanner.Tokens) {
 	p.blockLevel++
 
 	for {
-		switch p.lastTokenDescription.Token {
-		case scanner.ConstWord:
+		switch p.lastToken() {
+		case scn.ConstWord:
 			p.constWord()
 
-		case scanner.VarWord:
+		case scn.VarWord:
 			p.varWord()
 
-		case scanner.ProcedureWord:
+		case scn.ProcedureWord:
 			p.procedureWord(expected)
 		}
 
-		p.rebase(
-			append(p.statements, scanner.Identifier),
-			p.declarations,
-			expectedStatementsIdentifiers)
+		p.rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
 
-		if !slices.Contains(p.declarations, p.lastTokenDescription.Token) {
+		if !p.lastToken().In(declarations) {
 			break
 		}
 	}
@@ -188,13 +85,13 @@ func (p *parser) block(expected scanner.Tokens) {
 		gen(int, 0, dx);
 	*/
 
-	p.statement(append(append(expected, scanner.Semicolon), scanner.EndWord))
+	p.statement(set(expected, scn.Semicolon, scn.EndWord))
 
 	/*
 		gen(opr, 0, 0); {return}
 	*/
 
-	p.rebase(expected, tokens{}, unexpectedSetOfTokens)
+	p.rebase(unexpectedTokens, expected, scn.Empty)
 }
 
 func (p *parser) constWord() error {
@@ -203,18 +100,18 @@ func (p *parser) constWord() error {
 	for {
 		p.identifierEqualNumber()
 
-		for p.lastTokenDescription.Token == scanner.Comma {
+		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
 			p.identifierEqualNumber()
 		}
 
-		if p.lastTokenDescription.Token == scanner.Semicolon {
+		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
 		} else {
-			p.appendError(p.error(expectedSemicolon, p.lastTokenDescription.TokenName))
+			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		if p.lastTokenDescription.Token != scanner.Identifier {
+		if p.lastToken() != scn.Identifier {
 			break
 		}
 	}
@@ -228,18 +125,18 @@ func (p *parser) varWord() error {
 	for {
 		p.identifierSymbolTable()
 
-		for p.lastTokenDescription.Token == scanner.Comma {
+		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
 			p.identifierSymbolTable()
 		}
 
-		if p.lastTokenDescription.Token == scanner.Semicolon {
+		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
 		} else {
-			p.appendError(p.error(expectedSemicolon, p.lastTokenDescription.TokenName))
+			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		if p.lastTokenDescription.Token != scanner.Identifier {
+		if p.lastToken() != scn.Identifier {
 			break
 		}
 	}
@@ -247,164 +144,75 @@ func (p *parser) varWord() error {
 	return p.lastError()
 }
 
-func (p *parser) procedureWord(expected scanner.Tokens) error {
-	for p.lastTokenDescription.Token == scanner.ProcedureWord {
+func (p *parser) procedureWord(expected scn.Tokens) error {
+	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
 
-		if p.lastTokenDescription.Token == scanner.Identifier {
-			p.addSymbol(p.lastTokenDescription.TokenValue, procedure, p.blockLevel, nil)
+		if p.lastToken() == scn.Identifier {
+			p.addSymbol(p.lastTokenValue(), procedure, p.blockLevel, nil)
 			p.nextTokenDescription()
 		} else {
-			p.appendError(p.error(expectedIdentifier, p.lastTokenDescription.TokenName))
+			p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 		}
 
-		if p.lastTokenDescription.Token == scanner.Semicolon {
+		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
 		} else {
-			p.appendError(p.error(expectedSemicolon, p.lastTokenDescription.TokenName))
+			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.block(append(expected, scanner.Semicolon))
+		p.block(set(expected, scn.Semicolon))
 
-		if p.lastTokenDescription.Token == scanner.Semicolon {
+		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
-
-			p.rebase(
-				append(append(p.statements, scanner.Identifier), scanner.ProcedureWord),
-				expected,
-				expectedStatementsIdentifiersProcedures)
+			p.rebase(expectedStatementsIdentifiersProcedures, set(statements, scn.Identifier, scn.ProcedureWord), expected)
 		} else {
-			p.appendError(p.error(expectedSemicolon, p.lastTokenDescription.TokenName))
+			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 	}
 
 	return p.lastError()
 }
 
-func (p *parser) statement(expected scanner.Tokens) error {
+func (p *parser) statement(expected scn.Tokens) error {
 	// TODO: implement statement
 	return p.lastError()
 }
 
 func (p *parser) identifierEqualNumber() error {
-	if p.lastTokenDescription.Token != scanner.Identifier {
-		return p.appendError(p.error(expectedIdentifier, p.lastTokenDescription.TokenName))
+	if p.lastToken() != scn.Identifier {
+		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	}
 
-	constantName := p.lastTokenDescription.TokenValue
+	constantName := p.lastTokenValue()
 	p.nextTokenDescription()
 
-	if slices.Contains(tokens{scanner.Becomes, scanner.Equal}, p.lastTokenDescription.Token) {
-		if p.lastTokenDescription.Token == scanner.Becomes {
-			p.appendError(p.error(expectedEqual, p.lastTokenDescription.TokenName))
+	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
+		if p.lastToken() == scn.Becomes {
+			p.appendError(p.error(expectedEqual, p.lastTokenName()))
 		}
 
 		p.nextTokenDescription()
 
-		if p.lastTokenDescription.Token != scanner.Number {
-			return p.appendError(p.error(expectedNumber, p.lastTokenDescription.TokenName))
+		if p.lastToken() != scn.Number {
+			return p.appendError(p.error(expectedNumber, p.lastTokenName()))
 		}
 
-		p.addSymbol(constantName, constant, p.blockLevel, p.lastTokenDescription.TokenValue)
+		p.addSymbol(constantName, constant, p.blockLevel, p.lastTokenValue())
 		p.nextTokenDescription()
 	} else {
-		return p.appendError(p.error(expectedEqual, p.lastTokenDescription.TokenName))
+		return p.appendError(p.error(expectedEqual, p.lastTokenName()))
 	}
 
 	return nil
 }
 
 func (p *parser) identifierSymbolTable() error {
-	if p.lastTokenDescription.Token != scanner.Identifier {
-		return p.appendError(p.error(expectedIdentifier, p.lastTokenDescription.TokenName))
+	if p.lastToken() != scn.Identifier {
+		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	}
 
-	p.addSymbol(p.lastTokenDescription.TokenValue, variable, p.blockLevel, nil)
+	p.addSymbol(p.lastTokenValue(), variable, p.blockLevel, nil)
 	p.nextTokenDescription()
 	return nil
-}
-
-func (p *parser) nextTokenDescription() bool {
-	if p.concreteSyntaxIndex >= len(p.concreteSyntax) {
-		if p.eof.Token == scanner.Null {
-			p.eof = scanner.TokenDescription{
-				Token:       scanner.Eof,
-				TokenName:   "eof",
-				TokenValue:  "",
-				Line:        p.lastTokenDescription.Line,
-				Column:      p.lastTokenDescription.Column,
-				CurrentLine: p.lastTokenDescription.CurrentLine,
-			}
-
-			p.lastTokenDescription = p.eof
-		}
-
-		return false
-	}
-
-	p.lastTokenDescription = p.concreteSyntax[p.concreteSyntaxIndex]
-	p.concreteSyntaxIndex++
-	return true
-}
-
-func (p *parser) addSymbol(name string, kind entry, level int, value any) {
-	s := symbol{
-		kind:  kind,
-		level: level,
-		value: value,
-	}
-
-	if kind == variable {
-		s.offset = p.varOffset
-		p.varOffset++
-	}
-
-	p.symbolTable[name] = s
-}
-
-func (p *parser) findSymbol(name string) (symbol, bool) {
-	s, ok := p.symbolTable[name]
-	return s, ok
-}
-
-func (p *parser) rebase(code failure, expected, expanded scanner.Tokens) {
-	if !p.lastTokenDescription.Token.In(expected) {
-		p.appendError(p.error(code, p.lastTokenDescription.Token))
-
-		for set := scanner.Eof.Union(expected.Union(expanded)); !p.lastTokenDescription.Token.In(set); {
-			p.nextTokenDescription()
-		}
-	}
-}
-
-func (p *parser) appendError(err error) error {
-	p.errorReport = append(p.errorReport, Error{
-		Err:         err,
-		Line:        p.lastTokenDescription.Line,
-		Column:      p.lastTokenDescription.Column,
-		CurrentLine: p.lastTokenDescription.CurrentLine,
-	})
-
-	return err
-}
-
-func (p *parser) lastError() error {
-	if len(p.errorReport) > 0 {
-		return p.errorReport[len(p.errorReport)-1].Err
-	}
-
-	return nil
-}
-
-func (p *parser) error(code failure, value any) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(p.errorMap[code], value)
-	} else {
-		message = p.errorMap[code]
-	}
-
-	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
-	return fmt.Errorf("parser error %v [%v,%v]: %v", code, line, column, message)
 }

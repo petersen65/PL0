@@ -1,8 +1,6 @@
 package scanner
 
 import (
-	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -10,26 +8,10 @@ import (
 )
 
 const (
-	digitsMax      = 14 // maximum number of digits in numbers
-	identifierMax  = 10 // maximum length of identifier
 	integerBitSize = 64 // number of bits of a signed integer
 )
 
-const (
-	_ = failure(iota + 1000)
-	eofReached
-	eofIdentifier
-	eofNumber
-	eofOperator
-	tooLongIdentifier
-	tooLongNumber
-	illegalInteger
-	unexpectedCharacter
-)
-
 type (
-	failure int
-
 	scanner struct {
 		sourceIndex   int
 		sourceCode    []byte
@@ -38,133 +20,8 @@ type (
 		lastValue     any
 		currentLine   []byte
 		endOfFile     bool
-		tokenMap      map[string]Token
-		tokenNames    map[Token]string
-		errorMap      map[failure]string
 	}
 )
-
-func (token Token) Set() Tokens {
-	return Tokens{token}
-}
-
-func (token Token) Union(set Tokens) Tokens {
-	return append(Tokens{token}, set...)
-}
-
-func (token Token) In(set Tokens) bool {
-	return slices.Contains(set, token)
-}
-
-func (tokens Tokens) Union(set Tokens) Tokens {
-	return append(tokens, set...)
-}
-
-func NewScanner() Scanner {
-	return &scanner{
-		tokenMap: map[string]Token{
-			"+":         Plus,
-			"-":         Minus,
-			"*":         Times,
-			"/":         Devide,
-			"=":         Equal,
-			"#":         NotEqual,
-			"<":         Less,
-			"<=":        LessEqual,
-			">":         Greater,
-			">=":        GreaterEqual,
-			"(":         LeftParenthesis,
-			")":         RightParenthesis,
-			",":         Comma,
-			";":         Semicolon,
-			".":         Period,
-			":=":        Becomes,
-			"odd":       OddWord,
-			"begin":     BeginWord,
-			"end":       EndWord,
-			"if":        IfWord,
-			"then":      ThenWord,
-			"while":     WhileWord,
-			"do":        DoWord,
-			"call":      CallWord,
-			"const":     ConstWord,
-			"var":       VarWord,
-			"procedure": ProcedureWord,
-		},
-		tokenNames: map[Token]string{
-			Null:             "null",
-			Eof:              "eof",
-			Identifier:       "identifier",
-			Number:           "number",
-			Plus:             "plus",
-			Minus:            "minus",
-			Times:            "times",
-			Devide:           "devide",
-			Equal:            "equal",
-			NotEqual:         "notEqual",
-			Less:             "less",
-			LessEqual:        "lessEqual",
-			Greater:          "greater",
-			GreaterEqual:     "greaterEqual",
-			LeftParenthesis:  "leftParenthesis",
-			RightParenthesis: "rightParenthesis",
-			Comma:            "comma",
-			Semicolon:        "semicolon",
-			Period:           "period",
-			Becomes:          "becomes",
-			OddWord:          "odd",
-			BeginWord:        "begin",
-			EndWord:          "end",
-			IfWord:           "if",
-			ThenWord:         "then",
-			WhileWord:        "while",
-			DoWord:           "do",
-			CallWord:         "call",
-			ConstWord:        "const",
-			VarWord:          "var",
-			ProcedureWord:    "procedure",
-		},
-		errorMap: map[failure]string{
-			eofReached:          "unexpected end of file",
-			eofIdentifier:       "unexpected end of file while reading identifier %s",
-			eofNumber:           "unexpected end of file while reading number %s",
-			eofOperator:         "unexpected end of file while reading operator %s",
-			tooLongIdentifier:   "identifier %s is too long",
-			tooLongNumber:       "number %s is too long",
-			illegalInteger:      "cannot parse number %s into integer value",
-			unexpectedCharacter: "unexpected character '%c'",
-		},
-	}
-}
-
-func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
-	concreteSyntax := ConcreteSyntax{}
-
-	if err := s.reset(content); err != nil {
-		return concreteSyntax, err
-	}
-
-	for {
-		token, err := s.getToken()
-
-		concreteSyntax = append(concreteSyntax, TokenDescription{
-			Token:       token,
-			TokenName:   s.tokenNames[token],
-			TokenValue:  fmt.Sprintf("%v", s.lastValue),
-			Line:        s.line,
-			Column:      s.column,
-			CurrentLine: s.currentLine,
-		})
-
-		if err != nil {
-			return concreteSyntax, err
-		}
-
-		if token == Eof {
-			return concreteSyntax, nil
-		}
-	}
-}
 
 func (s *scanner) reset(content []byte) error {
 	s.sourceIndex = 0
@@ -182,34 +39,6 @@ func (s *scanner) reset(content []byte) error {
 	return nil
 }
 
-func (s *scanner) getToken() (Token, error) {
-	s.lastValue = ""
-
-	if s.endOfFile {
-		return Eof, nil
-	}
-
-	for unicode.IsSpace(s.lastCharacter) {
-		if !s.nextCharacter() {
-			return Eof, nil
-		}
-	}
-
-	switch {
-	case unicode.IsLetter(s.lastCharacter):
-		return s.identifierOrWord()
-
-	case unicode.IsDigit(s.lastCharacter):
-		return s.number()
-
-	case s.lastCharacter == ':':
-		return s.becomes()
-
-	default:
-		return s.operator()
-	}
-}
-
 func (s *scanner) identifierOrWord() (Token, error) {
 	var builder strings.Builder
 
@@ -221,7 +50,7 @@ func (s *scanner) identifierOrWord() (Token, error) {
 		}
 	}
 
-	if token, ok := s.tokenMap[builder.String()]; ok {
+	if token, ok := tokenMap[builder.String()]; ok {
 		return token, nil
 	}
 
@@ -275,7 +104,7 @@ func (s *scanner) becomes() (Token, error) {
 func (s *scanner) operator() (Token, error) {
 	var builder strings.Builder
 
-	if token, ok := s.tokenMap[string(s.lastCharacter)]; ok {
+	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
 		if token == Less || token == Greater {
 			builder.WriteRune(s.lastCharacter)
 		}
@@ -286,7 +115,7 @@ func (s *scanner) operator() (Token, error) {
 
 		if (token == Less || token == Greater) && s.lastCharacter == '=' {
 			builder.WriteRune(s.lastCharacter)
-			token = s.tokenMap[builder.String()]
+			token = tokenMap[builder.String()]
 
 			if !s.nextCharacter() {
 				return token, s.error(eofOperator, builder.String())
@@ -356,16 +185,4 @@ func (s *scanner) setCurrentLine() {
 
 		i += width
 	}
-}
-
-func (s *scanner) error(code failure, value any) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(s.errorMap[code], value)
-	} else {
-		message = s.errorMap[code]
-	}
-
-	return fmt.Errorf("scanner error %v [%v,%v]: %v", code, s.line, s.column, message)
 }
