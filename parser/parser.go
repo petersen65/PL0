@@ -54,7 +54,7 @@ func (p *parser) block(expected scn.Tokens) {
 	blockProcedure, ok := p.findKind(procedure)
 
 	if !ok || blockProcedure.level != p.blockLevel {
-		p.appendError(p.error(blockProcedureNotFound, nil))
+		p.appendError(p.error(blockProcedureNotFound, p.blockLevel))
 	}
 
 	if p.blockLevel > blockNestingMax {

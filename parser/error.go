@@ -36,7 +36,7 @@ var errorMap = map[failure]string{
 	expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
-	blockProcedureNotFound:                  "block procedure not found",
+	blockProcedureNotFound:                  "block procedure not found at level %v",
 }
 
 func (p *parser) appendError(err error) error {
