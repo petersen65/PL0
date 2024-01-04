@@ -28,14 +28,7 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 		return p.errorReport, err
 	}
 
-	/*
-		cc := 0;
-		cx := 0;
-		ll := 0;
-		ch := ' ';
-		kk := al;
-	*/
-
+	p.addProcedure(entryPointName)
 	p.block(set(declarations, statements, scn.Period))
 
 	if p.lastToken() != scn.Period {

@@ -5,6 +5,11 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+const (
+	variableOffsetMin = 3      // start of variable offset within each block
+	entryPointName    = "main" // name of the entry point procedure
+)
+
 type (
 	parser struct {
 		concreteSyntaxIndex       int
@@ -12,8 +17,7 @@ type (
 		emitter                   emt.Emitter
 		lastTokenDescription, eof scn.TokenDescription
 		blockLevel                int
-		varOffset                 uint64
-		symbolTable               map[string]symbol
+		symbolTable               table
 		errorReport               ErrorReport
 	}
 )
@@ -23,8 +27,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
 	p.blockLevel = 0
-	p.varOffset = 0
-	p.symbolTable = make(map[string]symbol)
+	p.symbolTable = make(table, 0)
 	p.errorReport = make(ErrorReport, 0)
 
 	if len(p.concreteSyntax) == 0 || !p.nextTokenDescription() {
@@ -44,15 +47,22 @@ func (p *parser) block(expected scn.Tokens) {
 	/*
 		dx:=3;
 		tx0:=tx;
-		table[tx].adr:=cx;
+		table[tx].adr:=cx; update adress of current procedure
 		gen(jmp,0,0);
 	*/
+
+	blockProcedure, ok := p.findKind(procedure)
+
+	if !ok || blockProcedure.level != p.blockLevel {
+		p.appendError(p.error(blockProcedureNotFound, nil))
+	}
 
 	if p.blockLevel > blockNestingMax {
 		p.appendError(p.error(maxBlockLevel, p.blockLevel))
 	}
 
 	p.blockLevel++
+	var varOffset uint64 = variableOffsetMin
 
 	for {
 		switch p.lastToken() {
@@ -60,7 +70,7 @@ func (p *parser) block(expected scn.Tokens) {
 			p.constWord()
 
 		case scn.VarWord:
-			p.varWord()
+			p.varWord(&varOffset)
 
 		case scn.ProcedureWord:
 			p.procedureWord(expected)
@@ -92,17 +102,18 @@ func (p *parser) block(expected scn.Tokens) {
 	*/
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
+	p.blockLevel--
 }
 
 func (p *parser) constWord() error {
 	p.nextTokenDescription()
 
 	for {
-		p.identifierEqualNumber()
+		p.constantIdentifier()
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.identifierEqualNumber()
+			p.constantIdentifier()
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -119,15 +130,15 @@ func (p *parser) constWord() error {
 	return p.lastError()
 }
 
-func (p *parser) varWord() error {
+func (p *parser) varWord(offset *uint64) error {
 	p.nextTokenDescription()
 
 	for {
-		p.identifierSymbolTable()
+		p.variableIdentifier(offset)
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.identifierSymbolTable()
+			p.variableIdentifier(offset)
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -149,7 +160,7 @@ func (p *parser) procedureWord(expected scn.Tokens) error {
 		p.nextTokenDescription()
 
 		if p.lastToken() == scn.Identifier {
-			p.addSymbol(p.lastTokenValue(), procedure, p.blockLevel, nil)
+			p.addProcedure(p.lastTokenValue())
 			p.nextTokenDescription()
 		} else {
 			p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
@@ -174,12 +185,7 @@ func (p *parser) procedureWord(expected scn.Tokens) error {
 	return p.lastError()
 }
 
-func (p *parser) statement(expected scn.Tokens) error {
-	// TODO: implement statement
-	return p.lastError()
-}
-
-func (p *parser) identifierEqualNumber() error {
+func (p *parser) constantIdentifier() error {
 	if p.lastToken() != scn.Identifier {
 		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	}
@@ -198,7 +204,7 @@ func (p *parser) identifierEqualNumber() error {
 			return p.appendError(p.error(expectedNumber, p.lastTokenName()))
 		}
 
-		p.addSymbol(constantName, constant, p.blockLevel, p.lastTokenValue())
+		p.addConstant(constantName, p.lastTokenValue())
 		p.nextTokenDescription()
 	} else {
 		return p.appendError(p.error(expectedEqual, p.lastTokenName()))
@@ -207,12 +213,37 @@ func (p *parser) identifierEqualNumber() error {
 	return nil
 }
 
-func (p *parser) identifierSymbolTable() error {
+func (p *parser) variableIdentifier(offset *uint64) error {
 	if p.lastToken() != scn.Identifier {
 		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	}
 
-	p.addSymbol(p.lastTokenValue(), variable, p.blockLevel, nil)
+	p.addVariable(p.lastTokenValue(), offset)
 	p.nextTokenDescription()
 	return nil
+}
+
+func (p *parser) statement(expected scn.Tokens) error {
+	// TODO: implement statement
+	return p.lastError()
+}
+
+func (p *parser) expression(expected scn.Tokens) error {
+	// TODO: implement expression
+	return p.lastError()
+}
+
+func (p *parser) condition(expected scn.Tokens) error {
+	// TODO: implement condition
+	return p.lastError()
+}
+
+func (p *parser) term(expected scn.Tokens) error {
+	// TODO: implement term
+	return p.lastError()
+}
+
+func (p *parser) factor(expected scn.Tokens) error {
+	// TODO: implement factor
+	return p.lastError()
 }

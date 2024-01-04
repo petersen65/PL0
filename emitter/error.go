@@ -11,6 +11,8 @@ const (
 	instructionsExceeded
 )
 
+type failure int
+
 var errorMap = map[failure]string{
 	instructionsExceeded: "maximum number of instructions reached: %v",
 }

@@ -13,9 +13,11 @@ const (
 
 type (
 	Operation int
+	CodeIndex uint64
+	Address   uint64
 
 	Emitter interface {
-		Emit(o Operation, level int, address uint64) error
+		Emit(operation Operation, level int, address Address) (CodeIndex, error)
 	}
 )
 
@@ -25,16 +27,16 @@ func NewEmitter() Emitter {
 	}
 }
 
-func (e *emitter) Emit(o Operation, level int, address uint64) error {
+func (e *emitter) Emit(operation Operation, level int, address Address) (CodeIndex, error) {
 	if len(e.code) >= codeMax {
-		return e.error(instructionsExceeded, len(e.code))
+		return 0, e.error(instructionsExceeded, len(e.code))
 	}
 
 	e.code = append(e.code, instruction{
-		operation: o,
+		operation: operation,
 		level:     level,
 		address:   address,
 	})
 
-	return nil
+	return CodeIndex(len(e.code) - 1), nil
 }

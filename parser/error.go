@@ -19,6 +19,7 @@ const (
 	expectedStatementsIdentifiers
 	expectedStatementsIdentifiersProcedures
 	unexpectedTokens
+	blockProcedureNotFound
 )
 
 type failure int
@@ -35,6 +36,7 @@ var errorMap = map[failure]string{
 	expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
+	blockProcedureNotFound:                  "block procedure not found",
 }
 
 func (p *parser) appendError(err error) error {

@@ -7,9 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	integerBitSize = 64 // number of bits of a signed integer
-)
+const integerBitSize = 64 // number of bits of a signed integer
 
 type (
 	scanner struct {
