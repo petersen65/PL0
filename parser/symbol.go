@@ -2,9 +2,14 @@ package parser
 
 import "fmt"
 
+const (
+	constant = entry(iota)
+	variable
+	procedure
+)
+
 type (
 	entry int
-	table []symbol
 
 	symbol struct {
 		name   string
@@ -14,69 +19,57 @@ type (
 		label  string
 		offset uint64
 	}
+
+	symbolTable struct {
+		symbols []symbol
+	}
 )
 
-const (
-	constant = entry(iota)
-	variable
-	procedure
-)
-
-func (p *parser) addConstant(name string, value any) {
-	p.symbolTable = append(p.symbolTable, symbol{
-		name:  name,
-		kind:  constant,
-		level: p.blockLevel,
-		value: value,
+func (s *symbolTable) addConstant(name string, level int, value any) {
+	s.symbols = append(s.symbols, symbol{
+		name:   name,
+		kind:   constant,
+		level:  level,
+		value:  value,
 	})
 }
 
-func (p *parser) addVariable(name string, offset *uint64) {
-	p.symbolTable = append(p.symbolTable, symbol{
+func (s *symbolTable) addVariable(name string, level int, offset *uint64) {
+	s.symbols = append(s.symbols, symbol{
 		name:   name,
 		kind:   variable,
-		level:  p.blockLevel,
+		level:  level,
 		offset: *offset,
 	})
 
 	*offset++
 }
 
-func (p *parser) addProcedure(name string) {
-	p.symbolTable = append(p.symbolTable, symbol{
+func (s *symbolTable) addProcedure(name string, level int) {
+	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  procedure,
-		level: p.blockLevel,
-		label: fmt.Sprintf("_%v_%v", p.blockLevel, name),
+		level: level,
+		label: fmt.Sprintf("_%v_%v", level, name),
 	})
 }
 
-func (p *parser) removeLevel(level int) {
+func (s *symbolTable) removeLevel(level int) {
 	filteredTable := make([]symbol, 0)
 
-	for _, s := range p.symbolTable {
+	for _, s := range s.symbols {
 		if s.level != level {
 			filteredTable = append(filteredTable, s)
 		}
 	}
-	
-	p.symbolTable = filteredTable
+
+	s.symbols = filteredTable
 }
 
-func (p *parser) findSymbol(name string) (symbol, bool) {
-	for i := len(p.symbolTable) - 1; i >= 0; i-- {
-		if p.symbolTable[i].name == name {
-			return p.symbolTable[i], true
-		}
-	}
-
-	return symbol{}, false
-}
-
-func (p *parser) findKind(kind entry) (symbol, bool) {
-	for i := len(p.symbolTable) - 1; i >= 0; i-- {
-		if p.symbolTable[i].kind == kind {
-			return p.symbolTable[i], true
+func (s *symbolTable) findName(name string) (symbol, bool) {
+	for i := len(s.symbols) - 1; i >= 0; i-- {
+		if s.symbols[i].name == name {
+			return s.symbols[i], true
 		}
 	}
 

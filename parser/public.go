@@ -24,20 +24,5 @@ func NewParser() Parser {
 }
 
 func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
-	if err := p.reset(concreteSyntax, emitter); err != nil {
-		return p.errorReport, err
-	}
-
-	p.addProcedure(entryPointName)
-	p.block(set(declarations, statements, scn.Period))
-
-	if p.lastToken() != scn.Period {
-		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
-	}
-
-	if len(p.errorReport) > 0 {
-		return p.errorReport, p.error(parsingErrors, len(p.errorReport))
-	} else {
-		return p.errorReport, nil
-	}
+	return p.parse(concreteSyntax, emitter)
 }

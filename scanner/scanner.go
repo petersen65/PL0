@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -20,6 +21,35 @@ type (
 		endOfFile     bool
 	}
 )
+
+func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
+	concreteSyntax := ConcreteSyntax{}
+
+	if err := s.reset(content); err != nil {
+		return concreteSyntax, err
+	}
+
+	for {
+		token, err := s.getToken()
+
+		concreteSyntax = append(concreteSyntax, TokenDescription{
+			Token:       token,
+			TokenName:   tokenNames[token],
+			TokenValue:  fmt.Sprintf("%v", s.lastValue),
+			Line:        s.line,
+			Column:      s.column,
+			CurrentLine: s.currentLine,
+		})
+
+		if err != nil {
+			return concreteSyntax, err
+		}
+
+		if token == Eof {
+			return concreteSyntax, nil
+		}
+	}
+}
 
 func (s *scanner) reset(content []byte) error {
 	s.sourceIndex = 0

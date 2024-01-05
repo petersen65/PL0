@@ -16,18 +16,35 @@ type (
 		concreteSyntax            scn.ConcreteSyntax
 		emitter                   emt.Emitter
 		lastTokenDescription, eof scn.TokenDescription
-		blockLevel                int
-		symbolTable               table
+		symbolTable               symbolTable
 		errorReport               ErrorReport
 	}
 )
+
+func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
+	if err := p.reset(concreteSyntax, emitter); err != nil {
+		return p.errorReport, err
+	}
+
+	p.symbolTable.addProcedure(entryPointName, 0)
+	p.block(0, set(declarations, statements, scn.Period))
+
+	if p.lastToken() != scn.Period {
+		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
+	}
+
+	if len(p.errorReport) > 0 {
+		return p.errorReport, p.error(parsingErrors, len(p.errorReport))
+	} else {
+		return p.errorReport, nil
+	}
+}
 
 func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) error {
 	p.concreteSyntaxIndex = 0
 	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
-	p.blockLevel = 0
-	p.symbolTable = make(table, 0)
+	p.symbolTable = symbolTable{}
 	p.errorReport = make(ErrorReport, 0)
 
 	if len(p.concreteSyntax) == 0 || !p.nextTokenDescription() {
@@ -37,36 +54,26 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	return nil
 }
 
-func (p *parser) block(expected scn.Tokens) {
-	blockProcedure, ok := p.findKind(procedure)
-
-	if !ok || blockProcedure.level != p.blockLevel {
-		p.appendError(p.error(blockProcedureNotFound, p.blockLevel))
+func (p *parser) block(blockLevel int, expected scn.Tokens) {
+	if blockLevel > blockNestingMax {
+		p.appendError(p.error(maxBlockLevel, blockLevel))
 	}
 
-	if p.blockLevel > blockNestingMax {
-		p.appendError(p.error(maxBlockLevel, p.blockLevel))
-	}
-
-	codeIndex, err := p.emitter.Emit(emt.Jmp, p.blockLevel, 0) // jump forward to block code beginning
-
-	if err != nil {
-		p.appendError(err)
-	}
-
-	var varOffset uint64 = variableOffsetMin // space for static link, dynamic link, and return address
-	p.blockLevel++
+	var varOffset uint64 = variableOffsetMin
+	jmpInstructionAddress, err := p.emitter.EmitInstruction(blockLevel, emt.Jmp, emt.NullAddress)
+	p.appendError(err)
 
 	for {
-		switch p.lastToken() {
-		case scn.ConstWord:
-			p.constWord()
+		if p.lastToken() == scn.ConstWord {
+			p.constWord(blockLevel)
+		}
 
-		case scn.VarWord:
-			p.varWord(&varOffset)
+		if p.lastToken() == scn.VarWord {
+			p.varWord(blockLevel, &varOffset)
+		}
 
-		case scn.ProcedureWord:
-			p.procedureWord(expected)
+		if p.lastToken() == scn.ProcedureWord {
+			p.procedureWord(blockLevel, expected)
 		}
 
 		p.rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
@@ -76,32 +83,27 @@ func (p *parser) block(expected scn.Tokens) {
 		}
 	}
 
-	p.removeLevel(p.blockLevel)
-	p.blockLevel--
-	p.emitter.UpdateAddress(codeIndex, p.emitter.GetCurrentAddress()) // update jump address with block code beginning
+	p.emitter.UpdateInstructionArgument(jmpInstructionAddress, p.emitter.GetNextInstructionAddress())
+	_, err = p.emitter.EmitInstruction(blockLevel, emt.Inc, emt.Address(varOffset))
+	p.appendError(err)
 
-	if _, err := p.emitter.Emit(emt.Inc, p.blockLevel, emt.Address(varOffset)); err != nil {
-		p.appendError(err)
-	}
-
-	p.statement(set(expected, scn.Semicolon, scn.EndWord))
-
-	if _, err := p.emitter.Emit(emt.Opr, p.blockLevel, 0); err != nil { // return from block code end
-		p.appendError(err)
-	}
+	p.statement(blockLevel, set(expected, scn.Semicolon, scn.EndWord))
+	_, err = p.emitter.EmitInstruction(blockLevel, emt.Opr, emt.ReturnOperator)
+	p.appendError(err)
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
+	p.symbolTable.removeLevel(blockLevel)
 }
 
-func (p *parser) constWord() error {
+func (p *parser) constWord(level int) {
 	p.nextTokenDescription()
 
 	for {
-		p.constantIdentifier()
+		p.constantIdentifier(level)
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.constantIdentifier()
+			p.constantIdentifier(level)
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -114,19 +116,17 @@ func (p *parser) constWord() error {
 			break
 		}
 	}
-
-	return p.lastError()
 }
 
-func (p *parser) varWord(offset *uint64) error {
+func (p *parser) varWord(level int, offset *uint64) {
 	p.nextTokenDescription()
 
 	for {
-		p.variableIdentifier(offset)
+		p.variableIdentifier(level, offset)
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.variableIdentifier(offset)
+			p.variableIdentifier(level, offset)
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -139,16 +139,14 @@ func (p *parser) varWord(offset *uint64) error {
 			break
 		}
 	}
-
-	return p.lastError()
 }
 
-func (p *parser) procedureWord(expected scn.Tokens) error {
+func (p *parser) procedureWord(level int, expected scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
 
 		if p.lastToken() == scn.Identifier {
-			p.addProcedure(p.lastTokenValue())
+			p.symbolTable.addProcedure(p.lastTokenValue(), level)
 			p.nextTokenDescription()
 		} else {
 			p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
@@ -160,7 +158,7 @@ func (p *parser) procedureWord(expected scn.Tokens) error {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.block(set(expected, scn.Semicolon))
+		p.block(level+1, set(expected, scn.Semicolon))
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -169,13 +167,45 @@ func (p *parser) procedureWord(expected scn.Tokens) error {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 	}
-
-	return p.lastError()
 }
 
-func (p *parser) constantIdentifier() error {
+func (p *parser) ifWord(level int, expected scn.Tokens) {
+	p.nextTokenDescription()
+	p.condition(set(expected, scn.ThenWord, scn.DoWord))
+
+	if p.lastToken() == scn.ThenWord {
+		p.nextTokenDescription()
+	} else {
+		p.appendError(p.error(expectedThen, p.lastTokenName()))
+	}
+
+	jmpInstructionAddress, err := p.emitter.EmitInstruction(level, emt.Jmp, emt.NullAddress)
+	p.appendError(err)
+	p.statement(level, expected)
+	p.emitter.UpdateInstructionArgument(jmpInstructionAddress, p.emitter.GetNextInstructionAddress())
+}
+
+func (p *parser) whileWord(level int, expected scn.Tokens) {
+	currentAddress := p.emitter.GetCurrentAddress()
+	p.nextTokenDescription()
+	p.condition(set(expected, scn.DoWord))
+
+	codeIndex, err := p.emitter.Emit(emt.Jpc, level, 0)
+
+	/*
+	   if sym = whilesym then
+	         begin cx1 := cx; getsym; condition([dosym]+fsys);
+	            cx2 := cx; gen(jpc, 0, 0);
+	            if sym = dosym then getsym else error(18);
+	            statement(fsys); gen(jmp, 0, cx1); code[cx2].a := cx
+	         end
+	*/
+}
+
+func (p *parser) constantIdentifier(level int) {
 	if p.lastToken() != scn.Identifier {
-		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+		return
 	}
 
 	constantName := p.lastTokenValue()
@@ -189,49 +219,56 @@ func (p *parser) constantIdentifier() error {
 		p.nextTokenDescription()
 
 		if p.lastToken() != scn.Number {
-			return p.appendError(p.error(expectedNumber, p.lastTokenName()))
+			p.appendError(p.error(expectedNumber, p.lastTokenName()))
+			return
 		}
 
-		p.addConstant(constantName, p.lastTokenValue())
+		p.symbolTable.addConstant(constantName, level, p.lastTokenValue())
 		p.nextTokenDescription()
 	} else {
-		return p.appendError(p.error(expectedEqual, p.lastTokenName()))
+		p.appendError(p.error(expectedEqual, p.lastTokenName()))
 	}
-
-	return nil
 }
 
-func (p *parser) variableIdentifier(offset *uint64) error {
+func (p *parser) variableIdentifier(level int, offset *uint64) {
 	if p.lastToken() != scn.Identifier {
-		return p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+	} else {
+		p.symbolTable.addVariable(p.lastTokenValue(), level, offset)
+		p.nextTokenDescription()
+	}
+}
+
+func (p *parser) statement(level int, expected scn.Tokens) {
+	switch p.lastToken() {
+	case scn.Identifier:
+
+	case scn.BeginWord:
+
+	case scn.CallWord:
+
+	case scn.IfWord:
+		p.ifWord(level, expected)
+
+	case scn.WhileWord:
+		p.whileWord(level, expected)
 	}
 
-	p.addVariable(p.lastTokenValue(), offset)
-	p.nextTokenDescription()
-	return nil
+	p.rebase(expectedStatement, expected, scn.Empty)
 }
 
-func (p *parser) statement(expected scn.Tokens) error {
-	// TODO: implement statement
-	return p.lastError()
-}
-
-func (p *parser) expression(expected scn.Tokens) error {
+func (p *parser) expression(expected scn.Tokens) {
 	// TODO: implement expression
-	return p.lastError()
 }
 
-func (p *parser) condition(expected scn.Tokens) error {
+func (p *parser) condition(expected scn.Tokens) {
 	// TODO: implement condition
-	return p.lastError()
 }
 
-func (p *parser) term(expected scn.Tokens) error {
+func (p *parser) term(expected scn.Tokens) {
 	// TODO: implement term
-	return p.lastError()
 }
 
-func (p *parser) factor(expected scn.Tokens) error {
+func (p *parser) factor(expected scn.Tokens) {
 	// TODO: implement factor
-	return p.lastError()
 }

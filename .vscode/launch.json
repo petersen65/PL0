@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "examples/math.pl0"
+                "examples/squares.pl0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": true

@@ -16,10 +16,11 @@ const (
 	expectedEqual
 	expectedNumber
 	expectedSemicolon
+	expectedStatement
+	expectedThen
 	expectedStatementsIdentifiers
 	expectedStatementsIdentifiersProcedures
 	unexpectedTokens
-	blockProcedureNotFound
 )
 
 type failure int
@@ -33,13 +34,18 @@ var errorMap = map[failure]string{
 	expectedEqual:                           "expected equal sign, found %v",
 	expectedNumber:                          "expected number, found %v",
 	expectedSemicolon:                       "expected semicolon, found %v",
+	expectedStatement:                       "expected statement keywords or identifier, found %v",
+	expectedThen:                            "expected then keyword, found %v",
 	expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
-	blockProcedureNotFound:                  "block procedure not found at level %v",
 }
 
 func (p *parser) appendError(err error) error {
+	if err == nil {
+		return nil
+	}
+
 	p.errorReport = append(p.errorReport, Error{
 		Err:         err,
 		Line:        p.lastTokenDescription.Line,

@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"fmt"
 	"slices"
 )
 
@@ -67,32 +66,7 @@ func NewScanner() Scanner {
 }
 
 func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
-	concreteSyntax := ConcreteSyntax{}
-
-	if err := s.reset(content); err != nil {
-		return concreteSyntax, err
-	}
-
-	for {
-		token, err := s.getToken()
-
-		concreteSyntax = append(concreteSyntax, TokenDescription{
-			Token:       token,
-			TokenName:   tokenNames[token],
-			TokenValue:  fmt.Sprintf("%v", s.lastValue),
-			Line:        s.line,
-			Column:      s.column,
-			CurrentLine: s.currentLine,
-		})
-
-		if err != nil {
-			return concreteSyntax, err
-		}
-
-		if token == Eof {
-			return concreteSyntax, nil
-		}
-	}
+	return s.scan(content)
 }
 
 func Set(tss ...TokenSet) Tokens {
