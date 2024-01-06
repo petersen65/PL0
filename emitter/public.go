@@ -6,6 +6,7 @@ const (
 	Lod
 	Sto
 	Cal
+	Ret
 	Inc
 	Jmp
 	Jpc
@@ -22,10 +23,7 @@ type (
 	}
 )
 
-var (
-	NullAddress    Address = 0
-	ReturnOperator Address = 0
-)
+var NullAddress Address = 0
 
 func NewEmitter() Emitter {
 	return &emitter{

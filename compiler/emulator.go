@@ -109,53 +109,83 @@ func (m *machine) startProcess(text textSegment, code codeSegment) {
 		case inc: // allocate space on stack
 			m.cpu.registers[rsp] += instr.argument
 
-		case opr: // execute operator
+		case opr: // execute any operator from the operator set
 			switch operator(instr.argument) {
-			case neg: // negate number
+			case neg:
 				m.cpu.stack[m.cpu.registers[rsp]] = -m.cpu.stack[m.cpu.registers[rsp]]
 
 			case add:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = m.cpu.stack[m.cpu.registers[rsp]-2] + m.cpu.stack[m.cpu.registers[rsp]-1]
+				m.cpu.registers[rsp]--
+				m.cpu.stack[m.cpu.registers[rsp]] += m.cpu.stack[m.cpu.registers[rsp]+1]
 
 			case sub:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = m.cpu.stack[m.cpu.registers[rsp]-2] - m.cpu.stack[m.cpu.registers[rsp]-1]
+				m.cpu.registers[rsp]--
+				m.cpu.stack[m.cpu.registers[rsp]] -= m.cpu.stack[m.cpu.registers[rsp]+1]
 
 			case mul:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = m.cpu.stack[m.cpu.registers[rsp]-2] * m.cpu.stack[m.cpu.registers[rsp]-1]
+				m.cpu.registers[rsp]--
+				m.cpu.stack[m.cpu.registers[rsp]] *= m.cpu.stack[m.cpu.registers[rsp]+1]
 
 			case div:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = m.cpu.stack[m.cpu.registers[rsp]-2] / m.cpu.stack[m.cpu.registers[rsp]-1]
+				m.cpu.registers[rsp]--
+				m.cpu.stack[m.cpu.registers[rsp]] /= m.cpu.stack[m.cpu.registers[rsp]+1]
 
 			case odd:
-				m.cpu.stack[m.cpu.registers[rsp]-1] = m.cpu.stack[m.cpu.registers[rsp]-1] % 2
+				m.cpu.stack[m.cpu.registers[rsp]] = m.cpu.stack[m.cpu.registers[rsp]] % 2
 
 			case eq:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(bool(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) == int64(m.cpu.stack[m.cpu.registers[rsp]-1])))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] == m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 
 			case neq:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) != int64(m.cpu.stack[m.cpu.registers[rsp]-1]))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] != m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 
 			case lss:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) < int64(m.cpu.stack[m.cpu.registers[rsp]-1]))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] < m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 
 			case leq:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) <= int64(m.cpu.stack[m.cpu.registers[rsp]-1]))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] <= m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 
 			case gtr:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) > int64(m.cpu.stack[m.cpu.registers[rsp]-1]))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] > m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 
 			case geq:
-				m.cpu.registers[rsp]++
-				m.cpu.stack[m.cpu.registers[rsp]-2] = 0//uint64(int64(m.cpu.stack[m.cpu.registers[rsp]-2]) >= int64(m.cpu.stack[m.cpu.registers[rsp]-1]))
+				m.cpu.registers[rsp]--
+
+				if m.cpu.stack[m.cpu.registers[rsp]] >= m.cpu.stack[m.cpu.registers[rsp]+1] {
+					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				} else {
+					m.cpu.stack[m.cpu.registers[rsp]] = 0
+				}
 			}
 
 		case cal: // call procedure

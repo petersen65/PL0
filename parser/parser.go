@@ -88,7 +88,7 @@ func (p *parser) block(blockLevel int, expected scn.Tokens) {
 	p.appendError(err)
 
 	p.statement(blockLevel, set(expected, scn.Semicolon, scn.EndWord))
-	_, err = p.emitter.EmitInstruction(blockLevel, emt.Opr, emt.ReturnOperator)
+	_, err = p.emitter.EmitInstruction(blockLevel, emt.Ret, 0)
 	p.appendError(err)
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
