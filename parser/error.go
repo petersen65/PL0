@@ -10,7 +10,8 @@ const (
 	_ = failure(iota + 2000)
 	eofReached
 	parsingErrors
-	maxBlockLevel
+	maxBlockDepth
+	emptyProcedureName
 	expectedPeriod
 	expectedIdentifier
 	expectedEqual
@@ -28,7 +29,8 @@ type failure int
 var errorMap = map[failure]string{
 	eofReached:                              "unexpected end of file",
 	parsingErrors:                           "%v parsing errors occurred",
-	maxBlockLevel:                           "depth of block nesting exceeded: %v",
+	maxBlockDepth:                           "depth of block nesting exceeded: %v",
+	emptyProcedureName:                      "procedure name cannot be empty",
 	expectedPeriod:                          "expected period at end of the program, found %v",
 	expectedIdentifier:                      "expected identifier, found %v",
 	expectedEqual:                           "expected equal sign, found %v",

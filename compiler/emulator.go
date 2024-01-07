@@ -51,7 +51,7 @@ type (
 	ram         []byte
 
 	instruction struct {
-		level     int
+		depth     int
 		operation operation
 		argument  uintptr
 	}
@@ -189,7 +189,7 @@ func (m *machine) startProcess(text textSegment, code codeSegment) {
 			}
 
 		case cal: // call procedure
-			m.cpu.push(m.cpu.base(instr.level))
+			m.cpu.push(m.cpu.base(instr.depth))
 			m.cpu.push(m.cpu.registers[rbp])
 			m.cpu.push(m.cpu.registers[rip])
 			m.cpu.registers[rbp] = m.cpu.registers[rsp] + 1
@@ -202,21 +202,21 @@ func (m *machine) startProcess(text textSegment, code codeSegment) {
 
 		case lod: // push variable on top of stack
 			m.cpu.registers[rsp]++
-			m.cpu.stack[m.cpu.registers[rsp]] = m.cpu.stack[m.cpu.base(instr.level)+instr.argument]
+			m.cpu.stack[m.cpu.registers[rsp]] = m.cpu.stack[m.cpu.base(instr.depth)+instr.argument]
 
 		case sto: // pop variable from top of stack
-			m.cpu.stack[m.cpu.base(instr.level)+instr.argument] = m.cpu.stack[m.cpu.registers[rsp]]
+			m.cpu.stack[m.cpu.base(instr.depth)+instr.argument] = m.cpu.stack[m.cpu.registers[rsp]]
 			m.cpu.registers[rsp]--
 		}
 	}
 }
 
-func (c *cpu) base(level int) uintptr {
+func (c *cpu) base(depth int) uintptr {
 	b := c.registers[rbp]
 
-	for level > 0 {
+	for depth > 0 {
 		b = c.stack[b]
-		level--
+		depth--
 	}
 
 	return b
@@ -280,3 +280,42 @@ func (c *cpu) neg(reg register) {
 func (c *cpu) odd(reg register) {
 	c.registers[reg] = c.registers[reg] % 2
 }
+
+/*
+	var x, squ;
+
+	procedure square;
+	begin
+   		squ:= x * x
+	end;
+
+	begin
+   		x := 1;
+   		
+		while x <= 10 do
+   		begin
+    		call square;
+      		x := x + 1
+   		end
+	end.
+*/
+
+/*
+	PL/0 Code Segment and Symbol Table
+
+	| 					|						| proc n='square',d=0,a=1	| 3 
+	|					| 2						| var n='squ',d=0,o=4		| 2
+	| f=jmp,d=0,a=0		| 1	square				| var n='x',d=0,o=3			| 1
+	| f=jmp d=0,a=0		| 0	main			   	| proc n='main',d=0,a=0 	| 0
+	+-------------------+ code					+---------------------------+ symtab
+*/
+
+/* 
+	PL/0 Stack Segment
+
+
+	| ip = 0			| 2
+	| bp = 0			| 1
+	| base = 0			| 0
+	+-------------------+ stack
+*/

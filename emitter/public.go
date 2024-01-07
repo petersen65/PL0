@@ -17,7 +17,7 @@ type (
 	Address   uint64
 
 	Emitter interface {
-		EmitInstruction(level int, operation Operation, argument Address) (Address, error)
+		EmitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error)
 		UpdateInstructionArgument(instructionAddress, argument Address) error
 		GetNextInstructionAddress() Address
 	}
@@ -31,8 +31,8 @@ func NewEmitter() Emitter {
 	}
 }
 
-func (e *emitter) EmitInstruction(level int, operation Operation, argument Address) (Address, error) {
-	return e.emitInstruction(level, operation, argument)
+func (e *emitter) EmitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error) {
+	return e.emitInstruction(declarationDepth, operation, argument)
 }
 
 func (e *emitter) UpdateInstructionArgument(instructionAddress, argument Address) error {

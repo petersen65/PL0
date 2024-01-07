@@ -2,7 +2,7 @@ package emitter
 
 type (
 	instruction struct {
-		level     int
+		depth     int
 		operation Operation
 		argument  Address
 	}
@@ -12,13 +12,13 @@ type (
 	}
 )
 
-func (e *emitter) emitInstruction(level int, operation Operation, argument Address) (Address, error) {
+func (e *emitter) emitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error) {
 	if len(e.codeSegment) >= codeSegmentMaxAddress {
 		return 0, e.error(reachedCodeSegmentMaxAddress, len(e.codeSegment))
 	}
 
 	e.codeSegment = append(e.codeSegment, instruction{
-		level:     level,
+		depth:     declarationDepth,
 		operation: operation,
 		argument:  argument,
 	})
