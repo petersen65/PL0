@@ -82,7 +82,8 @@ func (p *parser) block(procdureName string, declarationDepth int, expected scn.T
 		p.symbolTable.addProcedure(procdureName, declarationDepth, uint64(p.emitter.GetNextInstructionAddress()))
 	}
 
-	jmpInstructionAddress, err := p.emitter.EmitInstruction(declarationDepth, emt.Jmp, emt.NullAddress)
+	// emit a jmp to the first instruction of the block which is not yet known
+	jumpFirstBlockInstruction, err := p.emitter.EmitInstruction(declarationDepth, emt.Jmp, emt.NullAddress)
 	p.appendError(err)
 
 	for {
@@ -106,7 +107,7 @@ func (p *parser) block(procdureName string, declarationDepth int, expected scn.T
 	}
 
 	// update the jump instruction address to the first instruction of the block
-	p.emitter.UpdateInstructionArgument(jmpInstructionAddress, p.emitter.GetNextInstructionAddress())
+	p.emitter.UpdateInstructionArgument(jumpFirstBlockInstruction, p.emitter.GetNextInstructionAddress())
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
 	if procedureSymbol, ok := p.symbolTable.find(procdureName); ok {
@@ -203,6 +204,73 @@ func (p *parser) procedureWord(declarationDepth int, expected scn.Tokens) {
 	}
 }
 
+func (p *parser) assignment(depth int, expected scn.Tokens) {
+	symbol, ok := p.symbolTable.find(p.lastTokenValue())
+
+	if !ok {
+		p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+	} else if symbol.kind != variable {
+		p.appendError(p.error(expectedVariableIdentifier, p.lastTokenName()))
+	}
+
+	p.nextTokenDescription()
+
+	if p.lastToken() == scn.Becomes {
+		p.nextTokenDescription()
+	} else {
+		p.appendError(p.error(expectedEqual, p.lastTokenName()))
+	}
+
+	p.expression(expected)
+
+	if ok && symbol.kind == variable {
+		p.emitter.EmitInstruction(depth-symbol.depth, emt.Sto, emt.Address(symbol.address))
+
+	}
+}
+
+func (p *parser) beginWord(depth int, expected scn.Tokens) {
+	p.nextTokenDescription()
+	p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
+
+	for p.lastToken().In(set(statements, scn.Semicolon)) {
+		if p.lastToken() == scn.Semicolon {
+			p.nextTokenDescription()
+		} else {
+			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
+		}
+
+		p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
+
+	}
+
+	if p.lastToken() == scn.EndWord {
+		p.nextTokenDescription()
+	} else {
+		p.appendError(p.error(expectedEnd, p.lastTokenName()))
+	}
+}
+
+func (p *parser) callWord(depth int, expected scn.Tokens) {
+	p.nextTokenDescription()
+
+	if p.lastToken() != scn.Identifier {
+		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+	} else {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			if symbol.kind == procedure {
+				p.emitter.EmitInstruction(depth-symbol.depth, emt.Cal, emt.Address(symbol.address))
+			} else {
+				p.appendError(p.error(expectedProcedureIdentifier, p.lastTokenName()))
+			}
+		} else {
+			p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+		}
+
+		p.nextTokenDescription()
+	}
+}
+
 func (p *parser) ifWord(depth int, expected scn.Tokens) {
 	p.nextTokenDescription()
 	p.condition(set(expected, scn.ThenWord, scn.DoWord))
@@ -213,27 +281,29 @@ func (p *parser) ifWord(depth int, expected scn.Tokens) {
 		p.appendError(p.error(expectedThen, p.lastTokenName()))
 	}
 
-	jmpInstructionAddress, err := p.emitter.EmitInstruction(depth, emt.Jmp, emt.NullAddress)
+	ifDecision, err := p.emitter.EmitInstruction(depth, emt.Jpc, emt.NullAddress)
 	p.appendError(err)
 	p.statement(depth, expected)
-	p.emitter.UpdateInstructionArgument(jmpInstructionAddress, p.emitter.GetNextInstructionAddress())
+	p.emitter.UpdateInstructionArgument(ifDecision, p.emitter.GetNextInstructionAddress())
 }
 
 func (p *parser) whileWord(depth int, expected scn.Tokens) {
-	// currentAddress := p.emitter.GetCurrentAddress()
-	// p.nextTokenDescription()
-	// p.condition(set(expected, scn.DoWord))
+	p.nextTokenDescription()
+	whileCondition := p.emitter.GetNextInstructionAddress()
+	p.condition(set(expected, scn.DoWord))
+	whileDecision, err := p.emitter.EmitInstruction(depth, emt.Jpc, emt.NullAddress)
+	p.appendError(err)
 
-	// codeIndex, err := p.emitter.Emit(emt.Jpc, depth, 0)
+	if p.lastToken() == scn.DoWord {
+		p.nextTokenDescription()
+	} else {
+		p.appendError(p.error(expectedDo, p.lastTokenName()))
+	}
 
-	/*
-	   if sym = whilesym then
-	         begin cx1 := cx; getsym; condition([dosym]+fsys);
-	            cx2 := cx; gen(jpc, 0, 0);
-	            if sym = dosym then getsym else error(18);
-	            statement(fsys); gen(jmp, 0, cx1); code[cx2].a := cx
-	         end
-	*/
+	p.statement(depth, expected)
+	_, err = p.emitter.EmitInstruction(depth, emt.Jmp, whileCondition)
+	p.appendError(err)
+	p.emitter.UpdateInstructionArgument(whileDecision, p.emitter.GetNextInstructionAddress())
 }
 
 func (p *parser) constantIdentifier(depth int) {
@@ -278,8 +348,10 @@ func (p *parser) statement(depth int, expected scn.Tokens) {
 	case scn.Identifier:
 
 	case scn.BeginWord:
+		p.beginWord(depth, expected)
 
 	case scn.CallWord:
+		p.callWord(depth, expected)
 
 	case scn.IfWord:
 		p.ifWord(depth, expected)
@@ -296,7 +368,41 @@ func (p *parser) expression(expected scn.Tokens) {
 }
 
 func (p *parser) condition(expected scn.Tokens) {
-	// TODO: implement condition
+	if p.lastToken() == scn.OddWord {
+		p.nextTokenDescription()
+		p.expression(expected)
+		p.emitter.EmitInstruction(0, emt.Opr, emt.Odd)
+	} else {
+		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+
+		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
+		} else {
+			relationalOperator := p.lastToken()
+			p.nextTokenDescription()
+			p.expression(expected)
+
+			switch relationalOperator {
+			case scn.Equal:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Eq)
+
+			case scn.NotEqual:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Neq)
+
+			case scn.Less:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Lss)
+
+			case scn.LessEqual:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Leq)
+
+			case scn.Greater:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Gtr)
+
+			case scn.GreaterEqual:
+				p.emitter.EmitInstruction(0, emt.Opr, emt.Geq)
+			}
+		}
+	}
 }
 
 func (p *parser) term(expected scn.Tokens) {

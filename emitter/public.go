@@ -12,6 +12,21 @@ const (
 	Jpc
 )
 
+const (
+	Neg = Address(iota)
+	Add
+	Sub
+	Mul
+	Div
+	Odd
+	Eq
+	Neq
+	Lss
+	Leq
+	Gtr
+	Geq
+)
+
 type (
 	Operation int
 	Address   uint64

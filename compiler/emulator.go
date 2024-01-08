@@ -304,8 +304,8 @@ func (c *cpu) odd(reg register) {
 	PL/0 Code Segment and Symbol Table
 
 	| 					|						| proc n='square',d=0,a=1	| 3 
-	|					| 2						| var n='squ',d=0,o=4		| 2
-	| f=jmp,d=0,a=0		| 1	square				| var n='x',d=0,o=3			| 1
+	| f=inc,d=1,a=3		| 2	square				| var n='squ',d=0,o=4		| 2
+	| f=jmp,d=1,a=2		| 1	square				| var n='x',d=0,o=3			| 1
 	| f=jmp d=0,a=0		| 0	main			   	| proc n='main',d=0,a=0 	| 0
 	+-------------------+ code					+---------------------------+ symtab
 */
