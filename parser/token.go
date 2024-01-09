@@ -1,6 +1,12 @@
 package parser
 
-import scn "github.com/petersen65/PL0/scanner"
+import (
+	"strconv"
+
+	scn "github.com/petersen65/PL0/scanner"
+)
+
+const integerBitSize = 64 // number of bits of a signed integer
 
 func (p *parser) nextTokenDescription() bool {
 	if p.concreteSyntaxIndex >= len(p.concreteSyntax) {
@@ -35,4 +41,9 @@ func (p *parser) lastTokenName() string {
 
 func (p *parser) lastTokenValue() string {
 	return p.lastTokenDescription.TokenValue
+}
+
+func (p *parser) lastTokenNumber() int64 {
+	intValue, _ := strconv.ParseInt(p.lastTokenDescription.TokenValue, 10, integerBitSize)
+	return intValue
 }

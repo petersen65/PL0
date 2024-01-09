@@ -15,7 +15,7 @@ type (
 		name    string // name of constant, variable, or procedure
 		kind    entry  // constant, variable, or procedure
 		depth   int    // declaration nesting depth of variable or procedure
-		value   any    // value of constant
+		value   int64  // value of constant
 		offset  uint64 // offset of variable in its runtime procedure stack frame
 		label   string // label of procedure for assembly generation
 		address uint64 // address of procedure in code segment
@@ -26,7 +26,7 @@ type (
 	}
 )
 
-func (s *symbolTable) addConstant(name string, depth int, value any) {
+func (s *symbolTable) addConstant(name string, depth int, value int64) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,

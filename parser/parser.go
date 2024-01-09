@@ -221,7 +221,7 @@ func (p *parser) assignment(depth int, expected scn.Tokens) {
 		p.appendError(p.error(expectedEqual, p.lastTokenName()))
 	}
 
-	p.expression(expected)
+	p.expression(depth, expected)
 
 	if ok && symbol.kind == variable {
 		p.emitter.EmitInstruction(depth-symbol.depth, emt.Sto, emt.Address(symbol.address))
@@ -273,7 +273,7 @@ func (p *parser) callWord(depth int, expected scn.Tokens) {
 
 func (p *parser) ifWord(depth int, expected scn.Tokens) {
 	p.nextTokenDescription()
-	p.condition(set(expected, scn.ThenWord, scn.DoWord))
+	p.condition(depth, set(expected, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextTokenDescription()
@@ -290,7 +290,7 @@ func (p *parser) ifWord(depth int, expected scn.Tokens) {
 func (p *parser) whileWord(depth int, expected scn.Tokens) {
 	p.nextTokenDescription()
 	whileCondition := p.emitter.GetNextInstructionAddress()
-	p.condition(set(expected, scn.DoWord))
+	p.condition(depth, set(expected, scn.DoWord))
 	whileDecision, err := p.emitter.EmitInstruction(depth, emt.Jpc, emt.NullAddress)
 	p.appendError(err)
 
@@ -327,7 +327,7 @@ func (p *parser) constantIdentifier(depth int) {
 			return
 		}
 
-		p.symbolTable.addConstant(constantName, depth, p.lastTokenValue())
+		p.symbolTable.addConstant(constantName, depth, p.lastTokenNumber())
 		p.nextTokenDescription()
 	} else {
 		p.appendError(p.error(expectedEqual, p.lastTokenName()))
@@ -344,11 +344,16 @@ func (p *parser) variableIdentifier(depth int, offset *uint64) {
 }
 
 func (p *parser) statement(depth int, expected scn.Tokens) {
+	// a statement is either
+	//   an assignment statement,
+	//   a procedure call,
+	// 	 an if statement,
+	//   a while statement,
+	//   or a sequence of statements surrounded by begin and end
+
 	switch p.lastToken() {
 	case scn.Identifier:
-
-	case scn.BeginWord:
-		p.beginWord(depth, expected)
+		p.assignment(depth, expected)
 
 	case scn.CallWord:
 		p.callWord(depth, expected)
@@ -358,29 +363,62 @@ func (p *parser) statement(depth int, expected scn.Tokens) {
 
 	case scn.WhileWord:
 		p.whileWord(depth, expected)
+
+	case scn.BeginWord:
+		p.beginWord(depth, expected)
 	}
 
 	p.rebase(expectedStatement, expected, scn.Empty)
 }
 
-func (p *parser) expression(expected scn.Tokens) {
-	// TODO: implement expression
+func (p *parser) expression(depth int, expected scn.Tokens) {
+	// an expression is a sequence of terms separated by plus or minus
+
+	// handle leading plus or minus sign of a term
+	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
+		plusOrMinus := p.lastToken()
+		p.nextTokenDescription()
+
+		// handle left term of a plus or minus operator
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
+
+		if plusOrMinus == scn.Minus {
+			p.emitter.EmitInstruction(0, emt.Opr, emt.Neg)
+		}
+	} else {
+		// handle left term of a plus or minus operator
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
+	}
+
+	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
+		plusOrMinus := p.lastToken()
+		p.nextTokenDescription()
+
+		// handle right term of a plus or minus operator
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
+
+		if plusOrMinus == scn.Plus {
+			p.emitter.EmitInstruction(0, emt.Opr, emt.Add)
+		} else {
+			p.emitter.EmitInstruction(0, emt.Opr, emt.Sub)
+		}
+	}
 }
 
-func (p *parser) condition(expected scn.Tokens) {
+func (p *parser) condition(depth int, expected scn.Tokens) {
 	if p.lastToken() == scn.OddWord {
 		p.nextTokenDescription()
-		p.expression(expected)
+		p.expression(depth, expected)
 		p.emitter.EmitInstruction(0, emt.Opr, emt.Odd)
 	} else {
-		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
 		} else {
 			relationalOperator := p.lastToken()
 			p.nextTokenDescription()
-			p.expression(expected)
+			p.expression(depth, expected)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -405,10 +443,63 @@ func (p *parser) condition(expected scn.Tokens) {
 	}
 }
 
-func (p *parser) term(expected scn.Tokens) {
-	// TODO: implement term
+func (p *parser) term(depth int, expected scn.Tokens) {
+	// a term is a sequence of factors separated by times or divide
+
+	// handle left factor of a times or divide operator
+	p.factor(depth, set(expected, scn.Times, scn.Divide))
+
+	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
+		timesOrDevide := p.lastToken()
+		p.nextTokenDescription()
+
+		// handle right factor of a times or divide operator
+		p.factor(depth, set(expected, scn.Times, scn.Divide))
+
+		if timesOrDevide == scn.Times {
+			p.emitter.EmitInstruction(0, emt.Opr, emt.Mul)
+		} else {
+			p.emitter.EmitInstruction(0, emt.Opr, emt.Div)
+		}
+	}
 }
 
-func (p *parser) factor(expected scn.Tokens) {
-	// TODO: implement factor
+func (p *parser) factor(depth int, expected scn.Tokens) {
+	// a factor is either an identifier, a number, or an expression surrounded by parentheses
+	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
+
+	for p.lastToken().In(factors) {
+		if p.lastToken() == scn.Identifier {
+			if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+				switch symbol.kind {
+				case constant:
+					p.emitter.EmitInstruction(0, emt.Lit, emt.Address(symbol.value))
+
+				case variable:
+					p.emitter.EmitInstruction(depth-symbol.depth, emt.Lod, emt.Address(symbol.offset))
+
+				case procedure:
+					p.appendError(p.error(expectedConstantsVariables, p.lastTokenName()))
+				}
+			} else {
+				p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+			}
+
+			p.nextTokenDescription()
+		} else if p.lastToken() == scn.Number {
+			p.emitter.EmitInstruction(0, emt.Lit, emt.Address(p.lastTokenNumber()))
+			p.nextTokenDescription()
+		} else if p.lastToken() == scn.LeftParenthesis {
+			p.nextTokenDescription()
+			p.expression(depth, set(expected, scn.RightParenthesis))
+
+			if p.lastToken() == scn.RightParenthesis {
+				p.nextTokenDescription()
+			} else {
+				p.appendError(p.error(expectedRightParenthesis, p.lastTokenName()))
+			}
+		}
+
+		p.rebase(unexpectedTokens, expected, set(scn.LeftParenthesis))
+	}
 }

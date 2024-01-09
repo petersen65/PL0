@@ -25,8 +25,11 @@ const (
 	expectedThen
 	expectedDo
 	expectedEnd
+	expectedRightParenthesis
 	expectedStatementsIdentifiers
 	expectedStatementsIdentifiersProcedures
+	expectedIdentifiersNumbersExpressions
+	expectedConstantsVariables
 	unexpectedTokens
 )
 
@@ -50,8 +53,11 @@ var errorMap = map[failure]string{
 	expectedThen:                            "expected then keyword, found %v",
 	expectedDo:                              "expected do keyword, found %v",
 	expectedEnd:                             "expected end keyword, found %v",
+	expectedRightParenthesis:                "expected right parenthesis, found %v",
 	expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
+	expectedIdentifiersNumbersExpressions:   "expected identifiers, numbers or expressions surrounded by parentheses, found %v",
+	expectedConstantsVariables:              "expected constants or variables, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
 }
 
@@ -68,14 +74,6 @@ func (p *parser) appendError(err error) error {
 	})
 
 	return err
-}
-
-func (p *parser) lastError() error {
-	if len(p.errorReport) > 0 {
-		return p.errorReport[len(p.errorReport)-1].Err
-	}
-
-	return nil
 }
 
 func (p *parser) error(code failure, value any) error {

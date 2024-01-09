@@ -12,7 +12,7 @@ const (
 	Plus
 	Minus
 	Times
-	Devide
+	Divide
 	Equal
 	NotEqual
 	Less

@@ -16,7 +16,7 @@ var (
 		scn.WhileWord,
 	}
 
-	expressions = scn.Tokens{
+	factors = scn.Tokens{
 		scn.Identifier,
 		scn.Number,
 		scn.LeftParenthesis,
