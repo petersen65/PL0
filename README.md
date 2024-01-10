@@ -32,15 +32,27 @@ factor = ident | number | "(" expression ")";
 ## Elements Of Syntax
 
 Case-sensitivity                yes
+
 Variable assignment	        :=
+
 Variable declaration	        var
+
 Block	                        begin … end
+
 Physical (shallow) equality	=
+
 Physical (shallow) inequality	#
+
 Comparison	                < >
+
 Function definition	        procedure <name>; <body>;
+
 Function call	                call <name>
+
 Sequence	                ;
+
 If – then	                if <condition> then <trueBlock>
+
 Loop forever	                while 1 = 1 do <loopBody>
+
 While condition do	        while do <loopBody>
