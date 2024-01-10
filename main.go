@@ -15,10 +15,11 @@ func main() {
 	fmt.Println("PL/0 Compiler Version 1.0")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: pl0 <source file>")
-		fmt.Println("error: no source file specified")
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: pl0 <source file> <target file>")
+	} else if err := compiler.CompileFile(os.Args[1], os.Args[2]); err != nil {
+		fmt.Println("\nerror:", err)
 	} else {
-		compiler.CompileFile(os.Args[1])
+		fmt.Println("Compilation successful")
 	}
 }

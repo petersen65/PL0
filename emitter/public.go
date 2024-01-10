@@ -32,13 +32,14 @@ const (
 )
 
 type (
-	Operation int
+	Operation int32
 	Address   uint64
 
 	Emitter interface {
-		EmitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error)
-		UpdateInstructionArgument(instructionAddress, argument Address) error
-		GetNextInstructionAddress() Address
+		Emit(declarationDepth int32, operation Operation, argument Address) (Address, error)
+		UpdateArgument(instructionAddress, argument Address) error
+		GetNextAddress() Address
+		Export() ([]byte, error)
 	}
 )
 
@@ -46,18 +47,22 @@ var NullAddress Address = 0
 
 func NewEmitter() Emitter {
 	return &emitter{
-		codeSegment: make([]instruction, 0),
+		textSection: make([]instruction, 0),
 	}
 }
 
-func (e *emitter) EmitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error) {
+func (e *emitter) Emit(declarationDepth int32, operation Operation, argument Address) (Address, error) {
 	return e.emitInstruction(declarationDepth, operation, argument)
 }
 
-func (e *emitter) UpdateInstructionArgument(instructionAddress, argument Address) error {
+func (e *emitter) UpdateArgument(instructionAddress, argument Address) error {
 	return e.updateInstructionArgument(instructionAddress, argument)
 }
 
-func (e *emitter) GetNextInstructionAddress() Address {
-	return Address(len(e.codeSegment))
+func (e *emitter) GetNextAddress() Address {
+	return Address(len(e.textSection))
+}
+
+func (e *emitter) Export() ([]byte, error) {
+	return e.exportSections()
 }

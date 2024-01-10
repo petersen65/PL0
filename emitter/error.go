@@ -6,21 +6,19 @@ package emitter
 
 import "fmt"
 
-const (
-	codeSegmentMaxAddress = 200
-)
+const textSectionMax = 200
 
 const (
 	_ = failure(iota + 3000)
-	reachedCodeSegmentMaxAddress
-	instructionAddressOutOfRange
+	reachedTextSectionMax
+	instructionOutOfRange
 )
 
 type failure int
 
 var errorMap = map[failure]string{
-	reachedCodeSegmentMaxAddress: "reached code segment maximum address: %v",
-	instructionAddressOutOfRange: "provided instruction address is out of range: %v",
+	reachedTextSectionMax: "reached text section maximum size: %v",
+	instructionOutOfRange: "provided instruction is out of range: %v",
 }
 
 func (e *emitter) error(code failure, value any) error {

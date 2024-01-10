@@ -4,37 +4,52 @@
 
 package emitter
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 type (
 	instruction struct {
-		depth     int
+		depth     int32
 		operation Operation
 		argument  Address
 	}
 
 	emitter struct {
-		codeSegment []instruction
+		textSection []instruction
 	}
 )
 
-func (e *emitter) emitInstruction(declarationDepth int, operation Operation, argument Address) (Address, error) {
-	if len(e.codeSegment) >= codeSegmentMaxAddress {
-		return 0, e.error(reachedCodeSegmentMaxAddress, len(e.codeSegment))
+func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, argument Address) (Address, error) {
+	if len(e.textSection) >= textSectionMax {
+		return 0, e.error(reachedTextSectionMax, len(e.textSection))
 	}
 
-	e.codeSegment = append(e.codeSegment, instruction{
+	e.textSection = append(e.textSection, instruction{
 		depth:     declarationDepth,
 		operation: operation,
 		argument:  argument,
 	})
 
-	return Address(len(e.codeSegment) - 1), nil
+	return Address(len(e.textSection) - 1), nil
 }
 
-func (e *emitter) updateInstructionArgument(instructionAddress, argument Address) error {
-	if uint64(instructionAddress) >= uint64(len(e.codeSegment)) {
-		return e.error(instructionAddressOutOfRange, instructionAddress)
+func (e *emitter) updateInstructionArgument(instruction, argument Address) error {
+	if uint64(instruction) >= uint64(len(e.textSection)) {
+		return e.error(instructionOutOfRange, instruction)
 	}
 
-	e.codeSegment[instructionAddress].argument = argument
+	e.textSection[instruction].argument = argument
 	return nil
+}
+
+func (e *emitter) exportSections() ([]byte, error) {
+	var buffer bytes.Buffer
+
+	if err := binary.Write(&buffer, binary.LittleEndian, e.textSection); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }

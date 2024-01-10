@@ -6,8 +6,6 @@ package compiler
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 
@@ -16,43 +14,52 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
-func CompileContent(content []byte) error {
-	fmt.Println("Compiling source content with length:", len(content), "bytes")
+func CompileFile(source, target string) error {
+	fmt.Printf("Compiling PL0 source file '%v' to IL0 target file '%v'\n", source, target)
 
-	scanner := scn.NewScanner()
-	concreteSyntax, err := scanner.Scan(content)
-	PrintConcreteSyntax(concreteSyntax, err)
+	if content, err := os.ReadFile(source); err != nil {
+		return err
+	} else if file, err := os.Create(target); err != nil {
+		return err
+	} else {
+		defer file.Close()
+		sections, concreteSyntax, errorReport, err := CompileContent(content)
 
-	emitter := emt.NewEmitter()
-	parser := par.NewParser()
-	errorReport, err := parser.Parse(concreteSyntax, emitter)
-	PrintErrorReport(errorReport, err)
+		switch {
+		case err != nil && concreteSyntax != nil && errorReport != nil:
+			PrintErrorReport(errorReport, err)
+			return err
+
+		case err != nil && concreteSyntax != nil && errorReport == nil:
+			PrintConcreteSyntax(concreteSyntax, err)
+			return err
+
+		default:
+			if _, err := file.Write(sections); err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
 
-func CompileFile(path string) error {
-	if content, err := os.ReadFile(path); err != nil {
-		return err
-	} else {
-		return CompileContent(content)
-	}
-}
+func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
+	scanner := scn.NewScanner()
 
-func CompileReader(reader io.Reader) error {
-	if content, err := io.ReadAll(reader); err != nil {
-		return err
+	if concreteSyntax, err := scanner.Scan(content); err != nil {
+		return nil, concreteSyntax, nil, err
 	} else {
-		return CompileContent(content)
-	}
-}
+		emitter := emt.NewEmitter()
+		parser := par.NewParser()
 
-func CompileHttp(url string) error {
-	if response, err := http.Get(url); err != nil {
-		return err
-	} else {
-		defer response.Body.Close()
-		return CompileReader(response.Body)
+		if errorReport, err := parser.Parse(concreteSyntax, emitter); err != nil {
+			return nil, concreteSyntax, errorReport, err
+		} else if sections, err := emitter.Export(); err != nil {
+			return nil, concreteSyntax, errorReport, err
+		} else {
+			return sections, concreteSyntax, errorReport, nil
+		}
 	}
 }
 

@@ -18,7 +18,7 @@ type (
 	symbol struct {
 		name    string // name of constant, variable, or procedure
 		kind    entry  // constant, variable, or procedure
-		depth   int    // declaration nesting depth of variable or procedure
+		depth   int32    // declaration nesting depth of variable or procedure
 		value   int64  // value of constant
 		offset  uint64 // offset of variable in its runtime procedure stack frame
 		label   string // label of procedure for assembly generation
@@ -30,7 +30,7 @@ type (
 	}
 )
 
-func (s *symbolTable) addConstant(name string, depth int, value int64) {
+func (s *symbolTable) addConstant(name string, depth int32, value int64) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,
@@ -39,7 +39,7 @@ func (s *symbolTable) addConstant(name string, depth int, value int64) {
 	})
 }
 
-func (s *symbolTable) addVariable(name string, depth int, offset *uint64) {
+func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 	s.symbols = append(s.symbols, symbol{
 		name:   name,
 		kind:   variable,
@@ -50,7 +50,7 @@ func (s *symbolTable) addVariable(name string, depth int, offset *uint64) {
 	*offset++
 }
 
-func (s *symbolTable) addProcedure(name string, depth int, address uint64) {
+func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
 	s.symbols = append(s.symbols, symbol{
 		name:    name,
 		kind:    procedure,
