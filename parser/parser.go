@@ -36,7 +36,9 @@ func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
 	}
 
-	if len(p.errorReport) > 0 {
+	if len(p.errorReport) == 1 {
+		return p.errorReport, p.error(parsingError, nil)
+	} else if len(p.errorReport) > 1 {
 		return p.errorReport, p.error(parsingErrors, len(p.errorReport))
 	} else {
 		return p.errorReport, nil
@@ -486,7 +488,7 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 					p.appendError(p.error(expectedConstantsVariables, p.lastTokenName()))
 				}
 			} else {
-				p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+				p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
 			}
 
 			p.nextTokenDescription()

@@ -11,8 +11,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-r",
-                //"examples/squares.pl0",
+                "-c",
+                "examples/squares.pl0",
                 "examples/squares.il0"
             ],
             "cwd": "${workspaceFolder}",

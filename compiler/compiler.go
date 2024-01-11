@@ -27,11 +27,11 @@ func CompileFile(source, target string) error {
 
 		switch {
 		case err != nil && concreteSyntax != nil && errorReport != nil:
-			PrintErrorReport(errorReport, err)
+			PrintErrorReport(errorReport)
 			return err
 
 		case err != nil && concreteSyntax != nil && errorReport == nil:
-			PrintConcreteSyntax(concreteSyntax, err)
+			PrintConcreteSyntax(concreteSyntax)
 			return err
 
 		default:
@@ -80,8 +80,10 @@ func RunSections(sections []byte) error {
 	return machine.startProcess(sections)
 }
 
-func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, err error) {
+func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax) {
 	var lastLine int
+
+	fmt.Print("Concrete Syntax:")
 
 	for _, td := range concreteSyntax {
 		if td.Line != lastLine {
@@ -91,19 +93,13 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, err error) {
 
 		fmt.Printf("%v,%v\t%v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)
 	}
-
-	if err != nil {
-		fmt.Printf("\n%v", err)
-	}
 }
 
-func PrintErrorReport(errorReport par.ErrorReport, err error) {
-	if err != nil {
-		fmt.Printf("\n%v", err)
-	}
+func PrintErrorReport(errorReport par.ErrorReport) {
+	fmt.Println("Error Report:")
 
 	for _, e := range errorReport {
-		fmt.Printf("\n%v: %v\n", e.Line, strings.TrimSpace(string(e.CurrentLine)))
-		fmt.Printf("%v,%v\t%v\n", e.Line, e.Column, e.Err)
+		fmt.Printf("\n%v: %v\n", e.Line, string(e.CurrentLine))
+		fmt.Printf("%v^ %v\n", strings.Repeat(" ", e.Column+1), e.Err)
 	}
 }

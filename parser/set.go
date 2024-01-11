@@ -33,7 +33,7 @@ func set(tss ...scn.TokenSet) scn.Tokens {
 
 func (p *parser) rebase(code failure, expected, expanded scn.Tokens) {
 	if !p.lastToken().In(expected) {
-		p.appendError(p.error(code, p.lastToken()))
+		p.appendError(p.error(code, p.lastTokenName()))
 
 		for next := set(expected, expanded, scn.Eof); !p.lastToken().In(next); {
 			p.nextTokenDescription()

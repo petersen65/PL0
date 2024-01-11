@@ -80,7 +80,12 @@ func Set(tss ...TokenSet) Tokens {
 		set = append(set, ts.ToTokens()...)
 	}
 
-	return set
+	slices.Sort(set)
+	return slices.Compact(set)
+}
+
+func (token Token) In(set Tokens) bool {
+	return slices.Contains(set, token)
 }
 
 func (t Token) ToTokens() Tokens {
@@ -89,8 +94,4 @@ func (t Token) ToTokens() Tokens {
 
 func (t Tokens) ToTokens() Tokens {
 	return t
-}
-
-func (token Token) In(set Tokens) bool {
-	return slices.Contains(set, token)
 }
