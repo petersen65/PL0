@@ -9,27 +9,19 @@ import (
 	"encoding/binary"
 )
 
-type (
-	instruction struct {
-		depth     int32
-		operation Operation
-		argument  Address
-	}
-
-	emitter struct {
-		textSection []instruction
-	}
-)
+type emitter struct {
+	textSection TextSection
+}
 
 func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, argument Address) (Address, error) {
 	if len(e.textSection) >= textSectionMax {
 		return 0, e.error(reachedTextSectionMax, len(e.textSection))
 	}
 
-	e.textSection = append(e.textSection, instruction{
-		depth:     declarationDepth,
-		operation: operation,
-		argument:  argument,
+	e.textSection = append(e.textSection, Instruction{
+		Depth:     declarationDepth,
+		Operation: operation,
+		Argument:  argument,
 	})
 
 	return Address(len(e.textSection) - 1), nil
@@ -40,7 +32,7 @@ func (e *emitter) updateInstructionArgument(instruction, argument Address) error
 		return e.error(instructionOutOfRange, instruction)
 	}
 
-	e.textSection[instruction].argument = argument
+	e.textSection[instruction].Argument = argument
 	return nil
 }
 

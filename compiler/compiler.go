@@ -15,14 +15,14 @@ import (
 )
 
 func CompileFile(source, target string) error {
-	fmt.Printf("Compiling PL0 source file '%v' to IL0 target file '%v'\n", source, target)
+	fmt.Printf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target)
 
 	if content, err := os.ReadFile(source); err != nil {
 		return err
-	} else if file, err := os.Create(target); err != nil {
+	} else if program, err := os.Create(target); err != nil {
 		return err
 	} else {
-		defer file.Close()
+		defer program.Close()
 		sections, concreteSyntax, errorReport, err := CompileContent(content)
 
 		switch {
@@ -35,10 +35,22 @@ func CompileFile(source, target string) error {
 			return err
 
 		default:
-			if _, err := file.Write(sections); err != nil {
+			if _, err := program.Write(sections); err != nil {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func RunFile(target string) error {
+	fmt.Printf("Running IL0 program '%v'\n", target)
+
+	if sections, err := os.ReadFile(target); err != nil {
+		return err
+	} else if err := RunSections(sections); err != nil {
+		return err
 	}
 
 	return nil
@@ -61,6 +73,11 @@ func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport
 			return sections, concreteSyntax, errorReport, nil
 		}
 	}
+}
+
+func RunSections(sections []byte) error {
+	machine := newMachine()
+	return machine.startProcess(sections)
 }
 
 func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, err error) {

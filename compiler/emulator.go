@@ -4,285 +4,215 @@
 
 package compiler
 
-const (
-	ramSize   = 2048 // ram bytes
-	stackSize = 500  // stack entries
+import (
+	"bytes"
+	"encoding/binary"
+
+	emt "github.com/petersen65/PL0/emitter"
 )
 
 const (
-	lit = operation(iota)
-	opr
-	lod
-	sto
-	cal
-	ret
-	inc
-	jmp
-	jpc
+	stackSize = 500 // stack entries
 )
 
 const (
-	neg = operator(iota)
-	add
-	sub
-	mul
-	div
-	odd
-	eq
-	neq
-	lss
-	leq
-	gtr
-	geq
-)
-
-const (
-	rax = register(iota)
-	rbx
-	rcx
-	rdx
-	rip
-	rsp
-	rbp
+	ip = register(iota)
+	sp
+	bp
 )
 
 type (
-	operation   int
-	operator    int
-	register    int
-	textSegment []byte
-	codeSegment []instruction
-	ram         []byte
-
-	instruction struct {
-		depth     int
-		operation operation
-		argument  uintptr
-	}
+	register int
 
 	process struct {
-		text textSegment
-		code codeSegment
+		code emt.TextSection
 	}
 
 	cpu struct {
-		registers map[register]uintptr
-		stack     *[stackSize]uintptr
+		registers map[register]emt.Address
+		stack     [stackSize]emt.Address
 	}
 
 	machine struct {
 		cpu cpu
-		ram ram
 	}
 )
 
 func newMachine() *machine {
 	return &machine{
 		cpu: cpu{
-			registers: make(map[register]uintptr),
-			stack:     new([stackSize]uintptr),
+			registers: make(map[register]emt.Address),
+			stack:     [stackSize]emt.Address{},
 		},
-		ram: make(ram, ramSize),
 	}
 }
 
-func (m *machine) startProcess(text textSegment, code codeSegment) {
-	process := process{
-		text: text,
-		code: code,
+func (m *machine) startProcess(sections []byte) error {
+	var process process
+	process.code = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
+	
+	var buffer bytes.Buffer
+	buffer.Write(sections)
+
+	if err := binary.Read(&buffer, binary.LittleEndian, process.code); err != nil {
+		return err
 	}
 
-	m.cpu.registers[rip] = 0
-	m.cpu.registers[rsp] = 0
-	m.cpu.registers[rbp] = 0
+	m.cpu.registers[ip] = 0
+	m.cpu.registers[sp] = 0
+	m.cpu.registers[bp] = 0
 
 	for {
-		instr := process.code[m.cpu.registers[rip]]
-		m.cpu.registers[rip]++
+		instr := process.code[m.cpu.registers[ip]]
+		m.cpu.registers[ip]++
 
-		switch instr.operation {
-		case lit: // load constant
-			m.cpu.push(instr.argument)
+		switch instr.Operation {
+		case emt.Lit: // load constant
+			m.cpu.push(instr.Argument)
 
-		case jmp: // jump to address
-			m.cpu.jmp(instr.argument)
+		case emt.Jmp: // jump to address
+			m.cpu.jmp(instr.Argument)
 
-		case jpc: // jump to address if top of stack is zero
-			m.cpu.jpc(instr.argument)
+		case emt.Jpc: // jump to address if top of stack is zero
+			m.cpu.jpc(instr.Argument)
 
-		case inc: // allocate space on stack
-			m.cpu.registers[rsp] += instr.argument
+		case emt.Inc: // allocate space on stack
+			m.cpu.registers[sp] += instr.Argument
 
-		case opr: // execute any operator from the operator set
-			switch operator(instr.argument) {
-			case neg:
-				m.cpu.stack[m.cpu.registers[rsp]] = -m.cpu.stack[m.cpu.registers[rsp]]
+		case emt.Opr: // execute any operator from the operator set
+			switch instr.Argument {
+			case emt.Neg:
+				m.cpu.stack[m.cpu.registers[sp]] = -m.cpu.stack[m.cpu.registers[sp]]
 
-			case add:
-				m.cpu.registers[rsp]--
-				m.cpu.stack[m.cpu.registers[rsp]] += m.cpu.stack[m.cpu.registers[rsp]+1]
+			case emt.Add:
+				m.cpu.registers[sp]--
+				m.cpu.stack[m.cpu.registers[sp]] += m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case sub:
-				m.cpu.registers[rsp]--
-				m.cpu.stack[m.cpu.registers[rsp]] -= m.cpu.stack[m.cpu.registers[rsp]+1]
+			case emt.Sub:
+				m.cpu.registers[sp]--
+				m.cpu.stack[m.cpu.registers[sp]] -= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case mul:
-				m.cpu.registers[rsp]--
-				m.cpu.stack[m.cpu.registers[rsp]] *= m.cpu.stack[m.cpu.registers[rsp]+1]
+			case emt.Mul:
+				m.cpu.registers[sp]--
+				m.cpu.stack[m.cpu.registers[sp]] *= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case div:
-				m.cpu.registers[rsp]--
-				m.cpu.stack[m.cpu.registers[rsp]] /= m.cpu.stack[m.cpu.registers[rsp]+1]
+			case emt.Div:
+				m.cpu.registers[sp]--
+				m.cpu.stack[m.cpu.registers[sp]] /= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case odd:
-				m.cpu.stack[m.cpu.registers[rsp]] = m.cpu.stack[m.cpu.registers[rsp]] % 2
+			case emt.Odd:
+				m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.registers[sp]] % 2
 
-			case eq:
-				m.cpu.registers[rsp]--
+			case emt.Eq:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] == m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] == m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 
-			case neq:
-				m.cpu.registers[rsp]--
+			case emt.Neq:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] != m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] != m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 
-			case lss:
-				m.cpu.registers[rsp]--
+			case emt.Lss:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] < m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] < m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 
-			case leq:
-				m.cpu.registers[rsp]--
+			case emt.Leq:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] <= m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] <= m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 
-			case gtr:
-				m.cpu.registers[rsp]--
+			case emt.Gtr:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] > m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] > m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 
-			case geq:
-				m.cpu.registers[rsp]--
+			case emt.Geq:
+				m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[rsp]] >= m.cpu.stack[m.cpu.registers[rsp]+1] {
-					m.cpu.stack[m.cpu.registers[rsp]] = 1
+				if m.cpu.stack[m.cpu.registers[sp]] >= m.cpu.stack[m.cpu.registers[sp]+1] {
+					m.cpu.stack[m.cpu.registers[sp]] = 1
 				} else {
-					m.cpu.stack[m.cpu.registers[rsp]] = 0
+					m.cpu.stack[m.cpu.registers[sp]] = 0
 				}
 			}
 
-		case cal: // call procedure
-			m.cpu.push(m.cpu.base(instr.depth))
-			m.cpu.push(m.cpu.registers[rbp])
-			m.cpu.push(m.cpu.registers[rip])
-			m.cpu.registers[rbp] = m.cpu.registers[rsp] + 1
-			m.cpu.registers[rip] = instr.argument
+		case emt.Cal: // call procedure
+			m.cpu.push(m.cpu.base(instr.Depth))
+			m.cpu.push(m.cpu.registers[bp])
+			m.cpu.push(m.cpu.registers[ip])
+			m.cpu.registers[bp] = m.cpu.registers[sp] + 1
+			m.cpu.registers[ip] = instr.Argument
 
-		case ret: // return from procedure
-			m.cpu.registers[rsp] = m.cpu.registers[rbp] - 1
-			m.cpu.registers[rip] = m.cpu.stack[m.cpu.registers[rsp]+2]
-			m.cpu.registers[rbp] = m.cpu.stack[m.cpu.registers[rsp]+1]
+		case emt.Ret: // return from procedure
+			m.cpu.registers[sp] = m.cpu.registers[bp] - 1
+			m.cpu.registers[ip] = m.cpu.stack[m.cpu.registers[sp]+2]
+			m.cpu.registers[bp] = m.cpu.stack[m.cpu.registers[sp]+1]
 
-		case lod: // push variable on top of stack
-			m.cpu.registers[rsp]++
-			m.cpu.stack[m.cpu.registers[rsp]] = m.cpu.stack[m.cpu.base(instr.depth)+instr.argument]
+		case emt.Lod: // push variable on top of stack
+			m.cpu.registers[sp]++
+			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument]
 
-		case sto: // pop variable from top of stack
-			m.cpu.stack[m.cpu.base(instr.depth)+instr.argument] = m.cpu.stack[m.cpu.registers[rsp]]
-			m.cpu.registers[rsp]--
+		case emt.Sto: // pop variable from top of stack
+			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument] = m.cpu.stack[m.cpu.registers[sp]]
+			m.cpu.registers[sp]--
+		}
+
+		if m.cpu.registers[ip] == 0 {
+			break
 		}
 	}
+
+	return nil
 }
 
-func (c *cpu) base(depth int) uintptr {
-	b := c.registers[rbp]
+func (c *cpu) base(Depth int32) emt.Address {
+	b := c.registers[bp]
 
-	for depth > 0 {
+	for Depth > 0 {
 		b = c.stack[b]
-		depth--
+		Depth--
 	}
 
 	return b
 }
 
-func (c *cpu) push(val uintptr) {
-	c.registers[rsp]++
-	c.stack[c.registers[rsp]] = val
+func (c *cpu) push(val emt.Address) {
+	c.registers[sp]++
+	c.stack[c.registers[sp]] = val
 }
 
-func (c *cpu) pop(reg register) {
-	c.registers[reg] = c.stack[c.registers[rsp]]
-	c.registers[rsp]--
+func (c *cpu) jmp(addr emt.Address) {
+	c.registers[ip] = addr
 }
 
-func (c *cpu) mov(reg register, val uintptr) {
-	c.registers[reg] = val
-}
-
-func (c *cpu) call(addr uintptr) {
-	c.push(c.registers[rip])
-	c.registers[rip] = addr
-}
-
-func (c *cpu) ret() {
-	c.pop(rip)
-}
-
-func (c *cpu) jmp(addr uintptr) {
-	c.registers[rip] = addr
-}
-
-func (c *cpu) jpc(addr uintptr) {
-	if c.registers[rsp] == 0 {
-		c.registers[rip] = addr
+func (c *cpu) jpc(addr emt.Address) {
+	if c.registers[sp] == 0 {
+		c.registers[ip] = addr
 	}
 
-	c.registers[rsp]--
-}
-
-func (c *cpu) add(reg register, val uintptr) {
-	c.registers[reg] += val
-}
-
-func (c *cpu) sub(reg register, val uintptr) {
-	c.registers[reg] -= val
-}
-
-func (c *cpu) mul(reg register, val uintptr) {
-	c.registers[reg] *= val
-}
-
-func (c *cpu) div(reg register, val uintptr) {
-	c.registers[reg] /= val
-}
-
-func (c *cpu) neg(reg register) {
-	c.registers[reg] = -c.registers[reg]
-}
-
-func (c *cpu) odd(reg register) {
-	c.registers[reg] = c.registers[reg] % 2
+	c.registers[sp]--
 }
 
 /*
@@ -295,7 +225,7 @@ func (c *cpu) odd(reg register) {
 
 	begin
    		x := 1;
-   		
+
 		while x <= 10 do
    		begin
     		call square;
@@ -307,14 +237,14 @@ func (c *cpu) odd(reg register) {
 /*
 	PL/0 Code Segment and Symbol Table
 
-	| 					|						| proc n='square',d=0,a=1	| 3 
+	| 					|						| proc n='square',d=0,a=1	| 3
 	| f=inc,d=1,a=3		| 2	square				| var n='squ',d=0,o=4		| 2
 	| f=jmp,d=1,a=2		| 1	square				| var n='x',d=0,o=3			| 1
 	| f=jmp d=0,a=0		| 0	main			   	| proc n='main',d=0,a=0 	| 0
 	+-------------------+ code					+---------------------------+ symtab
 */
 
-/* 
+/*
 	PL/0 Stack Segment
 
 

@@ -15,11 +15,23 @@ func main() {
 	fmt.Println("PL/0 Compiler Version 1.0")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: pl0 <source file> <target file>")
-	} else if err := compiler.CompileFile(os.Args[1], os.Args[2]); err != nil {
-		fmt.Println("\nerror:", err)
-	} else {
-		fmt.Println("Compilation successful")
+	switch {
+	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
+		if err := compiler.CompileFile(os.Args[2], os.Args[3]); err != nil {
+			fmt.Println("Error:", err)
+		} else {
+			fmt.Println("Compilation successful")
+		}
+
+	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
+		if err := compiler.RunFile(os.Args[2]); err != nil {
+			fmt.Println("Error:", err)
+		} else {
+			fmt.Println("Run successful")
+		}
+
+	default:
+		fmt.Println("Usage: pl0 -c <source file> <target file>")
+		fmt.Println("       pl0 -r <target file>")
 	}
 }

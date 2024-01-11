@@ -32,8 +32,15 @@ const (
 )
 
 type (
-	Operation int32
-	Address   uint64
+	Operation   int32
+	Address     uint64
+	TextSection []Instruction
+
+	Instruction struct {
+		Depth     int32
+		Operation Operation
+		Argument  Address
+	}
 
 	Emitter interface {
 		Emit(declarationDepth int32, operation Operation, argument Address) (Address, error)
@@ -47,7 +54,7 @@ var NullAddress Address = 0
 
 func NewEmitter() Emitter {
 	return &emitter{
-		textSection: make([]instruction, 0),
+		textSection: make(TextSection, 0),
 	}
 }
 
