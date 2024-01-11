@@ -1,8 +1,10 @@
 var x, squ;
 
 procedure square;
+var y2;
 begin
-   squ:= x * x
+   squ:= x * x;
+   y := 2
 end;
 
 begin
@@ -11,5 +13,6 @@ begin
    begin
       call square;
       x := x + 1
-   end
+   end;
+   y := 5
 end.

@@ -214,7 +214,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	symbol, ok := p.symbolTable.find(p.lastTokenValue())
 
 	if !ok {
-		p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+		p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
 	} else if symbol.kind != variable {
 		p.appendError(p.error(expectedVariableIdentifier, p.lastTokenName()))
 	}
@@ -270,7 +270,7 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 				p.appendError(p.error(expectedProcedureIdentifier, p.lastTokenName()))
 			}
 		} else {
-			p.appendError(p.error(identifierNotFound, p.lastTokenName()))
+			p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
 		}
 
 		p.nextTokenDescription()

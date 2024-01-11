@@ -99,7 +99,10 @@ func PrintErrorReport(errorReport par.ErrorReport) {
 	fmt.Println("Error Report:")
 
 	for _, e := range errorReport {
-		fmt.Printf("\n%v: %v\n", e.Line, string(e.CurrentLine))
-		fmt.Printf("%v^ %v\n", strings.Repeat(" ", e.Column+1), e.Err)
+		linePrefix := fmt.Sprintf("%5v: ", e.Line)
+		trimmedLine := strings.TrimSpace(string(e.CurrentLine))
+		trimmedSpaces := len(string(e.CurrentLine)) - len(trimmedLine)
+		fmt.Printf("\n%v%v\n", linePrefix, trimmedLine)
+		fmt.Printf("%v^ %v\n", strings.Repeat(" ", e.Column+len(linePrefix)-trimmedSpaces-1), e.Err)
 	}
 }
