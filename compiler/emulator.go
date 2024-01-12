@@ -55,15 +55,28 @@ func (m *machine) runProgram(sections []byte) error {
 		return err
 	}
 
-	// entry point address is 0 and stack is empty (no descriptor or stack frame)
-	m.cpu.registers[ip], m.cpu.registers[sp], m.cpu.registers[bp] = 0, 0, 0
+	// caller, caller-chain, callee
+	// current of callee is bp, sp, and ip (active procedure)
+	// state of last caller is in descriptor of callee (first 3 entries of stack frame)
+	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
 
-	// descriptor of entrypoint, which will allocate stack space for its variables later
-	m.cpu.stack[0] = 0 // dynamic link
-	m.cpu.stack[1] = 0 // static link to calling procedure descriptor
-	m.cpu.stack[2] = 0 // return ip address of calling procedure
+	// push stack[bp] // dynamic link
+	// push bp // static link to calling procedure descriptor
+	// push ip // return ip address of calling procedure
 
-	// execute instructions until the entrypoint returns
+	// define first caller state: return to first caller exits program
+	// first caller is external code that calls the entrypoint of the program (first callee)
+	m.cpu.registers[sp] = 0 // stack pointer to top of stack of first caller
+	m.cpu.registers[bp] = 0 // base pointer to bottom of stack of first caller
+	m.cpu.registers[ip] = 0 // instruction pointer of first caller
+
+	// preserve state of first caller and create descriptor of first callee
+	// first callee is the entrypoint of the program
+	m.cpu.push(m.cpu.base(0))       // dynamic link to first callers new callee
+	m.cpu.push(m.cpu.registers[bp]) // save first callers base pointer
+	m.cpu.push(m.cpu.registers[ip]) // save first callers instruction pointer
+
+	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
 	for {
 		instr, err := process.getInstruction(m.cpu.registers[ip])
 
