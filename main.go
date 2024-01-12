@@ -12,13 +12,12 @@ import (
 )
 
 func main() {
-	fmt.Println("PL/0 Compiler Version 1.0")
+	fmt.Println("PL/0 Compiler Version 1.0.0 1976")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
 	switch {
 	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
 		if err := compiler.CompileFile(os.Args[2], os.Args[3], os.Stdout); err != nil {
-			fmt.Println()
 			fmt.Println("Summary:", err)
 		} else {
 			fmt.Println("Compilation successful")

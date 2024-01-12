@@ -91,16 +91,16 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {
 
 	for _, td := range concreteSyntax {
 		if td.Line != lastLine {
-			fmt.Printf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))
+			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
 			lastLine = td.Line
 		}
 
-		fmt.Printf("%v,%v\t%v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)
+		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
 	}
 }
 
 func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
-	print.Write([]byte("Error Report:\n"))
+	print.Write([]byte("Error Report:"))
 
 	for _, e := range errorReport {
 		linePrefix := fmt.Sprintf("%5v: ", e.Line)
