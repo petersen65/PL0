@@ -404,7 +404,7 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			p.emitter.Emit(0, emt.Opr, emt.Neg)
+			p.emitter.Emit(0, emt.Neg, 0)
 		}
 	} else {
 		// handle left term of a plus or minus operator
@@ -419,9 +419,9 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Plus {
-			p.emitter.Emit(0, emt.Opr, emt.Add)
+			p.emitter.Emit(0, emt.Add, 0)
 		} else {
-			p.emitter.Emit(0, emt.Opr, emt.Sub)
+			p.emitter.Emit(0, emt.Sub, 0)
 		}
 	}
 }
@@ -430,7 +430,7 @@ func (p *parser) condition(depth int32, expected scn.Tokens) {
 	if p.lastToken() == scn.OddWord {
 		p.nextTokenDescription()
 		p.expression(depth, expected)
-		p.emitter.Emit(0, emt.Opr, emt.Odd)
+		p.emitter.Emit(0, emt.Odd, 0)
 	} else {
 		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
@@ -443,22 +443,22 @@ func (p *parser) condition(depth int32, expected scn.Tokens) {
 
 			switch relationalOperator {
 			case scn.Equal:
-				p.emitter.Emit(0, emt.Opr, emt.Eq)
+				p.emitter.Emit(0, emt.Eq, 0)
 
 			case scn.NotEqual:
-				p.emitter.Emit(0, emt.Opr, emt.Neq)
+				p.emitter.Emit(0, emt.Neq, 0)
 
 			case scn.Less:
-				p.emitter.Emit(0, emt.Opr, emt.Lss)
+				p.emitter.Emit(0, emt.Lss, 0)
 
 			case scn.LessEqual:
-				p.emitter.Emit(0, emt.Opr, emt.Leq)
+				p.emitter.Emit(0, emt.Leq, 0)
 
 			case scn.Greater:
-				p.emitter.Emit(0, emt.Opr, emt.Gtr)
+				p.emitter.Emit(0, emt.Gtr, 0)
 
 			case scn.GreaterEqual:
-				p.emitter.Emit(0, emt.Opr, emt.Geq)
+				p.emitter.Emit(0, emt.Geq, 0)
 			}
 		}
 	}
@@ -478,9 +478,9 @@ func (p *parser) term(depth int32, expected scn.Tokens) {
 		p.factor(depth, set(expected, scn.Times, scn.Divide))
 
 		if timesOrDevide == scn.Times {
-			p.emitter.Emit(0, emt.Opr, emt.Mul)
+			p.emitter.Emit(0, emt.Mul, 0)
 		} else {
-			p.emitter.Emit(0, emt.Opr, emt.Div)
+			p.emitter.Emit(0, emt.Div, 0)
 		}
 	}
 }

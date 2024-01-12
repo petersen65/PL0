@@ -6,7 +6,6 @@ package emitter
 
 const (
 	Lit = Operation(iota)
-	Opr
 	Lod
 	Sto
 	Cal
@@ -14,10 +13,7 @@ const (
 	Inc
 	Jmp
 	Jpc
-)
-
-const (
-	Neg = Address(iota)
+	Neg
 	Add
 	Sub
 	Mul

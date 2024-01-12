@@ -4,6 +4,7 @@ var
 x, squ; 
 z;
 a;
+ö;ü;ä;
 
 procedure add;
 var v;
@@ -50,4 +51,8 @@ begin
       x := x + 1
    end;
    y := 5
+   ö := 2 * x;
+   ü := 55;
+   ä := ö * ü + 2 * a;
+   ß := 5
 end.

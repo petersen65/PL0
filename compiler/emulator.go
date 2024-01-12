@@ -50,7 +50,7 @@ func newMachine() *machine {
 func (m *machine) startProcess(sections []byte) error {
 	var process process
 	process.code = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
-	
+
 	var buffer bytes.Buffer
 	buffer.Write(sections)
 
@@ -79,83 +79,80 @@ func (m *machine) startProcess(sections []byte) error {
 		case emt.Inc: // allocate space on stack
 			m.cpu.registers[sp] += instr.Argument
 
-		case emt.Opr: // execute any operator from the operator set
-			switch instr.Argument {
-			case emt.Neg:
-				m.cpu.stack[m.cpu.registers[sp]] = -m.cpu.stack[m.cpu.registers[sp]]
+		case emt.Neg: // negate top of stack
+			m.cpu.stack[m.cpu.registers[sp]] = -m.cpu.stack[m.cpu.registers[sp]]
 
-			case emt.Add:
-				m.cpu.registers[sp]--
-				m.cpu.stack[m.cpu.registers[sp]] += m.cpu.stack[m.cpu.registers[sp]+1]
+		case emt.Add: // add top two stack elements
+			m.cpu.registers[sp]--
+			m.cpu.stack[m.cpu.registers[sp]] += m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case emt.Sub:
-				m.cpu.registers[sp]--
-				m.cpu.stack[m.cpu.registers[sp]] -= m.cpu.stack[m.cpu.registers[sp]+1]
+		case emt.Sub: // subtract top two stack elements
+			m.cpu.registers[sp]--
+			m.cpu.stack[m.cpu.registers[sp]] -= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case emt.Mul:
-				m.cpu.registers[sp]--
-				m.cpu.stack[m.cpu.registers[sp]] *= m.cpu.stack[m.cpu.registers[sp]+1]
+		case emt.Mul: // multiply top two stack elements
+			m.cpu.registers[sp]--
+			m.cpu.stack[m.cpu.registers[sp]] *= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case emt.Div:
-				m.cpu.registers[sp]--
-				m.cpu.stack[m.cpu.registers[sp]] /= m.cpu.stack[m.cpu.registers[sp]+1]
+		case emt.Div: // divide top two stack elements
+			m.cpu.registers[sp]--
+			m.cpu.stack[m.cpu.registers[sp]] /= m.cpu.stack[m.cpu.registers[sp]+1]
 
-			case emt.Odd:
-				m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.registers[sp]] % 2
+		case emt.Odd: // test if top of stack is odd
+			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.registers[sp]] % 2
 
-			case emt.Eq:
-				m.cpu.registers[sp]--
+		case emt.Eq: // test if top two stack elements are equal
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] == m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] == m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
+			}
 
-			case emt.Neq:
-				m.cpu.registers[sp]--
+		case emt.Neq: // test if top two stack elements are not equal
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] != m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] != m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
+			}
 
-			case emt.Lss:
-				m.cpu.registers[sp]--
+		case emt.Lss: // test if second stack element is less than top stack element
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] < m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] < m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
+			}
 
-			case emt.Leq:
-				m.cpu.registers[sp]--
+		case emt.Leq: // test if second stack element is less than or equal to top stack element
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] <= m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] <= m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
+			}
 
-			case emt.Gtr:
-				m.cpu.registers[sp]--
+		case emt.Gtr: // test if second stack element is greater than top stack element
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] > m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] > m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
+			}
 
-			case emt.Geq:
-				m.cpu.registers[sp]--
+		case emt.Geq: // test if second stack element is greater than or equal to top stack element
+			m.cpu.registers[sp]--
 
-				if m.cpu.stack[m.cpu.registers[sp]] >= m.cpu.stack[m.cpu.registers[sp]+1] {
-					m.cpu.stack[m.cpu.registers[sp]] = 1
-				} else {
-					m.cpu.stack[m.cpu.registers[sp]] = 0
-				}
+			if m.cpu.stack[m.cpu.registers[sp]] >= m.cpu.stack[m.cpu.registers[sp]+1] {
+				m.cpu.stack[m.cpu.registers[sp]] = 1
+			} else {
+				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
 		case emt.Cal: // call procedure
