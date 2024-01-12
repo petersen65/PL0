@@ -18,7 +18,7 @@ type (
 	symbol struct {
 		name    string // name of constant, variable, or procedure
 		kind    entry  // constant, variable, or procedure
-		depth   int32    // declaration nesting depth of variable or procedure
+		depth   int32  // declaration nesting depth of constant, variable, or procedure
 		value   int64  // value of constant
 		offset  uint64 // offset of variable in its runtime procedure stack frame
 		label   string // label of procedure for assembly generation
@@ -29,6 +29,12 @@ type (
 		symbols []symbol
 	}
 )
+
+var kindNames = map[entry]string{
+	constant:  "constant",
+	variable:  "variable",
+	procedure: "procedure",
+}
 
 func (s *symbolTable) addConstant(name string, depth int32, value int64) {
 	s.symbols = append(s.symbols, symbol{
@@ -70,6 +76,10 @@ func (s *symbolTable) find(name string) (symbol, bool) {
 	return symbol{}, false
 }
 
+func (s *symbolTable) top() symbol {
+	return s.symbols[len(s.symbols)-1]
+}
+
 func (s *symbolTable) update(symbol symbol) bool {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
 		if s.symbols[i].name == symbol.name {
@@ -79,4 +89,16 @@ func (s *symbolTable) update(symbol symbol) bool {
 	}
 
 	return false
+}
+
+func (s *symbolTable) remove(depth int32) {
+	var filtered []symbol = make([]symbol, 0)
+
+	for i := len(s.symbols) - 1; i >= 0; i-- {
+		if s.symbols[i].depth != depth {
+			filtered = append(filtered, s.symbols[i])
+		}
+	}
+
+	s.symbols = filtered
 }

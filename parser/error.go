@@ -16,8 +16,8 @@ const (
 	parsingError
 	parsingErrors
 	maxBlockDepth
-	emptyProcedureName
 	identifierNotFound
+	identifierAlreadyDeclared
 	expectedRelationalOperator
 	expectedPeriod
 	expectedIdentifier
@@ -45,8 +45,8 @@ var errorMap = map[failure]string{
 	parsingError:                            "a parsing error occurred",
 	parsingErrors:                           "%v parsing errors occurred",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",
-	emptyProcedureName:                      "procedure name cannot be empty",
 	identifierNotFound:                      "identifier not found: %v",
+	identifierAlreadyDeclared:               "identifier already declared: %v",
 	expectedRelationalOperator:              "expected one of =, #, <, <=, >, >= operator, found %v",
 	expectedPeriod:                          "expected period at end of the program, found %v",
 	expectedIdentifier:                      "expected identifier, found %v",

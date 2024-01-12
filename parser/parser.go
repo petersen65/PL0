@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	variableOffsetStart = 3      // start offset of variable in its runtime procedure stack frame
-	entryPointName      = "main" // name of the entry point procedure in the symbol table
+	variableOffsetStart = 3        // start offset of variable in its runtime procedure stack frame
+	entryPointName      = "_start" // name of the entry point procedure of a program
 )
 
 type (
@@ -30,7 +30,9 @@ func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 		return p.errorReport, err
 	}
 
-	p.block(entryPointName, 0, set(declarations, statements, scn.Period))
+	// a program starts with a block of declaration depth 0
+	p.symbolTable.addProcedure(entryPointName, 0, 0)
+	p.block(0, set(declarations, statements, scn.Period))
 
 	if p.lastToken() != scn.Period {
 		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
@@ -59,9 +61,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	return nil
 }
 
-func (p *parser) block(procdureName string, depth int32, expected scn.Tokens) {
-	// a program start with a block of name 'main' and declaration depth 0
-	// a block is defined by its procedure name and its declaration depth
+func (p *parser) block(depth int32, expected scn.Tokens) {
 	// a block is a sequence of declarations followed by a statement
 
 	// a declaration is a sequence of
@@ -82,16 +82,11 @@ func (p *parser) block(procdureName string, depth int32, expected scn.Tokens) {
 		p.appendError(p.error(maxBlockDepth, depth))
 	}
 
-	if len(procdureName) == 0 {
-		p.appendError(p.error(emptyProcedureName, nil))
-	} else {
-		p.symbolTable.addProcedure(procdureName, depth, uint64(p.emitter.GetNextAddress()))
-	}
-
-	// emit a jmp to the first instruction of the block which is not yet known
+	// emit a jump to the first instruction of the block whose address is not yet known
 	jumpFirstBlockInstruction, err := p.emitter.Emit(depth, emt.Jmp, emt.NullAddress)
 	p.appendError(err)
 
+	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
 		if p.lastToken() == scn.ConstWord {
 			p.constWord(depth)
@@ -115,11 +110,10 @@ func (p *parser) block(procdureName string, depth int32, expected scn.Tokens) {
 	// update the jump instruction address to the first instruction of the block
 	p.emitter.UpdateArgument(jumpFirstBlockInstruction, p.emitter.GetNextAddress())
 
-	// update the code address of the block's procedure symbol to the first instruction of the block
-	if procedureSymbol, ok := p.symbolTable.find(procdureName); ok {
-		procedureSymbol.address = uint64(p.emitter.GetNextAddress())
-		p.symbolTable.update(procedureSymbol)
-	}
+	// update the code address of the block's parent symbol to the first instruction of the block
+	parentSymbol := p.symbolTable.top()
+	parentSymbol.address = uint64(p.emitter.GetNextAddress())
+	p.symbolTable.update(parentSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
 	_, err = p.emitter.Emit(depth, emt.Inc, emt.Address(varOffset))
@@ -131,6 +125,10 @@ func (p *parser) block(procdureName string, depth int32, expected scn.Tokens) {
 	// emit a return instruction to return from the block
 	_, err = p.emitter.Emit(depth, emt.Ret, 0)
 	p.appendError(err)
+
+	// at the end of the block, remove all symbols with its declaration depth from the symbol table
+	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
+	p.symbolTable.remove(depth)
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
 }
@@ -184,14 +182,7 @@ func (p *parser) varWord(depth int32, offset *uint64) {
 func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
-		var procedureName string
-
-		if p.lastToken() == scn.Identifier {
-			procedureName = p.lastTokenValue()
-			p.nextTokenDescription()
-		} else {
-			p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
-		}
+		p.procedureIdentifier(depth)
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -199,7 +190,7 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.block(procedureName, depth+1, set(expected, scn.Semicolon))
+		p.block(depth+1, set(expected, scn.Semicolon))
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -216,7 +207,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	if !ok {
 		p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
 	} else if symbol.kind != variable {
-		p.appendError(p.error(expectedVariableIdentifier, p.lastTokenName()))
+		p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
 	}
 
 	p.nextTokenDescription()
@@ -267,7 +258,7 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 			if symbol.kind == procedure {
 				p.emitter.Emit(depth-symbol.depth, emt.Cal, emt.Address(symbol.address))
 			} else {
-				p.appendError(p.error(expectedProcedureIdentifier, p.lastTokenName()))
+				p.appendError(p.error(expectedProcedureIdentifier, kindNames[symbol.kind]))
 			}
 		} else {
 			p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
@@ -333,7 +324,12 @@ func (p *parser) constantIdentifier(depth int32) {
 			return
 		}
 
-		p.symbolTable.addConstant(constantName, depth, p.lastTokenNumber())
+		if _, ok := p.symbolTable.find(constantName); ok {
+			p.appendError(p.error(identifierAlreadyDeclared, constantName))
+		} else {
+			p.symbolTable.addConstant(constantName, depth, p.lastTokenNumber())
+		}
+
 		p.nextTokenDescription()
 	} else {
 		p.appendError(p.error(expectedEqual, p.lastTokenName()))
@@ -344,7 +340,26 @@ func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
-		p.symbolTable.addVariable(p.lastTokenValue(), depth, offset)
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue()))
+		} else {
+			p.symbolTable.addVariable(p.lastTokenValue(), depth, offset)
+		}
+
+		p.nextTokenDescription()
+	}
+}
+
+func (p *parser) procedureIdentifier(depth int32) {
+	if p.lastToken() != scn.Identifier {
+		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+	} else {
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue()))
+		} else {
+			p.symbolTable.addProcedure(p.lastTokenValue(), depth, uint64(p.emitter.GetNextAddress()))
+		}
+
 		p.nextTokenDescription()
 	}
 }
@@ -485,7 +500,7 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 					p.emitter.Emit(depth-symbol.depth, emt.Lod, emt.Address(symbol.offset))
 
 				case procedure:
-					p.appendError(p.error(expectedConstantsVariables, p.lastTokenName()))
+					p.appendError(p.error(expectedConstantsVariables, kindNames[symbol.kind]))
 				}
 			} else {
 				p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
