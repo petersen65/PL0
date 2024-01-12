@@ -6,6 +6,7 @@ package compiler
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -14,8 +15,10 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
-func CompileFile(source, target string) error {
-	fmt.Printf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target)
+func CompileFile(source, target string, print io.Writer) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
+		return err
+	}
 
 	if content, err := os.ReadFile(source); err != nil {
 		return err
@@ -27,11 +30,11 @@ func CompileFile(source, target string) error {
 
 		switch {
 		case err != nil && concreteSyntax != nil && errorReport != nil:
-			PrintErrorReport(errorReport)
+			PrintErrorReport(errorReport, print)
 			return err
 
 		case err != nil && concreteSyntax != nil && errorReport == nil:
-			PrintConcreteSyntax(concreteSyntax)
+			PrintConcreteSyntax(concreteSyntax, print)
 			return err
 
 		default:
@@ -44,8 +47,10 @@ func CompileFile(source, target string) error {
 	return nil
 }
 
-func RunFile(target string) error {
-	fmt.Printf("Running IL0 program '%v'\n", target)
+func RunFile(target string, print io.Writer) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("Running IL0 program '%v'\n", target))); err != nil {
+		return err
+	}
 
 	if sections, err := os.ReadFile(target); err != nil {
 		return err
@@ -80,10 +85,9 @@ func RunSections(sections []byte) error {
 	return machine.startProcess(sections)
 }
 
-func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax) {
+func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {
 	var lastLine int
-
-	fmt.Print("Concrete Syntax:")
+	print.Write([]byte("Concrete Syntax:"))
 
 	for _, td := range concreteSyntax {
 		if td.Line != lastLine {
@@ -95,14 +99,15 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax) {
 	}
 }
 
-func PrintErrorReport(errorReport par.ErrorReport) {
-	fmt.Println("Error Report:")
+func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
+	print.Write([]byte("Error Report:\n"))
 
 	for _, e := range errorReport {
 		linePrefix := fmt.Sprintf("%5v: ", e.Line)
 		trimmedLine := strings.TrimSpace(string(e.CurrentLine))
 		trimmedSpaces := len(string(e.CurrentLine)) - len(trimmedLine)
-		fmt.Printf("\n%v%v\n", linePrefix, trimmedLine)
-		fmt.Printf("%v^ %v\n", strings.Repeat(" ", e.Column+len(linePrefix)-trimmedSpaces-1), e.Err)
+
+		print.Write([]byte(fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)))
+		print.Write([]byte(fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", e.Column+len(linePrefix)-trimmedSpaces-1), e.Err)))
 	}
 }

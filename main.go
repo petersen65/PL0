@@ -17,7 +17,7 @@ func main() {
 
 	switch {
 	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if err := compiler.CompileFile(os.Args[2], os.Args[3]); err != nil {
+		if err := compiler.CompileFile(os.Args[2], os.Args[3], os.Stdout); err != nil {
 			fmt.Println()
 			fmt.Println("Summary:", err)
 		} else {
@@ -25,7 +25,7 @@ func main() {
 		}
 
 	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
-		if err := compiler.RunFile(os.Args[2]); err != nil {
+		if err := compiler.RunFile(os.Args[2], os.Stdout); err != nil {
 			fmt.Println("Summary:", err)
 		} else {
 			fmt.Println("Run successful")
