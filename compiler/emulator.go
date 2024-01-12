@@ -13,14 +13,12 @@ import (
 	emt "github.com/petersen65/PL0/emitter"
 )
 
-const (
-	stackSize = 500 // stack entries
-)
+const stackSize = 500 // stack entries
 
 const (
-	ip = register(iota)
-	sp
-	bp
+	ip = register(iota) // instruction pointer is pointing to the next instruction to be executed
+	sp                  // stack pointer is pointing to the top of the stack
+	bp                  // base pointer is pointing to the base of the current stack frame (descriptor)
 )
 
 type (
@@ -52,12 +50,20 @@ func newMachine() *machine {
 func (m *machine) runProgram(sections []byte) error {
 	var process process
 
+	// load program into memory (text section)
 	if err := process.load(sections); err != nil {
 		return err
 	}
 
+	// entry point address is 0 and stack is empty (no descriptor or stack frame)
 	m.cpu.registers[ip], m.cpu.registers[sp], m.cpu.registers[bp] = 0, 0, 0
 
+	// descriptor of entrypoint, which will allocate stack space for its variables later
+	m.cpu.stack[0] = 0 // dynamic link
+	m.cpu.stack[1] = 0 // static link to calling procedure descriptor
+	m.cpu.stack[2] = 0 // return ip address of calling procedure
+
+	// execute instructions until the entrypoint returns
 	for {
 		instr, err := process.getInstruction(m.cpu.registers[ip])
 
@@ -164,6 +170,10 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.registers[ip] = instr.Argument
 
 		case emt.Ret: // return from procedure
+			if m.cpu.registers[bp] == 0 {
+				return nil
+			}
+
 			m.cpu.registers[sp] = m.cpu.registers[bp] - 1
 			m.cpu.registers[ip] = m.cpu.stack[m.cpu.registers[sp]+2]
 			m.cpu.registers[bp] = m.cpu.stack[m.cpu.registers[sp]+1]
@@ -176,13 +186,7 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument] = m.cpu.stack[m.cpu.registers[sp]]
 			m.cpu.registers[sp]--
 		}
-
-		if m.cpu.registers[ip] == 0 {
-			break
-		}
 	}
-
-	return nil
 }
 
 func (m *machine) printProgram(sections []byte, print io.Writer) error {
