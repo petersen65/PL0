@@ -46,7 +46,32 @@ type (
 	}
 )
 
-var NullAddress Address = 0
+var (
+	NullAddress Address = 0
+
+	OperationNames = map[Operation]string{
+		Lit: "lit",
+		Lod: "lod",
+		Sto: "sto",
+		Cal: "cal",
+		Ret: "ret",
+		Inc: "inc",
+		Jmp: "jmp",
+		Jpc: "jpc",
+		Neg: "neg",
+		Add: "add",
+		Sub: "sub",
+		Mul: "mul",
+		Div: "div",
+		Odd: "odd",
+		Eq:  "eq",
+		Neq: "neq",
+		Lss: "lss",
+		Leq: "leq",
+		Gtr: "gtr",
+		Geq: "geq",
+	}
+)
 
 func NewEmitter() Emitter {
 	return &emitter{

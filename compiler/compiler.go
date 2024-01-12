@@ -61,6 +61,20 @@ func RunFile(target string, print io.Writer) error {
 	return nil
 }
 
+func PrintFile(target string, print io.Writer) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("Printing IL0 program '%v'\n", target))); err != nil {
+		return err
+	}
+
+	if sections, err := os.ReadFile(target); err != nil {
+		return err
+	} else if err := PrintSections(sections, print); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
 
@@ -81,8 +95,11 @@ func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport
 }
 
 func RunSections(sections []byte) error {
-	machine := newMachine()
-	return machine.startProcess(sections)
+	return newMachine().runProgram(sections)
+}
+
+func PrintSections(sections []byte, print io.Writer) error {
+	return newMachine().printProgram(sections, print)
 }
 
 func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {

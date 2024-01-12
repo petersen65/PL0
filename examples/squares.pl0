@@ -1,47 +1,8 @@
-const a = 1, b := 2;
-
-var 
-x, squ; 
-z;
-a;
-ö;ü;ä;
-
-procedure add;
-var v;
-begin
-   v := a + b;
-   y := 5
-end;
+var x, squ;
 
 procedure square;
-var y;
-
-procedure sub;
 begin
-   y := a + (-b);
-
-   if y # 4 then
-      call square;
-
-   if odd -(-y / a) then
-   begin
-      call add;
-   end;
-end;
-
-procedure b;
-var x;
-€;
-begin
-   x := 1;
-   a := 2 * sub
-end;
-
-begin
-   squ:= x * x;
-   y := 2;
-   z := 1;
-   call b;
+   squ:= x * x
 end;
 
 begin
@@ -50,10 +11,5 @@ begin
    begin
       call square;
       x := x + 1
-   end;
-   y := 5
-   ö := 2 * x;
-   ü := 55;
-   ä := ö * ü + 2 * a;
-   ß := 5
+   end
 end.

@@ -7,6 +7,8 @@ package compiler
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io"
 
 	emt "github.com/petersen65/PL0/emitter"
 )
@@ -47,23 +49,22 @@ func newMachine() *machine {
 	}
 }
 
-func (m *machine) startProcess(sections []byte) error {
+func (m *machine) runProgram(sections []byte) error {
 	var process process
-	process.code = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
 
-	var buffer bytes.Buffer
-	buffer.Write(sections)
-
-	if err := binary.Read(&buffer, binary.LittleEndian, process.code); err != nil {
+	if err := process.load(sections); err != nil {
 		return err
 	}
 
-	m.cpu.registers[ip] = 0
-	m.cpu.registers[sp] = 0
-	m.cpu.registers[bp] = 0
+	m.cpu.registers[ip], m.cpu.registers[sp], m.cpu.registers[bp] = 0, 0, 0
 
 	for {
-		instr := process.code[m.cpu.registers[ip]]
+		instr, err := process.getInstruction(m.cpu.registers[ip])
+
+		if err != nil {
+			return err
+		}
+
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
@@ -184,6 +185,10 @@ func (m *machine) startProcess(sections []byte) error {
 	return nil
 }
 
+func (m *machine) printProgram(sections []byte, print io.Writer) error {
+	return (&process{}).dump(sections, print)
+}
+
 func (c *cpu) base(Depth int32) emt.Address {
 	b := c.registers[bp]
 
@@ -210,6 +215,45 @@ func (c *cpu) jpc(addr emt.Address) {
 	}
 
 	c.registers[sp]--
+}
+
+func (p *process) load(sections []byte) error {
+	p.code = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
+
+	var buffer bytes.Buffer
+	buffer.Write(sections)
+
+	if err := binary.Read(&buffer, binary.LittleEndian, p.code); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *process) getInstruction(address emt.Address) (emt.Instruction, error) {
+	if address >= emt.Address(len(p.code)) {
+		return emt.Instruction{}, fmt.Errorf("address '%v' out of range", address)
+	}
+
+	return p.code[address], nil
+}
+
+func (p *process) dump(sections []byte, print io.Writer) error {
+	if err := p.load(sections); err != nil {
+		return err
+	}
+
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n", "addr", "op", "dep", "arg")))
+
+	for addr, instr := range p.code {
+		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n",
+			addr,
+			emt.OperationNames[instr.Operation],
+			instr.Depth,
+			instr.Argument)))
+	}
+
+	return nil
 }
 
 /*

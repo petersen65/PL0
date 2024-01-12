@@ -30,8 +30,16 @@ func main() {
 			fmt.Println("Run successful")
 		}
 
+	case len(os.Args) > 2 && os.Args[1] == "-p" && len(os.Args[2]) > 0:
+		if err := compiler.PrintFile(os.Args[2], os.Stdout); err != nil {
+			fmt.Println("Summary:", err)
+		} else {
+			fmt.Println("Print successful")
+		}
+
 	default:
 		fmt.Println("Usage: pl0 -c <source file> <target file>")
 		fmt.Println("       pl0 -r <target file>")
+		fmt.Println("       pl0 -p <target file>")
 	}
 }
