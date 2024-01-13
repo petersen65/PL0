@@ -25,7 +25,7 @@ type (
 	register int
 
 	process struct {
-		code emt.TextSection
+		text emt.TextSection
 	}
 
 	cpu struct {
@@ -55,14 +55,9 @@ func (m *machine) runProgram(sections []byte) error {
 		return err
 	}
 
-	// caller, caller-chain, callee
-	// current of callee is bp, sp, and ip (active procedure)
-	// state of last caller is in descriptor of callee (first 3 entries of stack frame)
+	// state of active callee, which is a running procedure: bp, sp, and ip
+	// state of caller is in descriptor of callee (first 3 entries of stack frame)
 	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
-
-	// push stack[bp] // dynamic link
-	// push bp // static link to calling procedure descriptor
-	// push ip // return ip address of calling procedure
 
 	// define first caller state: return to first caller exits program
 	// first caller is external code that calls the entrypoint of the program (first callee)
@@ -72,7 +67,7 @@ func (m *machine) runProgram(sections []byte) error {
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.push(m.cpu.base(0))       // dynamic link to first callers new callee
+	m.cpu.stack[0] = m.cpu.base(0)  // dynamic link to first callers new callee
 	m.cpu.push(m.cpu.registers[bp]) // save first callers base pointer
 	m.cpu.push(m.cpu.registers[ip]) // save first callers instruction pointer
 
@@ -87,16 +82,16 @@ func (m *machine) runProgram(sections []byte) error {
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
-		case emt.Lit: // load constant
+		case emt.Lit: // load constant on top of stack
 			m.cpu.push(instr.Argument)
 
-		case emt.Jmp: // jump to address
+		case emt.Jmp: // unconditionally jump to address
 			m.cpu.jmp(instr.Argument)
 
 		case emt.Jpc: // jump to address if top of stack is zero
 			m.cpu.jpc(instr.Argument)
 
-		case emt.Inc: // allocate space on stack
+		case emt.Inc: // allocate space on stack for variables of a procedure
 			m.cpu.registers[sp] += instr.Argument
 
 		case emt.Neg: // negate top of stack
@@ -175,21 +170,28 @@ func (m *machine) runProgram(sections []byte) error {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Cal: // call procedure
-			m.cpu.push(m.cpu.base(instr.Depth))
-			m.cpu.push(m.cpu.registers[bp])
-			m.cpu.push(m.cpu.registers[ip])
-			m.cpu.registers[bp] = m.cpu.registers[sp] + 1
-			m.cpu.registers[ip] = instr.Argument
+		case emt.Cal: // caller procedure calls callee procedure
+			// preserve state of caller and create descriptor of procedure being called
+			m.cpu.push(m.cpu.base(instr.Depth)) // dynamic link to procedure being called
+			m.cpu.push(m.cpu.registers[bp])     // save callers base pointer
+			m.cpu.push(m.cpu.registers[ip])     // save callers instruction pointer
 
-		case emt.Ret: // return from procedure
+			// base pointer of procedure being called is pointing to its descriptor
+			m.cpu.registers[bp] = m.cpu.registers[sp] - 2
+
+			// jump to procedure
+			m.cpu.jmp(instr.Argument)
+
+		case emt.Ret: // callee procedure returns to caller procedure
+			// returning from the entrypoint of the program exits the program
 			if m.cpu.registers[bp] == 0 {
 				return nil
 			}
 
-			m.cpu.registers[sp] = m.cpu.registers[bp] - 1
-			m.cpu.registers[ip] = m.cpu.stack[m.cpu.registers[sp]+2]
-			m.cpu.registers[bp] = m.cpu.stack[m.cpu.registers[sp]+1]
+			// restore state of caller procdure from descriptor of callee procedure
+			m.cpu.pop(ip)            // restore callers instruction pointer
+			m.cpu.pop(bp)            // restore callers base pointer
+			m.cpu.registers[sp] -= 1 // discard dynamic link and restore callers top of stack
 
 		case emt.Lod: // push variable on top of stack
 			m.cpu.registers[sp]++
@@ -206,41 +208,13 @@ func (m *machine) printProgram(sections []byte, print io.Writer) error {
 	return (&process{}).dump(sections, print)
 }
 
-func (c *cpu) base(Depth int32) emt.Address {
-	b := c.registers[bp]
-
-	for Depth > 0 {
-		b = c.stack[b]
-		Depth--
-	}
-
-	return b
-}
-
-func (c *cpu) push(val emt.Address) {
-	c.registers[sp]++
-	c.stack[c.registers[sp]] = val
-}
-
-func (c *cpu) jmp(addr emt.Address) {
-	c.registers[ip] = addr
-}
-
-func (c *cpu) jpc(addr emt.Address) {
-	if c.registers[sp] == 0 {
-		c.registers[ip] = addr
-	}
-
-	c.registers[sp]--
-}
-
 func (p *process) load(sections []byte) error {
-	p.code = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
+	p.text = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
 
 	var buffer bytes.Buffer
 	buffer.Write(sections)
 
-	if err := binary.Read(&buffer, binary.LittleEndian, p.code); err != nil {
+	if err := binary.Read(&buffer, binary.LittleEndian, p.text); err != nil {
 		return err
 	}
 
@@ -248,11 +222,11 @@ func (p *process) load(sections []byte) error {
 }
 
 func (p *process) getInstruction(address emt.Address) (emt.Instruction, error) {
-	if address >= emt.Address(len(p.code)) {
+	if address >= emt.Address(len(p.text)) {
 		return emt.Instruction{}, fmt.Errorf("address '%v' out of range", address)
 	}
 
-	return p.code[address], nil
+	return p.text[address], nil
 }
 
 func (p *process) dump(sections []byte, print io.Writer) error {
@@ -262,7 +236,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 
 	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n", "addr", "op", "dep", "arg")))
 
-	for addr, instr := range p.code {
+	for addr, instr := range p.text {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n",
 			addr,
 			emt.OperationNames[instr.Operation],
@@ -273,41 +247,38 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 	return nil
 }
 
-/*
-	var x, squ;
+func (c *cpu) base(depth int32) emt.Address {
+	b := c.registers[bp]
 
-	procedure square;
-	begin
-   		squ:= x * x
-	end;
+	for depth > 0 {
+		b = c.stack[b]
+		depth--
+	}
 
-	begin
-   		x := 1;
+	return b
+}
 
-		while x <= 10 do
-   		begin
-    		call square;
-      		x := x + 1
-   		end
-	end.
-*/
+// push argument on top of stack, top of stack points to new argument
+func (c *cpu) push(arg emt.Address) {
+	c.registers[sp]++
+	c.stack[c.registers[sp]] = arg
+}
 
-/*
-	PL/0 Code Segment and Symbol Table
+func (c *cpu) pop(reg register) {
+	c.registers[reg] = c.stack[c.registers[sp]]
+	c.registers[sp]--
+}
 
-	| 					|						| proc n='square',d=0,a=1	| 3
-	| f=inc,d=1,a=3		| 2	square				| var n='squ',d=0,o=4		| 2
-	| f=jmp,d=1,a=2		| 1	square				| var n='x',d=0,o=3			| 1
-	| f=jmp d=0,a=0		| 0	main			   	| proc n='main',d=0,a=0 	| 0
-	+-------------------+ code					+---------------------------+ symtab
-*/
+// unconditionally jump to address
+func (c *cpu) jmp(addr emt.Address) {
+	c.registers[ip] = addr
+}
 
-/*
-	PL/0 Stack Segment
+// if top of stack is 0, jump to address
+func (c *cpu) jpc(addr emt.Address) {
+	if c.registers[sp] == 0 {
+		c.registers[ip] = addr
+	}
 
-
-	| ip = 0			| 2
-	| bp = 0			| 1
-	| base = 0			| 0
-	+-------------------+ stack
-*/
+	c.registers[sp]--
+}

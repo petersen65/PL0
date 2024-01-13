@@ -5,6 +5,11 @@
 package emitter
 
 const (
+	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
+	EntryPointName      = "_start" // name of the entry point procedure of a program
+)
+
+const (
 	Lit = Operation(iota)
 	Lod
 	Sto

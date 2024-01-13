@@ -9,18 +9,13 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
-const (
-	variableOffsetStart = 3        // start offset of variable in its runtime procedure stack frame
-	entryPointName      = "_start" // name of the entry point procedure of a program
-)
-
 type (
 	parser struct {
 		concreteSyntaxIndex       int
 		concreteSyntax            scn.ConcreteSyntax
 		emitter                   emt.Emitter
 		lastTokenDescription, eof scn.TokenDescription
-		symbolTable               symbolTable
+		symbolTable               *symbolTable
 		errorReport               ErrorReport
 	}
 )
@@ -31,7 +26,7 @@ func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 	}
 
 	// a program starts with a block of declaration depth 0
-	p.symbolTable.addProcedure(entryPointName, 0, 0)
+	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
 	p.block(0, set(declarations, statements, scn.Period))
 
 	if p.lastToken() != scn.Period {
@@ -51,7 +46,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	p.concreteSyntaxIndex = 0
 	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
-	p.symbolTable = symbolTable{}
+	p.symbolTable = newSymbolTable()
 	p.errorReport = make(ErrorReport, 0)
 
 	if len(p.concreteSyntax) == 0 || !p.nextTokenDescription() {
@@ -76,7 +71,7 @@ func (p *parser) block(depth int32, expected scn.Tokens) {
 	//   a while statement,
 	//   or a sequence of statements surrounded by begin and end
 
-	var varOffset uint64 = variableOffsetStart
+	var varOffset uint64 = emt.VariableOffsetStart
 
 	if depth > blockNestingMax {
 		p.appendError(p.error(maxBlockDepth, depth))
