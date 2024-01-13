@@ -4,7 +4,9 @@
 
 package parser
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	constant = entry(iota)
@@ -34,6 +36,12 @@ var kindNames = map[entry]string{
 	constant:  "constant",
 	variable:  "variable",
 	procedure: "procedure",
+}
+
+func newSymbolTable() *symbolTable {
+	return &symbolTable{
+		symbols: make([]symbol, 0),
+	}
 }
 
 func (s *symbolTable) addConstant(name string, depth int32, value int64) {
@@ -76,10 +84,6 @@ func (s *symbolTable) find(name string) (symbol, bool) {
 	return symbol{}, false
 }
 
-func (s *symbolTable) top() symbol {
-	return s.symbols[len(s.symbols)-1]
-}
-
 func (s *symbolTable) update(symbol symbol) bool {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
 		if s.symbols[i].name == symbol.name {
@@ -92,13 +96,86 @@ func (s *symbolTable) update(symbol symbol) bool {
 }
 
 func (s *symbolTable) remove(depth int32) {
-	var filtered []symbol = make([]symbol, 0)
+	var filtered []symbol = make([]symbol, 0, len(s.symbols))
 
-	for i := len(s.symbols) - 1; i >= 0; i-- {
-		if s.symbols[i].depth != depth {
-			filtered = append(filtered, s.symbols[i])
+	for _, sym := range s.symbols {
+		if sym.depth != depth {
+			filtered = append(filtered, sym)
 		}
 	}
 
-	s.symbols = filtered
+	if len(filtered) > 0 {
+		s.symbols = filtered
+	}
 }
+
+/*
+
+func (s *symbolTable) addConstant(name string, depth int32, value int64) {
+	s.symbols.PushBack(symbol{
+		name:  name,
+		kind:  constant,
+		depth: depth,
+		value: value,
+	})
+}
+
+func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
+	s.symbols.PushBack(symbol{
+		name:   name,
+		kind:   variable,
+		depth:  depth,
+		offset: *offset,
+	})
+
+	*offset++
+}
+
+func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
+	s.symbols.PushBack(symbol{
+		name:    name,
+		kind:    procedure,
+		depth:   depth,
+		label:   fmt.Sprintf("_%v_%v", depth, name),
+		address: address,
+	})
+}
+
+func (s *symbolTable) find(name string) (symbol, bool) {
+	for e := s.symbols.Back(); e != nil; e = e.Prev() {
+		if e.Value.(symbol).name == name {
+			return e.Value.(symbol), true
+		}
+	}
+
+	return symbol{}, false
+}
+
+func (s *symbolTable) top() symbol {
+	return s.symbols.Back().Value.(symbol)
+}
+
+func (s *symbolTable) update(sym symbol) bool {
+	for e := s.symbols.Back(); e != nil; e = e.Prev() {
+		if e.Value.(symbol).name == sym.name {
+			e.Value = sym
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *symbolTable) remove(depth int32) int {
+	count := 0
+
+	for e := s.symbols.Back(); e != nil; e = e.Prev() {
+		if e.Value.(symbol).depth == depth {
+			s.symbols.Remove(e)
+			count++
+		}
+	}
+
+	return count
+}
+*/

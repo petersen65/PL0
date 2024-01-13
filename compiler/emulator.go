@@ -88,7 +88,7 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jmp: // unconditionally jump to address
 			m.cpu.jmp(instr.Argument)
 
-		case emt.Jpc: // jump to address if top of stack is zero
+		case emt.Jpc: // jump to address if top of stack is 0
 			m.cpu.jpc(instr.Argument)
 
 		case emt.Inc: // allocate space on stack for variables of a procedure
@@ -189,16 +189,17 @@ func (m *machine) runProgram(sections []byte) error {
 			}
 
 			// restore state of caller procdure from descriptor of callee procedure
-			m.cpu.pop(ip)            // restore callers instruction pointer
-			m.cpu.pop(bp)            // restore callers base pointer
-			m.cpu.registers[sp] -= 1 // discard dynamic link and restore callers top of stack
+			m.cpu.registers[sp] = m.cpu.registers[bp] + 2 // discard local variables of callee procedure
+			m.cpu.pop(ip)                                 // restore callers instruction pointer
+			m.cpu.pop(bp)                                 // restore callers base pointer
+			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
 		case emt.Lod: // push variable on top of stack
 			m.cpu.registers[sp]++
-			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument]
+			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument+3]
 
 		case emt.Sto: // pop variable from top of stack
-			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument] = m.cpu.stack[m.cpu.registers[sp]]
+			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument+3] = m.cpu.stack[m.cpu.registers[sp]]
 			m.cpu.registers[sp]--
 		}
 	}
@@ -264,6 +265,7 @@ func (c *cpu) push(arg emt.Address) {
 	c.stack[c.registers[sp]] = arg
 }
 
+// pop argument from top of stack, top of stack points to previous argument
 func (c *cpu) pop(reg register) {
 	c.registers[reg] = c.stack[c.registers[sp]]
 	c.registers[sp]--

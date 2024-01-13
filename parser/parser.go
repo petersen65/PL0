@@ -27,7 +27,7 @@ func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 
 	// a program starts with a block of declaration depth 0
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
-	p.block(0, set(declarations, statements, scn.Period))
+	p.block(emt.EntryPointName, 0, set(declarations, statements, scn.Period))
 
 	if p.lastToken() != scn.Period {
 		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
@@ -56,7 +56,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	return nil
 }
 
-func (p *parser) block(depth int32, expected scn.Tokens) {
+func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 	// a block is a sequence of declarations followed by a statement
 
 	// a declaration is a sequence of
@@ -71,15 +71,17 @@ func (p *parser) block(depth int32, expected scn.Tokens) {
 	//   a while statement,
 	//   or a sequence of statements surrounded by begin and end
 
+	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
 
 	if depth > blockNestingMax {
 		p.appendError(p.error(maxBlockDepth, depth))
 	}
 
-	// emit a jump to the first instruction of the block whose address is not yet known
-	jumpFirstBlockInstruction, err := p.emitter.Emit(depth, emt.Jmp, emt.NullAddress)
-	p.appendError(err)
+	// emit a jump to the first instruction of the entrypoint block whose address is not yet known
+	if depth == 0 {
+		entryPointInstruction, _ = p.emitter.Emit(depth, emt.Jmp, emt.NullAddress)
+	}
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
@@ -102,16 +104,18 @@ func (p *parser) block(depth int32, expected scn.Tokens) {
 		}
 	}
 
-	// update the jump instruction address to the first instruction of the block
-	p.emitter.UpdateArgument(jumpFirstBlockInstruction, p.emitter.GetNextAddress())
+	// update the jump instruction address to the first instruction of the entrypoint block
+	if depth == 0 {
+		p.emitter.UpdateArgument(entryPointInstruction, p.emitter.GetNextAddress())
+	}
 
-	// update the code address of the block's parent symbol to the first instruction of the block
-	parentSymbol := p.symbolTable.top()
-	parentSymbol.address = uint64(p.emitter.GetNextAddress())
-	p.symbolTable.update(parentSymbol)
+	// update the code address of the block's procedure symbol to the first instruction of the block
+	procdureSymbol, _ := p.symbolTable.find(name)
+	procdureSymbol.address = uint64(p.emitter.GetNextAddress())
+	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
-	_, err = p.emitter.Emit(depth, emt.Inc, emt.Address(varOffset))
+	_, err := p.emitter.Emit(depth, emt.Inc, emt.Address(varOffset))
 	p.appendError(err)
 
 	// parse and emit all statement instructions which are defining the code logic of the block
@@ -177,7 +181,7 @@ func (p *parser) varWord(depth int32, offset *uint64) {
 func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
-		p.procedureIdentifier(depth)
+		procedureName := p.procedureIdentifier(depth)
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -185,7 +189,7 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.block(depth+1, set(expected, scn.Semicolon))
+		p.block(procedureName, depth+1, set(expected, scn.Semicolon))
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -216,7 +220,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	p.expression(depth, expected)
 
 	if ok && symbol.kind == variable {
-		p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Address(symbol.address))
+		p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Address(symbol.offset))
 
 	}
 }
@@ -345,18 +349,23 @@ func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 	}
 }
 
-func (p *parser) procedureIdentifier(depth int32) {
+func (p *parser) procedureIdentifier(depth int32) string {
+	var procedureName string
+
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
 		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue()))
 		} else {
-			p.symbolTable.addProcedure(p.lastTokenValue(), depth, uint64(p.emitter.GetNextAddress()))
+			procedureName = p.lastTokenValue()
+			p.symbolTable.addProcedure(procedureName, depth, uint64(p.emitter.GetNextAddress()))
 		}
 
 		p.nextTokenDescription()
 	}
+
+	return procedureName
 }
 
 func (p *parser) statement(depth int32, expected scn.Tokens) {
