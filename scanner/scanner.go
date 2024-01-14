@@ -5,7 +5,6 @@
 package scanner
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -27,7 +26,7 @@ type (
 )
 
 func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
-	concreteSyntax := ConcreteSyntax{}
+	concreteSyntax := make(ConcreteSyntax, 0)
 
 	if err := s.reset(content); err != nil {
 		return concreteSyntax, err
@@ -36,14 +35,21 @@ func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
 	for {
 		token, err := s.getToken()
 
-		concreteSyntax = append(concreteSyntax, TokenDescription{
+		tokenDescription := TokenDescription{
 			Token:       token,
 			TokenName:   tokenNames[token],
-			TokenValue:  fmt.Sprintf("%v", s.lastValue),
+			TokenValue:  s.lastValue,
+			ValueType:   Unknown,
 			Line:        s.line,
 			Column:      s.column,
 			CurrentLine: s.currentLine,
-		})
+		}
+
+		if tokenDescription.Token == Number {
+			tokenDescription.ValueType = Int64Number
+		}
+
+		concreteSyntax = append(concreteSyntax, tokenDescription)
 
 		if err != nil {
 			return concreteSyntax, err
@@ -60,7 +66,7 @@ func (s *scanner) reset(content []byte) error {
 	s.sourceCode = content
 	s.line = 0
 	s.column = 0
-	s.lastValue = ""
+	s.lastValue = nil
 	s.currentLine = []byte{}
 	s.endOfFile = false
 
@@ -72,6 +78,7 @@ func (s *scanner) reset(content []byte) error {
 }
 
 func (s *scanner) identifierOrWord() (Token, error) {
+	s.lastValue = ""
 	var builder strings.Builder
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
@@ -95,6 +102,7 @@ func (s *scanner) identifierOrWord() (Token, error) {
 }
 
 func (s *scanner) number() (Token, error) {
+	s.lastValue = int64(0)
 	var builder strings.Builder
 
 	for unicode.IsDigit(s.lastCharacter) {
@@ -109,10 +117,10 @@ func (s *scanner) number() (Token, error) {
 		return Number, s.error(tooLongNumber, builder.String())
 	}
 
-	if intValue, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
+	if int64Value, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
 		return Number, s.error(illegalInteger, builder.String())
 	} else {
-		s.lastValue = intValue
+		s.lastValue = int64Value
 		return Number, nil
 	}
 }

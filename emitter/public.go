@@ -5,6 +5,7 @@
 package emitter
 
 const (
+	ArgumentSize        = 8        // size of an instruction argument in bytes
 	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
 	EntryPointName      = "_start" // name of the entry point procedure of a program
 )
@@ -42,17 +43,23 @@ type (
 	Operation   int32
 	SystemCall  int32
 	Address     uint64
+	Argument    [8]byte
 	TextSection []Instruction
+
+	Number interface {
+		int64 | float64
+	}
 
 	Instruction struct {
 		Depth     int32
 		Operation Operation
-		Argument  Address
+		Address   Address
+		Argument  Argument
 	}
 
 	Emitter interface {
-		Emit(declarationDepth int32, operation Operation, argument Address) (Address, error)
-		UpdateArgument(instructionAddress, argument Address) error
+		Emit(declarationDepth int32, operation Operation, argument any) (Address, error)
+		UpdateArgument(instructionAddress Address, argument any) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
 	}
@@ -92,11 +99,11 @@ func NewEmitter() Emitter {
 	}
 }
 
-func (e *emitter) Emit(declarationDepth int32, operation Operation, argument Address) (Address, error) {
+func (e *emitter) Emit(declarationDepth int32, operation Operation, argument any) (Address, error) {
 	return e.emitInstruction(declarationDepth, operation, argument)
 }
 
-func (e *emitter) UpdateArgument(instructionAddress, argument Address) error {
+func (e *emitter) UpdateArgument(instructionAddress Address, argument any) error {
 	return e.updateInstructionArgument(instructionAddress, argument)
 }
 

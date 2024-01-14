@@ -203,10 +203,10 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 }
 
 func (p *parser) assignment(depth int32, expected scn.Tokens) {
-	symbol, ok := p.symbolTable.find(p.lastTokenValue())
+	symbol, ok := p.symbolTable.find(p.lastTokenValue().(string))
 
 	if !ok {
-		p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
+		p.appendError(p.error(identifierNotFound, p.lastTokenValue().(string)))
 	} else if symbol.kind != variable {
 		p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
 	}
@@ -233,7 +233,7 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == variable {
 				p.emitter.Emit(depth, emt.Sys, emt.Address(emt.Read))
 				p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Address(symbol.offset))
@@ -241,7 +241,7 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 				p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
 			}
 		} else {
-			p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
+			p.appendError(p.error(identifierNotFound, p.lastTokenValue().(string)))
 		}
 
 	}
@@ -283,14 +283,14 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == procedure {
 				p.emitter.Emit(depth-symbol.depth, emt.Cal, emt.Address(symbol.address))
 			} else {
 				p.appendError(p.error(expectedProcedureIdentifier, kindNames[symbol.kind]))
 			}
 		} else {
-			p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
+			p.appendError(p.error(identifierNotFound, p.lastTokenValue().(string)))
 		}
 
 		p.nextTokenDescription()
@@ -338,7 +338,7 @@ func (p *parser) constantIdentifier(depth int32) {
 		return
 	}
 
-	constantName := p.lastTokenValue()
+	constantName := p.lastTokenValue().(string)
 	p.nextTokenDescription()
 
 	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
@@ -356,7 +356,7 @@ func (p *parser) constantIdentifier(depth int32) {
 		if _, ok := p.symbolTable.find(constantName); ok {
 			p.appendError(p.error(identifierAlreadyDeclared, constantName))
 		} else {
-			p.symbolTable.addConstant(constantName, depth, p.lastTokenNumber())
+			p.symbolTable.addConstant(constantName, depth, p.lastTokenValue().(int64))
 		}
 
 		p.nextTokenDescription()
@@ -369,10 +369,10 @@ func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
-			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue()))
+		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue().(string)))
 		} else {
-			p.symbolTable.addVariable(p.lastTokenValue(), depth, offset)
+			p.symbolTable.addVariable(p.lastTokenValue().(string), depth, offset)
 		}
 
 		p.nextTokenDescription()
@@ -385,10 +385,10 @@ func (p *parser) procedureIdentifier(depth int32) string {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
-			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue()))
+		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue().(string)))
 		} else {
-			procedureName = p.lastTokenValue()
+			procedureName = p.lastTokenValue().(string)
 			p.symbolTable.addProcedure(procedureName, depth, uint64(p.emitter.GetNextAddress()))
 		}
 
@@ -533,7 +533,7 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 
 	for p.lastToken().In(factors) {
 		if p.lastToken() == scn.Identifier {
-			if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
 					p.emitter.Emit(0, emt.Lit, emt.Address(symbol.value))
@@ -550,7 +550,7 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.Number {
-			p.emitter.Emit(0, emt.Lit, emt.Address(p.lastTokenNumber()))
+			p.emitter.Emit(0, emt.Lit, emt.Address(p.lastTokenValue().(int64)))
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.LeftParenthesis {
 			p.nextTokenDescription()

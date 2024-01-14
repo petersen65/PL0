@@ -7,7 +7,7 @@ package parser
 import "fmt"
 
 const (
-	blockNestingMax = 3
+	blockNestingMax = 8 // maximum depth of block nesting
 )
 
 const (

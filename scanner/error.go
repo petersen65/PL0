@@ -7,8 +7,8 @@ package scanner
 import "fmt"
 
 const (
-	digitsMax     = 14
-	identifierMax = 10
+	digitsMax     = 19 // maximum int64 length: -9223372036854775808 to 9223372036854775807
+	identifierMax = 64 // maximum length of any identifier
 )
 
 const (

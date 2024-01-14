@@ -44,16 +44,24 @@ const (
 	ProcedureWord
 )
 
+const (
+	Unknown = ValueType(iota)
+	Int64Number
+)
+
 type (
 	Token          int
+	ValueType      int
 	Tokens         []Token
 	ConcreteSyntax []TokenDescription
 
 	TokenDescription struct {
-		Token                 Token
-		TokenName, TokenValue string
-		Line, Column          int
-		CurrentLine           []byte
+		Token        Token
+		TokenName    string
+		TokenValue   any
+		ValueType    ValueType
+		Line, Column int
+		CurrentLine  []byte
 	}
 
 	TokenSet interface {

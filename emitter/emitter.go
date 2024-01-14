@@ -13,26 +13,46 @@ type emitter struct {
 	textSection TextSection
 }
 
-func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, argument Address) (Address, error) {
-	if len(e.textSection) >= textSectionMax {
-		return 0, e.error(reachedTextSectionMax, len(e.textSection))
-	}
-
-	e.textSection = append(e.textSection, Instruction{
-		Depth:     declarationDepth,
-		Operation: operation,
-		Argument:  argument,
-	})
-
-	return Address(len(e.textSection) - 1), nil
+func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, argument any) (Address, error) {
+	e.textSection = append(e.textSection, Instruction{Depth: declarationDepth, Operation: operation})
+	address := Address(len(e.textSection) - 1)
+	return address, e.updateInstructionArgument(address, argument)
 }
 
-func (e *emitter) updateInstructionArgument(instruction, argument Address) error {
-	if uint64(instruction) >= uint64(len(e.textSection)) {
-		return e.error(instructionOutOfRange, instruction)
+func (e *emitter) updateInstructionArgument(address Address, argument any) error {
+	if uint64(address) >= uint64(len(e.textSection)) {
+		return e.error(instructionOutOfRange, address)
 	}
 
-	e.textSection[instruction].Argument = argument
+	instruction := e.textSection[address]
+
+	switch arg := argument.(type) {
+	case Address:
+		instruction.Address = arg
+
+	case int64:
+		var buffer bytes.Buffer
+
+		if err := binary.Write(&buffer, binary.LittleEndian, arg); err != nil {
+			return err
+		}
+
+		copy(instruction.Argument[:], buffer.Bytes())
+
+	case float64:
+		var buffer bytes.Buffer
+
+		if err := binary.Write(&buffer, binary.LittleEndian, arg); err != nil {
+			return err
+		}
+
+		copy(instruction.Argument[:], buffer.Bytes())
+
+	default:
+		return e.error(invalidArgumentType, argument)
+	}
+
+	e.textSection[address] = instruction
 	return nil
 }
 
