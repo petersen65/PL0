@@ -4,9 +4,7 @@
 
 package parser
 
-import (
-	"fmt"
-)
+import "fmt"
 
 const (
 	constant = entry(iota)
@@ -24,7 +22,7 @@ type (
 		value   int64  // value of constant
 		offset  uint64 // offset of variable in its runtime procedure stack frame
 		label   string // label of procedure for assembly generation
-		address uint64 // address of procedure in code segment
+		address uint64 // address of procedure in text section
 	}
 
 	symbolTable struct {
@@ -108,74 +106,3 @@ func (s *symbolTable) remove(depth int32) {
 		s.symbols = filtered
 	}
 }
-
-/*
-
-func (s *symbolTable) addConstant(name string, depth int32, value int64) {
-	s.symbols.PushBack(symbol{
-		name:  name,
-		kind:  constant,
-		depth: depth,
-		value: value,
-	})
-}
-
-func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
-	s.symbols.PushBack(symbol{
-		name:   name,
-		kind:   variable,
-		depth:  depth,
-		offset: *offset,
-	})
-
-	*offset++
-}
-
-func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
-	s.symbols.PushBack(symbol{
-		name:    name,
-		kind:    procedure,
-		depth:   depth,
-		label:   fmt.Sprintf("_%v_%v", depth, name),
-		address: address,
-	})
-}
-
-func (s *symbolTable) find(name string) (symbol, bool) {
-	for e := s.symbols.Back(); e != nil; e = e.Prev() {
-		if e.Value.(symbol).name == name {
-			return e.Value.(symbol), true
-		}
-	}
-
-	return symbol{}, false
-}
-
-func (s *symbolTable) top() symbol {
-	return s.symbols.Back().Value.(symbol)
-}
-
-func (s *symbolTable) update(sym symbol) bool {
-	for e := s.symbols.Back(); e != nil; e = e.Prev() {
-		if e.Value.(symbol).name == sym.name {
-			e.Value = sym
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *symbolTable) remove(depth int32) int {
-	count := 0
-
-	for e := s.symbols.Back(); e != nil; e = e.Prev() {
-		if e.Value.(symbol).depth == depth {
-			s.symbols.Remove(e)
-			count++
-		}
-	}
-
-	return count
-}
-*/

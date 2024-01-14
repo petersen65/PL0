@@ -9,16 +9,14 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
-type (
-	parser struct {
-		concreteSyntaxIndex       int
-		concreteSyntax            scn.ConcreteSyntax
-		emitter                   emt.Emitter
-		lastTokenDescription, eof scn.TokenDescription
-		symbolTable               *symbolTable
-		errorReport               ErrorReport
-	}
-)
+type parser struct {
+	concreteSyntaxIndex       int
+	concreteSyntax            scn.ConcreteSyntax
+	emitter                   emt.Emitter
+	lastTokenDescription, eof scn.TokenDescription
+	symbolTable               *symbolTable
+	errorReport               ErrorReport
+}
 
 func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
 	if err := p.reset(concreteSyntax, emitter); err != nil {

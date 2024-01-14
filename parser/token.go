@@ -41,7 +41,3 @@ func (p *parser) lastTokenName() string {
 func (p *parser) lastTokenValue() any {
 	return p.lastTokenDescription.TokenValue
 }
-
-func (p *parser) lastValueType() scn.ValueType {
-	return p.lastTokenDescription.ValueType
-}

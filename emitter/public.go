@@ -43,6 +43,7 @@ type (
 	Operation   int32
 	SystemCall  int32
 	Address     uint64
+	Offset      uint64
 	Argument    [8]byte
 	TextSection []Instruction
 

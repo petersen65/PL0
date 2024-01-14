@@ -6,9 +6,7 @@ package parser
 
 import "fmt"
 
-const (
-	blockNestingMax = 8 // maximum depth of block nesting
-)
+const blockNestingMax = 8 // maximum depth of block nesting
 
 const (
 	_ = failure(iota + 2000)

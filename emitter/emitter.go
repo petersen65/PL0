@@ -30,6 +30,9 @@ func (e *emitter) updateInstructionArgument(address Address, argument any) error
 	case Address:
 		instruction.Address = arg
 
+	case Offset:
+		instruction.Address = Address(arg)
+
 	case int64:
 		var buffer bytes.Buffer
 
