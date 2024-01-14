@@ -13,7 +13,7 @@ func (p *parser) nextTokenDescription() bool {
 				Token:       scn.Eof,
 				TokenName:   "eof",
 				TokenValue:  nil,
-				ValueType:   scn.Unknown,
+				TokenType:   scn.None,
 				Line:        p.lastTokenDescription.Line,
 				Column:      p.lastTokenDescription.Column,
 				CurrentLine: p.lastTokenDescription.CurrentLine,

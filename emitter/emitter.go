@@ -33,6 +33,9 @@ func (e *emitter) updateInstructionArgument(address Address, argument any) error
 	case Offset:
 		instruction.Address = Address(arg)
 
+	case SystemCall:
+		instruction.Address = Address(arg)
+
 	case int64:
 		var buffer bytes.Buffer
 
@@ -50,6 +53,9 @@ func (e *emitter) updateInstructionArgument(address Address, argument any) error
 		}
 
 		copy(instruction.Argument[:], buffer.Bytes())
+
+	case Ignore:
+		// do nothing and ignore argument
 
 	default:
 		return e.error(invalidArgumentType, argument)

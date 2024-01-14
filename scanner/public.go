@@ -4,9 +4,7 @@
 
 package scanner
 
-import (
-	"slices"
-)
+import "slices"
 
 const (
 	Null = Token(iota)
@@ -45,13 +43,13 @@ const (
 )
 
 const (
-	Unknown = ValueType(iota)
-	Int64Number
+	None = TokenType(iota)
+	Integer64
 )
 
 type (
 	Token          int
-	ValueType      int
+	TokenType      int
 	Tokens         []Token
 	ConcreteSyntax []TokenDescription
 
@@ -59,7 +57,7 @@ type (
 		Token        Token
 		TokenName    string
 		TokenValue   any
-		ValueType    ValueType
+		TokenType    TokenType
 		Line, Column int
 		CurrentLine  []byte
 	}

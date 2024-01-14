@@ -42,6 +42,7 @@ const (
 type (
 	Operation   int32
 	SystemCall  int32
+	Ignore      int32
 	Address     uint64
 	Offset      uint64
 	Argument    [8]byte
@@ -68,6 +69,7 @@ type (
 
 var (
 	NullAddress Address = 0
+	IgnoreValue Ignore  = 0
 
 	OperationNames = map[Operation]string{
 		Lit: "lit",

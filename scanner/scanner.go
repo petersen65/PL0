@@ -13,17 +13,15 @@ import (
 
 const integerBitSize = 64 // number of bits of a signed integer
 
-type (
-	scanner struct {
-		sourceIndex   int
-		sourceCode    []byte
-		line, column  int
-		lastCharacter rune
-		lastValue     any
-		currentLine   []byte
-		endOfFile     bool
-	}
-)
+type scanner struct {
+	sourceIndex   int
+	sourceCode    []byte
+	line, column  int
+	lastCharacter rune
+	lastValue     any
+	currentLine   []byte
+	endOfFile     bool
+}
 
 func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
 	concreteSyntax := make(ConcreteSyntax, 0)
@@ -39,14 +37,14 @@ func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
 			Token:       token,
 			TokenName:   tokenNames[token],
 			TokenValue:  s.lastValue,
-			ValueType:   Unknown,
+			TokenType:   None,
 			Line:        s.line,
 			Column:      s.column,
 			CurrentLine: s.currentLine,
 		}
 
 		if tokenDescription.Token == Number {
-			tokenDescription.ValueType = Int64Number
+			tokenDescription.TokenType = Integer64
 		}
 
 		concreteSyntax = append(concreteSyntax, tokenDescription)

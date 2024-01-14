@@ -12,17 +12,24 @@ const (
 	procedure
 )
 
+const (
+	none = symbolType(iota)
+	integer64
+)
+
 type (
-	entry int
+	entry      int
+	symbolType int
 
 	symbol struct {
-		name    string // name of constant, variable, or procedure
-		kind    entry  // constant, variable, or procedure
-		depth   int32  // declaration nesting depth of constant, variable, or procedure
-		value   int64  // value of constant
-		offset  uint64 // offset of variable in its runtime procedure stack frame
-		label   string // label of procedure for assembly generation
-		address uint64 // address of procedure in text section
+		name    string     // name of constant, variable, or procedure
+		kind    entry      // constant, variable, or procedure
+		depth   int32      // declaration nesting depth of constant, variable, or procedure
+		value   any        // value of constant
+		stype   symbolType // type of constant or variable
+		offset  uint64     // offset of variable in its runtime procedure stack frame
+		label   string     // label of procedure for assembly generation
+		address uint64     // address of procedure in text section
 	}
 
 	symbolTable struct {
@@ -42,12 +49,13 @@ func newSymbolTable() *symbolTable {
 	}
 }
 
-func (s *symbolTable) addConstant(name string, depth int32, value int64) {
+func (s *symbolTable) addConstant(name string, depth int32, value any) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,
 		depth: depth,
 		value: value,
+		stype: integer64,
 	})
 }
 
@@ -57,6 +65,7 @@ func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 		kind:   variable,
 		depth:  depth,
 		offset: *offset,
+		stype:  integer64,
 	})
 
 	*offset++
