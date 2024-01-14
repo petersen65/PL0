@@ -14,6 +14,8 @@ var (
 	}
 
 	statements = scn.Tokens{
+		scn.Read,
+		scn.Write,
 		scn.BeginWord,
 		scn.CallWord,
 		scn.IfWord,

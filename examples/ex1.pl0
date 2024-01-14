@@ -32,7 +32,11 @@ begin
 
     if a = b then
     begin
-        call P;
-        call Q;
+        ! a
     end;
+
+    if a # b then
+        ! b;
+
+    ! c
 end.

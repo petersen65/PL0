@@ -66,6 +66,8 @@ func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 
 	// a statement is either
 	//   an assignment statement,
+	//   a read statement,
+	//   a write statement,
 	//   a procedure call,
 	// 	 an if statement,
 	//   a while statement,
@@ -225,6 +227,34 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	}
 }
 
+func (p *parser) read(depth int32, expected scn.Tokens) {
+	p.nextTokenDescription()
+
+	if p.lastToken() != scn.Identifier {
+		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
+	} else {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			if symbol.kind == variable {
+				p.emitter.Emit(depth, emt.Sys, emt.Address(emt.Read))
+				p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Address(symbol.offset))
+			} else {
+				p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
+			}
+		} else {
+			p.appendError(p.error(identifierNotFound, p.lastTokenValue()))
+		}
+
+	}
+
+	p.nextTokenDescription()
+}
+
+func (p *parser) write(depth int32, expected scn.Tokens) {
+	p.nextTokenDescription()
+	p.expression(depth, expected)
+	p.emitter.Emit(depth, emt.Sys, emt.Address(emt.Write))
+}
+
 func (p *parser) beginWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
@@ -371,6 +401,8 @@ func (p *parser) procedureIdentifier(depth int32) string {
 func (p *parser) statement(depth int32, expected scn.Tokens) {
 	// a statement is either
 	//   an assignment statement,
+	//   a read statement,
+	//   a write statement,
 	//   a procedure call,
 	// 	 an if statement,
 	//   a while statement,
@@ -379,6 +411,12 @@ func (p *parser) statement(depth int32, expected scn.Tokens) {
 	switch p.lastToken() {
 	case scn.Identifier:
 		p.assignment(depth, expected)
+
+	case scn.Read:
+		p.read(depth, expected)
+
+	case scn.Write:
+		p.write(depth, expected)
 
 	case scn.CallWord:
 		p.callWord(depth, expected)

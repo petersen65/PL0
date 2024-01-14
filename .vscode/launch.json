@@ -12,8 +12,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "-r",
-                //"examples/squares.pl0",
-                "examples/squares.il0"
+                //"examples/ex2.pl0",
+                "examples/ex2.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": true

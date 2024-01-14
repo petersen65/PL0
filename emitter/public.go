@@ -30,10 +30,17 @@ const (
 	Leq
 	Gtr
 	Geq
+	Sys
+)
+
+const (
+	Read = SystemCall(iota)
+	Write
 )
 
 type (
 	Operation   int32
+	SystemCall  int32
 	Address     uint64
 	TextSection []Instruction
 
@@ -75,6 +82,7 @@ var (
 		Leq: "leq",
 		Gtr: "gtr",
 		Geq: "geq",
+		Sys: "sys",
 	}
 )
 

@@ -23,6 +23,7 @@ const (
 
 type (
 	register int
+	syscall  int
 
 	process struct {
 		text emt.TextSection
@@ -201,6 +202,9 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Sto: // pop variable from top of stack
 			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument+3] = m.cpu.stack[m.cpu.registers[sp]]
 			m.cpu.registers[sp]--
+
+		case emt.Sys: // system call to operating system
+			m.cpu.sys(emt.SystemCall(instr.Argument))
 		}
 	}
 }
@@ -259,6 +263,29 @@ func (c *cpu) base(depth int32) emt.Address {
 	return b
 }
 
+func (c *cpu) sys(code emt.SystemCall) {
+	switch code {
+	case emt.Read:
+		// read integer from stdin
+		var input int64
+
+		for {
+			fmt.Print("> ")
+			_, err := fmt.Scanf("%v", &input)
+
+			if err == nil {
+				c.push(emt.Address(input))
+				break
+			}
+		}
+
+	case emt.Write:
+		// write integer to stdout
+		fmt.Printf("%v\n", c.stack[c.registers[sp]])
+		c.registers[sp]--
+	}
+}
+
 // push argument on top of stack, top of stack points to new argument
 func (c *cpu) push(arg emt.Address) {
 	c.registers[sp]++
@@ -278,7 +305,7 @@ func (c *cpu) jmp(addr emt.Address) {
 
 // if top of stack is 0, jump to address
 func (c *cpu) jpc(addr emt.Address) {
-	if c.registers[sp] == 0 {
+	if c.stack[c.registers[sp]] == 0 {
 		c.registers[ip] = addr
 	}
 

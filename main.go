@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	fmt.Println("PL/0 Compiler Version 1.0.0 1976")
+	fmt.Println("PL/0 Compiler Version 1.0.0 1986")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
 	switch {

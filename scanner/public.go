@@ -29,6 +29,8 @@ const (
 	Semicolon
 	Period
 	Becomes
+	Read
+	Write
 	OddWord
 	BeginWord
 	EndWord
