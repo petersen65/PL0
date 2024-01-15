@@ -1,4 +1,4 @@
-var a, b;
+var a, b, c;
 begin
     a := -1;
     b := 1;
@@ -6,6 +6,28 @@ begin
     if -a = b then
         ! 1;
 
-    if -a # b then
+    if -a # +b then
         ! 0;
+
+    if -a < b then
+        ! -1;
+
+    if -a <= b then
+        ! -2;
+
+    if 2 * (-a) > b then
+        ! 1;
+
+    if a >= -b then
+        ! 2;
+
+    while a <= b do
+    begin
+        ! a;
+        a := a + 1;
+    end;
+
+    ! 1 * 2 + 3 * (-4) / (1 + 1 + 2 + (-1) - 1);
+    ? c;
+    ! c;
 end.

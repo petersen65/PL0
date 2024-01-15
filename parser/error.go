@@ -22,6 +22,7 @@ const (
 	expectedProcedureIdentifier
 	expectedVariableIdentifier
 	expectedEqual
+	expectedBecomes
 	expectedNumber
 	expectedSemicolon
 	expectedStatement
@@ -50,7 +51,8 @@ var errorMap = map[failure]string{
 	expectedIdentifier:                      "expected identifier, found %v",
 	expectedProcedureIdentifier:             "expected procedure identifier, found %v",
 	expectedVariableIdentifier:              "expected variable identifier, found %v",
-	expectedEqual:                           "expected equal sign, found %v",
+	expectedEqual:                           "expected equal, found %v",
+	expectedBecomes:                         "expected becomes, found %v",
 	expectedNumber:                          "expected number, found %v",
 	expectedSemicolon:                       "expected semicolon, found %v",
 	expectedStatement:                       "expected statement keywords or identifier, found %v",

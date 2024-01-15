@@ -214,7 +214,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	if p.lastToken() == scn.Becomes {
 		p.nextTokenDescription()
 	} else {
-		p.appendError(p.error(expectedEqual, p.lastTokenName()))
+		p.appendError(p.error(expectedBecomes, p.lastTokenName()))
 	}
 
 	p.expression(depth, expected)

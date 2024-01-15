@@ -269,7 +269,7 @@ func (c *cpu) sys(code emt.SystemCall) {
 
 		for {
 			fmt.Print("> ")
-			_, err := fmt.Scanf("%v", &input)
+			_, err := fmt.Scanln(&input)
 
 			if err == nil {
 				c.push(uint64(input))
