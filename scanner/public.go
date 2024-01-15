@@ -6,6 +6,8 @@ package scanner
 
 import "slices"
 
+const IntegerBitSize = 64 // number of bits of a signed integer
+
 const (
 	Null = Token(iota)
 	Eof
@@ -111,6 +113,62 @@ var (
 		VarWord:          "var",
 		ProcedureWord:    "procedure",
 	}
+
+	KeyWords = Tokens{
+		OddWord,
+		BeginWord,
+		EndWord,
+		IfWord,
+		ThenWord,
+		WhileWord,
+		DoWord,
+		CallWord,
+		ConstWord,
+		VarWord,
+		ProcedureWord,
+	}
+
+	Operators = Tokens{
+		OddWord,
+		Plus,
+		Minus,
+		Times,
+		Divide,
+		Equal,
+		NotEqual,
+		Less,
+		LessEqual,
+		Greater,
+		GreaterEqual,
+	}
+
+	Declarations = Tokens{
+		ConstWord,
+		VarWord,
+		ProcedureWord,
+	}
+
+	Statements = Tokens{
+		Read,
+		Write,
+		BeginWord,
+		CallWord,
+		IfWord,
+		WhileWord,
+	}
+
+	Factors = Tokens{
+		Identifier,
+		Number,
+		LeftParenthesis,
+	}
+
+	NoSign = Tokens{
+		Identifier,
+		Number,
+		RightParenthesis,
+	}
+
 )
 
 func NewScanner() Scanner {

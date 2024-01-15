@@ -8,8 +8,6 @@ import (
 	"unicode/utf8"
 )
 
-const integerBitSize = 64 // number of bits of a signed integer
-
 type scanner struct {
 	sourceIndex   int
 	sourceCode    []byte
@@ -25,9 +23,8 @@ func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
 		return make(ConcreteSyntax, 0), err
 	}
 
-	s.basicScan()
-	s.slidingScan(nil)
-	return nil, nil
+	basicSyntax, err := s.basicScan()
+	return s.slidingScan(basicSyntax), err
 }
 
 func (s *scanner) basicScan() (ConcreteSyntax, error) {
@@ -56,7 +53,7 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 	}
 }
 
-func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) (ConcreteSyntax, error) {
+func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 	fullSyntax := make(ConcreteSyntax, len(basicSyntax))
 
 	for i := 0; i < len(basicSyntax); i++ {
@@ -85,75 +82,22 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) (ConcreteSyntax, error
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
 
+		case Plus:
+			fallthrough
+		case Minus:
+			if s.try(i+1, basicSyntax) == Number && !s.try(i-1, basicSyntax).In(NoSign) {
+				i++
+				// TODO
+			} else {
+				fullSyntax = append(fullSyntax, basicSyntax[i])
+			}
+
 		default:
 			fullSyntax = append(fullSyntax, basicSyntax[i])
 		}
 	}
 
-	/*
-		if tokenDescription.Token == Number {
-			tokenDescription.TokenType = Integer64
-		}
-
-
-		if int64Value, err := strconv.ParseInt(builder.String(), 10, integerBitSize); err != nil {
-			return Number, s.error(illegalInteger, builder.String())
-		} else {
-			s.lastValue = int64Value
-			return Number, nil
-		}
-
-
-		case s.lastCharacter == ':':
-		return s.becomes()
-
-
-		func (s *scanner) becomes() (Token, error) {
-		if !s.nextCharacter() {
-			return Becomes, s.error(eofOperator, ":=")
-		}
-
-		if s.lastCharacter == '=' {
-			if !s.nextCharacter() {
-				return Becomes, s.error(eofOperator, ":=")
-			}
-
-			return Becomes, nil
-		} else {
-			return Becomes, s.error(unexpectedCharacter, s.lastCharacter)
-		}
-		}
-
-
-		func (s *scanner) operator() (Token, error) {
-		var builder strings.Builder
-
-		if token, ok := tokenMap[string(s.lastCharacter)]; ok {
-			if token == Less || token == Greater {
-				builder.WriteRune(s.lastCharacter)
-			}
-
-			if !s.nextCharacter() && token != Period {
-				return token, s.error(eofReached, nil)
-			}
-
-			if (token == Less || token == Greater) && s.lastCharacter == '=' {
-				builder.WriteRune(s.lastCharacter)
-				token = tokenMap[builder.String()]
-
-				if !s.nextCharacter() {
-					return token, s.error(eofOperator, builder.String())
-				}
-			}
-
-			return token, nil
-		}
-
-		return Null, s.error(unexpectedCharacter, s.lastCharacter)
-		}
-	*/
-
-	return fullSyntax, nil
+	return fullSyntax
 }
 
 func (s *scanner) try(i int, basicSyntax ConcreteSyntax) Token {
