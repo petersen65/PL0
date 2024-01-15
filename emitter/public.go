@@ -45,23 +45,18 @@ type (
 	Ignore      int32
 	Address     uint64
 	Offset      uint64
-	Argument    [8]byte
 	TextSection []Instruction
-
-	Number interface {
-		int64 | float64
-	}
 
 	Instruction struct {
 		Depth     int32
 		Operation Operation
 		Address   Address
-		Argument  Argument
+		Arg1      int64
 	}
 
 	Emitter interface {
-		Emit(declarationDepth int32, operation Operation, argument any) (Address, error)
-		UpdateArgument(instructionAddress Address, argument any) error
+		Emit(declarationDepth int32, operation Operation, any any) (Address, error)
+		Update(instructionAddress Address, any any) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
 	}
@@ -102,12 +97,12 @@ func NewEmitter() Emitter {
 	}
 }
 
-func (e *emitter) Emit(declarationDepth int32, operation Operation, argument any) (Address, error) {
-	return e.emitInstruction(declarationDepth, operation, argument)
+func (e *emitter) Emit(declarationDepth int32, operation Operation, any any) (Address, error) {
+	return e.emitInstruction(declarationDepth, operation, any)
 }
 
-func (e *emitter) UpdateArgument(instructionAddress Address, argument any) error {
-	return e.updateInstructionArgument(instructionAddress, argument)
+func (e *emitter) Update(instructionAddress Address, any any) error {
+	return e.updateInstruction(instructionAddress, any)
 }
 
 func (e *emitter) GetNextAddress() Address {

@@ -106,7 +106,7 @@ func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 
 	// update the jump instruction address to the first instruction of the entrypoint block
 	if depth == 0 {
-		p.emitter.UpdateArgument(entryPointInstruction, p.emitter.GetNextAddress())
+		p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress())
 	}
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
@@ -308,7 +308,7 @@ func (p *parser) ifWord(depth int32, expected scn.Tokens) {
 	ifDecision, err := p.emitter.Emit(depth, emt.Jpc, emt.NullAddress)
 	p.appendError(err)
 	p.statement(depth, expected)
-	p.emitter.UpdateArgument(ifDecision, p.emitter.GetNextAddress())
+	p.emitter.Update(ifDecision, p.emitter.GetNextAddress())
 }
 
 func (p *parser) whileWord(depth int32, expected scn.Tokens) {
@@ -327,7 +327,7 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 	p.statement(depth, expected)
 	_, err = p.emitter.Emit(depth, emt.Jmp, whileCondition)
 	p.appendError(err)
-	p.emitter.UpdateArgument(whileDecision, p.emitter.GetNextAddress())
+	p.emitter.Update(whileDecision, p.emitter.GetNextAddress())
 }
 
 func (p *parser) constantIdentifier(depth int32) {

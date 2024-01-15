@@ -13,7 +13,10 @@ import (
 	emt "github.com/petersen65/PL0/emitter"
 )
 
-const stackSize = 500 // stack entries
+const (
+	stackSize          = 16384 // stack entries are 64-bit unsigned integers
+	stackForbiddenZone = 1024  // stack entries above this address are forbidden to be used
+)
 
 const (
 	ip = register(iota) // instruction pointer is pointing to the next instruction to be executed
@@ -23,15 +26,14 @@ const (
 
 type (
 	register int
-	syscall  int
 
 	process struct {
 		text emt.TextSection
 	}
 
 	cpu struct {
-		registers map[register]emt.Address
-		stack     [stackSize]emt.Address
+		registers map[register]uint64
+		stack     []uint64
 	}
 
 	machine struct {
@@ -42,8 +44,8 @@ type (
 func newMachine() *machine {
 	return &machine{
 		cpu: cpu{
-			registers: make(map[register]emt.Address),
-			stack:     [stackSize]emt.Address{},
+			registers: make(map[register]uint64),
+			stack:     make([]uint64, stackSize),
 		},
 	}
 }
@@ -74,98 +76,105 @@ func (m *machine) runProgram(sections []byte) error {
 
 	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
 	for {
-		instr, err := process.getInstruction(m.cpu.registers[ip])
-
-		if err != nil {
-			return err
+		if m.cpu.registers[ip] >= uint64(len(process.text)) {
+			return fmt.Errorf("address '%v' out of range", m.cpu.registers[ip])
 		}
 
+		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone {
+			return fmt.Errorf("stack overflow at address '%v'", m.cpu.registers[ip])
+		}
+
+		instr := process.text[m.cpu.registers[ip]]
 		m.cpu.registers[ip]++
 
+		if instr.Operation == emt.Inc && m.cpu.registers[sp]+uint64(instr.Address) >= stackSize-stackForbiddenZone {
+			return fmt.Errorf("stack overflow at address '%v'", m.cpu.registers[ip])
+		}
+
 		switch instr.Operation {
-		case emt.Lit: // load constant on top of stack
-			m.cpu.push(instr.Argument)
+		case emt.Lit: // load int64 constant on top of stack
+			m.cpu.push(uint64(instr.Arg1))
 
-		case emt.Jmp: // unconditionally jump to address
-			m.cpu.jmp(instr.Argument)
+		case emt.Jmp: // unconditionally jump to uint64 address
+			m.cpu.jmp(uint64(instr.Address))
 
-		case emt.Jpc: // jump to address if top of stack is 0
-			m.cpu.jpc(instr.Argument)
+		case emt.Jpc: // jump to uint64 address if top of stack is 0
+			m.cpu.jpc(uint64(instr.Address))
 
 		case emt.Inc: // allocate space on stack for variables of a procedure
-			m.cpu.registers[sp] += instr.Argument
+			m.cpu.registers[sp] += uint64(instr.Address)
 
-		case emt.Neg: // negate top of stack
-			m.cpu.stack[m.cpu.registers[sp]] = -m.cpu.stack[m.cpu.registers[sp]]
+		case emt.Neg: // negate int64 element on top of stack
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(-int64(m.cpu.stack[m.cpu.registers[sp]]))
 
-		case emt.Add: // add top two stack elements
+		case emt.Add: // add top two stack int64 elements
 			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] += m.cpu.stack[m.cpu.registers[sp]+1]
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) + int64(m.cpu.stack[m.cpu.registers[sp]+1]))
 
-		case emt.Sub: // subtract top two stack elements
+		case emt.Sub: // subtract top two stack int64 elements
 			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] -= m.cpu.stack[m.cpu.registers[sp]+1]
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) - int64(m.cpu.stack[m.cpu.registers[sp]+1]))
 
-		case emt.Mul: // multiply top two stack elements
+		case emt.Mul: // multiply top two stack int64 elements
 			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] *= m.cpu.stack[m.cpu.registers[sp]+1]
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) * int64(m.cpu.stack[m.cpu.registers[sp]+1]))
 
-		case emt.Div: // divide top two stack elements
+		case emt.Div: // divide top two stack int64 elements
 			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] /= m.cpu.stack[m.cpu.registers[sp]+1]
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) / int64(m.cpu.stack[m.cpu.registers[sp]+1]))
 
-		case emt.Odd: // test if top of stack is odd
-			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.registers[sp]] % 2
+		case emt.Odd: // test if top of stack int64 element is odd
+			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) % 2)
 
-		case emt.Eq: // test if top two stack elements are equal
+		case emt.Eq: // test if top two stack int64 elements are equal
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] == m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) == int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Neq: // test if top two stack elements are not equal
+		case emt.Neq: // test if top two stack int64 elements are not equal
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] != m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) != int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Lss: // test if second stack element is less than top stack element
+		case emt.Lss: // test if second stack int64 element is less than top stack int64 element
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] < m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) < int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Leq: // test if second stack element is less than or equal to top stack element
+		case emt.Leq: // test if second stack int64 element is less than or equal to top stack int64 element
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] <= m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) <= int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Gtr: // test if second stack element is greater than top stack element
+		case emt.Gtr: // test if second stack int64 element is greater than top stack int64 element
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] > m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) > int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
 			}
 
-		case emt.Geq: // test if second stack element is greater than or equal to top stack element
+		case emt.Geq: // test if second stack int64 element is greater than or equal to top stack int64 element
 			m.cpu.registers[sp]--
 
-			if m.cpu.stack[m.cpu.registers[sp]] >= m.cpu.stack[m.cpu.registers[sp]+1] {
+			if int64(m.cpu.stack[m.cpu.registers[sp]]) >= int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
 				m.cpu.stack[m.cpu.registers[sp]] = 1
 			} else {
 				m.cpu.stack[m.cpu.registers[sp]] = 0
@@ -180,8 +189,8 @@ func (m *machine) runProgram(sections []byte) error {
 			// base pointer of procedure being called is pointing to its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp] - 2
 
-			// jump to procedure
-			m.cpu.jmp(instr.Argument)
+			// jump to procedure at uint64 address
+			m.cpu.jmp(uint64(instr.Address))
 
 		case emt.Ret: // callee procedure returns to caller procedure
 			// returning from the entrypoint of the program exits the program
@@ -195,16 +204,16 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
-		case emt.Lod: // push variable on top of stack
+		case emt.Lod: // push int64 variable on top of stack loaded from its base plus offset
 			m.cpu.registers[sp]++
-			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument+3]
+			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3]
 
-		case emt.Sto: // pop variable from top of stack
-			m.cpu.stack[m.cpu.base(instr.Depth)+instr.Argument+3] = m.cpu.stack[m.cpu.registers[sp]]
+		case emt.Sto: // pop int64 variable from top of stack to its base plus offset
+			m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3] = m.cpu.stack[m.cpu.registers[sp]]
 			m.cpu.registers[sp]--
 
-		case emt.Sys: // system call to operating system
-			m.cpu.sys(emt.SystemCall(instr.Argument))
+		case emt.Sys: // system call to operating system based on system call code
+			m.cpu.sys(emt.SystemCall(instr.Address))
 		}
 	}
 }
@@ -226,33 +235,26 @@ func (p *process) load(sections []byte) error {
 	return nil
 }
 
-func (p *process) getInstruction(address emt.Address) (emt.Instruction, error) {
-	if address >= emt.Address(len(p.text)) {
-		return emt.Instruction{}, fmt.Errorf("address '%v' out of range", address)
-	}
-
-	return p.text[address], nil
-}
-
 func (p *process) dump(sections []byte, print io.Writer) error {
 	if err := p.load(sections); err != nil {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n", "addr", "op", "dep", "arg")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "dep", "addr", "arg1")))
 
-	for addr, instr := range p.text {
-		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v\n",
-			addr,
+	for text, instr := range p.text {
+		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
+			text,
 			emt.OperationNames[instr.Operation],
 			instr.Depth,
-			instr.Argument)))
+			instr.Address,
+			instr.Arg1)))
 	}
 
 	return nil
 }
 
-func (c *cpu) base(depth int32) emt.Address {
+func (c *cpu) base(depth int32) uint64 {
 	b := c.registers[bp]
 
 	for depth > 0 {
@@ -274,20 +276,20 @@ func (c *cpu) sys(code emt.SystemCall) {
 			_, err := fmt.Scanf("%v", &input)
 
 			if err == nil {
-				c.push(emt.Address(input))
+				c.push(uint64(input))
 				break
 			}
 		}
 
 	case emt.Write:
 		// write integer to stdout
-		fmt.Printf("%v\n", c.stack[c.registers[sp]])
+		fmt.Printf("%v\n", int64(c.stack[c.registers[sp]]))
 		c.registers[sp]--
 	}
 }
 
 // push argument on top of stack, top of stack points to new argument
-func (c *cpu) push(arg emt.Address) {
+func (c *cpu) push(arg uint64) {
 	c.registers[sp]++
 	c.stack[c.registers[sp]] = arg
 }
@@ -299,12 +301,12 @@ func (c *cpu) pop(reg register) {
 }
 
 // unconditionally jump to address
-func (c *cpu) jmp(addr emt.Address) {
+func (c *cpu) jmp(addr uint64) {
 	c.registers[ip] = addr
 }
 
 // if top of stack is 0, jump to address
-func (c *cpu) jpc(addr emt.Address) {
+func (c *cpu) jpc(addr uint64) {
 	if c.stack[c.registers[sp]] == 0 {
 		c.registers[ip] = addr
 	}

@@ -13,52 +13,37 @@ type emitter struct {
 	textSection TextSection
 }
 
-func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, argument any) (Address, error) {
+func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, any any) (Address, error) {
 	e.textSection = append(e.textSection, Instruction{Depth: declarationDepth, Operation: operation})
 	address := Address(len(e.textSection) - 1)
-	return address, e.updateInstructionArgument(address, argument)
+	return address, e.updateInstruction(address, any)
 }
 
-func (e *emitter) updateInstructionArgument(address Address, argument any) error {
+func (e *emitter) updateInstruction(address Address, any any) error {
 	if uint64(address) >= uint64(len(e.textSection)) {
 		return e.error(instructionOutOfRange, address)
 	}
 
 	instruction := e.textSection[address]
 
-	switch arg := argument.(type) {
+	switch a := any.(type) {
 	case Address:
-		instruction.Address = arg
+		instruction.Address = a
 
 	case Offset:
-		instruction.Address = Address(arg)
+		instruction.Address = Address(a)
 
 	case SystemCall:
-		instruction.Address = Address(arg)
+		instruction.Address = Address(a)
 
 	case int64:
-		var buffer bytes.Buffer
-
-		if err := binary.Write(&buffer, binary.LittleEndian, arg); err != nil {
-			return err
-		}
-
-		copy(instruction.Argument[:], buffer.Bytes())
-
-	case float64:
-		var buffer bytes.Buffer
-
-		if err := binary.Write(&buffer, binary.LittleEndian, arg); err != nil {
-			return err
-		}
-
-		copy(instruction.Argument[:], buffer.Bytes())
+		instruction.Arg1 = a
 
 	case Ignore:
 		// do nothing and ignore argument
 
 	default:
-		return e.error(invalidArgumentType, argument)
+		return e.error(invalidArgumentType, any)
 	}
 
 	e.textSection[address] = instruction
