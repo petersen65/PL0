@@ -80,16 +80,12 @@ func (m *machine) runProgram(sections []byte) error {
 			return fmt.Errorf("address '%v' out of range", m.cpu.registers[ip])
 		}
 
-		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone {
+		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < 2 {
 			return fmt.Errorf("stack overflow at address '%v'", m.cpu.registers[ip])
 		}
 
 		instr := process.text[m.cpu.registers[ip]]
 		m.cpu.registers[ip]++
-
-		if instr.Operation == emt.Inc && m.cpu.registers[sp]+uint64(instr.Address) >= stackSize-stackForbiddenZone {
-			return fmt.Errorf("stack overflow at address '%v'", m.cpu.registers[ip])
-		}
 
 		switch instr.Operation {
 		case emt.Lit: // load int64 constant on top of stack
