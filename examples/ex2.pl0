@@ -1,3 +1,11 @@
+var a, b;
 begin
-    ! -1 + (-1)
+    a := -1;
+    b := 1;
+
+    if -a = b then
+        ! 1;
+
+    if -a # b then
+        ! 0;
 end.

@@ -11,12 +11,12 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-r",
-                //"examples/ex2.pl0",
+                "-cr",
+                "examples/ex2.pl0",
                 "examples/ex2.il0"
             ],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": true
+            "stopOnEntry": false
         }
     ]
 }
