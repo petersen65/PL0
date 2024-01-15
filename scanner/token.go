@@ -4,77 +4,43 @@
 
 package scanner
 
-import "unicode"
-
-var (
-	tokenMap = map[string]Token{
-		"+":         Plus,
-		"-":         Minus,
-		"*":         Times,
-		"/":         Divide,
-		"=":         Equal,
-		"#":         NotEqual,
-		"<":         Less,
-		"<=":        LessEqual,
-		">":         Greater,
-		">=":        GreaterEqual,
-		"(":         LeftParenthesis,
-		")":         RightParenthesis,
-		",":         Comma,
-		";":         Semicolon,
-		".":         Period,
-		":=":        Becomes,
-		"?":         Read,
-		"!":         Write,
-		"odd":       OddWord,
-		"begin":     BeginWord,
-		"end":       EndWord,
-		"if":        IfWord,
-		"then":      ThenWord,
-		"while":     WhileWord,
-		"do":        DoWord,
-		"call":      CallWord,
-		"const":     ConstWord,
-		"var":       VarWord,
-		"procedure": ProcedureWord,
-	}
-
-	tokenNames = map[Token]string{
-		Null:             "null",
-		Eof:              "eof",
-		Identifier:       "identifier",
-		Number:           "number",
-		Plus:             "plus",
-		Minus:            "minus",
-		Times:            "times",
-		Divide:           "divide",
-		Equal:            "equal",
-		NotEqual:         "notEqual",
-		Less:             "less",
-		LessEqual:        "lessEqual",
-		Greater:          "greater",
-		GreaterEqual:     "greaterEqual",
-		LeftParenthesis:  "leftParenthesis",
-		RightParenthesis: "rightParenthesis",
-		Comma:            "comma",
-		Semicolon:        "semicolon",
-		Period:           "period",
-		Becomes:          "becomes",
-		Read:             "read",
-		Write:            "write",
-		OddWord:          "odd",
-		BeginWord:        "begin",
-		EndWord:          "end",
-		IfWord:           "if",
-		ThenWord:         "then",
-		WhileWord:        "while",
-		DoWord:           "do",
-		CallWord:         "call",
-		ConstWord:        "const",
-		VarWord:          "var",
-		ProcedureWord:    "procedure",
-	}
+import (
+	"strings"
+	"unicode"
 )
+
+var tokenMap = map[string]Token{
+	"+":         Plus,
+	"-":         Minus,
+	"*":         Times,
+	"/":         Divide,
+	"=":         Equal,
+	"#":         NotEqual,
+	"<":         Less,
+	"<=":        LessEqual,
+	">":         Greater,
+	">=":        GreaterEqual,
+	"(":         LeftParenthesis,
+	")":         RightParenthesis,
+	",":         Comma,
+	":":         Colon,
+	";":         Semicolon,
+	".":         Period,
+	":=":        Becomes,
+	"?":         Read,
+	"!":         Write,
+	"odd":       OddWord,
+	"begin":     BeginWord,
+	"end":       EndWord,
+	"if":        IfWord,
+	"then":      ThenWord,
+	"while":     WhileWord,
+	"do":        DoWord,
+	"call":      CallWord,
+	"const":     ConstWord,
+	"var":       VarWord,
+	"procedure": ProcedureWord,
+}
 
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
@@ -96,10 +62,61 @@ func (s *scanner) getToken() (Token, error) {
 	case unicode.IsDigit(s.lastCharacter):
 		return s.number()
 
-	case s.lastCharacter == ':':
-		return s.becomes()
-
 	default:
 		return s.operator()
 	}
+}
+
+func (s *scanner) identifierOrWord() (Token, error) {
+	var builder strings.Builder
+
+	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
+		builder.WriteRune(s.lastCharacter)
+
+		if !s.nextCharacter() {
+			return Identifier, s.error(eofIdentifier, builder.String())
+		}
+	}
+
+	if token, ok := tokenMap[builder.String()]; ok {
+		return token, nil
+	}
+
+	if len(builder.String()) > identifierMax {
+		return Identifier, s.error(tooLongIdentifier, builder.String())
+	}
+
+	s.lastValue = builder.String()
+	return Identifier, nil
+}
+
+func (s *scanner) number() (Token, error) {
+	var builder strings.Builder
+
+	for unicode.IsDigit(s.lastCharacter) {
+		builder.WriteRune(s.lastCharacter)
+
+		if !s.nextCharacter() {
+			return Number, s.error(eofNumber, builder.String())
+		}
+	}
+
+	if len(builder.String()) > digitsMax {
+		return Number, s.error(tooLongNumber, builder.String())
+	}
+
+	s.lastValue = builder.String()
+	return Number, nil
+}
+
+func (s *scanner) operator() (Token, error) {
+	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
+		if !s.nextCharacter() && token != Period {
+			return token, s.error(eofReached, nil)
+		}
+
+		return token, nil
+	}
+
+	return Null, s.error(unexpectedCharacter, s.lastCharacter)
 }

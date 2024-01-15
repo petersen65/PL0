@@ -24,6 +24,7 @@ const (
 	LeftParenthesis
 	RightParenthesis
 	Comma
+	Colon
 	Semicolon
 	Period
 	Becomes
@@ -71,7 +72,46 @@ type (
 	}
 )
 
-var Empty = Tokens{}
+var (
+	Empty = Tokens{}
+
+	TokenNames = map[Token]string{
+		Null:             "null",
+		Eof:              "eof",
+		Identifier:       "identifier",
+		Number:           "number",
+		Plus:             "plus",
+		Minus:            "minus",
+		Times:            "times",
+		Divide:           "divide",
+		Equal:            "equal",
+		NotEqual:         "notEqual",
+		Less:             "less",
+		LessEqual:        "lessEqual",
+		Greater:          "greater",
+		GreaterEqual:     "greaterEqual",
+		LeftParenthesis:  "leftParenthesis",
+		RightParenthesis: "rightParenthesis",
+		Comma:            "comma",
+		Colon:            "colon",
+		Semicolon:        "semicolon",
+		Period:           "period",
+		Becomes:          "becomes",
+		Read:             "read",
+		Write:            "write",
+		OddWord:          "odd",
+		BeginWord:        "begin",
+		EndWord:          "end",
+		IfWord:           "if",
+		ThenWord:         "then",
+		WhileWord:        "while",
+		DoWord:           "do",
+		CallWord:         "call",
+		ConstWord:        "const",
+		VarWord:          "var",
+		ProcedureWord:    "procedure",
+	}
+)
 
 func NewScanner() Scanner {
 	return &scanner{}
