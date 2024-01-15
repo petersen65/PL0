@@ -77,11 +77,11 @@ func (m *machine) runProgram(sections []byte) error {
 	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
 	for {
 		if m.cpu.registers[ip] >= uint64(len(process.text)) {
-			return fmt.Errorf("address '%v' out of range", m.cpu.registers[ip])
+			return fmt.Errorf("halt - address '%v' out of range", m.cpu.registers[ip])
 		}
 
 		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < 2 {
-			return fmt.Errorf("stack overflow at address '%v'", m.cpu.registers[ip])
+			return fmt.Errorf("halt - stack overflow at address '%v'", m.cpu.registers[ip])
 		}
 
 		instr := process.text[m.cpu.registers[ip]]
@@ -117,6 +117,11 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Div: // divide top two stack int64 elements
 			m.cpu.registers[sp]--
+
+			if int64(m.cpu.stack[m.cpu.registers[sp]+1]) == 0 {
+				return fmt.Errorf("halt - division by zero at address '%v'", m.cpu.registers[ip]-1)
+			}
+
 			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) / int64(m.cpu.stack[m.cpu.registers[sp]+1]))
 
 		case emt.Odd: // test if top of stack int64 element is odd

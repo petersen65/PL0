@@ -44,7 +44,7 @@ func compile(pl0, il0 string) error {
 	err := compiler.CompileFile(pl0, il0, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Summary:", err)
+		fmt.Println("Error:", err)
 	} else {
 		fmt.Println("Compilation successful")
 	}
@@ -56,7 +56,7 @@ func run(il0 string) error {
 	err := compiler.RunFile(il0, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Summary:", err)
+		fmt.Println("Error:", err)
 	} else {
 		fmt.Println("Run successful")
 	}
@@ -68,7 +68,7 @@ func print(il0 string) error {
 	err := compiler.PrintFile(il0, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Summary:", err)
+		fmt.Println("Error:", err)
 	} else {
 		fmt.Println("Print successful")
 	}
