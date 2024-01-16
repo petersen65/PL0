@@ -85,7 +85,7 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Plus:
 			fallthrough
 		case Minus:
-			if s.try(i+1, basicSyntax) == Number && !s.try(i-1, basicSyntax).In(NoSign) {
+			if s.try(i+1, basicSyntax) == Number && !s.try(i-1, basicSyntax).In(Set(Identifier, Number, RightParenthesis)) {
 				i++
 				// TODO
 			} else {

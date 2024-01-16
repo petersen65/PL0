@@ -162,13 +162,6 @@ var (
 		Number,
 		LeftParenthesis,
 	}
-
-	NoSign = Tokens{
-		Identifier,
-		Number,
-		RightParenthesis,
-	}
-
 )
 
 func NewScanner() Scanner {
