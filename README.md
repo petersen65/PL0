@@ -51,7 +51,7 @@ The syntax of PL/0 (1986 version) is described in extended Backus-Naur form with
 
 ## Features
 
-The programming language PL/0 supports the following features:
+The programming language PL/0 (1986 version) supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
