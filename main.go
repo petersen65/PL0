@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package main implements the PL/0 compiler command line interface.
 package main
 
 import (
@@ -11,6 +12,13 @@ import (
 	"github.com/petersen65/PL0/compiler"
 )
 
+// Function main is the entry point for the PL/0 compiler command line interface.
+// It parses the command line arguments and calls the appropriate functions.
+//
+// The command line arguments are:
+//     -c[r|p] <source file> <target file>
+//     -r <target file>
+//     -p <target file>
 func main() {
 	fmt.Println("PL/0 Compiler Version 1.0.0 1986")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
@@ -40,6 +48,7 @@ func main() {
 	}
 }
 
+// Function compile compiles the PL/0 source file pl0 and writes the IL/0 code to the target file il0.
 func compile(pl0, il0 string) error {
 	err := compiler.CompileFile(pl0, il0, os.Stdout)
 
@@ -52,6 +61,7 @@ func compile(pl0, il0 string) error {
 	return err
 }
 
+// Function 'run' executes the IL/0 code in the target file il0.
 func run(il0 string) error {
 	err := compiler.RunFile(il0, os.Stdout)
 
@@ -64,6 +74,7 @@ func run(il0 string) error {
 	return err
 }
 
+// Function 'print' prints the IL/0 code in the target file il0 to the standard output (console).
 func print(il0 string) error {
 	err := compiler.PrintFile(il0, os.Stdout)
 
@@ -76,6 +87,7 @@ func print(il0 string) error {
 	return err
 }
 
+// Function 'usage' prints the command line usage information to the standard output (console).
 func usage() {
 	fmt.Println("Usage: pl0 -c[r|p] <source file> <target file>")
 	fmt.Println("       pl0 -r <target file>")
