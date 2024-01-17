@@ -5,6 +5,7 @@
 package scanner
 
 import (
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -61,7 +62,7 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Colon:
 			if s.try(i+1, basicSyntax) == Equal {
 				i++
-				fullSyntax = append(fullSyntax, s.apply(i, Becomes, basicSyntax))
+				fullSyntax = append(fullSyntax, s.merge(Becomes, basicSyntax[i]))
 			} else {
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
@@ -69,7 +70,7 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Less:
 			if s.try(i+1, basicSyntax) == Equal {
 				i++
-				fullSyntax = append(fullSyntax, s.apply(i, LessEqual, basicSyntax))
+				fullSyntax = append(fullSyntax, s.merge(LessEqual, basicSyntax[i]))
 			} else {
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
@@ -77,7 +78,7 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Greater:
 			if s.try(i+1, basicSyntax) == Equal {
 				i++
-				fullSyntax = append(fullSyntax, s.apply(i, GreaterEqual, basicSyntax))
+				fullSyntax = append(fullSyntax, s.merge(GreaterEqual, basicSyntax[i]))
 			} else {
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
@@ -87,7 +88,21 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Minus:
 			if s.try(i+1, basicSyntax) == Number && !s.try(i-1, basicSyntax).In(Set(Identifier, Number, RightParenthesis)) {
 				i++
-				// TODO
+
+				if len(basicSyntax[i].TokenValue.(string)) == 0 {
+					basicSyntax[i].TokenValue = "0"
+				} else if basicSyntax[i-1].Token == Minus {
+					basicSyntax[i].TokenValue = "-" + basicSyntax[i].TokenValue.(string)
+				}
+
+				if int64Value, err := strconv.ParseInt(basicSyntax[i].TokenValue.(string), 10, IntegerBitSize); err != nil {
+					basicSyntax[i].TokenValue = 0
+				} else {
+					basicSyntax[i].TokenValue = int64Value
+				}
+				
+				basicSyntax[i].TokenType = Integer64
+				fullSyntax = append(fullSyntax, basicSyntax[i])
 			} else {
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
@@ -108,15 +123,15 @@ func (s *scanner) try(i int, basicSyntax ConcreteSyntax) Token {
 	return Null
 }
 
-func (s *scanner) apply(i int, token Token, basicSyntax ConcreteSyntax) TokenDescription {
+func (s *scanner) merge(fulltoken Token, basicToken TokenDescription) TokenDescription {
 	return TokenDescription{
-		Token:       token,
-		TokenName:   TokenNames[token],
+		Token:       fulltoken,
+		TokenName:   TokenNames[fulltoken],
 		TokenValue:  nil,
 		TokenType:   None,
-		Line:        basicSyntax[i].Line,
-		Column:      basicSyntax[i].Column,
-		CurrentLine: basicSyntax[i].CurrentLine,
+		Line:        basicToken.Line,
+		Column:      basicToken.Column,
+		CurrentLine: basicToken.CurrentLine,
 	}
 }
 

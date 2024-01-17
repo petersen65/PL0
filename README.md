@@ -82,4 +82,4 @@ The programming language PL/0 (1986 version) supports the following features:
 * Feb 1st, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
-	* two phase scanner: basic and sliding phases to cover more complex scenarios with multiple characters per token
+	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token

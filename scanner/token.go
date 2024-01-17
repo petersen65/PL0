@@ -57,7 +57,7 @@ func (s *scanner) getToken() (Token, error) {
 
 	switch {
 	case unicode.IsLetter(s.lastCharacter):
-		return s.identifierOrWord()
+		return s.identifierWord()
 
 	case unicode.IsDigit(s.lastCharacter):
 		return s.number()
@@ -67,7 +67,7 @@ func (s *scanner) getToken() (Token, error) {
 	}
 }
 
-func (s *scanner) identifierOrWord() (Token, error) {
+func (s *scanner) identifierWord() (Token, error) {
 	var builder strings.Builder
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
