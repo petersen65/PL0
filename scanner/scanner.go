@@ -5,6 +5,7 @@
 package scanner
 
 import (
+	"errors"
 	"strconv"
 	"unicode/utf8"
 )
@@ -24,8 +25,9 @@ func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
 		return make(ConcreteSyntax, 0), err
 	}
 
-	basicSyntax, err := s.basicScan()
-	return s.slidingScan(basicSyntax), err
+	basicSyntax, errBasic := s.basicScan()
+	fullSyntax, errFull := s.slidingScan(basicSyntax)
+	return fullSyntax, errors.Join(errBasic, errFull)
 }
 
 func (s *scanner) basicScan() (ConcreteSyntax, error) {
@@ -54,10 +56,11 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 	}
 }
 
-func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
-	fullSyntax := make(ConcreteSyntax, len(basicSyntax))
+func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) (ConcreteSyntax, error) {
+	var errFull error
+	fullSyntax := make(ConcreteSyntax, 0, len(basicSyntax))
 
-	for i := 0; i < len(basicSyntax); i++ {
+	for i := 0; errFull == nil && i < len(basicSyntax); i++ {
 		switch basicSyntax[i].Token {
 		case Colon:
 			if s.try(i+1, basicSyntax) == Equal {
@@ -88,21 +91,22 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		case Minus:
 			if s.try(i+1, basicSyntax) == Number && !s.try(i-1, basicSyntax).In(Set(Identifier, Number, RightParenthesis)) {
 				i++
+				number := basicSyntax[i]
 
-				if len(basicSyntax[i].TokenValue.(string)) == 0 {
-					basicSyntax[i].TokenValue = "0"
+				if len(number.TokenValue.(string)) == 0 {
+					number.TokenValue = "0"
 				} else if basicSyntax[i-1].Token == Minus {
-					basicSyntax[i].TokenValue = "-" + basicSyntax[i].TokenValue.(string)
+					number.TokenValue = "-" + number.TokenValue.(string)
 				}
 
-				if int64Value, err := strconv.ParseInt(basicSyntax[i].TokenValue.(string), 10, IntegerBitSize); err != nil {
-					basicSyntax[i].TokenValue = 0
+				if int64Value, err := strconv.ParseInt(number.TokenValue.(string), 10, IntegerBitSize); err != nil {
+					errFull = s.error(illegalInteger, number.TokenValue, number.Line, number.Column)
 				} else {
-					basicSyntax[i].TokenValue = int64Value
+					number.TokenValue = int64Value
 				}
-				
-				basicSyntax[i].TokenType = Integer64
-				fullSyntax = append(fullSyntax, basicSyntax[i])
+
+				number.TokenType = Integer64
+				fullSyntax = append(fullSyntax, number)
 			} else {
 				fullSyntax = append(fullSyntax, basicSyntax[i])
 			}
@@ -112,7 +116,7 @@ func (s *scanner) slidingScan(basicSyntax ConcreteSyntax) ConcreteSyntax {
 		}
 	}
 
-	return fullSyntax
+	return fullSyntax, errFull
 }
 
 func (s *scanner) try(i int, basicSyntax ConcreteSyntax) Token {
@@ -145,7 +149,7 @@ func (s *scanner) reset(content []byte) error {
 	s.endOfFile = false
 
 	if len(content) == 0 || !s.nextCharacter() {
-		return s.error(eofReached, nil)
+		return s.error(eofReached, nil, s.line, s.column)
 	}
 
 	return nil

@@ -36,7 +36,7 @@ var errorMap = map[failure]string{
 	unexpectedCharacter: "unexpected character '%c'",
 }
 
-func (s *scanner) error(code failure, value any) error {
+func (s *scanner) error(code failure, value any, line, column int) error {
 	var message string
 
 	if value != nil {
@@ -45,5 +45,5 @@ func (s *scanner) error(code failure, value any) error {
 		message = errorMap[code]
 	}
 
-	return fmt.Errorf("scanner error %v [%v,%v]: %v", code, s.line, s.column, message)
+	return fmt.Errorf("scanner error %v [%v,%v]: %v", code, line, column, message)
 }

@@ -74,7 +74,7 @@ func (s *scanner) identifierWord() (Token, error) {
 		builder.WriteRune(s.lastCharacter)
 
 		if !s.nextCharacter() {
-			return Identifier, s.error(eofIdentifier, builder.String())
+			return Identifier, s.error(eofIdentifier, builder.String(), s.line, s.column)
 		}
 	}
 
@@ -83,7 +83,7 @@ func (s *scanner) identifierWord() (Token, error) {
 	}
 
 	if len(builder.String()) > identifierMax {
-		return Identifier, s.error(tooLongIdentifier, builder.String())
+		return Identifier, s.error(tooLongIdentifier, builder.String(), s.line, s.column)
 	}
 
 	s.lastValue = builder.String()
@@ -97,12 +97,12 @@ func (s *scanner) number() (Token, error) {
 		builder.WriteRune(s.lastCharacter)
 
 		if !s.nextCharacter() {
-			return Number, s.error(eofNumber, builder.String())
+			return Number, s.error(eofNumber, builder.String(), s.line, s.column)
 		}
 	}
 
 	if len(builder.String()) > digitsMax {
-		return Number, s.error(tooLongNumber, builder.String())
+		return Number, s.error(tooLongNumber, builder.String(), s.line, s.column)
 	}
 
 	s.lastValue = builder.String()
@@ -112,11 +112,11 @@ func (s *scanner) number() (Token, error) {
 func (s *scanner) operator() (Token, error) {
 	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
 		if !s.nextCharacter() && token != Period {
-			return token, s.error(eofReached, nil)
+			return token, s.error(eofReached, nil, s.line, s.column)
 		}
 
 		return token, nil
 	}
 
-	return Null, s.error(unexpectedCharacter, s.lastCharacter)
+	return Null, s.error(unexpectedCharacter, s.lastCharacter, s.line, s.column)
 }

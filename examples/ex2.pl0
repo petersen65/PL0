@@ -1,49 +1,5 @@
-var a, b, c;
+var a, b;
 begin
-    a := -1;
-    b := 1;
-
-    if -a = b then
-        ! 1;
-
-    if -a # +b then
-        ! 0;
-
-    if -a < b then
-        ! -1;
-
-    if -a <= b then
-        ! -2;
-
-    if 2 * (-a) > b then
-        ! 1;
-
-    if a >= -b then
-        ! 2;
-
-    while a <= b do
-    begin
-        ! a;
-        a := a + 1;
-    end;
-
-    ! 1 * 2 + 3 * (-4) / (1 + 1 + 2 + (-1) - 1);
-
-    c := -141;
-
-    if odd c then
-        ! -5;
-
-    if odd -11 then
-        ! 11;
-
-    c := -9223372036854775808;
-    ! c;
-
-    c := 9223372036854775807;
-    ! c;
-
-    c := 0;
-
-    ! a / c;
+    a = (b - 1) -- 9223372036854775808;
 end.
+€
