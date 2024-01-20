@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package scanner implements the PL/0 scanner that performs a lexical analysis of the source code.
 package scanner
 
 import "fmt"
@@ -11,6 +12,7 @@ const (
 	identifierMax = 64 // maximum length of any identifier
 )
 
+// Error codes for the PL/0 scanner.
 const (
 	_ = failure(iota + 1000)
 	eofReached
@@ -25,6 +27,7 @@ const (
 
 type failure int
 
+// Map error codes to error messages.
 var errorMap = map[failure]string{
 	eofReached:          "unexpected end of file",
 	eofIdentifier:       "unexpected end of file while reading identifier %s",
@@ -36,7 +39,8 @@ var errorMap = map[failure]string{
 	unexpectedCharacter: "unexpected character '%c'",
 }
 
-func (s *scanner) error(code failure, value any, line, column int) error {
+// Create a new error by mapping the error code to its corresponding error message.
+func newError(code failure, value any, line, column int) error {
 	var message string
 
 	if value != nil {

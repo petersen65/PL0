@@ -2,12 +2,15 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package scanner implements the PL/0 scanner that performs a lexical analysis of the source code.
 package scanner
 
 import "slices"
 
-const IntegerBitSize = 64 // number of bits of a signed integer
+// Number of bits of a signed integer.
+const IntegerBitSize = 64
 
+// Tokens that are supported by the PL/0 scanner.
 const (
 	Null = Token(iota)
 	Eof
@@ -45,11 +48,13 @@ const (
 	ProcedureWord
 )
 
+// Token types for constants and variables.
 const (
 	None = TokenType(iota)
 	Integer64
 )
 
+// Core API for the PL/0 scanner.
 type (
 	Token          int
 	TokenType      int
@@ -75,8 +80,10 @@ type (
 )
 
 var (
+	// Empty is an empty token set.
 	Empty = Tokens{}
 
+	// TokenNames maps tokens to their string representation.
 	TokenNames = map[Token]string{
 		Null:             "null",
 		Eof:              "eof",
@@ -114,6 +121,7 @@ var (
 		ProcedureWord:    "procedure",
 	}
 
+	// KeyWords is a token set of all keywords.
 	KeyWords = Tokens{
 		OddWord,
 		BeginWord,
@@ -128,6 +136,7 @@ var (
 		ProcedureWord,
 	}
 
+	// Operators is a token set of all operators.
 	Operators = Tokens{
 		OddWord,
 		Plus,
@@ -142,12 +151,14 @@ var (
 		GreaterEqual,
 	}
 
+	// Declarations is a set of all declaration keywords.
 	Declarations = Tokens{
 		ConstWord,
 		VarWord,
 		ProcedureWord,
 	}
 
+	// Statements is a set of all statement introductions.
 	Statements = Tokens{
 		Read,
 		Write,
@@ -157,6 +168,7 @@ var (
 		WhileWord,
 	}
 
+	// Factors is a set of all factors: an identifier, a number, or an expression surrounded by parentheses.
 	Factors = Tokens{
 		Identifier,
 		Number,
@@ -164,14 +176,17 @@ var (
 	}
 )
 
+// Return the public interface of the private scanner implementation.
 func NewScanner() Scanner {
 	return &scanner{}
 }
 
+// Scan performs a lexical analysis of the source code.
 func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
 	return s.scan(content)
 }
 
+// Set returns a joined token set of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
 func Set(tss ...TokenSet) Tokens {
 	set := Tokens{}
 
@@ -183,14 +198,17 @@ func Set(tss ...TokenSet) Tokens {
 	return slices.Compact(set)
 }
 
+// In returns true if the token is in the given token set.
 func (token Token) In(set Tokens) bool {
 	return slices.Contains(set, token)
 }
 
+// Token.ToTokens concerts a token to a token set to satisfy the TokenSet interface.
 func (t Token) ToTokens() Tokens {
 	return Tokens{t}
 }
 
+// Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
 func (t Tokens) ToTokens() Tokens {
 	return t
 }
