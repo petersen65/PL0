@@ -22,6 +22,10 @@ const (
 	ip = register(iota) // instruction pointer is pointing to the next instruction to be executed
 	sp                  // stack pointer is pointing to the top of the stack
 	bp                  // base pointer is pointing to the base of the current stack frame (descriptor)
+	ax                  // accumulator is used for intermediate results of arithmetic operations
+	bx                  // base register is used for addressing variables in the current stack frame (descriptor)
+	cx                  // counter register is used for counting iterations of loops
+	dx                  // data register is used for addressing variables in the previous stack frame (descriptor)
 )
 
 type (
@@ -73,6 +77,11 @@ func (m *machine) runProgram(sections []byte) error {
 	m.cpu.stack[0] = m.cpu.base(0)  // dynamic link to first callers new callee
 	m.cpu.push(m.cpu.registers[bp]) // save first callers base pointer
 	m.cpu.push(m.cpu.registers[ip]) // save first callers instruction pointer
+
+	m.cpu.registers[ax] = 0 // accumulator register
+	m.cpu.registers[bx] = 0 // base register
+	m.cpu.registers[cx] = 0 // counter register
+	m.cpu.registers[dx] = 0 // data register
 
 	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -241,12 +250,13 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "dep", "addr", "arg1")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n", "text", "op", "side", "dep", "addr", "arg1")))
 
 	for text, instr := range p.text {
-		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
+		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n",
 			text,
 			emt.OperationNames[instr.Operation],
+			instr.Side,
 			instr.Depth,
 			instr.Address,
 			instr.Arg1)))
@@ -313,4 +323,12 @@ func (c *cpu) jpc(addr uint64) {
 	}
 
 	c.registers[sp]--
+}
+
+func (c *cpu) mov(reg register, arg uint64) {
+	c.registers[reg] = arg
+}
+
+func (c *cpu) add(reg1 register, reg2 register) {
+	c.registers[reg1] += c.registers[reg2]
 }

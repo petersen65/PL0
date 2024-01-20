@@ -39,8 +39,15 @@ const (
 	Write
 )
 
+const (
+	None = Side(iota)
+	Left
+	Right
+)
+
 type (
 	Operation   int32
+	Side        int32
 	SystemCall  int32
 	Ignore      int32
 	Address     uint64
@@ -50,12 +57,13 @@ type (
 	Instruction struct {
 		Depth     int32
 		Operation Operation
+		Side      Side
 		Address   Address
 		Arg1      int64
 	}
 
 	Emitter interface {
-		Emit(declarationDepth int32, operation Operation, any any) (Address, error)
+		Emit(depth int32, operation Operation, side Side, any any) (Address, error)
 		Update(instructionAddress Address, any any) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
@@ -97,8 +105,8 @@ func NewEmitter() Emitter {
 	}
 }
 
-func (e *emitter) Emit(declarationDepth int32, operation Operation, any any) (Address, error) {
-	return e.emitInstruction(declarationDepth, operation, any)
+func (e *emitter) Emit(depth int32, operation Operation, side Side, any any) (Address, error) {
+	return e.emitInstruction(depth, operation, side, any)
 }
 
 func (e *emitter) Update(instructionAddress Address, any any) error {

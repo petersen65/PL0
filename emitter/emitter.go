@@ -13,8 +13,8 @@ type emitter struct {
 	textSection TextSection
 }
 
-func (e *emitter) emitInstruction(declarationDepth int32, operation Operation, any any) (Address, error) {
-	e.textSection = append(e.textSection, Instruction{Depth: declarationDepth, Operation: operation})
+func (e *emitter) emitInstruction(depth int32, operation Operation, side Side, any any) (Address, error) {
+	e.textSection = append(e.textSection, Instruction{Depth: depth, Operation: operation, Side: side})
 	address := Address(len(e.textSection) - 1)
 	return address, e.updateInstruction(address, any)
 }
