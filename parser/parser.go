@@ -80,7 +80,7 @@ func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 
 	// emit a jump to the first instruction of the entrypoint block whose address is not yet known
 	if depth == 0 {
-		entryPointInstruction, _ = p.emitter.Emit(depth, emt.Jmp, emt.NullAddress)
+		entryPointInstruction = p.emitter.Jump(emt.NullAddress)
 	}
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
@@ -115,15 +115,13 @@ func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
-	_, err := p.emitter.Emit(depth, emt.Inc, emt.Offset(varOffset))
-	p.appendError(err)
+	p.emitter.AllocateStackSpace(emt.Offset(varOffset))
 
 	// parse and emit all statement instructions which are defining the code logic of the block
 	p.statement(depth, set(expected, scn.Semicolon, scn.EndWord))
 
 	// emit a return instruction to return from the block
-	_, err = p.emitter.Emit(depth, emt.Ret, emt.IgnoreValue)
-	p.appendError(err)
+	p.emitter.Return()
 
 	// at the end of the block, remove all symbols with its declaration depth from the symbol table
 	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
@@ -220,7 +218,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	p.expression(depth, expected)
 
 	if ok && symbol.kind == variable {
-		p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Offset(symbol.offset))
+		p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
 
 	}
 }
@@ -233,8 +231,8 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == variable {
-				p.emitter.Emit(depth, emt.Sys, emt.Read)
-				p.emitter.Emit(depth-symbol.depth, emt.Sto, emt.Offset(symbol.offset))
+				p.emitter.System(emt.Read)
+				p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
 			} else {
 				p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
 			}
@@ -250,7 +248,7 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 func (p *parser) write(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	p.expression(depth, expected)
-	p.emitter.Emit(depth, emt.Sys, emt.Write)
+	p.emitter.System(emt.Write)
 }
 
 func (p *parser) beginWord(depth int32, expected scn.Tokens) {
@@ -283,7 +281,7 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == procedure {
-				p.emitter.Emit(depth-symbol.depth, emt.Cal, emt.Address(symbol.address))
+				p.emitter.Call(emt.Address(symbol.address), depth-symbol.depth)
 			} else {
 				p.appendError(p.error(expectedProcedureIdentifier, kindNames[symbol.kind]))
 			}
@@ -305,8 +303,7 @@ func (p *parser) ifWord(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedThen, p.lastTokenName()))
 	}
 
-	ifDecision, err := p.emitter.Emit(depth, emt.Jpc, emt.NullAddress)
-	p.appendError(err)
+	ifDecision := p.emitter.Jump(emt.NullAddress)
 	p.statement(depth, expected)
 	p.emitter.Update(ifDecision, p.emitter.GetNextAddress())
 }
@@ -315,8 +312,7 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	whileCondition := p.emitter.GetNextAddress()
 	p.condition(depth, set(expected, scn.DoWord))
-	whileDecision, err := p.emitter.Emit(depth, emt.Jpc, emt.NullAddress)
-	p.appendError(err)
+	whileDecision := p.emitter.JumpConditional(emt.NullAddress)
 
 	if p.lastToken() == scn.DoWord {
 		p.nextTokenDescription()
@@ -325,8 +321,7 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 	}
 
 	p.statement(depth, expected)
-	_, err = p.emitter.Emit(depth, emt.Jmp, whileCondition)
-	p.appendError(err)
+	p.emitter.Jump(whileCondition)
 	p.emitter.Update(whileDecision, p.emitter.GetNextAddress())
 }
 
@@ -444,7 +439,7 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			p.emitter.Emit(depth, emt.Neg, emt.IgnoreValue)
+			p.emitter.Negate()
 		}
 	} else {
 		// handle left term of a plus or minus operator
@@ -459,9 +454,9 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Plus {
-			p.emitter.Emit(depth, emt.Add, emt.IgnoreValue)
+			p.emitter.Add()
 		} else {
-			p.emitter.Emit(depth, emt.Sub, emt.IgnoreValue)
+			p.emitter.Subtract()
 		}
 	}
 }
@@ -470,7 +465,7 @@ func (p *parser) condition(depth int32, expected scn.Tokens) {
 	if p.lastToken() == scn.OddWord {
 		p.nextTokenDescription()
 		p.expression(depth, expected)
-		p.emitter.Emit(depth, emt.Odd, emt.IgnoreValue)
+		p.emitter.Odd()
 	} else {
 		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
@@ -483,50 +478,50 @@ func (p *parser) condition(depth int32, expected scn.Tokens) {
 
 			switch relationalOperator {
 			case scn.Equal:
-				p.emitter.Emit(depth, emt.Eq, emt.IgnoreValue)
+				p.emitter.Equal()
 
 			case scn.NotEqual:
-				p.emitter.Emit(depth, emt.Neq, emt.IgnoreValue)
+				p.emitter.NotEqual()
 
 			case scn.Less:
-				p.emitter.Emit(depth, emt.Lss, emt.IgnoreValue)
+				p.emitter.Less()
 
 			case scn.LessEqual:
-				p.emitter.Emit(depth, emt.Leq, emt.IgnoreValue)
+				p.emitter.LessEqual()
 
 			case scn.Greater:
-				p.emitter.Emit(depth, emt.Gtr, emt.IgnoreValue)
+				p.emitter.Greater()
 
 			case scn.GreaterEqual:
-				p.emitter.Emit(depth, emt.Geq, emt.IgnoreValue)
+				p.emitter.GreaterEqual()
 			}
 		}
 	}
 }
 
+// a term is a sequence of factors separated by times or divide
 func (p *parser) term(depth int32, expected scn.Tokens) {
-	// a term is a sequence of factors separated by times or divide
 
 	// handle left factor of a times or divide operator
-	p.factor(depth, set(expected, scn.Times, scn.Divide))
+	p.factor(depth, emt.Left, set(expected, scn.Times, scn.Divide))
 
 	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
 		timesOrDevide := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle right factor of a times or divide operator
-		p.factor(depth, set(expected, scn.Times, scn.Divide))
+		p.factor(depth, emt.Right, set(expected, scn.Times, scn.Divide))
 
 		if timesOrDevide == scn.Times {
-			p.emitter.Emit(depth, emt.Mul, emt.IgnoreValue)
+			p.emitter.Multiply()
 		} else {
-			p.emitter.Emit(depth, emt.Div, emt.IgnoreValue)
+			p.emitter.Divide()
 		}
 	}
 }
 
-func (p *parser) factor(depth int32, expected scn.Tokens) {
-	// a factor is either an identifier, a number, or an expression surrounded by parentheses
+// a factor is either an identifier, a number, or an expression surrounded by parentheses
+func (p *parser) factor(depth int32, side emt.Side, expected scn.Tokens) {
 	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for p.lastToken().In(factors) {
@@ -534,10 +529,10 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 			if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					p.emitter.Emit(depth, emt.Lit, symbol.value)
+					p.emitter.Constant(side, symbol.value)
 
 				case variable:
-					p.emitter.Emit(depth-symbol.depth, emt.Lod, emt.Offset(symbol.offset))
+					p.emitter.Variable(side, emt.Offset(symbol.offset), depth-symbol.depth, false)
 
 				case procedure:
 					p.appendError(p.error(expectedConstantsVariables, kindNames[symbol.kind]))
@@ -548,7 +543,7 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.Number {
-			p.emitter.Emit(depth, emt.Lit, p.lastTokenValue())
+			p.emitter.Constant(side, p.lastTokenValue())
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.LeftParenthesis {
 			p.nextTokenDescription()
