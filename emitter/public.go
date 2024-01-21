@@ -18,7 +18,7 @@ const (
 	Ret
 	Inc
 	Jmp
-	Jpc
+	Jne
 	Neg
 	Add
 	Sub
@@ -99,7 +99,7 @@ var (
 		Ret: "ret",
 		Inc: "inc",
 		Jmp: "jmp",
-		Jpc: "jpc",
+		Jne: "jne",
 		Neg: "neg",
 		Add: "add",
 		Sub: "sub",

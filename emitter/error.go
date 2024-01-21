@@ -8,18 +8,16 @@ import "fmt"
 
 const (
 	_ = failure(iota + 3000)
-	invalidArgumentType
 	instructionOutOfRange
 )
 
 type failure int
 
 var errorMap = map[failure]string{
-	invalidArgumentType:  "provided argument is of invalid type: %v",
 	instructionOutOfRange: "instruction is out of range: %v",
 }
 
-func (e *emitter) error(code failure, value any) error {
+func newError(code failure, value any) error {
 	var message string
 
 	if value != nil {

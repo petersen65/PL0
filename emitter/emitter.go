@@ -14,27 +14,11 @@ type emitter struct {
 }
 
 func (e *emitter) updateAddress(instruction, target Address) error {
-	if uint64(target) >= uint64(len(e.textSection)) {
-		return e.error(instructionOutOfRange, target)
+	if uint64(instruction) >= uint64(len(e.textSection)) {
+		return newError(instructionOutOfRange, instruction)
 	}
 
-	instruction := e.textSection[address]
-
-	switch a := any.(type) {
-	case Address:
-		instruction.Address = a
-
-	case Offset:
-		instruction.Address = Address(a)
-
-	case SystemCall:
-		instruction.Address = Address(a)
-
-	default:
-		return e.error(invalidArgumentType, any)
-	}
-
-	e.textSection[address] = instruction
+	e.textSection[instruction].Address = target
 	return nil
 }
 
@@ -129,7 +113,7 @@ func (e *emitter) jump(target Address) Address {
 }
 
 func (e *emitter) jumpConditional(target Address) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Jpc, Address: target})
+	e.textSection = append(e.textSection, Instruction{Operation: Jne, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 

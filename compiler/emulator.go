@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	emt "github.com/petersen65/PL0/emitter"
 )
@@ -19,17 +20,26 @@ const (
 )
 
 const (
-	ip = register(iota) // instruction pointer is pointing to the next instruction to be executed
-	sp                  // stack pointer is pointing to the top of the stack
-	bp                  // base pointer is pointing to the base of the current stack frame (descriptor)
-	ax                  // accumulator is used for intermediate results of arithmetic operations
-	bx                  // base register is used for addressing variables in the current stack frame (descriptor)
-	cx                  // counter register is used for counting iterations of loops
-	dx                  // data register is used for addressing variables in the previous stack frame (descriptor)
+	ip    = register(iota) // instruction pointer is pointing to the next instruction to be executed
+	sp                     // stack pointer is pointing to the top of the stack
+	bp                     // base pointer is pointing to the base of the current stack frame (descriptor)
+	ax                     // accumulator is used for intermediate results of arithmetic operations
+	bx                     // base register is used for addressing variables in the current stack frame (descriptor)
+	cx                     // counter register is used for counting iterations of loops
+	dx                     // data register is used for addressing variables in the previous stack frame (descriptor)
+	flags                  // flags register contains the current state of the cpu and reflects the result of arithmetic operations
+)
+
+const (
+	_  = flag(iota)
+	zf = 0x0000000000000040 // zero flag is set if the result of an arithmetic operation is zero
+	sf = 0x0000000000000080 // sign flag is set if the result of an arithmetic operation is negative
+	of = 0x0000000000000800 // overflow flag is set if the result of an arithmetic operation is too large to fit in the register
 )
 
 type (
 	register int
+	flag     uint64
 
 	process struct {
 		text emt.TextSection
@@ -78,10 +88,11 @@ func (m *machine) runProgram(sections []byte) error {
 	m.cpu.push(m.cpu.registers[bp]) // save first callers base pointer
 	m.cpu.push(m.cpu.registers[ip]) // save first callers instruction pointer
 
-	m.cpu.registers[ax] = 0 // accumulator register
-	m.cpu.registers[bx] = 0 // base register
-	m.cpu.registers[cx] = 0 // counter register
-	m.cpu.registers[dx] = 0 // data register
+	m.cpu.registers[ax] = 0    // accumulator register
+	m.cpu.registers[bx] = 0    // base register
+	m.cpu.registers[cx] = 0    // counter register
+	m.cpu.registers[dx] = 0    // data register
+	m.cpu.registers[flags] = 0 // flags register
 
 	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -97,98 +108,65 @@ func (m *machine) runProgram(sections []byte) error {
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
-		case emt.Lit: // load int64 constant on top of stack
-			m.cpu.push(uint64(instr.Arg1))
+		case emt.Lit: // copy int64 constant in ax or bx register
+			if instr.Side == emt.Left {
+				m.cpu.mov(ax, uint64(instr.Arg1))
+			} else {
+				m.cpu.mov(bx, uint64(instr.Arg1))
+			}
 
 		case emt.Jmp: // unconditionally jump to uint64 address
 			m.cpu.jmp(uint64(instr.Address))
 
-		case emt.Jpc: // jump to uint64 address if top of stack is 0
-			m.cpu.jpc(uint64(instr.Address))
+		case emt.Jne: // jump to uint64 address if last comparison was not equal
+			m.cpu.jne(uint64(instr.Address))
 
 		case emt.Inc: // allocate space on stack for variables of a procedure
 			m.cpu.registers[sp] += uint64(instr.Address)
 
-		case emt.Neg: // negate int64 element on top of stack
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(-int64(m.cpu.stack[m.cpu.registers[sp]]))
+		case emt.Neg: // negate int64 element in ax or bx register
+			if instr.Side == emt.Left {
+				m.cpu.neg(ax)
+			} else {
+				m.cpu.neg(bx)
+			}
 
-		case emt.Add: // add top two stack int64 elements
-			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) + int64(m.cpu.stack[m.cpu.registers[sp]+1]))
+		case emt.Add: // add two register ax and bx int64 elements and store the result in register ax
+			m.cpu.add(ax, bx)
 
-		case emt.Sub: // subtract top two stack int64 elements
-			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) - int64(m.cpu.stack[m.cpu.registers[sp]+1]))
+		case emt.Sub: // subtract register bx from ax int64 elements and store the result in register ax
+			m.cpu.sub(ax, bx)
 
-		case emt.Mul: // multiply top two stack int64 elements
-			m.cpu.registers[sp]--
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) * int64(m.cpu.stack[m.cpu.registers[sp]+1]))
+		case emt.Mul: // multiply register ax and bx int64 elements and store the result in register ax
+			m.cpu.mul(ax, bx)
 
-		case emt.Div: // divide top two stack int64 elements
-			m.cpu.registers[sp]--
-
-			if int64(m.cpu.stack[m.cpu.registers[sp]+1]) == 0 {
+		case emt.Div: // divide register ax by bx int64 elements and store the result in ax
+			if int64(m.cpu.registers[bx]) == 0 {
 				return fmt.Errorf("halt - division by zero at address '%v'", m.cpu.registers[ip]-1)
 			}
 
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) / int64(m.cpu.stack[m.cpu.registers[sp]+1]))
+			m.cpu.div(ax, bx)
 
-		case emt.Odd: // test if top of stack int64 element is odd
-			m.cpu.stack[m.cpu.registers[sp]] = uint64(int64(m.cpu.stack[m.cpu.registers[sp]]) % 2)
+		case emt.Odd: // test if register ax uint64 element is odd and set zero flag if it is
+			m.cpu.and(ax, 1)
 
-		case emt.Eq: // test if top two stack int64 elements are equal
-			m.cpu.registers[sp]--
+		case emt.Eq: // test if register ax and bx int64 elements are equal and set zero flag if they are
+			fallthrough
 
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) == int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
+		case emt.Neq: // test if register ax and bx int64 elements are not equal and clear zero flag if they are
+			fallthrough
 
-		case emt.Neq: // test if top two stack int64 elements are not equal
-			m.cpu.registers[sp]--
+		case emt.Lss: // test if register bx int64 element is less than register ax int64 element
+			fallthrough
 
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) != int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
+		case emt.Leq: // test if register bx int64 element is less than or equal to register ax int64 element
+			fallthrough
 
-		case emt.Lss: // test if second stack int64 element is less than top stack int64 element
-			m.cpu.registers[sp]--
+		case emt.Gtr: // test if register bx int64 element is greater than register ax int64 element
+			fallthrough
 
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) < int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
-
-		case emt.Leq: // test if second stack int64 element is less than or equal to top stack int64 element
-			m.cpu.registers[sp]--
-
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) <= int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
-
-		case emt.Gtr: // test if second stack int64 element is greater than top stack int64 element
-			m.cpu.registers[sp]--
-
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) > int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
-
-		case emt.Geq: // test if second stack int64 element is greater than or equal to top stack int64 element
-			m.cpu.registers[sp]--
-
-			if int64(m.cpu.stack[m.cpu.registers[sp]]) >= int64(m.cpu.stack[m.cpu.registers[sp]+1]) {
-				m.cpu.stack[m.cpu.registers[sp]] = 1
-			} else {
-				m.cpu.stack[m.cpu.registers[sp]] = 0
-			}
+		case emt.Geq: // test if register bx int64 element is greater than or equal to register ax int64 element
+			m.cpu.cmp(ax, bx)
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// preserve state of caller and create descriptor of procedure being called
@@ -214,13 +192,15 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
-		case emt.Lod: // push int64 variable on top of stack loaded from its base plus offset
-			m.cpu.registers[sp]++
-			m.cpu.stack[m.cpu.registers[sp]] = m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3]
+		case emt.Lod: // copy int64 variable in ax or bx register loaded from its base plus offset
+			if instr.Side == emt.Left {
+				m.cpu.mov(ax, m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
+			} else {
+				m.cpu.mov(bx, m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
+			}
 
-		case emt.Sto: // pop int64 variable from top of stack to its base plus offset
-			m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3] = m.cpu.stack[m.cpu.registers[sp]]
-			m.cpu.registers[sp]--
+		case emt.Sto: // copy int64 variable from ax register to its base plus offset
+			m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3] = m.cpu.registers[ax]
 
 		case emt.Sys: // system call to operating system based on system call code
 			m.cpu.sys(emt.SystemCall(instr.Address))
@@ -228,10 +208,12 @@ func (m *machine) runProgram(sections []byte) error {
 	}
 }
 
+// load a program and print it to a writer
 func (m *machine) printProgram(sections []byte, print io.Writer) error {
 	return (&process{}).dump(sections, print)
 }
 
+// load text section from a byte slice
 func (p *process) load(sections []byte) error {
 	p.text = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
 
@@ -245,6 +227,7 @@ func (p *process) load(sections []byte) error {
 	return nil
 }
 
+// dump text section to a writer
 func (p *process) dump(sections []byte, print io.Writer) error {
 	if err := p.load(sections); err != nil {
 		return err
@@ -276,6 +259,60 @@ func (c *cpu) base(depth int32) uint64 {
 	return b
 }
 
+// set zero flag if int64 element is zero
+func (c *cpu) set_zf(a int64) {
+	if a == 0 {
+		c.registers[flags] |= uint64(zf)
+	} else {
+		c.registers[flags] &= ^uint64(zf)
+	}
+}
+
+// set sign flag if int64 element is negative
+func (c *cpu) set_sf(a int64) {
+	if a < 0 {
+		c.registers[flags] |= uint64(sf)
+	} else {
+		c.registers[flags] &= ^uint64(sf)
+	}
+}
+
+// set sign flag if int64 element is negative
+func (c *cpu) set_sf_neg(a int64) {
+	if a == math.MinInt64 {
+		c.registers[flags] |= uint64(sf)
+	} else {
+		c.registers[flags] &= ^uint64(sf)
+	}
+}
+
+// set overflow flag if addition of two int64 elements overflows
+func (c *cpu) set_of_add(a, b int64) {
+	if (a + b) < a {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// set overflow flag if subtraction of two int64 elements overflows
+func (c *cpu) set_of_sub(a, b int64) {
+	if b > 0 && a < math.MinInt64+b || b < 0 && a > math.MaxInt64+b {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+func (c *cpu) set_of_mul(a, b int64) {
+	if a != 0 && (a*b)/a != b {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// system call to operating system based on system call code
 func (c *cpu) sys(code emt.SystemCall) {
 	switch code {
 	case emt.Read:
@@ -311,24 +348,113 @@ func (c *cpu) pop(reg register) {
 	c.registers[sp]--
 }
 
-// unconditionally jump to address
+// unconditionally jump to uint64 address
 func (c *cpu) jmp(addr uint64) {
 	c.registers[ip] = addr
 }
 
-// if top of stack is 0, jump to address
-func (c *cpu) jpc(addr uint64) {
-	if c.stack[c.registers[sp]] == 0 {
-		c.registers[ip] = addr
-	}
-
-	c.registers[sp]--
-}
-
+// copy uint64 argument to register reg
 func (c *cpu) mov(reg register, arg uint64) {
 	c.registers[reg] = arg
 }
 
+// negate reg int64 element
+func (c *cpu) neg(reg register) {
+	a := -int64(c.registers[reg])
+	c.set_zf(a)
+	c.set_sf(a)
+	c.set_sf_neg(a)
+	c.registers[reg] = uint64(a)
+}
+
+// add two register reg1 and reg2 int64 elements and store the result in register reg1
 func (c *cpu) add(reg1 register, reg2 register) {
-	c.registers[reg1] += c.registers[reg2]
+	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+	r := a + b
+	c.set_zf(r)
+	c.set_sf(r)
+	c.set_of_add(a, b)
+	c.registers[reg1] = uint64(r)
+}
+
+// subtract register reg2 from reg1 int64 elements and store the result in register reg1
+func (c *cpu) sub(reg1 register, reg2 register) {
+	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+	r := a - b
+	c.set_zf(r)
+	c.set_sf(r)
+	c.set_of_sub(a, b)
+	c.registers[reg1] = uint64(r)
+}
+
+// multiply register reg1 and reg2 int64 elements and store the result in register reg1
+func (c *cpu) mul(reg1 register, reg2 register) {
+	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+	r := a * b
+	c.set_zf(r)
+	c.set_sf(r)
+	c.set_of_mul(a, b)
+	c.registers[reg1] = uint64(r)
+}
+
+// divide register reg1 by reg2 int64 elements and store the result in reg1
+func (c *cpu) div(reg1 register, reg2 register) {
+	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+	r := a / b
+	c.set_zf(r)
+	c.set_sf(r)
+	c.registers[reg1] = uint64(r)
+}
+
+// perform bitwise and operation on register reg and uint64 argument and store the result in register reg
+func (c *cpu) and(reg register, arg uint64) {
+	a := c.registers[reg] & arg
+	c.set_zf(int64(a))
+	c.set_sf(int64(a))
+	c.registers[reg] = a
+}
+
+// compare register reg1 and reg2 int64 elements and set flags register based on result (zero zf, sign sf, overflow of)
+func (c *cpu) cmp(reg1 register, reg2 register) {
+	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+	c.set_zf(a - b)
+	c.set_sf(a - b)
+	c.set_of_sub(a, b)
+}
+
+// jump to uint64 address if zero flag is set, nz (not zero)
+func (c *cpu) je(addr uint64) {
+	if c.registers[flags]&uint64(zf) != 0 {
+		c.registers[ip] = addr
+	}
+}
+
+// jump to uint64 address if zero flag is not set, zr (zero)
+func (c *cpu) jne(addr uint64) {
+	if c.registers[flags]&uint64(zf) == 0 {
+		c.registers[ip] = addr
+	}
+}
+
+func (c *cpu) jl(addr uint64) {
+	if c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
+		c.registers[ip] = addr
+	}
+}
+
+func (c *cpu) jle(addr uint64) {
+	if c.registers[flags]&uint64(zf) != 0 && c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
+		c.registers[ip] = addr
+	}
+}
+func (c *cpu) jg(addr uint64) {
+	if c.registers[flags]&uint64(zf) == 0 && c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
+		c.registers[ip] = addr
+	}
+}
+
+func (c *cpu) jge(addr uint64) {
+	if c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
+		c.registers[ip] = addr
+	}
 }
