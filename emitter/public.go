@@ -18,7 +18,12 @@ const (
 	Ret
 	Inc
 	Jmp
+	Je
 	Jne
+	Jl
+	Jle
+	Jg
+	Jge
 	Neg
 	Add
 	Sub
@@ -56,7 +61,7 @@ type (
 	Instruction struct {
 		Depth     int32
 		Operation Operation
-		Side	  Side
+		Side      Side
 		Address   Address
 		Arg1      int64
 	}
@@ -80,7 +85,12 @@ type (
 		Greater() Address
 		GreaterEqual() Address
 		Jump(target Address) Address
-		JumpConditional(target Address) Address
+		JumpEqual(target Address) Address
+		JumpNotEqual(target Address) Address
+		JumpLess(target Address) Address
+		JumpLessEqual(target Address) Address
+		JumpGreater(target Address) Address
+		JumpGreaterEqual(target Address) Address
 		AllocateStackSpace(offset Offset) Address
 		Call(target Address, depth int32) Address
 		Return() Address
@@ -99,7 +109,12 @@ var (
 		Ret: "ret",
 		Inc: "inc",
 		Jmp: "jmp",
+		Je:  "je",
 		Jne: "jne",
+		Jl:  "jl",
+		Jle: "jle",
+		Jg:  "jg",
+		Jge: "jge",
 		Neg: "neg",
 		Add: "add",
 		Sub: "sub",
@@ -194,8 +209,28 @@ func (e *emitter) Jump(target Address) Address {
 	return e.jump(target)
 }
 
-func (e *emitter) JumpConditional(target Address) Address {
-	return e.jumpConditional(target)
+func (e *emitter) JumpEqual(target Address) Address {
+	return e.jumpEqual(target)
+}
+
+func (e *emitter) JumpNotEqual(target Address) Address {
+	return e.jumpNotEqual(target)
+}
+
+func (e *emitter) JumpLess(target Address) Address {
+	return e.jumpLess(target)
+}
+
+func (e *emitter) JumpLessEqual(target Address) Address {
+	return e.jumpLessEqual(target)
+}
+
+func (e *emitter) JumpGreater(target Address) Address {
+	return e.jumpGreater(target)
+}
+
+func (e *emitter) JumpGreaterEqual(target Address) Address {
+	return e.jumpGreaterEqual(target)
 }
 
 func (e *emitter) AllocateStackSpace(offset Offset) Address {

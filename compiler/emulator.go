@@ -118,8 +118,23 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jmp: // unconditionally jump to uint64 address
 			m.cpu.jmp(uint64(instr.Address))
 
+		case emt.Je: // jump to uint64 address if last comparison was equal
+			m.cpu.je(uint64(instr.Address))
+
 		case emt.Jne: // jump to uint64 address if last comparison was not equal
 			m.cpu.jne(uint64(instr.Address))
+
+		case emt.Jl: // jump to uint64 address if last comparison was less than
+			m.cpu.jl(uint64(instr.Address))
+
+		case emt.Jle: // jump to uint64 address if last comparison was less than or equal to
+			m.cpu.jle(uint64(instr.Address))
+
+		case emt.Jg: // jump to uint64 address if last comparison was greater than
+			m.cpu.jg(uint64(instr.Address))
+
+		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
+			m.cpu.jge(uint64(instr.Address))
 
 		case emt.Inc: // allocate space on stack for variables of a procedure
 			m.cpu.registers[sp] += uint64(instr.Address)
@@ -436,23 +451,28 @@ func (c *cpu) jne(addr uint64) {
 	}
 }
 
+// jump to uint64 address if sign flag is not equal to overflow flag (sf != of)
 func (c *cpu) jl(addr uint64) {
 	if c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
 
+// jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of)
 func (c *cpu) jle(addr uint64) {
 	if c.registers[flags]&uint64(zf) != 0 && c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
+
+// jump to uint64 address if zero flag is not set and sign flag is equal to overflow flag (zf == 0, sf == of)
 func (c *cpu) jg(addr uint64) {
 	if c.registers[flags]&uint64(zf) == 0 && c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
 
+// jump to uint64 address if sign flag is equal to overflow flag (sf == of)
 func (c *cpu) jge(addr uint64) {
 	if c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr

@@ -112,8 +112,33 @@ func (e *emitter) jump(target Address) Address {
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpConditional(target Address) Address {
+func (e *emitter) jumpEqual(target Address) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Je, Address: target})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) jumpNotEqual(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jne, Address: target})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) jumpLess(target Address) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Jl, Address: target})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) jumpLessEqual(target Address) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Jle, Address: target})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) jumpGreater(target Address) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Jg, Address: target})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) jumpGreaterEqual(target Address) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Jge, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 

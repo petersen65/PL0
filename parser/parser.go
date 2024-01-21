@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
 
 import (
@@ -9,15 +10,17 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// Private implementation of the recursive descent parser.
 type parser struct {
-	concreteSyntaxIndex       int
-	concreteSyntax            scn.ConcreteSyntax
-	emitter                   emt.Emitter
-	lastTokenDescription, eof scn.TokenDescription
-	symbolTable               *symbolTable
-	errorReport               ErrorReport
+	concreteSyntaxIndex       int                  // index of the current token in the concrete syntax
+	concreteSyntax            scn.ConcreteSyntax   // concrete syntax to parse
+	emitter                   emt.Emitter          // emitter that emits the code
+	lastTokenDescription, eof scn.TokenDescription // description of the last token that was read
+	symbolTable               *symbolTable         // symbol table that stores all symbols of the program
+	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
 }
 
+// Run the recursive descent parser to map the concrete syntax to its corresponding emitted code.
 func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
 	if err := p.reset(concreteSyntax, emitter); err != nil {
 		return p.errorReport, err
@@ -40,6 +43,7 @@ func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 	}
 }
 
+// Reset the parser to its initial state so that it can be reused.
 func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) error {
 	p.concreteSyntaxIndex = 0
 	p.concreteSyntax = concreteSyntax
@@ -54,23 +58,8 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	return nil
 }
 
+// A block is a sequence of declarations followed by a statement.
 func (p *parser) block(name string, depth int32, expected scn.Tokens) {
-	// a block is a sequence of declarations followed by a statement
-
-	// a declaration is a sequence of
-	//   constant,
-	//   variable,
-	//   and procedure declarations
-
-	// a statement is either
-	//   an assignment statement,
-	//   a read statement,
-	//   a write statement,
-	//   a procedure call,
-	// 	 an if statement,
-	//   a while statement,
-	//   or a sequence of statements surrounded by begin and end
-
 	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
 
@@ -130,6 +119,7 @@ func (p *parser) block(name string, depth int32, expected scn.Tokens) {
 	p.rebase(unexpectedTokens, expected, scn.Empty)
 }
 
+// Sequence of constants declarations.
 func (p *parser) constWord(depth int32) {
 	p.nextTokenDescription()
 
@@ -153,6 +143,7 @@ func (p *parser) constWord(depth int32) {
 	}
 }
 
+// Sequence of variable declarations.
 func (p *parser) varWord(depth int32, offset *uint64) {
 	p.nextTokenDescription()
 
@@ -176,6 +167,7 @@ func (p *parser) varWord(depth int32, offset *uint64) {
 	}
 }
 
+// Sequence of procedure declarations.
 func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
@@ -198,6 +190,7 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 	}
 }
 
+// An assignment is an identifier followed by becomes followed by an expression.
 func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	symbol, ok := p.symbolTable.find(p.lastTokenValue().(string))
 
@@ -223,6 +216,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 	}
 }
 
+// A read statement is the read operator followed by an identifier that must be a variable.
 func (p *parser) read(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 
@@ -245,12 +239,14 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 }
 
+// A write statement is the write operator followed by an expression.
 func (p *parser) write(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	p.expression(depth, expected)
 	p.emitter.System(emt.Write)
 }
 
+// A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
 func (p *parser) beginWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
@@ -273,6 +269,7 @@ func (p *parser) beginWord(depth int32, expected scn.Tokens) {
 	}
 }
 
+// A call statement is the call word followed by a procedure identifier.
 func (p *parser) callWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 
@@ -293,9 +290,10 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 	}
 }
 
+// An if statement is the if word followed by a condition followed by the then word followed by a statement.
 func (p *parser) ifWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
-	p.condition(depth, set(expected, scn.ThenWord, scn.DoWord))
+	relationalOperator := p.condition(depth, set(expected, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextTokenDescription()
@@ -303,16 +301,24 @@ func (p *parser) ifWord(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedThen, p.lastTokenName()))
 	}
 
-	ifDecision := p.emitter.Jump(emt.NullAddress)
+	// jump over statement if the condition is false and remember the address of the jump instruction
+	ifDecision := p.JumpConditional(relationalOperator, false)
+
+	// parse and emit the statement which is executed if the condition is true
 	p.statement(depth, expected)
+
+	// update the conditional jump instruction address to the first instruction after the if statement
 	p.emitter.Update(ifDecision, p.emitter.GetNextAddress())
 }
 
+// A while statement is the while word followed by a condition followed by the do word followed by a statement.
 func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
 	whileCondition := p.emitter.GetNextAddress()
-	p.condition(depth, set(expected, scn.DoWord))
-	whileDecision := p.emitter.JumpConditional(emt.NullAddress)
+	relationalOperator := p.condition(depth, set(expected, scn.DoWord))
+
+	// jump over statement if the condition is false and remember the address of the jump instruction
+	whileDecision := p.JumpConditional(relationalOperator, false)
 
 	if p.lastToken() == scn.DoWord {
 		p.nextTokenDescription()
@@ -320,11 +326,17 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedDo, p.lastTokenName()))
 	}
 
+	// parse and emit the statement which is executed as long as the condition is true
 	p.statement(depth, expected)
+
+	// uncnoditional jump back to the condition evaluation
 	p.emitter.Jump(whileCondition)
+
+	// update the conditional jump instruction address to the first instruction after the while statement
 	p.emitter.Update(whileDecision, p.emitter.GetNextAddress())
 }
 
+// A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
 func (p *parser) constantIdentifier(depth int32) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
@@ -358,6 +370,7 @@ func (p *parser) constantIdentifier(depth int32) {
 	}
 }
 
+// A variable identifier is an identifier to be stored in the symbol table.
 func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
@@ -372,6 +385,7 @@ func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 	}
 }
 
+// A procedure identifier is an identifier to be stored in the symbol table.
 func (p *parser) procedureIdentifier(depth int32) string {
 	var procedureName string
 
@@ -391,15 +405,16 @@ func (p *parser) procedureIdentifier(depth int32) string {
 	return procedureName
 }
 
+// A statement is either
+//
+//	an assignment statement,
+//	a read statement,
+//	a write statement,
+//	a procedure call,
+//	an if statement,
+//	a while statement,
+//	or a sequence of statements surrounded by begin and end.
 func (p *parser) statement(depth int32, expected scn.Tokens) {
-	// a statement is either
-	//   an assignment statement,
-	//   a read statement,
-	//   a write statement,
-	//   a procedure call,
-	// 	 an if statement,
-	//   a while statement,
-	//   or a sequence of statements surrounded by begin and end
 
 	switch p.lastToken() {
 	case scn.Identifier:
@@ -427,9 +442,103 @@ func (p *parser) statement(depth int32, expected scn.Tokens) {
 	p.rebase(expectedStatement, expected, scn.Empty)
 }
 
-func (p *parser) expression(depth int32, expected scn.Tokens) {
-	// an expression is a sequence of terms separated by plus or minus
+// A condition is either an odd expression or two expressions separated by a relational operator.
+func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
+	var relationalOperator scn.Token
 
+	if p.lastToken() == scn.OddWord {
+		relationalOperator = p.lastToken()
+		p.nextTokenDescription()
+		p.expression(depth, expected)
+		p.emitter.Odd()
+	} else {
+		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+
+		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
+		} else {
+			relationalOperator = p.lastToken()
+			p.nextTokenDescription()
+			p.expression(depth, expected)
+
+			switch relationalOperator {
+			case scn.Equal:
+				p.emitter.Equal()
+
+			case scn.NotEqual:
+				p.emitter.NotEqual()
+
+			case scn.Less:
+				p.emitter.Less()
+
+			case scn.LessEqual:
+				p.emitter.LessEqual()
+
+			case scn.Greater:
+				p.emitter.Greater()
+
+			case scn.GreaterEqual:
+				p.emitter.GreaterEqual()
+			}
+		}
+	}
+
+	return relationalOperator
+}
+
+// Emit a conditional jump instruction based on the relational operator of a condition.
+func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
+	var address emt.Address
+
+	if condition {
+		// jump if the condition is true and remember the address of the jump instruction
+		switch relationalOperator {
+		case scn.Equal:
+			address = p.emitter.JumpEqual(emt.NullAddress)
+
+		case scn.NotEqual:
+			address = p.emitter.JumpNotEqual(emt.NullAddress)
+
+		case scn.Less:
+			address = p.emitter.JumpLess(emt.NullAddress)
+
+		case scn.LessEqual:
+			address = p.emitter.JumpLessEqual(emt.NullAddress)
+
+		case scn.Greater:
+			address = p.emitter.JumpGreater(emt.NullAddress)
+
+		case scn.GreaterEqual:
+			address = p.emitter.JumpGreaterEqual(emt.NullAddress)
+		}
+	} else {
+		// jump if the condition is false and remember the address of the jump instruction
+		switch relationalOperator {
+		case scn.Equal:
+			address = p.emitter.JumpNotEqual(emt.NullAddress)
+
+		case scn.NotEqual:
+			address = p.emitter.JumpEqual(emt.NullAddress)
+
+		case scn.Less:
+			address = p.emitter.JumpGreaterEqual(emt.NullAddress)
+
+		case scn.LessEqual:
+			address = p.emitter.JumpGreater(emt.NullAddress)
+
+		case scn.Greater:
+			address = p.emitter.JumpLessEqual(emt.NullAddress)
+
+		case scn.GreaterEqual:
+			address = p.emitter.JumpLess(emt.NullAddress)
+		}
+	}
+
+	return address
+}
+
+// An expression is a sequence of terms separated by plus or minus.
+func (p *parser) expression(depth int32, expected scn.Tokens) {
 	// handle leading plus or minus sign of a term
 	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 		plusOrMinus := p.lastToken()
@@ -461,45 +570,7 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 	}
 }
 
-func (p *parser) condition(depth int32, expected scn.Tokens) {
-	if p.lastToken() == scn.OddWord {
-		p.nextTokenDescription()
-		p.expression(depth, expected)
-		p.emitter.Odd()
-	} else {
-		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
-
-		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
-			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
-		} else {
-			relationalOperator := p.lastToken()
-			p.nextTokenDescription()
-			p.expression(depth, expected)
-
-			switch relationalOperator {
-			case scn.Equal:
-				p.emitter.Equal()
-
-			case scn.NotEqual:
-				p.emitter.NotEqual()
-
-			case scn.Less:
-				p.emitter.Less()
-
-			case scn.LessEqual:
-				p.emitter.LessEqual()
-
-			case scn.Greater:
-				p.emitter.Greater()
-
-			case scn.GreaterEqual:
-				p.emitter.GreaterEqual()
-			}
-		}
-	}
-}
-
-// a term is a sequence of factors separated by times or divide
+// A term is a sequence of factors separated by times or divide.
 func (p *parser) term(depth int32, expected scn.Tokens) {
 
 	// handle left factor of a times or divide operator
@@ -520,7 +591,7 @@ func (p *parser) term(depth int32, expected scn.Tokens) {
 	}
 }
 
-// a factor is either an identifier, a number, or an expression surrounded by parentheses
+// A factor is either an identifier, a number, or an expression surrounded by parentheses.
 func (p *parser) factor(depth int32, side emt.Side, expected scn.Tokens) {
 	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
