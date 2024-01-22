@@ -11,9 +11,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-cr",
-                "examples/ex2.pl0",
-                "examples/ex2.il0"
+                "-cp",
+                "examples/ex1.pl0",
+                "examples/ex1.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false
