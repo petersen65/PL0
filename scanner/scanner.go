@@ -57,8 +57,13 @@ var tokenMap = map[string]Token{
 	"procedure": ProcedureWord,
 }
 
+// Return the public interface of the private scanner implementation.
+func newScanner() Scanner {
+	return &scanner{}
+}
+
 // Run the multi-pass PL/0 scanner to map the source code to its corresponding concrete syntax.
-func (s *scanner) scan(content []byte) (ConcreteSyntax, error) {
+func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
 	if err := s.reset(content); err != nil {
 		return make(ConcreteSyntax, 0), err
 	}

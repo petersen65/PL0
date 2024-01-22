@@ -20,8 +20,13 @@ type parser struct {
 	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
 }
 
+// Return the public interface of the private parser implementation.
+func newParser() Parser {
+	return &parser{}
+}
+
 // Run the recursive descent parser to map the concrete syntax to its corresponding emitted code.
-func (p *parser) parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
+func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
 	if err := p.reset(concreteSyntax, emitter); err != nil {
 		return p.errorReport, err
 	}

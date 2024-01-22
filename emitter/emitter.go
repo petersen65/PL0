@@ -13,7 +13,13 @@ type emitter struct {
 	textSection TextSection
 }
 
-func (e *emitter) updateAddress(instruction, target Address) error {
+func newEmitter() Emitter {
+	return &emitter{
+		textSection: make(TextSection, 0),
+	}
+}
+
+func (e *emitter) Update(instruction, target Address) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
 		return newError(instructionOutOfRange, instruction)
 	}
@@ -22,7 +28,11 @@ func (e *emitter) updateAddress(instruction, target Address) error {
 	return nil
 }
 
-func (e *emitter) exportSections() ([]byte, error) {
+func (e *emitter) GetNextAddress() Address {
+	return Address(len(e.textSection))
+}
+
+func (e *emitter) Export() ([]byte, error) {
 	var buffer bytes.Buffer
 
 	if err := binary.Write(&buffer, binary.LittleEndian, e.textSection); err != nil {
@@ -32,12 +42,12 @@ func (e *emitter) exportSections() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (e *emitter) constant(side Side, value any) Address {
+func (e *emitter) Constant(side Side, value any) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Lit, Side: side, Arg1: value.(int64)})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) variable(side Side, offset Offset, depth int32, store bool) Address {
+func (e *emitter) Variable(side Side, offset Offset, depth int32, store bool) Address {
 	if store {
 		e.textSection = append(e.textSection, Instruction{Operation: Sto, Side: side, Address: Address(offset), Depth: depth})
 	} else {
@@ -47,117 +57,117 @@ func (e *emitter) variable(side Side, offset Offset, depth int32, store bool) Ad
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) multiply() Address {
+func (e *emitter) Multiply() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Mul})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) divide() Address {
+func (e *emitter) Divide() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Div})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) add() Address {
+func (e *emitter) Add() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Add})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) subtract() Address {
+func (e *emitter) Subtract() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Sub})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) negate() Address {
+func (e *emitter) Negate() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Neg})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) odd() Address {
+func (e *emitter) Odd() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Odd})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) equal() Address {
+func (e *emitter) Equal() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Eq})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) notEqual() Address {
+func (e *emitter) NotEqual() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Neq})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) less() Address {
+func (e *emitter) Less() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Lss})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) lessEqual() Address {
+func (e *emitter) LessEqual() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Leq})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) greater() Address {
+func (e *emitter) Greater() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Gtr})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) greaterEqual() Address {
+func (e *emitter) GreaterEqual() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Geq})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jump(target Address) Address {
+func (e *emitter) Jump(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jmp, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpEqual(target Address) Address {
+func (e *emitter) JumpEqual(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Je, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpNotEqual(target Address) Address {
+func (e *emitter) JumpNotEqual(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jne, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpLess(target Address) Address {
+func (e *emitter) JumpLess(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jl, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpLessEqual(target Address) Address {
+func (e *emitter) JumpLessEqual(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jle, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpGreater(target Address) Address {
+func (e *emitter) JumpGreater(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jg, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) jumpGreaterEqual(target Address) Address {
+func (e *emitter) JumpGreaterEqual(target Address) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Jge, Address: target})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) allocateStackSpace(offset Offset) Address {
+func (e *emitter) AllocateStackSpace(offset Offset) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Inc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) call(target Address, depth int32) Address {
+func (e *emitter) Call(target Address, depth int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, Depth: depth})
 	return Address(len(e.textSection) - 1)
 }	
 
-func (e *emitter) returnFromCall() Address {
+func (e *emitter) Return() Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Ret})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) systemCall(call SystemCall) Address {
+func (e *emitter) System(call SystemCall) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Sys, Address: Address(call)})
 	return Address(len(e.textSection) - 1)
 }

@@ -178,12 +178,7 @@ var (
 
 // Return the public interface of the private scanner implementation.
 func NewScanner() Scanner {
-	return &scanner{}
-}
-
-// Scan performs a lexical analysis of the source code.
-func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
-	return s.scan(content)
+	return newScanner()
 }
 
 // Set returns a joined token set of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
