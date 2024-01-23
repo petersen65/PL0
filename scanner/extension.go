@@ -52,17 +52,21 @@ func slidingScan(syntax ConcreteSyntax) (ConcreteSyntax, error) {
 					number.TokenValue = "-" + number.TokenValue.(string)
 				}
 
-				if int64Value, err := strconv.ParseInt(number.TokenValue.(string), 10, IntegerBitSize); err != nil {
-					errFull = newError(illegalInteger, number.TokenValue, number.Line, number.Column)
-				} else {
-					number.TokenValue = int64Value
-				}
-
-				number.TokenType = Integer64
+				number, errFull = numberValue(number)
 				fullSyntax = append(fullSyntax, number)
 			} else {
 				fullSyntax = append(fullSyntax, syntax[i])
 			}
+
+		case Number:
+			number := syntax[i]
+
+			if len(number.TokenValue.(string)) == 0 {
+				number.TokenValue = "0"
+			}
+
+			number, errFull = numberValue(number)
+			fullSyntax = append(fullSyntax, number)
 
 		default:
 			fullSyntax = append(fullSyntax, syntax[i])
@@ -92,4 +96,17 @@ func merge(targetToken Token, sourceToken TokenDescription) TokenDescription {
 		Column:      sourceToken.Column,
 		CurrentLine: sourceToken.CurrentLine,
 	}
+}
+
+// Analyze the concrete syntax of a number and convert it to an Integer64 value.
+func numberValue(number TokenDescription) (TokenDescription, error) {
+	number.TokenType = Integer64
+
+	if int64Value, err := strconv.ParseInt(number.TokenValue.(string), 10, IntegerBitSize); err != nil {
+		return number, newError(illegalInteger, number.TokenValue, number.Line, number.Column)
+	} else {
+		number.TokenValue = int64Value
+	}
+
+	return number, nil
 }
