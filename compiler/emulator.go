@@ -94,7 +94,7 @@ func (m *machine) runProgram(sections []byte) error {
 	m.cpu.registers[dx] = 0    // data register
 	m.cpu.registers[flags] = 0 // flags register
 
-	// execute instructions until the the frist callee returns to the first caller (entrypoint returns to external code)
+	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
 		if m.cpu.registers[ip] >= uint64(len(process.text)) {
 			return fmt.Errorf("halt - address '%v' out of range", m.cpu.registers[ip])
@@ -292,12 +292,12 @@ func (c *cpu) set_sf(a int64) {
 	}
 }
 
-// set sign flag if int64 element is negative
-func (c *cpu) set_sf_neg(a int64) {
+// set overflow flag if negation of the int64 element overflows
+func (c *cpu) set_of_neg(a int64) {
 	if a == math.MinInt64 {
-		c.registers[flags] |= uint64(sf)
+		c.registers[flags] |= uint64(of)
 	} else {
-		c.registers[flags] &= ^uint64(sf)
+		c.registers[flags] &= ^uint64(of)
 	}
 }
 
@@ -319,6 +319,7 @@ func (c *cpu) set_of_sub(a, b int64) {
 	}
 }
 
+// set overflow flag if multiplication of two int64 elements overflows
 func (c *cpu) set_of_mul(a, b int64) {
 	if a != 0 && (a*b)/a != b {
 		c.registers[flags] |= uint64(of)
@@ -378,7 +379,7 @@ func (c *cpu) neg(reg register) {
 	a := -int64(c.registers[reg])
 	c.set_zf(a)
 	c.set_sf(a)
-	c.set_sf_neg(a)
+	c.set_of_neg(a)
 	c.registers[reg] = uint64(a)
 }
 
