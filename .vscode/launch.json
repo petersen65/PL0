@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-cp",
+                "-cr",
                 "examples/ex1.pl0",
                 "examples/ex1.il0"
             ],

@@ -447,50 +447,6 @@ func (p *parser) statement(depth int32, expected scn.Tokens) {
 	p.rebase(expectedStatement, expected, scn.Empty)
 }
 
-// A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
-	var relationalOperator scn.Token
-
-	if p.lastToken() == scn.OddWord {
-		relationalOperator = p.lastToken()
-		p.nextTokenDescription()
-		p.expression(depth, expected)
-		p.emitter.Odd()
-	} else {
-		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
-
-		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
-			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
-		} else {
-			relationalOperator = p.lastToken()
-			p.nextTokenDescription()
-			p.expression(depth, expected)
-
-			switch relationalOperator {
-			case scn.Equal:
-				p.emitter.Equal()
-
-			case scn.NotEqual:
-				p.emitter.NotEqual()
-
-			case scn.Less:
-				p.emitter.Less()
-
-			case scn.LessEqual:
-				p.emitter.LessEqual()
-
-			case scn.Greater:
-				p.emitter.Greater()
-
-			case scn.GreaterEqual:
-				p.emitter.GreaterEqual()
-			}
-		}
-	}
-
-	return relationalOperator
-}
-
 // Emit a conditional jump instruction based on the relational operator of a condition.
 func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
 	var address emt.Address
@@ -542,6 +498,50 @@ func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) e
 	return address
 }
 
+// A condition is either an odd expression or two expressions separated by a relational operator.
+func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
+	var relationalOperator scn.Token
+
+	if p.lastToken() == scn.OddWord {
+		relationalOperator = p.lastToken()
+		p.nextTokenDescription()
+		p.expression(depth, expected)
+		p.emitter.Odd()
+	} else {
+		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+
+		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
+		} else {
+			relationalOperator = p.lastToken()
+			p.nextTokenDescription()
+			p.expression(depth, expected)
+
+			switch relationalOperator {
+			case scn.Equal:
+				p.emitter.Equal()
+
+			case scn.NotEqual:
+				p.emitter.NotEqual()
+
+			case scn.Less:
+				p.emitter.Less()
+
+			case scn.LessEqual:
+				p.emitter.LessEqual()
+
+			case scn.Greater:
+				p.emitter.Greater()
+
+			case scn.GreaterEqual:
+				p.emitter.GreaterEqual()
+			}
+		}
+	}
+
+	return relationalOperator
+}
+
 // An expression is a sequence of terms separated by plus or minus.
 func (p *parser) expression(depth int32, expected scn.Tokens) {
 	// handle leading plus or minus sign of a term
@@ -550,14 +550,14 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.nextTokenDescription()
 
 		// handle left term of a plus or minus operator
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, emt.Left, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
 			p.emitter.Negate()
 		}
 	} else {
 		// handle left term of a plus or minus operator
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, emt.Left, set(expected, scn.Plus, scn.Minus))
 	}
 
 	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -565,7 +565,7 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.nextTokenDescription()
 
 		// handle right term of a plus or minus operator
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, emt.Right, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Plus {
 			p.emitter.Add()
@@ -576,10 +576,10 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(depth int32, expected scn.Tokens) {
+func (p *parser) term(depth int32, side emt.Side, expected scn.Tokens) {
 
 	// handle left factor of a times or divide operator
-	p.factor(depth, emt.Left, set(expected, scn.Times, scn.Divide))
+	p.factor(depth, side, set(expected, scn.Times, scn.Divide))
 
 	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
 		timesOrDevide := p.lastToken()

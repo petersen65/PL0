@@ -340,15 +340,14 @@ func (c *cpu) sys(code emt.SystemCall) {
 			_, err := fmt.Scanln(&input)
 
 			if err == nil {
-				c.push(uint64(input))
+				c.registers[ax] = uint64(input)
 				break
 			}
 		}
 
 	case emt.Write:
 		// write integer to stdout
-		fmt.Printf("%v\n", int64(c.stack[c.registers[sp]]))
-		c.registers[sp]--
+		fmt.Printf("%v\n", int64(c.registers[ax]))
 	}
 }
 
