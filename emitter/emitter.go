@@ -42,47 +42,47 @@ func (e *emitter) Export() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (e *emitter) Constant(memloc MemoryLocation, value any) Address {
+func (e *emitter) Constant(memloc int32, value any) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Lit, MemoryLocation: memloc, Arg1: value.(int64)})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Variable(memloc MemoryLocation, offset Offset, depth int32, store bool) Address {
-	if store {
-		e.textSection = append(e.textSection, Instruction{Operation: Sto, MemoryLocation: memloc, Address: Address(offset), Depth: depth})
-	} else {
-		e.textSection = append(e.textSection, Instruction{Operation: Lod, MemoryLocation: memloc, Address: Address(offset), Depth: depth})
-	}
-
+func (e *emitter) LoadVariable(offset Offset, depth, memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Lod, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Multiply(memloc MemoryLocation) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Mul, MemoryLocation: memloc})
+func (e *emitter) StoreVariable(offset Offset, depth, memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Sto, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Divide(memloc MemoryLocation) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Div, MemoryLocation: memloc})
-	return Address(len(e.textSection) - 1)
-}
-
-func (e *emitter) Add(memloc MemoryLocation) Address {
+func (e *emitter) Add(memloc int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Add, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Subtract(memloc MemoryLocation) Address {
+func (e *emitter) Subtract(memloc int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Sub, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Negate(memloc MemoryLocation) Address {
+func (e *emitter) Multiply(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Mul, MemoryLocation: memloc})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) Divide(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Div, MemoryLocation: memloc})
+	return Address(len(e.textSection) - 1)
+}
+
+func (e *emitter) Negate(memloc int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Neg, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Odd(memloc MemoryLocation) Address {
+func (e *emitter) Odd(memloc int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Odd, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
@@ -158,7 +158,7 @@ func (e *emitter) AllocateStackSpace(offset Offset) Address {
 }
 
 func (e *emitter) Call(target Address, depth int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, Depth: depth})
+	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepth: depth})
 	return Address(len(e.textSection) - 1)
 }
 

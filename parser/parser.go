@@ -15,6 +15,8 @@ type parser struct {
 	concreteSyntaxIndex       int                  // index of the current token in the concrete syntax
 	concreteSyntax            scn.ConcreteSyntax   // concrete syntax to parse
 	emitter                   emt.Emitter          // emitter that emits the code
+	declarationDepth 		  int32                // declaration depth of nested blocks
+	memoryLocation            int32                // memory location of the current expression
 	lastTokenDescription, eof scn.TokenDescription // description of the last token that was read
 	symbolTable               *symbolTable         // symbol table that stores all symbols of the program
 	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
@@ -33,7 +35,7 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 
 	// a program starts with a block of declaration depth 0
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
-	p.block(emt.EntryPointName, 0, set(declarations, statements, scn.Period))
+	p.block(emt.EntryPointName, set(declarations, statements, scn.Period))
 
 	if p.lastToken() != scn.Period {
 		p.appendError(p.error(expectedPeriod, p.lastTokenDescription.TokenName))
@@ -53,6 +55,8 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	p.concreteSyntaxIndex = 0
 	p.concreteSyntax = concreteSyntax
 	p.emitter = emitter
+	p.declarationDepth = 0
+	p.memoryLocation = 0
 	p.symbolTable = newSymbolTable()
 	p.errorReport = make(ErrorReport, 0)
 
@@ -64,7 +68,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(name string, depth int32, expected scn.Tokens) {
+func (p *parser) block(name string, expected scn.Tokens) {
 	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
 
@@ -213,7 +217,8 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedBecomes, p.lastTokenName()))
 	}
 
-	memoryLocation := p.expression(depth, expected)
+	p.memoryLocation = int32(emt.M1)
+	p.expression(depth, expected)
 
 	if ok && symbol.kind == variable {
 		p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
@@ -247,7 +252,8 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 // A write statement is the write operator followed by an expression.
 func (p *parser) write(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
-	memoryLocation := p.expression(depth, expected)
+	p.memoryLocation = int32(emt.M1)
+	p.expression(depth, expected)
 	p.emitter.System(emt.Write)
 }
 
@@ -505,17 +511,17 @@ func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
 	if p.lastToken() == scn.OddWord {
 		relationalOperator = p.lastToken()
 		p.nextTokenDescription()
-		memoryLocation := p.expression(depth, expected)
-		p.emitter.Odd(memoryLocation)
+		p.expression(depth, expected)
+		p.emitter.Odd(emt.MemoryLocation(p.memoryLocation))
 	} else {
-		memoryLocation1 := p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
 		} else {
 			relationalOperator = p.lastToken()
 			p.nextTokenDescription()
-			memoryLocation2 := p.expression(depth, expected)
+			p.expression(depth, expected)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -543,23 +549,21 @@ func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(depth int32, expected scn.Tokens) emt.MemoryLocation {
-	memoryLocation := int32(emt.M1)
-
+func (p *parser) expression(depth int32, expected scn.Tokens) {
 	// handle leading plus or minus sign of a term
 	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 		plusOrMinus := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle left term of a plus or minus operator
-		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			p.emitter.Negate(emt.MemoryLocation(memoryLocation))
+			p.emitter.Negate(emt.MemoryLocation(p.memoryLocation))
 		}
 	} else {
 		// handle left term of a plus or minus operator
-		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
 	}
 
 	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -567,46 +571,44 @@ func (p *parser) expression(depth int32, expected scn.Tokens) emt.MemoryLocation
 		p.nextTokenDescription()
 
 		// handle right term of a plus or minus operator
-		memoryLocation++
-		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
-		memoryLocation--
+		p.memoryLocation++
+		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.memoryLocation--
 
 		if plusOrMinus == scn.Plus {
-			p.emitter.Add(emt.MemoryLocation(memoryLocation))
+			p.emitter.Add(emt.MemoryLocation(p.memoryLocation))
 		} else {
-			p.emitter.Subtract(emt.MemoryLocation(memoryLocation))
+			p.emitter.Subtract(emt.MemoryLocation(p.memoryLocation))
 		}
 	}
-
-	return emt.MemoryLocation(memoryLocation)
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(depth int32, memoryLocation *int32, expected scn.Tokens) {
+func (p *parser) term(depth int32, expected scn.Tokens) {
 
 	// handle left factor of a times or divide operator
-	p.factor(depth, *memoryLocation, set(expected, scn.Times, scn.Divide))
+	p.factor(depth, set(expected, scn.Times, scn.Divide))
 
 	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
 		timesOrDevide := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle right factor of a times or divide operator
-		*memoryLocation++
-		p.factor(depth, *memoryLocation, set(expected, scn.Times, scn.Divide))
-		*memoryLocation--
+		p.memoryLocation++
+		p.factor(depth, set(expected, scn.Times, scn.Divide))
+		p.memoryLocation--
 
 		if timesOrDevide == scn.Times {
-			p.emitter.Multiply(emt.MemoryLocation(*memoryLocation))
+			p.emitter.Multiply(emt.MemoryLocation(p.memoryLocation))
 
 		} else {
-			p.emitter.Divide(emt.MemoryLocation(*memoryLocation))
+			p.emitter.Divide(emt.MemoryLocation(p.memoryLocation))
 		}
 	}
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(depth, memoryLocation int32, expected scn.Tokens) {
+func (p *parser) factor(depth int32, expected scn.Tokens) {
 	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for p.lastToken().In(factors) {
@@ -614,10 +616,10 @@ func (p *parser) factor(depth, memoryLocation int32, expected scn.Tokens) {
 			if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					p.emitter.Constant(emt.MemoryLocation(memoryLocation), symbol.value)
+					p.emitter.Constant(emt.MemoryLocation(p.memoryLocation), symbol.value)
 
 				case variable:
-					p.emitter.Variable(emt.MemoryLocation(memoryLocation), emt.Offset(symbol.offset), depth-symbol.depth, false)
+					p.emitter.Variable(emt.MemoryLocation(p.memoryLocation), emt.Offset(symbol.offset), depth-symbol.depth, false)
 
 				case procedure:
 					p.appendError(p.error(expectedConstantsVariables, kindNames[symbol.kind]))
@@ -628,7 +630,7 @@ func (p *parser) factor(depth, memoryLocation int32, expected scn.Tokens) {
 
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.Number {
-			p.emitter.Constant(emt.MemoryLocation(memoryLocation), p.lastTokenValue())
+			p.emitter.Constant(emt.MemoryLocation(p.memoryLocation), p.lastTokenValue())
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.LeftParenthesis {
 			p.nextTokenDescription()

@@ -201,9 +201,9 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// preserve state of caller and create descriptor of procedure being called
-			m.cpu.push(m.cpu.base(instr.Depth)) // dynamic link to procedure being called
-			m.cpu.push(m.cpu.registers[bp])     // save callers base pointer
-			m.cpu.push(m.cpu.registers[ip])     // save callers instruction pointer
+			m.cpu.push(m.cpu.base(instr.DeclarationDepth)) // dynamic link to procedure being called
+			m.cpu.push(m.cpu.registers[bp])                // save callers base pointer
+			m.cpu.push(m.cpu.registers[ip])                // save callers instruction pointer
 
 			// base pointer of procedure being called is pointing to its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp] - 2
@@ -224,10 +224,10 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
 		case emt.Lod: // copy int64 variable into a register loaded from its base plus offset
-			m.cpu.mov(getRegister(instr.MemoryLocation), m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
+			m.cpu.mov(getRegister(instr.MemoryLocation), m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3])
 
 		case emt.Sto: // copy int64 variable from ax register to its base plus offset
-			m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3] = m.cpu.registers[ax]
+			m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3] = m.cpu.registers[ax]
 
 		case emt.Sys: // system call to operating system based on system call code
 			m.cpu.sys(emt.SystemCall(instr.Address))
@@ -255,14 +255,14 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n", "text", "op", "mem", "dep", "addr", "arg1")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n", "text", "op", "mloc", "dep", "addr", "arg1")))
 
 	for text, instr := range p.text {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n",
 			text,
 			emt.OperationNames[instr.Operation],
 			instr.MemoryLocation,
-			instr.Depth,
+			instr.DeclarationDepth,
 			instr.Address,
 			instr.Arg1)))
 	}

@@ -43,42 +43,34 @@ const (
 	Write
 )
 
-const (
-	None = MemoryLocation(iota)
-	M1
-	M2
-	M3
-	M4
-)
-
 type (
 	Operation      int32
-	MemoryLocation int32
 	SystemCall     int32
 	Address        uint64
 	Offset         uint64
 	TextSection    []Instruction
 
 	Instruction struct {
-		Depth          int32
-		Operation      Operation
-		MemoryLocation MemoryLocation
-		Address        Address
-		Arg1           int64
+		Operation        Operation
+		DeclarationDepth int32
+		MemoryLocation   int32
+		Address          Address
+		Arg1             int64
 	}
 
 	Emitter interface {
 		Update(instruction, target Address) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
-		Constant(memloc MemoryLocation, value any) Address
-		Variable(memloc MemoryLocation, offset Offset, depth int32, store bool) Address
-		Multiply(memloc MemoryLocation) Address
-		Divide(memloc MemoryLocation) Address
-		Add(memloc MemoryLocation) Address
-		Subtract(memloc MemoryLocation) Address
-		Negate(memloc MemoryLocation) Address
-		Odd(memloc MemoryLocation) Address
+		Constant(memloc int32, value any) Address
+		LoadVariable(offset Offset, depth int32, memloc int32) Address
+		StoreVariable(offset Offset, depth int32, memloc int32) Address
+		Add(memloc int32) Address
+		Subtract(memloc int32) Address
+		Multiply(memloc int32) Address
+		Divide(memloc int32) Address
+		Negate(memloc int32) Address
+		Odd(memloc int32) Address
 		Equal() Address
 		NotEqual() Address
 		Less() Address
