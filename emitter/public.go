@@ -5,7 +5,6 @@
 package emitter
 
 const (
-	ArgumentSize        = 8        // size of an instruction argument in bytes
 	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
 	EntryPointName      = "_start" // name of the entry point procedure of a program
 )
@@ -45,39 +44,41 @@ const (
 )
 
 const (
-	None = Side(iota)
-	Left
-	Right
+	None = MemoryLocation(iota)
+	M1
+	M2
+	M3
+	M4
 )
 
 type (
-	Operation   int32
-	Side        int32
-	SystemCall  int32
-	Address     uint64
-	Offset      uint64
-	TextSection []Instruction
+	Operation      int32
+	MemoryLocation int32
+	SystemCall     int32
+	Address        uint64
+	Offset         uint64
+	TextSection    []Instruction
 
 	Instruction struct {
-		Depth     int32
-		Operation Operation
-		Side      Side
-		Address   Address
-		Arg1      int64
+		Depth          int32
+		Operation      Operation
+		MemoryLocation MemoryLocation
+		Address        Address
+		Arg1           int64
 	}
 
 	Emitter interface {
 		Update(instruction, target Address) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
-		Constant(side Side, value any) Address
-		Variable(side Side, offset Offset, depth int32, store bool) Address
-		Multiply() Address
-		Divide() Address
-		Add() Address
-		Subtract() Address
-		Negate() Address
-		Odd() Address
+		Constant(memloc MemoryLocation, value any) Address
+		Variable(memloc MemoryLocation, offset Offset, depth int32, store bool) Address
+		Multiply(memloc MemoryLocation) Address
+		Divide(memloc MemoryLocation) Address
+		Add(memloc MemoryLocation) Address
+		Subtract(memloc MemoryLocation) Address
+		Negate(memloc MemoryLocation) Address
+		Odd(memloc MemoryLocation) Address
 		Equal() Address
 		NotEqual() Address
 		Less() Address

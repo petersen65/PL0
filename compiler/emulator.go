@@ -64,6 +64,30 @@ func newMachine() *machine {
 	}
 }
 
+func getRegister(memloc emt.MemoryLocation) register {
+	switch memloc {
+	case emt.M1:
+		return ax
+
+	case emt.M2:
+		return bx
+
+	case emt.M3:
+		return cx
+
+	case emt.M4:
+		return dx
+
+	default:
+		panic(fmt.Sprintf("panic - invalid memory location '%v'", memloc))
+	}
+}
+
+// load a program and print it to a writer
+func printProgram(sections []byte, print io.Writer) error {
+	return (&process{}).dump(sections, print)
+}
+
 func (m *machine) runProgram(sections []byte) error {
 	var process process
 
@@ -108,12 +132,8 @@ func (m *machine) runProgram(sections []byte) error {
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
-		case emt.Lit: // copy int64 constant in ax or bx register
-			if instr.Side == emt.Left {
-				m.cpu.mov(ax, uint64(instr.Arg1))
-			} else {
-				m.cpu.mov(bx, uint64(instr.Arg1))
-			}
+		case emt.Lit: // copy int64 constant into a register
+			m.cpu.mov(getRegister(instr.MemoryLocation), uint64(instr.Arg1))
 
 		case emt.Jmp: // unconditionally jump to uint64 address
 			m.cpu.jmp(uint64(instr.Address))
@@ -139,31 +159,27 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Inc: // allocate space on stack for variables of a procedure
 			m.cpu.registers[sp] += uint64(instr.Address)
 
-		case emt.Neg: // negate int64 element in ax or bx register
-			if instr.Side == emt.Left {
-				m.cpu.neg(ax)
-			} else {
-				m.cpu.neg(bx)
-			}
+		case emt.Neg: // negate int64 element within a register
+			m.cpu.neg(getRegister(instr.MemoryLocation))
 
-		case emt.Add: // add two register ax and bx int64 elements and store the result in register ax
-			m.cpu.add(ax, bx)
+		case emt.Add: // add two register's int64 elements and store the result in the first register
+			m.cpu.add(getRegister(instr.MemoryLocation), getRegister(instr.MemoryLocation+1))
 
-		case emt.Sub: // subtract register bx from ax int64 elements and store the result in register ax
-			m.cpu.sub(ax, bx)
+		case emt.Sub: // subtract two register's int64 elements and store the result in the first register
+			m.cpu.sub(getRegister(instr.MemoryLocation), getRegister(instr.MemoryLocation+1))
 
-		case emt.Mul: // multiply register ax and bx int64 elements and store the result in register ax
-			m.cpu.mul(ax, bx)
+		case emt.Mul: // multiply two register's int64 elements and store the result in the first register
+			m.cpu.mul(getRegister(instr.MemoryLocation), getRegister(instr.MemoryLocation+1))
 
-		case emt.Div: // divide register ax by bx int64 elements and store the result in ax
-			if int64(m.cpu.registers[bx]) == 0 {
+		case emt.Div: // divide two register's int64 elements and store the result in the first register
+			if int64(m.cpu.registers[getRegister(instr.MemoryLocation+1)]) == 0 {
 				return fmt.Errorf("halt - division by zero at address '%v'", m.cpu.registers[ip]-1)
 			}
 
-			m.cpu.div(ax, bx)
+			m.cpu.div(getRegister(instr.MemoryLocation), getRegister(instr.MemoryLocation+1))
 
-		case emt.Odd: // test if register ax uint64 element is odd and set zero flag if it is
-			m.cpu.and(ax, 1)
+		case emt.Odd: // test if register's uint64 element is odd and set zero flag if it is
+			m.cpu.and(getRegister(instr.MemoryLocation), 1)
 
 		case emt.Eq: // test if register ax and bx int64 elements are equal and set zero flag if they are
 			fallthrough
@@ -207,12 +223,8 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
-		case emt.Lod: // copy int64 variable in ax or bx register loaded from its base plus offset
-			if instr.Side == emt.Left {
-				m.cpu.mov(ax, m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
-			} else {
-				m.cpu.mov(bx, m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
-			}
+		case emt.Lod: // copy int64 variable into a register loaded from its base plus offset
+			m.cpu.mov(getRegister(instr.MemoryLocation), m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3])
 
 		case emt.Sto: // copy int64 variable from ax register to its base plus offset
 			m.cpu.stack[m.cpu.base(instr.Depth)+uint64(instr.Address)+3] = m.cpu.registers[ax]
@@ -221,11 +233,6 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.sys(emt.SystemCall(instr.Address))
 		}
 	}
-}
-
-// load a program and print it to a writer
-func (m *machine) printProgram(sections []byte, print io.Writer) error {
-	return (&process{}).dump(sections, print)
 }
 
 // load text section from a byte slice
@@ -248,13 +255,13 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n", "text", "op", "side", "dep", "addr", "arg1")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n", "text", "op", "mem", "dep", "addr", "arg1")))
 
 	for text, instr := range p.text {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v %-5v\n",
 			text,
 			emt.OperationNames[instr.Operation],
-			instr.Side,
+			instr.MemoryLocation,
 			instr.Depth,
 			instr.Address,
 			instr.Arg1)))

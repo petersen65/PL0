@@ -99,7 +99,7 @@ func RunSections(sections []byte) error {
 }
 
 func PrintSections(sections []byte, print io.Writer) error {
-	return newMachine().printProgram(sections, print)
+	return printProgram(sections, print)
 }
 
 func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {

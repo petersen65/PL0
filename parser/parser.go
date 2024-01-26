@@ -213,7 +213,7 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedBecomes, p.lastTokenName()))
 	}
 
-	p.expression(depth, expected)
+	memoryLocation := p.expression(depth, expected)
 
 	if ok && symbol.kind == variable {
 		p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
@@ -247,7 +247,7 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 // A write statement is the write operator followed by an expression.
 func (p *parser) write(depth int32, expected scn.Tokens) {
 	p.nextTokenDescription()
-	p.expression(depth, expected)
+	memoryLocation := p.expression(depth, expected)
 	p.emitter.System(emt.Write)
 }
 
@@ -505,17 +505,17 @@ func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
 	if p.lastToken() == scn.OddWord {
 		relationalOperator = p.lastToken()
 		p.nextTokenDescription()
-		p.expression(depth, expected)
-		p.emitter.Odd()
+		memoryLocation := p.expression(depth, expected)
+		p.emitter.Odd(memoryLocation)
 	} else {
-		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		memoryLocation1 := p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
 		} else {
 			relationalOperator = p.lastToken()
 			p.nextTokenDescription()
-			p.expression(depth, expected)
+			memoryLocation2 := p.expression(depth, expected)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -543,21 +543,23 @@ func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(depth int32, expected scn.Tokens) {
+func (p *parser) expression(depth int32, expected scn.Tokens) emt.MemoryLocation {
+	memoryLocation := int32(emt.M1)
+
 	// handle leading plus or minus sign of a term
 	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 		plusOrMinus := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle left term of a plus or minus operator
-		p.term(depth, emt.Left, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			p.emitter.Negate()
+			p.emitter.Negate(emt.MemoryLocation(memoryLocation))
 		}
 	} else {
 		// handle left term of a plus or minus operator
-		p.term(depth, emt.Left, set(expected, scn.Plus, scn.Minus))
+		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
 	}
 
 	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -565,39 +567,46 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 		p.nextTokenDescription()
 
 		// handle right term of a plus or minus operator
-		p.term(depth, emt.Right, set(expected, scn.Plus, scn.Minus))
+		memoryLocation++
+		p.term(depth, &memoryLocation, set(expected, scn.Plus, scn.Minus))
+		memoryLocation--
 
 		if plusOrMinus == scn.Plus {
-			p.emitter.Add()
+			p.emitter.Add(emt.MemoryLocation(memoryLocation))
 		} else {
-			p.emitter.Subtract()
+			p.emitter.Subtract(emt.MemoryLocation(memoryLocation))
 		}
 	}
+
+	return emt.MemoryLocation(memoryLocation)
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(depth int32, side emt.Side, expected scn.Tokens) {
+func (p *parser) term(depth int32, memoryLocation *int32, expected scn.Tokens) {
 
 	// handle left factor of a times or divide operator
-	p.factor(depth, side, set(expected, scn.Times, scn.Divide))
+	p.factor(depth, *memoryLocation, set(expected, scn.Times, scn.Divide))
 
 	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
 		timesOrDevide := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle right factor of a times or divide operator
-		p.factor(depth, emt.Right, set(expected, scn.Times, scn.Divide))
+		*memoryLocation++
+		p.factor(depth, *memoryLocation, set(expected, scn.Times, scn.Divide))
+		*memoryLocation--
 
 		if timesOrDevide == scn.Times {
-			p.emitter.Multiply()
+			p.emitter.Multiply(emt.MemoryLocation(*memoryLocation))
+
 		} else {
-			p.emitter.Divide()
+			p.emitter.Divide(emt.MemoryLocation(*memoryLocation))
 		}
 	}
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(depth int32, side emt.Side, expected scn.Tokens) {
+func (p *parser) factor(depth, memoryLocation int32, expected scn.Tokens) {
 	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for p.lastToken().In(factors) {
@@ -605,10 +614,10 @@ func (p *parser) factor(depth int32, side emt.Side, expected scn.Tokens) {
 			if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					p.emitter.Constant(side, symbol.value)
+					p.emitter.Constant(emt.MemoryLocation(memoryLocation), symbol.value)
 
 				case variable:
-					p.emitter.Variable(side, emt.Offset(symbol.offset), depth-symbol.depth, false)
+					p.emitter.Variable(emt.MemoryLocation(memoryLocation), emt.Offset(symbol.offset), depth-symbol.depth, false)
 
 				case procedure:
 					p.appendError(p.error(expectedConstantsVariables, kindNames[symbol.kind]))
@@ -619,7 +628,7 @@ func (p *parser) factor(depth int32, side emt.Side, expected scn.Tokens) {
 
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.Number {
-			p.emitter.Constant(side, p.lastTokenValue())
+			p.emitter.Constant(emt.MemoryLocation(memoryLocation), p.lastTokenValue())
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.LeftParenthesis {
 			p.nextTokenDescription()
