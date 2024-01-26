@@ -64,22 +64,22 @@ func newMachine() *machine {
 	}
 }
 
-func getRegister(memloc emt.MemoryLocation) register {
+func getRegister(memloc int32) register {
 	switch memloc {
-	case emt.M1:
+	case 0:
 		return ax
 
-	case emt.M2:
+	case 1:
 		return bx
 
-	case emt.M3:
+	case 2:
 		return cx
 
-	case emt.M4:
+	case 3:
 		return dx
 
 	default:
-		panic(fmt.Sprintf("panic - invalid memory location '%v'", memloc))
+		panic(fmt.Sprintf("invalid memory location '%v'", memloc))
 	}
 }
 
@@ -226,11 +226,11 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Lod: // copy int64 variable into a register loaded from its base plus offset
 			m.cpu.mov(getRegister(instr.MemoryLocation), m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3])
 
-		case emt.Sto: // copy int64 variable from ax register to its base plus offset
-			m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3] = m.cpu.registers[ax]
+		case emt.Sto: // copy int64 variable from a register to its base plus offset
+			m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3] = m.cpu.registers[getRegister(instr.MemoryLocation)]
 
 		case emt.Sys: // system call to operating system based on system call code
-			m.cpu.sys(emt.SystemCall(instr.Address))
+			m.cpu.sys(emt.SystemCall(instr.Address), getRegister(instr.MemoryLocation))
 		}
 	}
 }
@@ -336,7 +336,7 @@ func (c *cpu) set_of_mul(a, b int64) {
 }
 
 // system call to operating system based on system call code
-func (c *cpu) sys(code emt.SystemCall) {
+func (c *cpu) sys(code emt.SystemCall, reg register) {
 	switch code {
 	case emt.Read:
 		// read integer from stdin
@@ -347,14 +347,14 @@ func (c *cpu) sys(code emt.SystemCall) {
 			_, err := fmt.Scanln(&input)
 
 			if err == nil {
-				c.registers[ax] = uint64(input)
+				c.registers[reg] = uint64(input)
 				break
 			}
 		}
 
 	case emt.Write:
 		// write integer to stdout
-		fmt.Printf("%v\n", int64(c.registers[ax]))
+		fmt.Printf("%v\n", int64(c.registers[reg]))
 	}
 }
 

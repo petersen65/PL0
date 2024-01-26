@@ -87,7 +87,7 @@ type (
 		AllocateStackSpace(offset Offset) Address
 		Call(target Address, depth int32) Address
 		Return() Address
-		System(call SystemCall) Address
+		System(call SystemCall, memloc int32) Address
 	}
 )
 

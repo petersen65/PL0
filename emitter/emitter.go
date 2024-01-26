@@ -167,7 +167,7 @@ func (e *emitter) Return() Address {
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) System(call SystemCall) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Sys, Address: Address(call)})
+func (e *emitter) System(call SystemCall, memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Sys, MemoryLocation: memloc, Address: Address(call)})
 	return Address(len(e.textSection) - 1)
 }

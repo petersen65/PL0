@@ -72,27 +72,27 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
 
-	if depth > blockNestingMax {
-		p.appendError(p.error(maxBlockDepth, depth))
+	if p.declarationDepth > blockNestingMax {
+		p.appendError(p.error(maxBlockDepth, p.declarationDepth))
 	}
 
 	// emit a jump to the first instruction of the entrypoint block whose address is not yet known
-	if depth == 0 {
+	if p.declarationDepth == 0 {
 		entryPointInstruction = p.emitter.Jump(emt.NullAddress)
 	}
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
 		if p.lastToken() == scn.ConstWord {
-			p.constWord(depth)
+			p.constWord()
 		}
 
 		if p.lastToken() == scn.VarWord {
-			p.varWord(depth, &varOffset)
+			p.varWord(&varOffset)
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
-			p.procedureWord(depth, expected)
+			p.procedureWord(expected)
 		}
 
 		p.rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
@@ -103,7 +103,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	}
 
 	// update the jump instruction address to the first instruction of the entrypoint block
-	if depth == 0 {
+	if p.declarationDepth == 0 {
 		p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress())
 	}
 
@@ -116,28 +116,28 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	p.emitter.AllocateStackSpace(emt.Offset(varOffset))
 
 	// parse and emit all statement instructions which are defining the code logic of the block
-	p.statement(depth, set(expected, scn.Semicolon, scn.EndWord))
+	p.statement(set(expected, scn.Semicolon, scn.EndWord))
 
 	// emit a return instruction to return from the block
 	p.emitter.Return()
 
 	// at the end of the block, remove all symbols with its declaration depth from the symbol table
 	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
-	p.symbolTable.remove(depth)
+	p.symbolTable.remove(p.declarationDepth)
 
 	p.rebase(unexpectedTokens, expected, scn.Empty)
 }
 
 // Sequence of constants declarations.
-func (p *parser) constWord(depth int32) {
+func (p *parser) constWord() {
 	p.nextTokenDescription()
 
 	for {
-		p.constantIdentifier(depth)
+		p.constantIdentifier()
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.constantIdentifier(depth)
+			p.constantIdentifier()
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -153,15 +153,15 @@ func (p *parser) constWord(depth int32) {
 }
 
 // Sequence of variable declarations.
-func (p *parser) varWord(depth int32, offset *uint64) {
+func (p *parser) varWord(offset *uint64) {
 	p.nextTokenDescription()
 
 	for {
-		p.variableIdentifier(depth, offset)
+		p.variableIdentifier(offset)
 
 		for p.lastToken() == scn.Comma {
 			p.nextTokenDescription()
-			p.variableIdentifier(depth, offset)
+			p.variableIdentifier(offset)
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -177,10 +177,10 @@ func (p *parser) varWord(depth int32, offset *uint64) {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
+func (p *parser) procedureWord(expected scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextTokenDescription()
-		procedureName := p.procedureIdentifier(depth)
+		procedureName := p.procedureIdentifier()
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -188,7 +188,9 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.block(procedureName, depth+1, set(expected, scn.Semicolon))
+		p.declarationDepth++
+		p.block(procedureName, set(expected, scn.Semicolon))
+		p.declarationDepth--
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextTokenDescription()
@@ -200,7 +202,7 @@ func (p *parser) procedureWord(depth int32, expected scn.Tokens) {
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(depth int32, expected scn.Tokens) {
+func (p *parser) assignment(expected scn.Tokens) {
 	symbol, ok := p.symbolTable.find(p.lastTokenValue().(string))
 
 	if !ok {
@@ -217,17 +219,17 @@ func (p *parser) assignment(depth int32, expected scn.Tokens) {
 		p.appendError(p.error(expectedBecomes, p.lastTokenName()))
 	}
 
-	p.memoryLocation = int32(emt.M1)
-	p.expression(depth, expected)
+	p.memoryLocation = 0
+	p.expression(expected)
 
 	if ok && symbol.kind == variable {
-		p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
+		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth, p.memoryLocation)
 
 	}
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
-func (p *parser) read(depth int32, expected scn.Tokens) {
+func (p *parser) read(expected scn.Tokens) {
 	p.nextTokenDescription()
 
 	if p.lastToken() != scn.Identifier {
@@ -235,8 +237,8 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == variable {
-				p.emitter.System(emt.Read)
-				p.emitter.Variable(emt.None, emt.Offset(symbol.offset), depth-symbol.depth, true)
+				p.emitter.System(emt.Read, p.memoryLocation)
+				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth, p.memoryLocation)
 			} else {
 				p.appendError(p.error(expectedVariableIdentifier, kindNames[symbol.kind]))
 			}
@@ -250,17 +252,17 @@ func (p *parser) read(depth int32, expected scn.Tokens) {
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(depth int32, expected scn.Tokens) {
+func (p *parser) write(expected scn.Tokens) {
 	p.nextTokenDescription()
-	p.memoryLocation = int32(emt.M1)
-	p.expression(depth, expected)
-	p.emitter.System(emt.Write)
+	p.memoryLocation = 0
+	p.expression(expected)
+	p.emitter.System(emt.Write, p.memoryLocation)
 }
 
 // A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(depth int32, expected scn.Tokens) {
+func (p *parser) beginWord(expected scn.Tokens) {
 	p.nextTokenDescription()
-	p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
+	p.statement(set(expected, scn.EndWord, scn.Semicolon))
 
 	for p.lastToken().In(set(statements, scn.Semicolon)) {
 		if p.lastToken() == scn.Semicolon {
@@ -269,7 +271,7 @@ func (p *parser) beginWord(depth int32, expected scn.Tokens) {
 			p.appendError(p.error(expectedSemicolon, p.lastTokenName()))
 		}
 
-		p.statement(depth, set(expected, scn.EndWord, scn.Semicolon))
+		p.statement(set(expected, scn.EndWord, scn.Semicolon))
 
 	}
 
@@ -281,7 +283,7 @@ func (p *parser) beginWord(depth int32, expected scn.Tokens) {
 }
 
 // A call statement is the call word followed by a procedure identifier.
-func (p *parser) callWord(depth int32, expected scn.Tokens) {
+func (p *parser) callWord(expected scn.Tokens) {
 	p.nextTokenDescription()
 
 	if p.lastToken() != scn.Identifier {
@@ -289,7 +291,7 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == procedure {
-				p.emitter.Call(emt.Address(symbol.address), depth-symbol.depth)
+				p.emitter.Call(emt.Address(symbol.address), p.declarationDepth-symbol.depth)
 			} else {
 				p.appendError(p.error(expectedProcedureIdentifier, kindNames[symbol.kind]))
 			}
@@ -302,9 +304,9 @@ func (p *parser) callWord(depth int32, expected scn.Tokens) {
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(depth int32, expected scn.Tokens) {
+func (p *parser) ifWord(expected scn.Tokens) {
 	p.nextTokenDescription()
-	relationalOperator := p.condition(depth, set(expected, scn.ThenWord, scn.DoWord))
+	relationalOperator := p.condition(set(expected, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextTokenDescription()
@@ -316,17 +318,17 @@ func (p *parser) ifWord(depth int32, expected scn.Tokens) {
 	ifDecision := p.JumpConditional(relationalOperator, false)
 
 	// parse and emit the statement which is executed if the condition is true
-	p.statement(depth, expected)
+	p.statement(expected)
 
 	// update the conditional jump instruction address to the first instruction after the if statement
 	p.emitter.Update(ifDecision, p.emitter.GetNextAddress())
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(depth int32, expected scn.Tokens) {
+func (p *parser) whileWord(expected scn.Tokens) {
 	p.nextTokenDescription()
 	whileCondition := p.emitter.GetNextAddress()
-	relationalOperator := p.condition(depth, set(expected, scn.DoWord))
+	relationalOperator := p.condition(set(expected, scn.DoWord))
 
 	// jump over statement if the condition is false and remember the address of the jump instruction
 	whileDecision := p.JumpConditional(relationalOperator, false)
@@ -338,7 +340,7 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 	}
 
 	// parse and emit the statement which is executed as long as the condition is true
-	p.statement(depth, expected)
+	p.statement(expected)
 
 	// uncnoditional jump back to the condition evaluation
 	p.emitter.Jump(whileCondition)
@@ -348,7 +350,7 @@ func (p *parser) whileWord(depth int32, expected scn.Tokens) {
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
-func (p *parser) constantIdentifier(depth int32) {
+func (p *parser) constantIdentifier() {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 		return
@@ -372,7 +374,7 @@ func (p *parser) constantIdentifier(depth int32) {
 		if _, ok := p.symbolTable.find(constantName); ok {
 			p.appendError(p.error(identifierAlreadyDeclared, constantName))
 		} else {
-			p.symbolTable.addConstant(constantName, depth, p.lastTokenValue())
+			p.symbolTable.addConstant(constantName, p.declarationDepth, p.lastTokenValue())
 		}
 
 		p.nextTokenDescription()
@@ -382,14 +384,14 @@ func (p *parser) constantIdentifier(depth int32) {
 }
 
 // A variable identifier is an identifier to be stored in the symbol table.
-func (p *parser) variableIdentifier(depth int32, offset *uint64) {
+func (p *parser) variableIdentifier(offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(p.error(expectedIdentifier, p.lastTokenName()))
 	} else {
 		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue().(string)))
 		} else {
-			p.symbolTable.addVariable(p.lastTokenValue().(string), depth, offset)
+			p.symbolTable.addVariable(p.lastTokenValue().(string), p.declarationDepth, offset)
 		}
 
 		p.nextTokenDescription()
@@ -397,7 +399,7 @@ func (p *parser) variableIdentifier(depth int32, offset *uint64) {
 }
 
 // A procedure identifier is an identifier to be stored in the symbol table.
-func (p *parser) procedureIdentifier(depth int32) string {
+func (p *parser) procedureIdentifier() string {
 	var procedureName string
 
 	if p.lastToken() != scn.Identifier {
@@ -407,7 +409,7 @@ func (p *parser) procedureIdentifier(depth int32) string {
 			p.appendError(p.error(identifierAlreadyDeclared, p.lastTokenValue().(string)))
 		} else {
 			procedureName = p.lastTokenValue().(string)
-			p.symbolTable.addProcedure(procedureName, depth, uint64(p.emitter.GetNextAddress()))
+			p.symbolTable.addProcedure(procedureName, p.declarationDepth, uint64(p.emitter.GetNextAddress()))
 		}
 
 		p.nextTokenDescription()
@@ -425,29 +427,29 @@ func (p *parser) procedureIdentifier(depth int32) string {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(depth int32, expected scn.Tokens) {
+func (p *parser) statement(expected scn.Tokens) {
 
 	switch p.lastToken() {
 	case scn.Identifier:
-		p.assignment(depth, expected)
+		p.assignment(expected)
 
 	case scn.Read:
-		p.read(depth, expected)
+		p.read(expected)
 
 	case scn.Write:
-		p.write(depth, expected)
+		p.write(expected)
 
 	case scn.CallWord:
-		p.callWord(depth, expected)
+		p.callWord(expected)
 
 	case scn.IfWord:
-		p.ifWord(depth, expected)
+		p.ifWord(expected)
 
 	case scn.WhileWord:
-		p.whileWord(depth, expected)
+		p.whileWord(expected)
 
 	case scn.BeginWord:
-		p.beginWord(depth, expected)
+		p.beginWord(expected)
 	}
 
 	p.rebase(expectedStatement, expected, scn.Empty)
@@ -505,23 +507,26 @@ func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) e
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
+func (p *parser) condition(expected scn.Tokens) scn.Token {
 	var relationalOperator scn.Token
 
 	if p.lastToken() == scn.OddWord {
 		relationalOperator = p.lastToken()
 		p.nextTokenDescription()
-		p.expression(depth, expected)
-		p.emitter.Odd(emt.MemoryLocation(p.memoryLocation))
+		p.memoryLocation = 0
+		p.expression(expected)
+		p.emitter.Odd(p.memoryLocation)
 	} else {
-		p.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		p.memoryLocation = 0
+		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			p.appendError(p.error(expectedRelationalOperator, p.lastTokenName()))
 		} else {
 			relationalOperator = p.lastToken()
 			p.nextTokenDescription()
-			p.expression(depth, expected)
+			p.memoryLocation = 0
+			p.expression(expected)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -549,21 +554,21 @@ func (p *parser) condition(depth int32, expected scn.Tokens) scn.Token {
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(depth int32, expected scn.Tokens) {
+func (p *parser) expression(expected scn.Tokens) {
 	// handle leading plus or minus sign of a term
 	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 		plusOrMinus := p.lastToken()
 		p.nextTokenDescription()
 
 		// handle left term of a plus or minus operator
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			p.emitter.Negate(emt.MemoryLocation(p.memoryLocation))
+			p.emitter.Negate(p.memoryLocation)
 		}
 	} else {
 		// handle left term of a plus or minus operator
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(set(expected, scn.Plus, scn.Minus))
 	}
 
 	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -572,22 +577,22 @@ func (p *parser) expression(depth int32, expected scn.Tokens) {
 
 		// handle right term of a plus or minus operator
 		p.memoryLocation++
-		p.term(depth, set(expected, scn.Plus, scn.Minus))
+		p.term(set(expected, scn.Plus, scn.Minus))
 		p.memoryLocation--
 
 		if plusOrMinus == scn.Plus {
-			p.emitter.Add(emt.MemoryLocation(p.memoryLocation))
+			p.emitter.Add(p.memoryLocation)
 		} else {
-			p.emitter.Subtract(emt.MemoryLocation(p.memoryLocation))
+			p.emitter.Subtract(p.memoryLocation)
 		}
 	}
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(depth int32, expected scn.Tokens) {
+func (p *parser) term(expected scn.Tokens) {
 
 	// handle left factor of a times or divide operator
-	p.factor(depth, set(expected, scn.Times, scn.Divide))
+	p.factor(set(expected, scn.Times, scn.Divide))
 
 	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
 		timesOrDevide := p.lastToken()
@@ -595,20 +600,20 @@ func (p *parser) term(depth int32, expected scn.Tokens) {
 
 		// handle right factor of a times or divide operator
 		p.memoryLocation++
-		p.factor(depth, set(expected, scn.Times, scn.Divide))
+		p.factor(set(expected, scn.Times, scn.Divide))
 		p.memoryLocation--
 
 		if timesOrDevide == scn.Times {
-			p.emitter.Multiply(emt.MemoryLocation(p.memoryLocation))
+			p.emitter.Multiply(p.memoryLocation)
 
 		} else {
-			p.emitter.Divide(emt.MemoryLocation(p.memoryLocation))
+			p.emitter.Divide(p.memoryLocation)
 		}
 	}
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(depth int32, expected scn.Tokens) {
+func (p *parser) factor(expected scn.Tokens) {
 	p.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for p.lastToken().In(factors) {
@@ -616,10 +621,10 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 			if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					p.emitter.Constant(emt.MemoryLocation(p.memoryLocation), symbol.value)
+					p.emitter.Constant(p.memoryLocation, symbol.value)
 
 				case variable:
-					p.emitter.Variable(emt.MemoryLocation(p.memoryLocation), emt.Offset(symbol.offset), depth-symbol.depth, false)
+					p.emitter.LoadVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth, p.memoryLocation)
 
 				case procedure:
 					p.appendError(p.error(expectedConstantsVariables, kindNames[symbol.kind]))
@@ -630,11 +635,11 @@ func (p *parser) factor(depth int32, expected scn.Tokens) {
 
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.Number {
-			p.emitter.Constant(emt.MemoryLocation(p.memoryLocation), p.lastTokenValue())
+			p.emitter.Constant(p.memoryLocation, p.lastTokenValue())
 			p.nextTokenDescription()
 		} else if p.lastToken() == scn.LeftParenthesis {
 			p.nextTokenDescription()
-			p.expression(depth, set(expected, scn.RightParenthesis))
+			p.expression(set(expected, scn.RightParenthesis))
 
 			if p.lastToken() == scn.RightParenthesis {
 				p.nextTokenDescription()
