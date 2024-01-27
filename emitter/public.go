@@ -10,12 +10,13 @@ const (
 )
 
 const (
-	Lit = Operation(iota)
-	Lod
-	Sto
+	_ = Operation(iota)
+	Ldc
+	Ldv
+	Stv
 	Cal
 	Ret
-	Inc
+	Asp
 	Jmp
 	Je
 	Jne
@@ -44,11 +45,11 @@ const (
 )
 
 type (
-	Operation      int32
-	SystemCall     int32
-	Address        uint64
-	Offset         uint64
-	TextSection    []Instruction
+	Operation   int32
+	SystemCall  int32
+	Address     uint64
+	Offset      uint64
+	TextSection []Instruction
 
 	Instruction struct {
 		Operation        Operation
@@ -95,12 +96,12 @@ var (
 	NullAddress Address = 0
 
 	OperationNames = map[Operation]string{
-		Lit: "lit",
-		Lod: "lod",
-		Sto: "sto",
-		Cal: "cal",
+		Ldc: "ldc",
+		Ldv: "ldv",
+		Stv: "stv",
+		Cal: "call",
 		Ret: "ret",
-		Inc: "inc",
+		Asp: "asp",
 		Jmp: "jmp",
 		Je:  "je",
 		Jne: "jne",

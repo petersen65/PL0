@@ -132,7 +132,7 @@ func (m *machine) runProgram(sections []byte) error {
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
-		case emt.Lit: // copy int64 constant into a register
+		case emt.Ldc: // copy int64 constant into a register
 			m.cpu.mov(getRegister(instr.MemoryLocation), uint64(instr.Arg1))
 
 		case emt.Jmp: // unconditionally jump to uint64 address
@@ -156,7 +156,7 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
 			m.cpu.jge(uint64(instr.Address))
 
-		case emt.Inc: // allocate space on stack for variables of a procedure
+		case emt.Asp: // allocate space on stack for variables of a procedure
 			m.cpu.registers[sp] += uint64(instr.Address)
 
 		case emt.Neg: // negate int64 element within a register
@@ -223,10 +223,10 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
-		case emt.Lod: // copy int64 variable into a register loaded from its base plus offset
+		case emt.Ldv: // copy int64 variable into a register loaded from its base plus offset
 			m.cpu.mov(getRegister(instr.MemoryLocation), m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3])
 
-		case emt.Sto: // copy int64 variable from a register to its base plus offset
+		case emt.Stv: // copy int64 variable from a register to its base plus offset
 			m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3] = m.cpu.registers[getRegister(instr.MemoryLocation)]
 
 		case emt.Sys: // system call to operating system based on system call code
