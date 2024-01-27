@@ -67,22 +67,22 @@ var errorMap = map[failure]string{
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
 }
 
-func (p *parser) appendError(err error) error {
+func (t *tokenHandler) appendError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	p.errorReport = append(p.errorReport, Error{
+	t.errorReport = append(t.errorReport, Error{
 		Err:         err,
-		Line:        p.lastTokenDescription.Line,
-		Column:      p.lastTokenDescription.Column,
-		CurrentLine: p.lastTokenDescription.CurrentLine,
+		Line:        t.lastTokenDescription.Line,
+		Column:      t.lastTokenDescription.Column,
+		CurrentLine: t.lastTokenDescription.CurrentLine,
 	})
 
 	return err
 }
 
-func (p *parser) error(code failure, value any) error {
+func (t *tokenHandler) error(code failure, value any) error {
 	var message string
 
 	if value != nil {
@@ -91,6 +91,6 @@ func (p *parser) error(code failure, value any) error {
 		message = errorMap[code]
 	}
 
-	line, column := p.lastTokenDescription.Line, p.lastTokenDescription.Column
+	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
 	return fmt.Errorf("parser error %v [%v,%v]: %v", code, line, column, message)
 }
