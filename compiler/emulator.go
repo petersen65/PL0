@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	stackSize          = 16384 // stack entries are 64-bit unsigned integers
-	stackForbiddenZone = 1024  // stack entries above this address are forbidden to be used
+	stackSize           = 16384 // stack entries are 64-bit unsigned integers
+	stackForbiddenZone  = 1024  // stack entries above this address are forbidden to be used
+	stackDescriptorSize = 3     // size of a stack frame descriptor
+	freeCpuRegisters    = 4     // number of 64-bit unsigned integer free cpu registers
 )
 
 const (
@@ -105,7 +107,7 @@ func (m *machine) runProgram(sections []byte) error {
 			return fmt.Errorf("halt - address '%v' out of range", m.cpu.registers[ip])
 		}
 
-		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < 2 {
+		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < (stackDescriptorSize-1) {
 			return fmt.Errorf("halt - stack overflow at address '%v'", m.cpu.registers[ip])
 		}
 
@@ -138,8 +140,15 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
 			m.cpu.jge(uint64(instr.Address))
 
-		case emt.Asp: // allocate space on stack for variables of a procedure
-			m.cpu.registers[sp] += uint64(instr.Address)
+		case emt.Asp: // allocate space on stack for variables and memory locations of a procedure
+			varOffset := uint64(instr.Address)
+			mlocOffset := instr.Arg1
+
+			if mlocOffset > freeCpuRegisters {
+				mlocOffset -= freeCpuRegisters
+			}
+
+			m.cpu.registers[sp] += varOffset + uint64(mlocOffset)
 
 		case emt.Neg: // negate int64 element within stack or register
 			m.cpu.neg(m.cpu.mloc(instr.MemoryLocation))
@@ -205,7 +214,7 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.push(m.cpu.registers[ip])                // save callers instruction pointer
 
 			// base pointer of procedure being called is pointing to its descriptor
-			m.cpu.registers[bp] = m.cpu.registers[sp] - 2
+			m.cpu.registers[bp] = m.cpu.registers[sp] - (stackDescriptorSize - 1)
 
 			// jump to procedure at uint64 address
 			m.cpu.jmp(uint64(instr.Address))
@@ -217,14 +226,14 @@ func (m *machine) runProgram(sections []byte) error {
 			}
 
 			// restore state of caller procdure from descriptor of callee procedure
-			m.cpu.registers[sp] = m.cpu.registers[bp] + 2 // discard local variables of callee procedure
-			m.cpu.pop(ip)                                 // restore callers instruction pointer
-			m.cpu.pop(bp)                                 // restore callers base pointer
-			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
+			m.cpu.registers[sp] = m.cpu.registers[bp] + (stackDescriptorSize - 1) // discard local variables of callee procedure
+			m.cpu.pop(ip)                                                         // restore callers instruction pointer
+			m.cpu.pop(bp)                                                         // restore callers base pointer
+			m.cpu.registers[sp] -= 1                                              // discard dynamic link and restore callers top of stack
 
 		case emt.Ldv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
-			m.cpu.mov(reg, ptr, m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3])
+			m.cpu.mov(reg, ptr, m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+stackDescriptorSize])
 
 		case emt.Stv: // copy int64 element from stack or register to a variable stored within its base plus offset
 			var a uint64
@@ -235,7 +244,7 @@ func (m *machine) runProgram(sections []byte) error {
 				a = m.cpu.registers[reg]
 			}
 
-			m.cpu.mov(sp, m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3, a)
+			m.cpu.mov(sp, m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+stackDescriptorSize, a)
 
 		case emt.Sys: // system call to operating system based on system call code
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
@@ -305,7 +314,7 @@ func (c *cpu) mloc(memloc int32) (register, uint64) {
 		return dx, 0
 
 	default:
-		return sp, c.registers[sp] - uint64(memloc - 4)
+		return sp, c.registers[sp] - uint64(memloc-freeCpuRegisters)
 	}
 }
 

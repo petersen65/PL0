@@ -19,12 +19,16 @@ func newEmitter() Emitter {
 	}
 }
 
-func (e *emitter) Update(instruction, target Address) error {
+func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
 		return newError(instructionOutOfRange, instruction)
 	}
 
 	e.textSection[instruction].Address = target
+
+	if value != nil {
+		e.textSection[instruction].Arg1 = value.(int64)
+	}
 	return nil
 }
 
@@ -152,8 +156,8 @@ func (e *emitter) JumpGreaterEqual(target Address) Address {
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) AllocateStackSpace(offset Offset) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Asp, Address: Address(offset)})
+func (e *emitter) AllocateStackSpace(varOffset Offset, mlocOffset int64) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Asp, Address: Address(varOffset), Arg1: mlocOffset})
 	return Address(len(e.textSection) - 1)
 }
 

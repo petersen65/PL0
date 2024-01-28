@@ -60,7 +60,7 @@ type (
 	}
 
 	Emitter interface {
-		Update(instruction, target Address) error
+		Update(instruction, target Address, value any) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
 		Constant(memloc int32, value any) Address
@@ -85,7 +85,7 @@ type (
 		JumpLessEqual(target Address) Address
 		JumpGreater(target Address) Address
 		JumpGreaterEqual(target Address) Address
-		AllocateStackSpace(offset Offset) Address
+		AllocateStackSpace(varOffset Offset, mlocOffset int64) Address
 		Call(target Address, depth int32) Address
 		Return() Address
 		System(call SystemCall, memloc int32) Address

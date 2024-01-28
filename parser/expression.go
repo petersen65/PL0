@@ -13,7 +13,7 @@ import (
 type expressionParser struct {
 	emitter               emt.Emitter   // emitter that emits the code
 	memoryLocation        int32         // memory location of the current expression
-	maximumMemoryLocation uint64        // maximum used memory location within the current block
+	maximumMemoryLocation int64         // maximum used memory location within the current block
 	tokenHandler          *tokenHandler // token handler that manages the tokens of the concrete syntax
 	symbolTable           *symbolTable  // symbol table that stores all symbols of the program
 }
@@ -35,7 +35,7 @@ func (e *expressionParser) start() {
 	e.memoryLocation = 0
 }
 
-func (e *expressionParser) requiredLocations() uint64 {
+func (e *expressionParser) requiredLocations() int64 {
 	return e.maximumMemoryLocation + 1
 }
 
@@ -67,7 +67,7 @@ func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 
 		// handle right term of a plus or minus operator
 		e.memoryLocation++
-		e.maximumMemoryLocation = max(e.maximumMemoryLocation, uint64(e.memoryLocation))
+		e.maximumMemoryLocation = max(e.maximumMemoryLocation, int64(e.memoryLocation))
 		e.term(depth, set(expected, scn.Plus, scn.Minus))
 		e.memoryLocation--
 
@@ -91,7 +91,7 @@ func (e *expressionParser) term(depth int32, expected scn.Tokens) {
 
 		// handle right factor of a times or divide operator
 		e.memoryLocation++
-		e.maximumMemoryLocation = max(e.maximumMemoryLocation, uint64(e.memoryLocation))
+		e.maximumMemoryLocation = max(e.maximumMemoryLocation, int64(e.memoryLocation))
 		e.factor(depth, set(expected, scn.Times, scn.Divide))
 		e.memoryLocation--
 

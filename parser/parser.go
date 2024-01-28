@@ -101,7 +101,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 
 	// update the jump instruction address to the first instruction of the entrypoint block
 	if p.declarationDepth == 0 {
-		p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress())
+		p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress(), nil)
 	}
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
@@ -110,7 +110,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
-	allocStackSpaceInstruction := p.emitter.AllocateStackSpace(emt.Offset(varOffset))
+	allocStackSpaceInstruction := p.emitter.AllocateStackSpace(emt.Offset(varOffset), 0)
 
 	// reset expression parser for the new block
 	p.expressionParser.reset()
@@ -122,7 +122,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	mlocOffset := p.expressionParser.requiredLocations()
 
 	// allcate stack space for block variables and memory locations required for all expressions of the block
-	p.emitter.Update(allocStackSpaceInstruction, emt.Address(varOffset+mlocOffset))
+	p.emitter.Update(allocStackSpaceInstruction, emt.Address(varOffset), mlocOffset)
 
 	// emit a return instruction to return from the block
 	p.emitter.Return()
@@ -325,7 +325,7 @@ func (p *parser) ifWord(expected scn.Tokens) {
 	p.statement(expected)
 
 	// update the conditional jump instruction address to the first instruction after the if statement
-	p.emitter.Update(ifDecision, p.emitter.GetNextAddress())
+	p.emitter.Update(ifDecision, p.emitter.GetNextAddress(), nil)
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
@@ -350,7 +350,7 @@ func (p *parser) whileWord(expected scn.Tokens) {
 	p.emitter.Jump(whileCondition)
 
 	// update the conditional jump instruction address to the first instruction after the while statement
-	p.emitter.Update(whileDecision, p.emitter.GetNextAddress())
+	p.emitter.Update(whileDecision, p.emitter.GetNextAddress(), nil)
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
