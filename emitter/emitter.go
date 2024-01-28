@@ -91,33 +91,33 @@ func (e *emitter) Odd(memloc int32) Address {
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Equal() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Eq})
+func (e *emitter) Equal(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Eq, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) NotEqual() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Neq})
+func (e *emitter) NotEqual(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Neq, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Less() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Lss})
+func (e *emitter) Less(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Lss, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) LessEqual() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Leq})
+func (e *emitter) LessEqual(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Leq, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) Greater() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Gtr})
+func (e *emitter) Greater(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Gtr, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
-func (e *emitter) GreaterEqual() Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Geq})
+func (e *emitter) GreaterEqual(memloc int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Geq, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 

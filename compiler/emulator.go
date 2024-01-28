@@ -189,23 +189,25 @@ func (m *machine) runProgram(sections []byte) error {
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.and(reg, ptr, 1)
 
-		case emt.Eq: // test if register ax and bx int64 elements are equal and set zero flag if they are
+		case emt.Eq: // test if two int64 elements are equal and set zero flag if they are
 			fallthrough
 
-		case emt.Neq: // test if register ax and bx int64 elements are not equal and clear zero flag if they are
+		case emt.Neq: // test if two int64 elements are not equal and clear zero flag if they are
 			fallthrough
 
-		case emt.Lss: // test if register bx int64 element is less than register ax int64 element
+		case emt.Lss: // test if second int64 element is less than first int64 element and store result in flags register
 			fallthrough
 
-		case emt.Leq: // test if register bx int64 element is less than or equal to register ax int64 element
+		case emt.Leq: // test if second int64 element is less than or equal to first int64 element and store result in flags register
 			fallthrough
 
-		case emt.Gtr: // test if register bx int64 element is greater than register ax int64 element
+		case emt.Gtr: // test if second int64 element is greater than first int64 element and store result in flags register
 			fallthrough
 
-		case emt.Geq: // test if register bx int64 element is greater than or equal to register ax int64 element
-			m.cpu.cmp(ax, bx)
+		case emt.Geq: // test if second int64 element is greater than or equal to first int64 element and store result in flags register
+			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
+			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
+			m.cpu.cmp(reg1, ptr1, reg2, ptr2)
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// preserve state of caller and create descriptor of procedure being called
@@ -582,9 +584,22 @@ func (c *cpu) and(reg register, ptr, arg uint64) {
 	}
 }
 
-// compare register reg1 and reg2 int64 elements and set flags register based on result (zero zf, sign sf, overflow of)
-func (c *cpu) cmp(reg1 register, reg2 register) {
-	a, b := int64(c.registers[reg1]), int64(c.registers[reg2])
+// compare two int64 elements and set flags register based on result (zero zf, sign sf, overflow of)
+func (c *cpu) cmp(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
+	var a, b int64
+
+	if reg1 == sp {
+		a = int64(c.stack[ptr1])
+	} else {
+		a = int64(c.registers[reg1])
+	}
+
+	if reg2 == sp {
+		b = int64(c.stack[ptr2])
+	} else {
+		b = int64(c.registers[reg2])
+	}
+
 	c.set_zf(a - b)
 	c.set_sf(a - b)
 	c.set_of_sub(a, b)

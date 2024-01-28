@@ -64,7 +64,7 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 	return nil
 }
 
-// A block is a sequence of declarations followed by a statement.
+// A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
 func (p *parser) block(name string, expected scn.Tokens) {
 	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
@@ -319,7 +319,7 @@ func (p *parser) ifWord(expected scn.Tokens) {
 	}
 
 	// jump over statement if the condition is false and remember the address of the jump instruction
-	ifDecision := p.JumpConditional(relationalOperator, false)
+	ifDecision := p.jumpConditional(relationalOperator, false)
 
 	// parse and emit the statement which is executed if the condition is true
 	p.statement(expected)
@@ -335,7 +335,7 @@ func (p *parser) whileWord(expected scn.Tokens) {
 	relationalOperator := p.condition(set(expected, scn.DoWord))
 
 	// jump over statement if the condition is false and remember the address of the jump instruction
-	whileDecision := p.JumpConditional(relationalOperator, false)
+	whileDecision := p.jumpConditional(relationalOperator, false)
 
 	if p.lastToken() == scn.DoWord {
 		p.nextToken()
@@ -459,8 +459,56 @@ func (p *parser) statement(expected scn.Tokens) {
 	p.tokenHandler.rebase(expectedStatement, expected, scn.Empty)
 }
 
+// A condition is either an odd expression or two expressions separated by a relational operator.
+func (p *parser) condition(expected scn.Tokens) scn.Token {
+	var relationalOperator scn.Token
+
+	if p.lastToken() == scn.OddWord {
+		relationalOperator = p.lastToken()
+		p.nextToken()
+		p.expression(expected)
+		p.emitter.Odd(p.memoryLocation())
+	} else {
+		// handle left expression of a relational operator
+		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+
+		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			p.appendError(expectedRelationalOperator, p.lastTokenName())
+		} else {
+			relationalOperator = p.lastToken()
+			p.nextToken()
+			leftMemoryLocation := p.memoryLocation()
+			
+			// handle right expression of a relational operator
+			p.continueExpression(expected)
+
+			switch relationalOperator {
+			case scn.Equal:
+				p.emitter.Equal(leftMemoryLocation)
+
+			case scn.NotEqual:
+				p.emitter.NotEqual(leftMemoryLocation)
+
+			case scn.Less:
+				p.emitter.Less(leftMemoryLocation)
+
+			case scn.LessEqual:
+				p.emitter.LessEqual(leftMemoryLocation)
+
+			case scn.Greater:
+				p.emitter.Greater(leftMemoryLocation)
+
+			case scn.GreaterEqual:
+				p.emitter.GreaterEqual(leftMemoryLocation)
+			}
+		}
+	}
+
+	return relationalOperator
+}
+
 // Emit a conditional jump instruction based on the relational operator of a condition.
-func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
+func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
 	var address emt.Address
 
 	if condition {
@@ -510,50 +558,6 @@ func (p *parser) JumpConditional(relationalOperator scn.Token, condition bool) e
 	return address
 }
 
-// A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(expected scn.Tokens) scn.Token {
-	var relationalOperator scn.Token
-
-	if p.lastToken() == scn.OddWord {
-		relationalOperator = p.lastToken()
-		p.nextToken()
-		p.expression(expected)
-		p.emitter.Odd(p.memoryLocation())
-	} else {
-		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
-
-		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
-			p.appendError(expectedRelationalOperator, p.lastTokenName())
-		} else {
-			relationalOperator = p.lastToken()
-			p.nextToken()
-			p.expression(expected)
-
-			switch relationalOperator {
-			case scn.Equal:
-				p.emitter.Equal()
-
-			case scn.NotEqual:
-				p.emitter.NotEqual()
-
-			case scn.Less:
-				p.emitter.Less()
-
-			case scn.LessEqual:
-				p.emitter.LessEqual()
-
-			case scn.Greater:
-				p.emitter.Greater()
-
-			case scn.GreaterEqual:
-				p.emitter.GreaterEqual()
-			}
-		}
-	}
-
-	return relationalOperator
-}
-
 func (p *parser) lastToken() scn.Token {
 	return p.tokenHandler.lastToken()
 }
@@ -576,6 +580,10 @@ func (p *parser) appendError(code failure, value any) {
 
 func (p *parser) expression(expected scn.Tokens) {
 	p.expressionParser.start()
+	p.expressionParser.expression(p.declarationDepth, expected)
+}
+
+func (p *parser) continueExpression(expected scn.Tokens) {
 	p.expressionParser.expression(p.declarationDepth, expected)
 }
 

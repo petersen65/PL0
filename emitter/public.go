@@ -72,12 +72,12 @@ type (
 		Divide(memloc int32) Address
 		Negate(memloc int32) Address
 		Odd(memloc int32) Address
-		Equal() Address
-		NotEqual() Address
-		Less() Address
-		LessEqual() Address
-		Greater() Address
-		GreaterEqual() Address
+		Equal(memloc int32) Address
+		NotEqual(memloc int32) Address
+		Less(memloc int32) Address
+		LessEqual(memloc int32) Address
+		Greater(memloc int32) Address
+		GreaterEqual(memloc int32) Address
 		Jump(target Address) Address
 		JumpEqual(target Address) Address
 		JumpNotEqual(target Address) Address
