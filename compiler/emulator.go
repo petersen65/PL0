@@ -115,7 +115,7 @@ func (m *machine) runProgram(sections []byte) error {
 		switch instr.Operation {
 		case emt.Ldc: // copy int64 constant onto stack or into a register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
-			m.cpu.mov(reg, ptr, uint64(instr.Address))
+			m.cpu.mov(reg, ptr, uint64(instr.Arg1))
 
 		case emt.Jmp: // unconditionally jump to uint64 address
 			m.cpu.jmp(uint64(instr.Address))
@@ -222,11 +222,11 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.registers[sp] -= 1                      // discard dynamic link and restore callers top of stack
 
-		case emt.Ldv: // copy int64 variable in stack or register loaded from its base plus offset
+		case emt.Ldv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.mov(reg, ptr, m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+3])
 
-		case emt.Stv: // copy int64 variable from stack or register to its base plus offset
+		case emt.Stv: // copy int64 element from stack or register to a variable stored within its base plus offset
 			var a uint64
 
 			if reg, ptr := m.cpu.mloc(instr.MemoryLocation); reg == sp {
@@ -305,7 +305,7 @@ func (c *cpu) mloc(memloc int32) (register, uint64) {
 		return dx, 0
 
 	default:
-		return sp, c.registers[sp] - uint64(memloc)
+		return sp, c.registers[sp] - uint64(memloc - 4)
 	}
 }
 
