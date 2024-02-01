@@ -1,9 +1,0 @@
-var x, y, z;
-begin
-    z := 1 + 2 * 3 + 4;
-    !z;
-
-    ?y;
-    y := y * 2 + z;
-    !y;
-end.
