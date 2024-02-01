@@ -376,6 +376,20 @@ func (c *cpu) set_of_mul(a, b int64) {
 	}
 }
 
+// set overflow flag if division of two int64 elements overflows
+func (c *cpu) set_of_div(a, b int64) {
+	if b == -1 && a == math.MinInt64 {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// clear overflow flag
+func (c *cpu) unset_of() {
+	c.registers[flags] &= ^uint64(of)
+}
+
 // system call to operating system based on system call code
 func (c *cpu) sys(code emt.SystemCall, reg register, ptr uint64) {
 	switch code {
@@ -557,7 +571,7 @@ func (c *cpu) div(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	r := a / b
 	c.set_zf(r)
 	c.set_sf(r)
-	c.registers[flags] &= ^uint64(of)
+	c.set_of_div(a, b)
 
 	if reg1 == sp {
 		c.stack[ptr1] = uint64(r)
@@ -578,6 +592,7 @@ func (c *cpu) and(reg register, ptr, arg uint64) {
 
 	c.set_zf(int64(a))
 	c.set_sf(int64(a))
+	c.unset_of()
 
 	if reg == sp {
 		c.stack[ptr] = a

@@ -514,6 +514,9 @@ func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) e
 	if condition {
 		// jump if the condition is true and remember the address of the jump instruction
 		switch relationalOperator {
+		case scn.OddWord:
+			address = p.emitter.JumpNotEqual(emt.NullAddress)
+
 		case scn.Equal:
 			address = p.emitter.JumpEqual(emt.NullAddress)
 
@@ -535,6 +538,9 @@ func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) e
 	} else {
 		// jump if the condition is false and remember the address of the jump instruction
 		switch relationalOperator {
+		case scn.OddWord:
+			address = p.emitter.JumpEqual(emt.NullAddress)
+
 		case scn.Equal:
 			address = p.emitter.JumpNotEqual(emt.NullAddress)
 
