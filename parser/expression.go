@@ -31,8 +31,12 @@ func (e *expressionParser) reset() {
 	e.maximumMemoryLocation = 0
 }
 
-func (e *expressionParser) start() {
-	e.memoryLocation = 0
+func (e *expressionParser) start(preserve bool) {
+	if preserve {
+		e.memoryLocation++
+	} else {
+		e.memoryLocation = 0
+	}
 }
 
 func (e *expressionParser) requiredLocations() int64 {

@@ -12,8 +12,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "-cr",
-                "examples/expressions.pl0",
-                "examples/expressions.il0"
+                "examples/conditions.pl0",
+                "build/conditions.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

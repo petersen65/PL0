@@ -579,11 +579,12 @@ func (p *parser) appendError(code failure, value any) {
 }
 
 func (p *parser) expression(expected scn.Tokens) {
-	p.expressionParser.start()
+	p.expressionParser.start(false)
 	p.expressionParser.expression(p.declarationDepth, expected)
 }
 
 func (p *parser) continueExpression(expected scn.Tokens) {
+	p.expressionParser.start(true)
 	p.expressionParser.expression(p.declarationDepth, expected)
 }
 

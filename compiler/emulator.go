@@ -146,6 +146,8 @@ func (m *machine) runProgram(sections []byte) error {
 
 			if mlocOffset > freeCpuRegisters {
 				mlocOffset -= freeCpuRegisters
+			} else {
+				mlocOffset = 0
 			}
 
 			m.cpu.registers[sp] += varOffset + uint64(mlocOffset)
@@ -628,7 +630,7 @@ func (c *cpu) jl(addr uint64) {
 
 // jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of)
 func (c *cpu) jle(addr uint64) {
-	if c.registers[flags]&uint64(zf) != 0 && c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
+	if c.registers[flags]&uint64(zf) != 0 || c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
