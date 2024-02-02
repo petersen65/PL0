@@ -57,7 +57,6 @@ begin
 
     l2 := l2 + 15;
     ! l3;
-
     ! -3;
 end;
 
@@ -81,6 +80,7 @@ begin
     z := 7;
 
     call Level2;
+    
     ! x;
     ! y;
     ! z;
