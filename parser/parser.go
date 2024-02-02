@@ -66,7 +66,6 @@ func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) e
 
 // A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
 func (p *parser) block(name string, expected scn.Tokens) {
-	var entryPointInstruction emt.Address
 	var varOffset uint64 = emt.VariableOffsetStart
 
 	if p.declarationDepth > blockNestingMax {
@@ -74,9 +73,11 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	}
 
 	// emit a jump to the first instruction of the entrypoint block whose address is not yet known
-	if p.declarationDepth == 0 {
-		entryPointInstruction = p.emitter.Jump(emt.NullAddress)
-	}
+	//
+	// for declaration depth
+	// 	0, jump is always used to start the program
+	//  1 and above, jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
+	entryPointInstruction := p.emitter.Jump(emt.NullAddress)
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
@@ -100,9 +101,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	}
 
 	// update the jump instruction address to the first instruction of the entrypoint block
-	if p.declarationDepth == 0 {
-		p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress(), nil)
-	}
+	p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress(), nil)
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
 	procdureSymbol, _ := p.symbolTable.find(name)
@@ -478,7 +477,7 @@ func (p *parser) condition(expected scn.Tokens) scn.Token {
 			relationalOperator = p.lastToken()
 			p.nextToken()
 			leftMemoryLocation := p.memoryLocation()
-			
+
 			// handle right expression of a relational operator
 			p.continueExpression(expected)
 

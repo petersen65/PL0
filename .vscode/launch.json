@@ -12,8 +12,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "-cr",
-                "examples/recursion.pl0",
-                "build/recursion.il0"
+                "examples/nesting.pl0",
+                "build/nesting.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

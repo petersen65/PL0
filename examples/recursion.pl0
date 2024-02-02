@@ -7,10 +7,11 @@ procedure Recursion3;
 begin
     ! 3;
     count := count + 1;
-    ! 3;
 
     if count = 2 then
         call Recursion2;
+    
+    ! -3;
 end;
 
 begin
@@ -18,14 +19,14 @@ begin
     count := count + 1;
 
     call Recursion3;
-    ! 2;
+    ! -2;
 end;
 
 begin
     ! 1;
     count := 0;
     call Recursion2;
-    ! 1;
+    ! -1;
 end;
 
 call Recursion1.
