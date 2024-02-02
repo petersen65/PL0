@@ -1,0 +1,127 @@
+const MaxPrime = 50;
+var x, y, z;
+	r, q;
+	number, factorial;
+	
+procedure CalcPrimes;
+var arg, isprime;
+procedure IsPrime;
+var i;
+begin
+	isprime := 1;
+	i := 2;
+
+	while i < arg do
+	begin
+		if arg / i * i = arg then
+		begin
+			isprime := 0;
+			i := arg;
+		end;
+
+		i := i + 1;
+	end;
+end;
+begin
+	arg := 2;
+	
+	while arg < MaxPrime do
+	begin
+		call IsPrime;
+		
+		if isprime = 1 then 
+			! arg;
+		
+		arg := arg + 1
+	end;
+end;
+
+procedure GreatestCommonDivisor;
+var f, g;
+begin
+	f := x;
+	g := y;
+	
+	while f # g do
+	begin
+		if f < g then g := g - f;
+		if g < f then f := f - g;
+	end;
+	
+	z := f;
+end;
+
+procedure MultiplyWithDoubleAndHalf;
+var a, b;
+begin
+  a := x;
+  b := y;
+  z := 0;
+
+  while b > 0 do
+  begin
+    if odd b then z := z + a;
+    a := 2 * a;
+    b := b / 2;
+  end;
+end;
+
+procedure DivideWithDoubleAndHalf;
+var w;
+begin
+	r := x;
+	q := 0;
+	w := y;
+
+	while w <= r do 
+		w := 2 * w;
+  
+	while w > y do
+	begin
+		q := 2 * q;
+		w := w / 2;
+
+		if w <= r then
+		begin
+			r := r - w;
+			q := q + 1;
+		end;
+	end;
+end;
+
+procedure Factorial;
+begin
+	if number > 1 then
+	begin
+		factorial := number * factorial;
+		number := number - 1;
+
+		call Factorial;
+	end;
+end;
+
+begin
+	x := 24;
+	y := 36;
+	call GreatestCommonDivisor;
+	! z;
+
+	x := 3;
+	y := 5;
+	call MultiplyWithDoubleAndHalf;
+	! z; 
+
+	x := 23;
+	y := 7;
+	call DivideWithDoubleAndHalf;
+	! q; 
+	! r;
+
+	number := 9;
+	factorial := 1;
+	call Factorial;
+	! factorial;
+
+	! MaxPrime;
+	call CalcPrimes;
+end.
