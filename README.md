@@ -8,6 +8,12 @@ This module provides a complete compiler for the programming language PL0. It pr
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
 * compiler: compiler driver for scanning, parsing, emitting, printing, and emulating from source code to the resultant IL/0 code
 
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+
+From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood.
+
+I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
+
 ## License
 
 The complete compiler source code is licensed under Apache License v2.0.
@@ -68,10 +74,10 @@ The programming language PL/0 (1986 version) supports the following features:
 | Comparison	                | <&nbsp;&nbsp;>&nbsp;&nbsp;<=&nbsp;&nbsp;>=
 | Function Definition	        | procedure \<name\>; \<body\>;
 | Function Call	                | call \<name\>;
-| Sequence	                | ;
+| Sequence	                    | ;
 | Read Number	                | stdin
 | Write Number	                | stdout
-| If Then	                | if \<condition\> then \<true-block\>;
+| If Then	                    | if \<condition\> then \<true-block\>;
 | Loop Forever	                | while 1 = 1 do \<loop-body\>;
 | While Condition Do	        | while \<condition\> do \<loop-body\>;
 | Program End                   | .
@@ -84,3 +90,18 @@ The programming language PL/0 (1986 version) supports the following features:
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
 	* register allocation algorithm enables expressions to use registers instead of a stack
+	* recursions with local scoped procedures tested
+
+## Planning
+
+* H1 2024, Compiler version 1.1 2024, make core engine more mature
+	* migration of memory location evaluations to emitter
+	* comments for the source code
+	* migration to abstract syntax trees as interface between parser and emitter
+	* support for Intel x86_64 assembler generation based on NASM project
+
+* H2 2024, Compiler version 1.2 2024, enhance programming language
+	* data types for variables, constants and parameters, start with integer only
+	* parameter for procedures
+	* boolean, real, string datatypes
+	* improved features for stdin and stdout
