@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package emitter implements the IL/0 emitter that generates intermediate language code targeted for the IL/0 emulator.
 package emitter
 
 const (
@@ -9,6 +10,7 @@ const (
 	EntryPointName      = "_start" // name of the entry point procedure of a program
 )
 
+// Operation codes for the IL/0 emitter.
 const (
 	_ = Operation(iota)
 	Mov
@@ -39,11 +41,13 @@ const (
 	Sys
 )
 
+// System call codes for operating system calls.
 const (
 	Read = SystemCall(iota)
 	Write
 )
 
+// Core API for the IL/0 emitter.
 type (
 	Operation   int32
 	SystemCall  int32
@@ -93,8 +97,10 @@ type (
 )
 
 var (
+	// NullAddress is the null address value for instructions.
 	NullAddress Address = 0
 
+	// OperationNames maps operation codes to their string representation.
 	OperationNames = map[Operation]string{
 		Mov: "mov",
 		Mlv: "mlv",
@@ -125,6 +131,7 @@ var (
 	}
 )
 
+// Return the public interface of the private emitter implementation.
 func NewEmitter() Emitter {
 	return newEmitter()
 }

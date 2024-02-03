@@ -10,7 +10,7 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
-// Private implementation of the recursive descent parser.
+// Private implementation of the recursive descent PL/0 parser.
 type parser struct {
 	emitter          emt.Emitter       // emitter that emits the code
 	declarationDepth int32             // declaration depth of nested blocks

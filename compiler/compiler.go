@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code. The package also enables the emulation of IL/0 programs.
 package compiler
 
 import (
@@ -15,6 +16,7 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// Compile a PL/0 source file into an IL/0 program file.
 func CompileFile(source, target string, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
 		return err
@@ -47,6 +49,7 @@ func CompileFile(source, target string, print io.Writer) error {
 	return nil
 }
 
+// Run an IL/0 program file.
 func RunFile(target string, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Running IL0 program '%v'\n", target))); err != nil {
 		return err
@@ -61,6 +64,7 @@ func RunFile(target string, print io.Writer) error {
 	return nil
 }
 
+// Print an IL/0 program file.
 func PrintFile(target string, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Printing IL0 program '%v'\n", target))); err != nil {
 		return err
@@ -75,6 +79,8 @@ func PrintFile(target string, print io.Writer) error {
 	return nil
 }
 
+// Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice. 
+// The concrete syntax and error report are also returned if an error occurs during compilation.
 func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
 
@@ -94,14 +100,17 @@ func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport
 	}
 }
 
+// Run a binary IL/0 program and return an error if the program fails to execute.
 func RunSections(sections []byte) error {
 	return newMachine().runProgram(sections)
 }
 
+// Print a binary IL/0 program to the specified writer and return an error if the program fails to print.
 func PrintSections(sections []byte, print io.Writer) error {
 	return printProgram(sections, print)
 }
 
+// Print the concrete syntax of the scanner to the specified writer.
 func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {
 	var lastLine int
 	print.Write([]byte("Concrete Syntax:"))
@@ -116,6 +125,7 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {
 	}
 }
 
+// Print the error report of the parser to the specified writer.
 func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
 	print.Write([]byte("Error Report:"))
 

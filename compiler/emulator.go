@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code. The package also enables the emulation of IL/0 programs.
 package compiler
 
 import (
@@ -39,6 +40,7 @@ const (
 	of = 0x0000000000000800 // overflow flag is set if the result of an arithmetic operation is too large to fit in the register
 )
 
+// Emulation core types for process, cpu, and machine.
 type (
 	register int
 	flag     uint64
@@ -57,6 +59,7 @@ type (
 	}
 )
 
+// Create a new emulation machine with cpu, registers and stack that can run IL/0 processes.
 func newMachine() *machine {
 	return &machine{
 		cpu: cpu{
@@ -66,11 +69,12 @@ func newMachine() *machine {
 	}
 }
 
-// load a program and print it to a writer
+// Load a program and print it to a writer.
 func printProgram(sections []byte, print io.Writer) error {
 	return (&process{}).dump(sections, print)
 }
 
+// Run a program and return an error if the program fails.
 func (m *machine) runProgram(sections []byte) error {
 	var process process
 
@@ -140,7 +144,7 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
 			m.cpu.jge(uint64(instr.Address))
 
-		case emt.Alc: // allocate space on stack for variables and memory locations of a procedure
+		case emt.Alc: // allocate block stack space for variables and memory locations required by expressions
 			varOffset := uint64(instr.Address)
 			mlocOffset := instr.Arg1
 
@@ -257,7 +261,7 @@ func (m *machine) runProgram(sections []byte) error {
 	}
 }
 
-// load text section from a byte slice
+// Load sections from a byte slice into the text section of a process.
 func (p *process) load(sections []byte) error {
 	p.text = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
 
@@ -271,7 +275,7 @@ func (p *process) load(sections []byte) error {
 	return nil
 }
 
-// dump text section to a writer
+// Dump sections loaded by a process to a writer.
 func (p *process) dump(sections []byte, print io.Writer) error {
 	if err := p.load(sections); err != nil {
 		return err
@@ -292,6 +296,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 	return nil
 }
 
+// Follow dynamic link 'depth' calls down to the base pointer of a caller procedure in the chain of all callers.
 func (c *cpu) base(depth int32) uint64 {
 	b := c.registers[bp]
 
@@ -303,6 +308,7 @@ func (c *cpu) base(depth int32) uint64 {
 	return b
 }
 
+// Map a memory location to a register or to a location on the stack.
 func (c *cpu) mloc(memloc int32) (register, uint64) {
 	switch memloc {
 	case 0:
@@ -318,11 +324,12 @@ func (c *cpu) mloc(memloc int32) (register, uint64) {
 		return dx, 0
 
 	default:
+		// memory locations are allocated downwards from the top of the stack including top of stack
 		return sp, c.registers[sp] - uint64(memloc-freeCpuRegisters)
 	}
 }
 
-// set zero flag if int64 element is zero
+// Set zero flag if int64 element is zero.
 func (c *cpu) set_zf(a int64) {
 	if a == 0 {
 		c.registers[flags] |= uint64(zf)
@@ -331,7 +338,7 @@ func (c *cpu) set_zf(a int64) {
 	}
 }
 
-// set sign flag if int64 element is negative
+// Set sign flag if int64 element is negative.
 func (c *cpu) set_sf(a int64) {
 	if a < 0 {
 		c.registers[flags] |= uint64(sf)
@@ -340,7 +347,7 @@ func (c *cpu) set_sf(a int64) {
 	}
 }
 
-// set overflow flag if negation of the int64 element overflows
+// Set overflow flag if negation of the int64 element overflows.
 func (c *cpu) set_of_neg(a int64) {
 	if a == math.MinInt64 {
 		c.registers[flags] |= uint64(of)
@@ -349,7 +356,7 @@ func (c *cpu) set_of_neg(a int64) {
 	}
 }
 
-// set overflow flag if addition of two int64 elements overflows
+// Set overflow flag if addition of two int64 elements overflows.
 func (c *cpu) set_of_add(a, b int64) {
 	if (a + b) < a {
 		c.registers[flags] |= uint64(of)
@@ -358,7 +365,7 @@ func (c *cpu) set_of_add(a, b int64) {
 	}
 }
 
-// set overflow flag if subtraction of two int64 elements overflows
+// Set overflow flag if subtraction of two int64 elements overflows.
 func (c *cpu) set_of_sub(a, b int64) {
 	if b > 0 && a < math.MinInt64+b || b < 0 && a > math.MaxInt64+b {
 		c.registers[flags] |= uint64(of)
@@ -367,7 +374,7 @@ func (c *cpu) set_of_sub(a, b int64) {
 	}
 }
 
-// set overflow flag if multiplication of two int64 elements overflows
+// Set overflow flag if multiplication of two int64 elements overflows.
 func (c *cpu) set_of_mul(a, b int64) {
 	if a != 0 && (a*b)/a != b {
 		c.registers[flags] |= uint64(of)
@@ -376,7 +383,7 @@ func (c *cpu) set_of_mul(a, b int64) {
 	}
 }
 
-// set overflow flag if division of two int64 elements overflows
+// Set overflow flag if division of two int64 elements overflows.
 func (c *cpu) set_of_div(a, b int64) {
 	if b == -1 && a == math.MinInt64 {
 		c.registers[flags] |= uint64(of)
@@ -385,12 +392,12 @@ func (c *cpu) set_of_div(a, b int64) {
 	}
 }
 
-// clear overflow flag
+// Clear overflow flag.
 func (c *cpu) unset_of() {
 	c.registers[flags] &= ^uint64(of)
 }
 
-// system call to operating system based on system call code
+// System call to operating system based on system call code.
 func (c *cpu) sys(code emt.SystemCall, reg register, ptr uint64) {
 	switch code {
 	case emt.Read:
@@ -421,24 +428,24 @@ func (c *cpu) sys(code emt.SystemCall, reg register, ptr uint64) {
 	}
 }
 
-// push argument on top of stack, top of stack points to new argument
+// Push argument on top of stack, top of stack points to new argument.
 func (c *cpu) push(arg uint64) {
 	c.registers[sp]++
 	c.stack[c.registers[sp]] = arg
 }
 
-// pop argument from top of stack, top of stack points to previous argument
+// Pop argument from top of stack, top of stack points to previous argument.
 func (c *cpu) pop(reg register) {
 	c.registers[reg] = c.stack[c.registers[sp]]
 	c.registers[sp]--
 }
 
-// unconditionally jump to uint64 address
+// Unconditionally jump to uint64 address.
 func (c *cpu) jmp(addr uint64) {
 	c.registers[ip] = addr
 }
 
-// copy uint64 argument to stack at ptr address or to register reg
+// Copy uint64 argument to stack at ptr address or to register reg.
 func (c *cpu) mov(reg register, ptr, arg uint64) {
 	if reg == sp {
 		c.stack[ptr] = arg
@@ -447,7 +454,7 @@ func (c *cpu) mov(reg register, ptr, arg uint64) {
 	}
 }
 
-// negate stack or register int64 element
+// Negate stack or register int64 element.
 func (c *cpu) neg(reg register, ptr uint64) {
 	var a int64
 
@@ -468,7 +475,7 @@ func (c *cpu) neg(reg register, ptr uint64) {
 	}
 }
 
-// add two int64 elements and store the result in first stack or register int64 element
+// Add two int64 elements and store the result in first stack or register int64 element.
 func (c *cpu) add(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	var a, b int64
 
@@ -496,7 +503,7 @@ func (c *cpu) add(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	}
 }
 
-// subtract two int64 elements and store the result in first stack or register int64 element
+// Subtract two int64 elements and store the result in first stack or register int64 element.
 func (c *cpu) sub(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	var a, b int64
 
@@ -524,7 +531,7 @@ func (c *cpu) sub(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	}
 }
 
-// multiply two int64 elements and store the result in first stack or register int64 element
+// Multiply two int64 elements and store the result in first stack or register int64 element.
 func (c *cpu) mul(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	var a, b int64
 
@@ -552,7 +559,7 @@ func (c *cpu) mul(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	}
 }
 
-// divide two int64 elements and store the result in first stack or register int64 element
+// Divide two int64 elements and store the result in first stack or register int64 element.
 func (c *cpu) div(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	var a, b int64
 
@@ -580,7 +587,7 @@ func (c *cpu) div(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	}
 }
 
-// perform bitwise 'and' operation with uint64 argument and store the result in stack or register
+// Perform bitwise 'and' operation with uint64 argument and store the result in stack or register.
 func (c *cpu) and(reg register, ptr, arg uint64) {
 	var a uint64
 
@@ -601,7 +608,7 @@ func (c *cpu) and(reg register, ptr, arg uint64) {
 	}
 }
 
-// compare two int64 elements and set flags register based on result (zero zf, sign sf, overflow of)
+// Compare two int64 elements and set flags register based on result (zero zf, sign sf, overflow of).
 func (c *cpu) cmp(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	var a, b int64
 
@@ -622,42 +629,42 @@ func (c *cpu) cmp(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
 	c.set_of_sub(a, b)
 }
 
-// jump to uint64 address if zero flag is set, nz (not zero)
+// Jump to uint64 address if zero flag is set, nz (not zero).
 func (c *cpu) je(addr uint64) {
 	if c.registers[flags]&uint64(zf) != 0 {
 		c.registers[ip] = addr
 	}
 }
 
-// jump to uint64 address if zero flag is not set, zr (zero)
+// Jump to uint64 address if zero flag is not set, zr (zero).
 func (c *cpu) jne(addr uint64) {
 	if c.registers[flags]&uint64(zf) == 0 {
 		c.registers[ip] = addr
 	}
 }
 
-// jump to uint64 address if sign flag is not equal to overflow flag (sf != of)
+// Jump to uint64 address if sign flag is not equal to overflow flag (sf != of).
 func (c *cpu) jl(addr uint64) {
 	if c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
 
-// jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of)
+// Jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of).
 func (c *cpu) jle(addr uint64) {
 	if c.registers[flags]&uint64(zf) != 0 || c.registers[flags]&uint64(sf) != c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
 
-// jump to uint64 address if zero flag is not set and sign flag is equal to overflow flag (zf == 0, sf == of)
+// Jump to uint64 address if zero flag is not set and sign flag is equal to overflow flag (zf == 0, sf == of).
 func (c *cpu) jg(addr uint64) {
 	if c.registers[flags]&uint64(zf) == 0 && c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
 	}
 }
 
-// jump to uint64 address if sign flag is equal to overflow flag (sf == of)
+// Jump to uint64 address if sign flag is equal to overflow flag (sf == of).
 func (c *cpu) jge(addr uint64) {
 	if c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
