@@ -7,17 +7,20 @@ package parser
 
 import "fmt"
 
+// Kind of supported symbol table entry.
 const (
 	constant = entry(iota)
 	variable
 	procedure
 )
 
+// Supported data types of constant and variable symbols.
 const (
 	none = symbolType(iota)
 	integer64
 )
 
+// The symbol table is a table that stores all symbols of the program.
 type (
 	entry      int
 	symbolType int
@@ -30,7 +33,7 @@ type (
 		stype   symbolType // type of constant or variable
 		offset  uint64     // offset of variable in its runtime procedure stack frame
 		label   string     // label of procedure for assembly generation
-		address uint64     // address of procedure in text section
+		address uint64     // absolute address of procedure in text section
 	}
 
 	symbolTable struct {
@@ -38,18 +41,21 @@ type (
 	}
 )
 
+// KindNames maps symbol kinds to their string representation.
 var kindNames = map[entry]string{
 	constant:  "constant",
 	variable:  "variable",
 	procedure: "procedure",
 }
 
+// Create a new symbol table for the PL/0 parser.
 func newSymbolTable() *symbolTable {
 	return &symbolTable{
 		symbols: make([]symbol, 0),
 	}
 }
 
+// Add a constant symbol to the symbol table.
 func (s *symbolTable) addConstant(name string, depth int32, value any) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
@@ -60,6 +66,7 @@ func (s *symbolTable) addConstant(name string, depth int32, value any) {
 	})
 }
 
+// Add a variable symbol to the symbol table.
 func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 	s.symbols = append(s.symbols, symbol{
 		name:   name,
@@ -72,6 +79,7 @@ func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 	*offset++
 }
 
+// Add a procedure symbol to the symbol table.
 func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
 	s.symbols = append(s.symbols, symbol{
 		name:    name,
@@ -82,6 +90,7 @@ func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
 	})
 }
 
+// Find first symbol in the symbol table by searching from top to bottom.
 func (s *symbolTable) find(name string) (symbol, bool) {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
 		if s.symbols[i].name == name {
@@ -92,6 +101,7 @@ func (s *symbolTable) find(name string) (symbol, bool) {
 	return symbol{}, false
 }
 
+// Update first found symbol in the symbol table by searching from top to bottom.
 func (s *symbolTable) update(symbol symbol) bool {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
 		if s.symbols[i].name == symbol.name {
@@ -103,6 +113,7 @@ func (s *symbolTable) update(symbol symbol) bool {
 	return false
 }
 
+// Remove all symbols from the symbol table that are declared at the given declaration depth.
 func (s *symbolTable) remove(depth int32) {
 	var filtered []symbol = make([]symbol, 0, len(s.symbols))
 

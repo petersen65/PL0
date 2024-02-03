@@ -30,7 +30,7 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 		return p.tokenHandler.getErrorReport(), err
 	}
 
-	// a program starts with a block of declaration depth 0
+	// a program starts with a block of declaration depth 0 and an entrypoint address 0
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
 	p.block(emt.EntryPointName, set(declarations, statements, scn.Period))
 
@@ -72,12 +72,13 @@ func (p *parser) block(name string, expected scn.Tokens) {
 		p.appendError(maxBlockDepth, p.declarationDepth)
 	}
 
-	// emit a jump to the first instruction of the entrypoint block whose address is not yet known
+	// emit a jump to the first instruction of the block whose address is not yet known
+	// the address of the jump instruction itself was already stored in the symbol table as part of the block's procedure symbol
 	//
 	// for declaration depth
 	// 	0, jump is always used to start the program
 	//  1 and above, jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
-	entryPointInstruction := p.emitter.Jump(emt.NullAddress)
+	firstInstruction := p.emitter.Jump(emt.NullAddress)
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
@@ -100,8 +101,8 @@ func (p *parser) block(name string, expected scn.Tokens) {
 		}
 	}
 
-	// update the jump instruction address to the first instruction of the entrypoint block
-	p.emitter.Update(entryPointInstruction, p.emitter.GetNextAddress(), nil)
+	// update the jump instruction address to the first instruction of the block
+	p.emitter.Update(firstInstruction, p.emitter.GetNextAddress(), nil)
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
 	procdureSymbol, _ := p.symbolTable.find(name)
