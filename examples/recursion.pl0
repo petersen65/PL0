@@ -17,7 +17,6 @@ end;
 begin
     ! 2;
     count := count + 1;
-
     call Recursion3;
     ! -2;
 end;
