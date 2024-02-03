@@ -181,7 +181,7 @@ func NewScanner() Scanner {
 	return newScanner()
 }
 
-// Set returns a joined token set of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
+// Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
 func Set(tss ...TokenSet) Tokens {
 	set := Tokens{}
 
@@ -193,7 +193,7 @@ func Set(tss ...TokenSet) Tokens {
 	return slices.Compact(set)
 }
 
-// In returns true if the token is in the given token set.
+// In returns true if the token is in the given tokens.
 func (token Token) In(set Tokens) bool {
 	return slices.Contains(set, token)
 }

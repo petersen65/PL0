@@ -10,6 +10,7 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// The expression parser is a parser that performs a syntactical analysis of an expression.
 type expressionParser struct {
 	emitter               emt.Emitter   // emitter that emits the code
 	memoryLocation        int32         // memory location of the current expression
@@ -18,6 +19,7 @@ type expressionParser struct {
 	symbolTable           *symbolTable  // symbol table that stores all symbols of the program
 }
 
+// Create a new expression parser with the given token handler, symbol table, and emitter.
 func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, emitter emt.Emitter) *expressionParser {
 	return &expressionParser{
 		tokenHandler: tokenHandler,
@@ -26,11 +28,13 @@ func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, e
 	}
 }
 
+// Reset the memory location and the maximum required memory locations of the expression parser.
 func (e *expressionParser) reset() {
 	e.memoryLocation = 0
 	e.maximumMemoryLocation = 0
 }
 
+// Set the expression parser to start with no or a preserved memory location.
 func (e *expressionParser) start(preserve bool) {
 	if preserve {
 		e.memoryLocation++
@@ -39,10 +43,12 @@ func (e *expressionParser) start(preserve bool) {
 	}
 }
 
+// Return the maximum required memory locations of the expression parser after several expressions have been parsed.
 func (e *expressionParser) requiredLocations() int64 {
 	return e.maximumMemoryLocation + 1
 }
 
+// Return the current memory location of the expression parser after parsing one expression.
 func (e *expressionParser) location() int32 {
 	return e.memoryLocation
 }
@@ -148,22 +154,27 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 	}
 }
 
-func (e *expressionParser) lastToken() scn.Token {
-	return e.tokenHandler.lastToken()
-}
-
+// Return the next token description from the token handler.
 func (e *expressionParser) nextToken() bool {
 	return e.tokenHandler.nextTokenDescription()
 }
 
+// Wrapper to get token from the last token description. 
+func (e *expressionParser) lastToken() scn.Token {
+	return e.tokenHandler.lastToken()
+}	
+
+// Wrapper to get the token name from the last token description.
 func (e *expressionParser) lastTokenName() string {
 	return e.tokenHandler.lastTokenName()
 }
 
+// Wrapper to get the token value from the last token description.
 func (e *expressionParser) lastTokenValue() any {
 	return e.tokenHandler.lastTokenValue()
 }
 
+// Append expression parser error to the error report of the token handler.
 func (e *expressionParser) appendError(code failure, value any) {
 	e.tokenHandler.appendError(e.tokenHandler.error(code, value))
 }

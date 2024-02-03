@@ -10,7 +10,7 @@ This module provides a complete compiler for the programming language PL0. It pr
 
 The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
-From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood.
+From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
 I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
 
@@ -105,3 +105,4 @@ The programming language PL/0 (1986 version) supports the following features:
 	* parameter for procedures
 	* boolean, real, string datatypes
 	* improved features for stdin and stdout
+	* optimizations like contant folding

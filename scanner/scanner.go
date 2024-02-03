@@ -107,7 +107,7 @@ func (s *scanner) reset(content []byte) error {
 	s.line = 0
 	s.column = 0
 	s.lastValue = nil
-	s.currentLine = []byte{}
+	s.currentLine = make([]byte, 0)
 	s.endOfFile = false
 
 	if len(content) == 0 || !s.nextCharacter() {
@@ -152,7 +152,7 @@ func (s *scanner) nextCharacter() bool {
 
 // Extract the current line of source code if the scanner is positioned on a new line.
 func (s *scanner) setCurrentLine() {
-	s.currentLine = []byte{}
+	s.currentLine = make([]byte, 0)
 	startIndex := s.sourceIndex
 
 	if startIndex != 0 {

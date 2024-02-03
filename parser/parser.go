@@ -563,36 +563,44 @@ func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) e
 	return address
 }
 
-func (p *parser) lastToken() scn.Token {
-	return p.tokenHandler.lastToken()
-}
-
+// Return the next token description from the token handler.
 func (p *parser) nextToken() bool {
 	return p.tokenHandler.nextTokenDescription()
 }
 
+// Wrapper to get token from the last token description. 
+func (p *parser) lastToken() scn.Token {
+	return p.tokenHandler.lastToken()
+}	
+
+// Wrapper to get the token name from the last token description.
 func (p *parser) lastTokenName() string {
 	return p.tokenHandler.lastTokenName()
 }
 
+// Wrapper to get the token value from the last token description.
 func (p *parser) lastTokenValue() any {
 	return p.tokenHandler.lastTokenValue()
 }
 
+// Append parser error to the error report of the token handler.
 func (p *parser) appendError(code failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
+// Start the expression parser with a zero memory location and parse an expression.
 func (p *parser) expression(expected scn.Tokens) {
 	p.expressionParser.start(false)
 	p.expressionParser.expression(p.declarationDepth, expected)
 }
 
+// Start the expression parser, preserve the memory location from the last expression, and parse a new expression.
 func (p *parser) continueExpression(expected scn.Tokens) {
 	p.expressionParser.start(true)
 	p.expressionParser.expression(p.declarationDepth, expected)
 }
 
+// Return the current memory location after parsing an expression.
 func (p *parser) memoryLocation() int32 {
 	return p.expressionParser.location()
 }

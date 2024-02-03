@@ -2,10 +2,12 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
 
 import scn "github.com/petersen65/PL0/scanner"
 
+// Token slices enable the parser to check for expected tokens and forward to them in the case of syntax errors.
 var (
 	declarations = scn.Tokens{
 		scn.ConstWord,
@@ -37,6 +39,7 @@ type tokenHandler struct {
 	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
 }
 
+// Create a new token handler for the PL/0 parser.
 func newTokenHandler(concreteSyntax scn.ConcreteSyntax) *tokenHandler {
 	return &tokenHandler{
 		concreteSyntax: concreteSyntax,
@@ -44,10 +47,12 @@ func newTokenHandler(concreteSyntax scn.ConcreteSyntax) *tokenHandler {
 	}
 }
 
+// Set wrapper returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
 func set(tss ...scn.TokenSet) scn.Tokens {
 	return scn.Set(tss...)
 }
 
+// Set next token description in the concrete syntax or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
 	if t.concreteSyntaxIndex >= len(t.concreteSyntax) {
 		if t.eof.Token == scn.Null {
@@ -72,18 +77,22 @@ func (t *tokenHandler) nextTokenDescription() bool {
 	return true
 }
 
+// Get token from the last token description.
 func (t *tokenHandler) lastToken() scn.Token {
 	return t.lastTokenDescription.Token
 }
 
+// Get token name from the last token description.
 func (t *tokenHandler) lastTokenName() string {
 	return t.lastTokenDescription.TokenName
 }
 
+// Get token value from the last token description.
 func (t *tokenHandler) lastTokenValue() any {
 	return t.lastTokenDescription.TokenValue
 }
 
+// Check if the last token is an expected token and forward to an expanded set of tokens in the case of a syntax error.
 func (t *tokenHandler) rebase(code failure, expected, expanded scn.Tokens) {
 	if !t.lastToken().In(expected) {
 		t.appendError(t.error(code, t.lastTokenName()))
@@ -94,6 +103,7 @@ func (t *tokenHandler) rebase(code failure, expected, expanded scn.Tokens) {
 	}
 }
 
+// Expose error report to the parser.
 func (t *tokenHandler) getErrorReport() ErrorReport {
 	return t.errorReport
 }

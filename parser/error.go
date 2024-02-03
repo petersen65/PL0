@@ -2,12 +2,14 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
+// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
 
 import "fmt"
 
 const blockNestingMax = 8 // maximum depth of block nesting
 
+// Error codes for the PL/0 parser.
 const (
 	_ = failure(iota + 2000)
 	eofReached
@@ -39,6 +41,7 @@ const (
 
 type failure int
 
+// Map error codes to error messages.
 var errorMap = map[failure]string{
 	eofReached:                              "unexpected end of file",
 	parsingError:                            "a parsing error occurred",
@@ -67,6 +70,7 @@ var errorMap = map[failure]string{
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
 }
 
+// Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) appendError(err error) error {
 	if err == nil {
 		return nil
@@ -82,6 +86,7 @@ func (t *tokenHandler) appendError(err error) error {
 	return err
 }
 
+// Create a new error by mapping the error code to its corresponding error message.
 func (t *tokenHandler) error(code failure, value any) error {
 	var message string
 
