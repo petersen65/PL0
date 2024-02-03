@@ -47,17 +47,17 @@ func (e *emitter) Export() ([]byte, error) {
 }
 
 func (e *emitter) Constant(memloc int32, value any) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Ldc, MemoryLocation: memloc, Arg1: value.(int64)})
+	e.textSection = append(e.textSection, Instruction{Operation: Mov, MemoryLocation: memloc, Arg1: value.(int64)})
 	return Address(len(e.textSection) - 1)
 }
 
 func (e *emitter) LoadVariable(offset Offset, depth, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Ldv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Mlv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
 func (e *emitter) StoreVariable(offset Offset, depth, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Stv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Msv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -87,7 +87,7 @@ func (e *emitter) Negate(memloc int32) Address {
 }
 
 func (e *emitter) Odd(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Odd, MemoryLocation: memloc})
+	e.textSection = append(e.textSection, Instruction{Operation: And, MemoryLocation: memloc})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -157,7 +157,7 @@ func (e *emitter) JumpGreaterEqual(target Address) Address {
 }
 
 func (e *emitter) AllocateStackSpace(varOffset Offset, mlocOffset int64) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Asp, Address: Address(varOffset), Arg1: mlocOffset})
+	e.textSection = append(e.textSection, Instruction{Operation: Alc, Address: Address(varOffset), Arg1: mlocOffset})
 	return Address(len(e.textSection) - 1)
 }
 

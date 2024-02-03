@@ -11,12 +11,12 @@ const (
 
 const (
 	_ = Operation(iota)
-	Ldc
-	Ldv
-	Stv
+	Mov
+	Mlv
+	Msv
 	Cal
 	Ret
-	Asp
+	Alc
 	Jmp
 	Je
 	Jne
@@ -29,7 +29,7 @@ const (
 	Sub
 	Mul
 	Div
-	Odd
+	And
 	Eq
 	Neq
 	Lss
@@ -96,12 +96,12 @@ var (
 	NullAddress Address = 0
 
 	OperationNames = map[Operation]string{
-		Ldc: "ldc",
-		Ldv: "ldv",
-		Stv: "stv",
-		Cal: "call",
+		Mov: "mov",
+		Mlv: "mlv",
+		Msv: "msv",
+		Cal: "cal",
 		Ret: "ret",
-		Asp: "asp",
+		Alc: "alc",
 		Jmp: "jmp",
 		Je:  "je",
 		Jne: "jne",
@@ -114,7 +114,7 @@ var (
 		Sub: "sub",
 		Mul: "mul",
 		Div: "div",
-		Odd: "odd",
+		And: "and",
 		Eq:  "eq",
 		Neq: "neq",
 		Lss: "lss",

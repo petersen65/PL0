@@ -115,7 +115,7 @@ func (m *machine) runProgram(sections []byte) error {
 		m.cpu.registers[ip]++
 
 		switch instr.Operation {
-		case emt.Ldc: // copy int64 constant onto stack or into a register
+		case emt.Mov: // copy int64 constant onto stack or into a register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.mov(reg, ptr, uint64(instr.Arg1))
 
@@ -140,7 +140,7 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
 			m.cpu.jge(uint64(instr.Address))
 
-		case emt.Asp: // allocate space on stack for variables and memory locations of a procedure
+		case emt.Alc: // allocate space on stack for variables and memory locations of a procedure
 			varOffset := uint64(instr.Address)
 			mlocOffset := instr.Arg1
 
@@ -187,7 +187,7 @@ func (m *machine) runProgram(sections []byte) error {
 
 			m.cpu.div(reg1, ptr1, reg2, ptr2)
 
-		case emt.Odd: // test if stack's or register's uint64 element is odd and set zero flag if it is
+		case emt.And: // test if stack's or register's uint64 element is odd and set zero flag if it is
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.and(reg, ptr, 1)
 
@@ -235,11 +235,11 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.pop(bp)                                                         // restore callers base pointer
 			m.cpu.registers[sp] -= 1                                              // discard dynamic link and restore callers top of stack
 
-		case emt.Ldv: // copy int64 variable loaded from its base plus offset to stack or register
+		case emt.Mlv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.mov(reg, ptr, m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+stackDescriptorSize])
 
-		case emt.Stv: // copy int64 element from stack or register to a variable stored within its base plus offset
+		case emt.Msv: // copy int64 element from stack or register to a variable stored within its base plus offset
 			var a uint64
 
 			if reg, ptr := m.cpu.mloc(instr.MemoryLocation); reg == sp {
