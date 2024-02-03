@@ -257,6 +257,9 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.Sys: // system call to operating system based on system call code
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			m.cpu.sys(emt.SystemCall(instr.Address), reg, ptr)
+
+		default:
+			return fmt.Errorf("halt - unknown operation '%v' at address '%v'", instr.Operation, m.cpu.registers[ip]-1)
 		}
 	}
 }
