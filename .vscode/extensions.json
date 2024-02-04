@@ -1,6 +1,5 @@
 {
     "recommendations": [
-        "golang.go",
-        "ms-vscode.makefile-tools"
+        "golang.go"
     ]
 }
