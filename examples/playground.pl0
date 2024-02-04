@@ -1,0 +1,9 @@
+var x, y, z;
+
+begin
+    x := 20;
+    y := 18;
+    z := 4;
+
+    ! x + y + z;
+end.

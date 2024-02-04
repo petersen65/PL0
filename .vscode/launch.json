@@ -11,9 +11,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-cp",
-                "examples/recursion.pl0",
-                "build/recursion.il0"
+                "-cr",
+                "examples/playground.pl0",
+                "build/playground.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false
