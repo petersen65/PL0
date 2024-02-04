@@ -95,7 +95,7 @@ func (m *machine) runProgram(sections []byte) error {
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.stack[0] = m.cpu.base(0)  // dynamic link to first callers new callee
+	m.cpu.stack[0] = m.cpu.target_bp(0)  // dynamic link to first callers new callee
 	m.cpu.push(m.cpu.registers[bp]) // save first callers base pointer
 	m.cpu.push(m.cpu.registers[ip]) // save first callers instruction pointer
 
@@ -216,10 +216,10 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.cmp(reg1, ptr1, reg2, ptr2)
 
 		case emt.Cal: // caller procedure calls callee procedure
-			// preserve state of caller and create descriptor of procedure being called
-			m.cpu.push(m.cpu.base(instr.DeclarationDepth)) // dynamic link to procedure being called
-			m.cpu.push(m.cpu.registers[bp])                // save callers base pointer
-			m.cpu.push(m.cpu.registers[ip])                // save callers instruction pointer
+			// create descriptor of procedure being called and preserve state of caller in it
+			m.cpu.push(m.cpu.target_bp(instr.DeclarationDepth)) // base pointer of procedure being called (callee)
+			m.cpu.push(m.cpu.registers[bp])                // base pointer of the caller procedure
+			m.cpu.push(m.cpu.registers[ip])                // return address of the caller procedure (already + 1)
 
 			// base pointer of procedure being called is pointing to its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp] - (stackDescriptorSize - 1)
@@ -241,7 +241,8 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Mlv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
-			m.cpu.mov(reg, ptr, m.cpu.stack[m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+stackDescriptorSize])
+			variablesBase := m.cpu.target_bp(instr.DeclarationDepth) + stackDescriptorSize // base pointer + descriptor size
+			m.cpu.mov(reg, ptr, m.cpu.stack[variablesBase+uint64(instr.Address)])     // variables base + variable offset
 
 		case emt.Msv: // copy int64 element from stack or register to a variable stored within its base plus offset
 			var a uint64
@@ -252,7 +253,8 @@ func (m *machine) runProgram(sections []byte) error {
 				a = m.cpu.registers[reg]
 			}
 
-			m.cpu.mov(sp, m.cpu.base(instr.DeclarationDepth)+uint64(instr.Address)+stackDescriptorSize, a)
+			variablesBase := m.cpu.target_bp(instr.DeclarationDepth) + stackDescriptorSize // base pointer + descriptor size
+			m.cpu.mov(sp, variablesBase+uint64(instr.Address), a)                     // variables base + variable offset
 
 		case emt.Sys: // system call to operating system based on system call code
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
@@ -299,16 +301,20 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 	return nil
 }
 
-// Follow dynamic link 'depth' calls down to the base pointer of a caller procedure in the chain of all callers.
-func (c *cpu) base(depth int32) uint64 {
-	b := c.registers[bp]
+// Determine base pointer of the callee procedure.
+func (c *cpu) target_bp(depth int32) uint64 {
+	// Descriptor of a procedure:
+	// 1. base pointer of procedure being called (callee)
+	// 2. base pointer of the caller procedure
+	// 3. return address of the caller procedure (already + 1)
 
-	for depth > 0 {
-		b = c.stack[b]
-		depth--
+	basePointer := c.registers[bp] // base pointer of currently running procedure
+
+	for ; depth > 0; depth-- {
+		basePointer = c.stack[basePointer] // set base pointer to base pointer of direct caller procedure
 	}
 
-	return b
+	return basePointer
 }
 
 // Map a memory location to a register or to a location on the stack.

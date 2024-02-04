@@ -1,9 +1,20 @@
 var x, y, z;
 
+procedure R;
 begin
-    x := 20;
-    y := 18;
-    z := 4;
+end;
 
-    ! x + y + z;
+procedure P;
+
+procedure Q;
+begin
+    call R;
+end;
+
+begin
+    call Q;
+end;
+
+begin
+    call P;
 end.
