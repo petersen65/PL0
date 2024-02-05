@@ -68,8 +68,8 @@ type (
 		GetNextAddress() Address
 		Export() ([]byte, error)
 		Constant(memloc int32, value any) Address
-		LoadVariable(offset Offset, depth int32, memloc int32) Address
-		StoreVariable(offset Offset, depth int32, memloc int32) Address
+		LoadVariable(offset Offset, difference int32, memloc int32) Address
+		StoreVariable(offset Offset, difference int32, memloc int32) Address
 		Add(memloc int32) Address
 		Subtract(memloc int32) Address
 		Multiply(memloc int32) Address
@@ -90,7 +90,7 @@ type (
 		JumpGreater(target Address) Address
 		JumpGreaterEqual(target Address) Address
 		AllocateStackSpace(varOffset Offset, mlocOffset int64) Address
-		Call(target Address, depth int32) Address
+		Call(target Address, difference int32) Address
 		Return() Address
 		System(call SystemCall, memloc int32) Address
 	}
