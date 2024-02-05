@@ -56,11 +56,11 @@ type (
 	TextSection []Instruction
 
 	Instruction struct {
-		Operation        Operation
-		DeclarationDepth int32
-		MemoryLocation   int32
-		Address          Address
-		Arg1             int64
+		Operation                  Operation // operation code of the instruction
+		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
+		MemoryLocation             int32     // memory location used by operators to store temporary results while calculating expressions
+		Address                    Address	 // target address or offset of a variable of the operation
+		Arg1                       int64	 // int64 argument of the operation
 	}
 
 	Emitter interface {

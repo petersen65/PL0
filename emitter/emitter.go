@@ -60,13 +60,13 @@ func (e *emitter) Constant(memloc int32, value any) Address {
 
 // Load a variable value from the stack into a memory location.
 func (e *emitter) LoadVariable(offset Offset, depth, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Mlv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Mlv, DeclarationDepthDifference: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
 // Store a variable value from a memory location into the stack.
 func (e *emitter) StoreVariable(offset Offset, depth, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Msv, DeclarationDepth: depth, MemoryLocation: memloc, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Msv, DeclarationDepthDifference: depth, MemoryLocation: memloc, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -192,7 +192,7 @@ func (e *emitter) AllocateStackSpace(varOffset Offset, mlocOffset int64) Address
 
 // Call a procdure at the target address from a caller.
 func (e *emitter) Call(target Address, depth int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepth: depth})
+	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepthDifference: depth})
 	return Address(len(e.textSection) - 1)
 }
 
