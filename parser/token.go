@@ -92,12 +92,12 @@ func (t *tokenHandler) lastTokenValue() any {
 	return t.lastTokenDescription.TokenValue
 }
 
-// Check if the last token is an expected token and forward to an expanded set of tokens in the case of a syntax error.
-func (t *tokenHandler) rebase(code failure, expected, expanded scn.Tokens) {
+// Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
+func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
 	if !t.lastToken().In(expected) {
 		t.appendError(t.error(code, t.lastTokenName()))
 
-		for next := set(expected, expanded, scn.Eof); !t.lastToken().In(next); {
+		for next := set(expected, fallback, scn.Eof); !t.lastToken().In(next); {
 			t.nextTokenDescription()
 		}
 	}
