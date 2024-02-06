@@ -98,9 +98,10 @@ func (m *machine) runProgram(sections []byte) error {
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.push(m.cpu.registers[ip]) // return address (instruction pointer of caller + 1)
-	m.cpu.push(m.cpu.registers[bp]) // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[0] = m.cpu.link(0)  // static link
+	m.cpu.push(m.cpu.registers[ip])           // return address (instruction pointer of caller + 1)
+	m.cpu.push(m.cpu.registers[bp])           // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.cpu.stack[0] = m.cpu.link(0)            // static link
+	m.cpu.registers[bp] = m.cpu.registers[sp] // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -225,15 +226,15 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.jmp(uint64(instr.Address))
 
 		case emt.Ret: // callee procedure returns to caller procedure
-			// returning from the entrypoint of the program exits the program
-			if m.cpu.registers[bp] == 0 {
-				return nil
-			}
-
 			// restore state of caller procdure from descriptor of callee procedure
 			m.cpu.registers[sp] = m.cpu.registers[bp] - 1 // discard stack space and static link of callee procedure
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.pop(ip)                                 // restore callers instruction pointer
+
+			// returning from the entrypoint of the program exits the program
+			if m.cpu.registers[ip] == 0 {
+				return nil
+			}
 
 		case emt.Mlv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
@@ -437,7 +438,10 @@ func (c *cpu) push(arg uint64) {
 // Pop argument from top of stack, top of stack points to previous argument.
 func (c *cpu) pop(reg register) {
 	c.registers[reg] = c.stack[c.registers[sp]]
-	c.registers[sp]--
+
+	if c.registers[sp] > 0 {
+		c.registers[sp]--
+	}
 }
 
 // Unconditionally jump to uint64 address.

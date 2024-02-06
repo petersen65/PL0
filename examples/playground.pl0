@@ -1,20 +1,22 @@
 var x, y, z;
 
-procedure R;
-begin
-end;
-
 procedure P;
-
-procedure Q;
+var a;
 begin
-    call R;
+    a := 4;
+    x := x + 1;
+    y := y + 1;
+    z := z + 1;
 end;
 
 begin
-    call Q;
-end;
+    x := 1;
+    y := 2;
+    z := 3;
 
-begin
     call P;
+
+    ! x;
+    ! y;
+    ! z;
 end.

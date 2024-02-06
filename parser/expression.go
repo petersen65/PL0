@@ -45,7 +45,7 @@ func (e *expressionParser) start(preserve bool) {
 
 // Return the maximum required memory locations of the expression parser after several expressions have been parsed.
 func (e *expressionParser) requiredLocations() int64 {
-	return e.maximumMemoryLocation + 1
+	return e.maximumMemoryLocation
 }
 
 // Return the current memory location of the expression parser after parsing one expression.
