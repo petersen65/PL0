@@ -55,12 +55,17 @@ type (
 	Offset      uint64
 	TextSection []Instruction
 
+	Target struct {
+		Cpu         string           // cpu architecture name
+		LocationMap map[int32]string // map of memory locations to register names
+	}
+
 	Instruction struct {
 		Operation                  Operation // operation code of the instruction
 		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
 		MemoryLocation             int32     // memory location used by operators to store temporary results while calculating expressions
-		Address                    Address	 // target address or offset of a variable of the operation
-		Arg1                       int64	 // int64 argument of the operation
+		Address                    Address   // target address or offset of a variable of the operation
+		Arg1                       int64     // int64 argument of the operation
 	}
 
 	Emitter interface {
@@ -97,6 +102,17 @@ type (
 )
 
 var (
+	// Emulator is the only supported target for the IL/0 emitter.
+	Emulator = Target{
+		Cpu: "x86_64",
+		LocationMap: map[int32]string{
+			0: "rax",
+			1: "rbx",
+			2: "rcx",
+			3: "rdx",
+		},
+	}
+
 	// NullAddress is the null address value for instructions.
 	NullAddress Address = 0
 
@@ -132,6 +148,6 @@ var (
 )
 
 // Return the public interface of the private emitter implementation.
-func NewEmitter() Emitter {
-	return newEmitter()
+func NewEmitter(target Target) Emitter {
+	return newEmitter(target)
 }

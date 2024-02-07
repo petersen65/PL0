@@ -12,12 +12,14 @@ import (
 
 // Private implementation of the IL/0 emitter.
 type emitter struct {
+	target      Target
 	textSection TextSection
 }
 
 // Return the public interface of the private emitter implementation.
-func newEmitter() Emitter {
+func newEmitter(target Target) Emitter {
 	return &emitter{
+		target:      target,
 		textSection: make(TextSection, 0),
 	}
 }
