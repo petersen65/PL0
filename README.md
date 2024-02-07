@@ -105,4 +105,4 @@ The programming language PL/0 (1986 version) supports the following features:
 	* parameter for procedures
 	* boolean, real, string datatypes
 	* improved features for stdin and stdout
-	* optimizations like contant folding
+	* optimizations like constant folding
