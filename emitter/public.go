@@ -6,11 +6,12 @@
 package emitter
 
 const (
-	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
 	EntryPointName      = "_start" // name of the entry point procedure of a program
+	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
+	FreeCpuRegisters    = 4        // number of 64-bit unsigned integer free cpu registers
 )
 
-// Operation codes for the IL/0 emitter.
+// Operation codes for IL/0.
 const (
 	_ = Operation(iota)
 	Mov
@@ -39,9 +40,25 @@ const (
 	Gtr
 	Geq
 	Sys
+	_
+	_
+	Movr
+	Movs
 )
 
-// System call codes for operating system calls.
+// Destination stores either a cpu register or a memory location offset from the stack pointer.
+const (
+	Ax    = Destination(iota) // accumulator is used for intermediate results of arithmetic operations
+	Bx                        // base register is used for addressing variables in the current stack frame (descriptor)
+	Cx                        // counter register is used for counting iterations of loops
+	Dx                        // data register is used for addressing variables in the previous stack frame (descriptor)
+	Ip                        // instruction pointer is pointing to the next instruction to be executed
+	Sp                        // stack pointer is pointing to the top of the stack
+	Bp                        // base pointer is pointing to the base of the current stack frame (descriptor)
+	Flags                     // flags register contains the current state of the cpu and reflects the result of arithmetic operations
+)
+
+// System call codes for operating system calls for IL/0.
 const (
 	Read = SystemCall(iota)
 	Write
@@ -50,29 +67,26 @@ const (
 // Core API for the IL/0 emitter.
 type (
 	Operation   int32
+	Destination uint64
 	SystemCall  int32
 	Address     uint64
 	Offset      uint64
 	TextSection []Instruction
 
-	Target struct {
-		Cpu         string           // cpu architecture name
-		LocationMap map[int32]string // map of memory locations to register names
-	}
-
 	Instruction struct {
-		Operation                  Operation // operation code of the instruction
-		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
-		MemoryLocation             int32     // memory location used by operators to store temporary results while calculating expressions
-		Address                    Address   // target address or offset of a variable of the operation
-		Arg1                       int64     // int64 argument of the operation
+		Operation                  Operation   // operation code of the instruction
+		DeclarationDepthDifference int32       // declaration depth difference between procedure block and to be accessed variables
+		Destination                Destination // destination holds a register or a stack pointer offset
+		MemoryLocation             int32       // memory location used by operators to store temporary results while calculating expressions
+		Address                    Address     // target address or offset of a variable of the operation
+		Arg1                       int64       // int64 argument of the operation
 	}
 
 	Emitter interface {
 		Update(instruction, target Address, value any) error
 		GetNextAddress() Address
 		Export() ([]byte, error)
-		Constant(memloc int32, value any) Address
+		Constant(destination Destination, value any) Address
 		LoadVariable(offset Offset, difference int32, memloc int32) Address
 		StoreVariable(offset Offset, difference int32, memloc int32) Address
 		Add(memloc int32) Address
@@ -102,52 +116,43 @@ type (
 )
 
 var (
-	// Emulator is the only supported target for the IL/0 emitter.
-	Emulator = Target{
-		Cpu: "x86_64",
-		LocationMap: map[int32]string{
-			0: "rax",
-			1: "rbx",
-			2: "rcx",
-			3: "rdx",
-		},
-	}
-
-	// NullAddress is the null address value for instructions.
+	// NullAddress is the null address value for IL/0 instructions.
 	NullAddress Address = 0
 
-	// OperationNames maps operation codes to their string representation.
+	// OperationNames maps IL/0 operation codes to their string representation.
 	OperationNames = map[Operation]string{
-		Mov: "mov",
-		Mlv: "mlv",
-		Msv: "msv",
-		Cal: "cal",
-		Ret: "ret",
-		Alc: "alc",
-		Jmp: "jmp",
-		Je:  "je",
-		Jne: "jne",
-		Jl:  "jl",
-		Jle: "jle",
-		Jg:  "jg",
-		Jge: "jge",
-		Neg: "neg",
-		Add: "add",
-		Sub: "sub",
-		Mul: "mul",
-		Div: "div",
-		And: "and",
-		Eq:  "eq",
-		Neq: "neq",
-		Lss: "lss",
-		Leq: "leq",
-		Gtr: "gtr",
-		Geq: "geq",
-		Sys: "sys",
+		Mov:  "mov",
+		Mlv:  "mlv",
+		Msv:  "msv",
+		Cal:  "cal",
+		Ret:  "ret",
+		Alc:  "alc",
+		Jmp:  "jmp",
+		Je:   "je",
+		Jne:  "jne",
+		Jl:   "jl",
+		Jle:  "jle",
+		Jg:   "jg",
+		Jge:  "jge",
+		Neg:  "neg",
+		Add:  "add",
+		Sub:  "sub",
+		Mul:  "mul",
+		Div:  "div",
+		And:  "and",
+		Eq:   "eq",
+		Neq:  "neq",
+		Lss:  "lss",
+		Leq:  "leq",
+		Gtr:  "gtr",
+		Geq:  "geq",
+		Sys:  "sys",
+		Movr: "movr",
+		Movs: "movs",
 	}
 )
 
-// Return the public interface of the private emitter implementation.
-func NewEmitter(target Target) Emitter {
-	return newEmitter(target)
+// Return the public interface of the private IL/0 emitter implementation.
+func NewEmitter() Emitter {
+	return newEmitter()
 }

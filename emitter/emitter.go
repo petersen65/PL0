@@ -12,14 +12,12 @@ import (
 
 // Private implementation of the IL/0 emitter.
 type emitter struct {
-	target      Target
 	textSection TextSection
 }
 
-// Return the public interface of the private emitter implementation.
-func newEmitter(target Target) Emitter {
+// Return the public interface of the private IL/0 emitter implementation.
+func newEmitter() Emitter {
 	return &emitter{
-		target:      target,
 		textSection: make(TextSection, 0),
 	}
 }
@@ -54,9 +52,24 @@ func (e *emitter) Export() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Load a constant value into a memory location.
-func (e *emitter) Constant(memloc int32, value any) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Mov, MemoryLocation: memloc, Arg1: value.(int64)})
+// Load a constant value into a destination.
+func (e *emitter) Constant(destination Destination, value any) Address {
+	if destination < Ip {
+		e.textSection = append(e.textSection,
+			Instruction{
+				Operation:   Movr,
+				Destination: destination,
+				Arg1:        value.(int64),
+			})
+	} else {
+		e.textSection = append(e.textSection,
+			Instruction{
+				Operation:   Movs,
+				Destination: destination - FreeCpuRegisters,
+				Arg1:        value.(int64),
+			})
+	}
+
 	return Address(len(e.textSection) - 1)
 }
 

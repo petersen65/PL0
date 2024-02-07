@@ -123,7 +123,7 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 			if symbol, ok := e.symbolTable.find(e.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					e.emitter.Constant(e.memoryLocation, symbol.value)
+					e.emitter.Constant(emt.Destination(e.memoryLocation), symbol.value)
 
 				case variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth, e.memoryLocation)
@@ -137,7 +137,7 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
-			e.emitter.Constant(e.memoryLocation, e.lastTokenValue())
+			e.emitter.Constant(emt.Destination(e.memoryLocation), e.lastTokenValue())
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
 			e.nextToken()

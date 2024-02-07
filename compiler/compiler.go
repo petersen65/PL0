@@ -87,7 +87,7 @@ func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport
 	if concreteSyntax, err := scanner.Scan(content); err != nil {
 		return nil, concreteSyntax, nil, err
 	} else {
-		emitter := emt.NewEmitter(emt.Emulator)
+		emitter := emt.NewEmitter()
 		parser := par.NewParser()
 
 		if errorReport, err := parser.Parse(concreteSyntax, emitter); err != nil {
