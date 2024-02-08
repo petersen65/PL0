@@ -90,6 +90,7 @@ The programming language PL/0 (1986 version) supports the following features:
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
 	* single pass parser: recursive descent parser directly calls emitter while analyzing concrete syntax
+	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
 ## Planning
 
