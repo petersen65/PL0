@@ -16,16 +16,17 @@ import (
 // It parses the command line arguments and calls the appropriate functions.
 //
 // The command line arguments are:
-//     -c[r|p] <source file> <target file>
-//     -r <target file>
-//     -p <target file>
+//
+//	-c[r|p] <source file> <target file>
+//	-r <target file>
+//	-p <target file>
 func main() {
 	fmt.Println("PL/0 Compiler Version 1.0.0 1986")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
 	switch {
 	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3])
+		compile(os.Args[2], os.Args[3], false)
 
 	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
 		run(os.Args[2])
@@ -34,14 +35,17 @@ func main() {
 		print(os.Args[2])
 
 	case len(os.Args) > 3 && os.Args[1] == "-cr" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3]) == nil {
+		if compile(os.Args[2], os.Args[3], false) == nil {
 			run(os.Args[3])
 		}
 
 	case len(os.Args) > 3 && os.Args[1] == "-cp" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3]) == nil {
+		if compile(os.Args[2], os.Args[3], false) == nil {
 			print(os.Args[3])
 		}
+
+	case len(os.Args) > 3 && os.Args[1] == "-cs" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
+		compile(os.Args[2], os.Args[3], true)
 
 	default:
 		usage()
@@ -49,8 +53,8 @@ func main() {
 }
 
 // Function compile compiles the PL/0 source file pl0 and writes the IL/0 code to the target file il0.
-func compile(pl0, il0 string) error {
-	err := compiler.CompileFile(pl0, il0, os.Stdout)
+func compile(pl0, il0 string, syntax bool) error {
+	err := compiler.CompileFile(pl0, il0, syntax, os.Stdout)
 
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -89,7 +93,7 @@ func print(il0 string) error {
 
 // Function 'usage' prints the command line usage information to the standard output (console).
 func usage() {
-	fmt.Println("Usage: pl0 -c[r|p] <source file> <target file>")
+	fmt.Println("Usage: pl0 -c[r|p|s] <source file> <target file>")
 	fmt.Println("       pl0 -r <target file>")
 	fmt.Println("       pl0 -p <target file>")
 }

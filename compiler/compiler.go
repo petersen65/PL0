@@ -17,7 +17,7 @@ import (
 )
 
 // Compile a PL/0 source file into an IL/0 program file.
-func CompileFile(source, target string, print io.Writer) error {
+func CompileFile(source, target string, syntax bool, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
 		return err
 	}
@@ -36,13 +36,17 @@ func CompileFile(source, target string, print io.Writer) error {
 			return err
 
 		case err != nil && concreteSyntax != nil && errorReport == nil:
-			PrintConcreteSyntax(concreteSyntax, print)
+			PrintConcreteSyntax(concreteSyntax, print, true)
 			return err
 
 		default:
 			if _, err := program.Write(sections); err != nil {
 				return err
 			}
+		}
+
+		if syntax {
+			PrintConcreteSyntax(concreteSyntax, print, false)
 		}
 	}
 
@@ -79,7 +83,7 @@ func PrintFile(target string, print io.Writer) error {
 	return nil
 }
 
-// Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice. 
+// Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
 // The concrete syntax and error report are also returned if an error occurs during compilation.
 func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
@@ -111,14 +115,32 @@ func PrintSections(sections []byte, print io.Writer) error {
 }
 
 // Print the concrete syntax of the scanner to the specified writer.
-func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer) {
-	var lastLine int
+func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bottom bool) {
+	var start, previousLine int
 	print.Write([]byte("Concrete Syntax:"))
 
-	for _, td := range concreteSyntax {
-		if td.Line != lastLine {
+	if len(concreteSyntax) == 0 {
+		print.Write([]byte("\n"))
+		return
+	}
+
+	if bottom {
+		lastLine := concreteSyntax[len(concreteSyntax)-1].Line
+
+		for start = len(concreteSyntax) - 1; start >= 0 && concreteSyntax[start].Line == lastLine; start-- {
+		}
+
+		start++
+	} else {
+		start = 0
+	}
+
+	for i := start; i < len(concreteSyntax); i++ {
+		td := concreteSyntax[i]
+
+		if td.Line != previousLine {
 			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
-			lastLine = td.Line
+			previousLine = td.Line
 		}
 
 		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
