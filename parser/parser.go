@@ -110,13 +110,10 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
-	allocStackSpaceInstruction := p.emitter.AllocateStackSpace(emt.Offset(varOffset))
+	p.emitter.AllocateStackSpace(emt.Offset(varOffset))
 
 	// parse and emit all statement instructions which are defining the code logic of the block
 	p.statement(set(expected, scn.Semicolon, scn.EndWord))
-
-	// allcate stack space for block variables required for all expressions of the block
-	p.emitter.Update(allocStackSpaceInstruction, emt.Address(varOffset), nil)
 
 	// emit a return instruction to return from the block
 	p.emitter.Return()
@@ -125,6 +122,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
 	p.symbolTable.remove(p.declarationDepth)
 
+	// Check if the last token is an expected token or report a syntax error
 	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
 }
 
