@@ -225,12 +225,12 @@ func (m *machine) runProgram(sections []byte) error {
 				return nil
 			}
 
-		case emt.Mlv: // copy int64 variable loaded from its base plus offset to stack or register
+		case emt.Ldv: // copy int64 variable loaded from its base plus offset to stack or register
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
 			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1     // base pointer + 1
 			m.cpu.mov(reg, ptr, m.cpu.stack[variablesBase+uint64(instr.Address)]) // variables base + variable offset
 
-		case emt.Msv: // copy int64 element from stack or register to a variable stored within its base plus offset
+		case emt.Stv: // copy int64 element from stack or register to a variable stored within its base plus offset
 			var a uint64
 
 			if reg, ptr := m.cpu.mloc(instr.MemoryLocation); reg == emt.Sp {
@@ -240,7 +240,7 @@ func (m *machine) runProgram(sections []byte) error {
 			}
 
 			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1 // base pointer + 1
-			m.cpu.mov(emt.Sp, variablesBase+uint64(instr.Address), a)             // variables base + variable offset
+			m.cpu.mov(emt.Sp, variablesBase+uint64(instr.Address), a)         // variables base + variable offset
 
 		case emt.Sys: // system call to operating system based on system call code
 			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
@@ -454,7 +454,7 @@ func (c *cpu) movr(reg emt.Destination, arg uint64) {
 
 // Copy uint64 argument to top of stack minus offset.
 func (c *cpu) movs(ofs emt.Destination, arg uint64) {
-	c.stack[c.registers[emt.Sp] - uint64(ofs)] = arg
+	c.stack[c.registers[emt.Sp]-uint64(ofs)] = arg
 }
 
 // Negate stack or register int64 element.

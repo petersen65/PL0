@@ -13,8 +13,6 @@ import (
 // The expression parser is a parser that performs a syntactical analysis of an expression.
 type expressionParser struct {
 	emitter               emt.Emitter   // emitter that emits the code
-	memoryLocation        int32         // memory location of the current expression
-	maximumMemoryLocation int64         // maximum used memory location within the current block
 	tokenHandler          *tokenHandler // token handler that manages the tokens of the concrete syntax
 	symbolTable           *symbolTable  // symbol table that stores all symbols of the program
 }
@@ -28,31 +26,6 @@ func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, e
 	}
 }
 
-// Reset the memory location and the maximum required memory locations of the expression parser.
-func (e *expressionParser) reset() {
-	e.memoryLocation = 0
-	e.maximumMemoryLocation = 0
-}
-
-// Set the expression parser to start with no or a preserved memory location.
-func (e *expressionParser) start(preserve bool) {
-	if preserve {
-		e.memoryLocation++
-	} else {
-		e.memoryLocation = 0
-	}
-}
-
-// Return the maximum required memory locations of the expression parser after several expressions have been parsed.
-func (e *expressionParser) requiredLocations() int64 {
-	return e.maximumMemoryLocation
-}
-
-// Return the current memory location of the expression parser after parsing one expression.
-func (e *expressionParser) location() int32 {
-	return e.memoryLocation
-}
-
 // An expression is a sequence of terms separated by plus or minus.
 func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 	// handle leading plus or minus sign of a term
@@ -64,7 +37,7 @@ func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 		e.term(depth, set(expected, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Minus {
-			e.emitter.Negate(e.memoryLocation)
+			e.emitter.Negate()
 		}
 	} else {
 		// handle left term of a plus or minus operator
@@ -76,15 +49,12 @@ func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 		e.nextToken()
 
 		// handle right term of a plus or minus operator
-		e.memoryLocation++
-		e.maximumMemoryLocation = max(e.maximumMemoryLocation, int64(e.memoryLocation))
 		e.term(depth, set(expected, scn.Plus, scn.Minus))
-		e.memoryLocation--
 
 		if plusOrMinus == scn.Plus {
-			e.emitter.Add(e.memoryLocation)
+			e.emitter.Add()
 		} else {
-			e.emitter.Subtract(e.memoryLocation)
+			e.emitter.Subtract()
 		}
 	}
 }
@@ -100,16 +70,13 @@ func (e *expressionParser) term(depth int32, expected scn.Tokens) {
 		e.nextToken()
 
 		// handle right factor of a times or divide operator
-		e.memoryLocation++
-		e.maximumMemoryLocation = max(e.maximumMemoryLocation, int64(e.memoryLocation))
 		e.factor(depth, set(expected, scn.Times, scn.Divide))
-		e.memoryLocation--
 
 		if timesOrDevide == scn.Times {
-			e.emitter.Multiply(e.memoryLocation)
+			e.emitter.Multiply()
 
 		} else {
-			e.emitter.Divide(e.memoryLocation)
+			e.emitter.Divide()
 		}
 	}
 }
@@ -123,10 +90,10 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 			if symbol, ok := e.symbolTable.find(e.lastTokenValue().(string)); ok {
 				switch symbol.kind {
 				case constant:
-					e.emitter.Constant(emt.Destination(e.memoryLocation), symbol.value)
+					e.emitter.Constant(symbol.value)
 
 				case variable:
-					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth, e.memoryLocation)
+					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth)
 
 				case procedure:
 					e.appendError(expectedConstantsVariables, kindNames[symbol.kind])
@@ -137,7 +104,7 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
-			e.emitter.Constant(emt.Destination(e.memoryLocation), e.lastTokenValue())
+			e.emitter.Constant(e.lastTokenValue())
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
 			e.nextToken()

@@ -89,15 +89,13 @@ The programming language PL/0 (1986 version) supports the following features:
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
-	* register allocation algorithm enables expressions to use registers instead of a stack
-	* recursions with local scoped procedures tested
+	* single pass parser: recursive descent parser directly calls emitter while analyzing concrete syntax
 
 ## Planning
 
 * H1 2024, Compiler version 1.1 2024, make core engine more mature
-	* migration of memory location evaluations to emitter
-	* comments for the source code
 	* migration to abstract syntax trees as interface between parser and emitter
+	* comments for the programming language PL/0
 	* support for Intel x86_64 assembler generation based on NASM project
 
 * H2 2024, Compiler version 1.2 2024, enhance programming language

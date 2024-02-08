@@ -52,108 +52,93 @@ func (e *emitter) Export() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Load a constant value into a destination.
-func (e *emitter) Constant(destination Destination, value any) Address {
-	if destination < Ip {
-		e.textSection = append(e.textSection,
-			Instruction{
-				Operation:   Movr,
-				Destination: destination,
-				Arg1:        value.(int64),
-			})
-	} else {
-		e.textSection = append(e.textSection,
-			Instruction{
-				Operation:   Movs,
-				Destination: destination - FreeCpuRegisters,
-				Arg1:        value.(int64),
-			})
-	}
-
+// Load a constant value onto the stack.
+func (e *emitter) Constant(value any) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Ldc, Arg1: value.(int64)})
 	return Address(len(e.textSection) - 1)
 }
 
-// Load a variable value from the stack into a memory location.
-func (e *emitter) LoadVariable(offset Offset, difference, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Mlv, DeclarationDepthDifference: difference, MemoryLocation: memloc, Address: Address(offset)})
+// Load a variable value onto the stack.
+func (e *emitter) LoadVariable(offset Offset, difference int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Ldv, DeclarationDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
-// Store a variable value from a memory location into the stack.
-func (e *emitter) StoreVariable(offset Offset, difference, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Msv, DeclarationDepthDifference: difference, MemoryLocation: memloc, Address: Address(offset)})
+// Store a variable value into the stack.
+func (e *emitter) StoreVariable(offset Offset, difference int32) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Stv, DeclarationDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
-// Add two values from memory location and memory location plus one and store the result in the memory location.
-func (e *emitter) Add(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Add, MemoryLocation: memloc})
+// Add two values from top of stack and store the result onto the stack.
+func (e *emitter) Add() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Add})
 	return Address(len(e.textSection) - 1)
 }
 
-// Subtract two values from memory location and memory location plus one and store the result in the memory location.
-func (e *emitter) Subtract(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Sub, MemoryLocation: memloc})
+// Subtract two values from top of stack and store the result onto the stack.
+func (e *emitter) Subtract() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Sub})
 	return Address(len(e.textSection) - 1)
 }
 
-// Multiply two values from memory location and memory location plus one and store the result in the memory location.
-func (e *emitter) Multiply(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Mul, MemoryLocation: memloc})
+// Multiply two values from top of stack and store the result onto the stack.
+func (e *emitter) Multiply() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Mul})
 	return Address(len(e.textSection) - 1)
 }
 
-// Divide two values from memory location and memory location plus one and store the result in the memory location.
-func (e *emitter) Divide(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Div, MemoryLocation: memloc})
+// Divide two values from top of stack and store the result onto the stack.
+func (e *emitter) Divide() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Div})
 	return Address(len(e.textSection) - 1)
 }
 
-// Negate the value in the memory location.
-func (e *emitter) Negate(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Neg, MemoryLocation: memloc})
+// Negate the value onto the stack.
+func (e *emitter) Negate() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Neg})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if the value in the memory location is odd.
-func (e *emitter) Odd(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: And, MemoryLocation: memloc})
+// Test if the value onto the stack is odd.
+func (e *emitter) Odd() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: And})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if two values from memory location and memory location plus one are equal.
-func (e *emitter) Equal(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Eq, MemoryLocation: memloc})
+// Test if two values from top of stack are equal.
+func (e *emitter) Equal() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Eq})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if two values from memory location and memory location plus one are not equal.
-func (e *emitter) NotEqual(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Neq, MemoryLocation: memloc})
+// Test if two values from top of stack are not equal.
+func (e *emitter) NotEqual() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Neq})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if the value in memory location is less than the value in memory location plus one.
-func (e *emitter) Less(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Lss, MemoryLocation: memloc})
+// Test if the value from top of stack is less than the value from top of stack minus one.
+func (e *emitter) Less() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Lss})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if the value in memory location is less than or equal to the value in memory location plus one.
-func (e *emitter) LessEqual(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Leq, MemoryLocation: memloc})
+// Test if the value from top of stack is less than or equal to the value from top of stack minus one.
+func (e *emitter) LessEqual() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Leq})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if the value in memory location is greater than the value in memory location plus one.
-func (e *emitter) Greater(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Gtr, MemoryLocation: memloc})
+// Test if the value from top of stack is greater than the value from top of stack minus one.
+func (e *emitter) Greater() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Gtr})
 	return Address(len(e.textSection) - 1)
 }
 
-// Test if the value in memory location is greater than or equal to the value in memory location plus one.
-func (e *emitter) GreaterEqual(memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Geq, MemoryLocation: memloc})
+// Test if the value from top of stack is greater than or equal to the value from top of stack minus one.
+func (e *emitter) GreaterEqual() Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Geq})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -199,13 +184,13 @@ func (e *emitter) JumpGreaterEqual(target Address) Address {
 	return Address(len(e.textSection) - 1)
 }
 
-// Allocate block stack space for variables and memory locations required by expressions.
-func (e *emitter) AllocateStackSpace(varOffset Offset, mlocOffset int64) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Alc, Address: Address(varOffset), Arg1: mlocOffset})
+// Allocate stack space for variables.
+func (e *emitter) AllocateStackSpace(varOffset Offset) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Alc, Address: Address(varOffset)})
 	return Address(len(e.textSection) - 1)
 }
 
-// Call a procdure at the target address from a caller.
+// Call a procedure at the target address from a caller.
 func (e *emitter) Call(target Address, difference int32) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepthDifference: difference})
 	return Address(len(e.textSection) - 1)
@@ -218,7 +203,7 @@ func (e *emitter) Return() Address {
 }
 
 // System call for operating system calls.
-func (e *emitter) System(call SystemCall, memloc int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Sys, MemoryLocation: memloc, Address: Address(call)})
+func (e *emitter) System(call SystemCall) Address {
+	e.textSection = append(e.textSection, Instruction{Operation: Sys, Address: Address(call)})
 	return Address(len(e.textSection) - 1)
 }

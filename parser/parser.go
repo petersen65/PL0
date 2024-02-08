@@ -16,7 +16,7 @@ type parser struct {
 	declarationDepth int32             // declaration depth of nested blocks
 	tokenHandler     *tokenHandler     // token handler that manages the tokens of the concrete syntax
 	symbolTable      *symbolTable      // symbol table that stores all symbols of the program
-	expressionParser *expressionParser // parse expressions and manage memory locations
+	expressionParser *expressionParser // parse expressions that are part of statements
 }
 
 // Return the public interface of the private parser implementation.
@@ -110,19 +110,13 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
-	allocStackSpaceInstruction := p.emitter.AllocateStackSpace(emt.Offset(varOffset), 0)
-
-	// reset expression parser for the new block
-	p.expressionParser.reset()
+	allocStackSpaceInstruction := p.emitter.AllocateStackSpace(emt.Offset(varOffset))
 
 	// parse and emit all statement instructions which are defining the code logic of the block
 	p.statement(set(expected, scn.Semicolon, scn.EndWord))
 
-	// get number of memory locations required for all expressions of the block
-	mlocOffset := p.expressionParser.requiredLocations()
-
-	// allcate stack space for block variables and memory locations required for all expressions of the block
-	p.emitter.Update(allocStackSpaceInstruction, emt.Address(varOffset), mlocOffset)
+	// allcate stack space for block variables required for all expressions of the block
+	p.emitter.Update(allocStackSpaceInstruction, emt.Address(varOffset), nil)
 
 	// emit a return instruction to return from the block
 	p.emitter.Return()
@@ -228,7 +222,7 @@ func (p *parser) assignment(expected scn.Tokens) {
 	p.expression(expected)
 
 	if ok && symbol.kind == variable {
-		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth, p.memoryLocation())
+		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
 
 	}
 }
@@ -242,8 +236,8 @@ func (p *parser) read(expected scn.Tokens) {
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
 			if symbol.kind == variable {
-				p.emitter.System(emt.Read, p.memoryLocation())
-				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth, p.memoryLocation())
+				p.emitter.System(emt.Read)
+				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
 			} else {
 				p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
 			}
@@ -260,7 +254,7 @@ func (p *parser) read(expected scn.Tokens) {
 func (p *parser) write(expected scn.Tokens) {
 	p.nextToken()
 	p.expression(expected)
-	p.emitter.System(emt.Write, p.memoryLocation())
+	p.emitter.System(emt.Write)
 }
 
 // A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
@@ -467,7 +461,7 @@ func (p *parser) condition(expected scn.Tokens) scn.Token {
 		relationalOperator = p.lastToken()
 		p.nextToken()
 		p.expression(expected)
-		p.emitter.Odd(p.memoryLocation())
+		p.emitter.Odd()
 	} else {
 		// handle left expression of a relational operator
 		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
@@ -477,29 +471,28 @@ func (p *parser) condition(expected scn.Tokens) scn.Token {
 		} else {
 			relationalOperator = p.lastToken()
 			p.nextToken()
-			leftMemoryLocation := p.memoryLocation()
 
 			// handle right expression of a relational operator
-			p.continueExpression(expected)
+			p.expression(expected)
 
 			switch relationalOperator {
 			case scn.Equal:
-				p.emitter.Equal(leftMemoryLocation)
+				p.emitter.Equal()
 
 			case scn.NotEqual:
-				p.emitter.NotEqual(leftMemoryLocation)
+				p.emitter.NotEqual()
 
 			case scn.Less:
-				p.emitter.Less(leftMemoryLocation)
+				p.emitter.Less()
 
 			case scn.LessEqual:
-				p.emitter.LessEqual(leftMemoryLocation)
+				p.emitter.LessEqual()
 
 			case scn.Greater:
-				p.emitter.Greater(leftMemoryLocation)
+				p.emitter.Greater()
 
 			case scn.GreaterEqual:
-				p.emitter.GreaterEqual(leftMemoryLocation)
+				p.emitter.GreaterEqual()
 			}
 		}
 	}
@@ -589,19 +582,7 @@ func (p *parser) appendError(code failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
-// Start the expression parser with a zero memory location and parse an expression.
+// Start the expression parser and parse an expression.
 func (p *parser) expression(expected scn.Tokens) {
-	p.expressionParser.start(false)
 	p.expressionParser.expression(p.declarationDepth, expected)
-}
-
-// Start the expression parser, preserve the memory location from the last expression, and parse a new expression.
-func (p *parser) continueExpression(expected scn.Tokens) {
-	p.expressionParser.start(true)
-	p.expressionParser.expression(p.declarationDepth, expected)
-}
-
-// Return the current memory location after parsing an expression.
-func (p *parser) memoryLocation() int32 {
-	return p.expressionParser.location()
 }
