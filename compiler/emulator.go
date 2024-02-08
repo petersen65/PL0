@@ -149,57 +149,37 @@ func (m *machine) runProgram(sections []byte) error {
 		case emt.And: // test if top of stack's uint64 element is odd and set zero flag if it is
 			m.cpu.and(1)
 
-		case emt.Add: // add two int64 elements and store the result in the first stack or register
-			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
-			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
-			m.cpu.add(reg1, ptr1, reg2, ptr2)
+		case emt.Add: // add two int64 elements from top of stack and store the result onto the stack
+			m.cpu.add()
 
-		case emt.Sub: // subtract two int64 elements and store the result in the first stack or register
-			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
-			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
-			m.cpu.sub(reg1, ptr1, reg2, ptr2)
+		case emt.Sub: // subtract two int64 elements from top of stack and store the result onto the stack
+			m.cpu.sub()
 
-		case emt.Mul: // multiply two int64 elements and store the result in the first stack or register
-			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
-			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
-			m.cpu.mul(reg1, ptr1, reg2, ptr2)
+		case emt.Mul: // multiply two int64 elements from top of stack and store the result onto the stack
+			m.cpu.mul()
 
-		case emt.Div: // divide two int64 elements and store the result in the first stack or register
-			var b int64
-			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
-			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
-
-			if reg2 == sp {
-				b = int64(m.cpu.stack[ptr2])
-			} else {
-				b = int64(m.cpu.registers[reg2])
+		case emt.Div: // divide two int64 elements from top of stack and store the result onto the stack
+			if err := m.cpu.div(); err != nil {
+				return err
 			}
 
-			if b == 0 {
-				return fmt.Errorf("halt - division by zero at address '%v'", m.cpu.registers[ip]-1)
-			}
-
-			m.cpu.div(reg1, ptr1, reg2, ptr2)
-
-		case emt.Eq: // test if two int64 elements are equal and set zero flag if they are
+		case emt.Eq: // test if two int64 elements from top of stack are equal and set zero flag if they are
 			fallthrough
 
-		case emt.Neq: // test if two int64 elements are not equal and clear zero flag if they are
+		case emt.Neq: // test if two int64 elements from top of stack are not equal and clear zero flag if they are
 			fallthrough
 
-		case emt.Lss: // test if second int64 element is less than first int64 element and store result in flags register
+		case emt.Lss: // test if the int64 element from top of stack is less than the int64 element from top of stack minus one and store result in flags register
 			fallthrough
 
-		case emt.Leq: // test if second int64 element is less than or equal to first int64 element and store result in flags register
+		case emt.Leq: // test if the int64 element from top of stack is less than or equal to the int64 element from top of stack minus one and store result in flags register
 			fallthrough
 
-		case emt.Gtr: // test if second int64 element is greater than first int64 element and store result in flags register
+		case emt.Gtr: // test if the int64 element from top of stack is greater than the int64 element from top of stack minus one and store result in flags register
 			fallthrough
 
-		case emt.Geq: // test if second int64 element is greater than or equal to first int64 element and store result in flags register
-			reg1, ptr1 := m.cpu.mloc(instr.MemoryLocation)
-			reg2, ptr2 := m.cpu.mloc(instr.MemoryLocation + 1)
-			m.cpu.cmp(reg1, ptr1, reg2, ptr2)
+		case emt.Geq: // test if the int64 element from top of stack is greater than or equal to the int64 element from top of stack minus one and store result in flags register
+			m.cpu.cmp()
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// create descriptor of procedure being called and preserve state of caller in it
@@ -224,26 +204,17 @@ func (m *machine) runProgram(sections []byte) error {
 				return nil
 			}
 
-		case emt.Ldv: // copy int64 variable loaded from its base plus offset to stack or register
-			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
-			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1     // base pointer + 1
-			m.cpu.mov(reg, ptr, m.cpu.stack[variablesBase+uint64(instr.Address)]) // variables base + variable offset
-
-		case emt.Msv: // copy int64 element from stack or register to a variable stored within its base plus offset
-			var a uint64
-
-			if reg, ptr := m.cpu.mloc(instr.MemoryLocation); reg == sp {
-				a = m.cpu.stack[ptr]
-			} else {
-				a = m.cpu.registers[reg]
-			}
-
+		case emt.Ldv: // copy int64 variable loaded from its base plus offset onto the stack
 			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1 // base pointer + 1
-			m.cpu.mov(sp, variablesBase+uint64(instr.Address), a)             // variables base + variable offset
+			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])      // variables base + variable offset
+
+		case emt.Stv: // copy int64 element from top of stack to a variable stored within its base plus offset
+			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1      // base pointer + 1
+			m.cpu.pop(ax)                                                          // int64 element to be stored in variable
+			m.cpu.stack[variablesBase+uint64(instr.Address)] = m.cpu.registers[ax] // variables base + variable offset
 
 		case emt.Sys: // system call to operating system based on system call code
-			reg, ptr := m.cpu.mloc(instr.MemoryLocation)
-			m.cpu.sys(emt.SystemCall(instr.Address), reg, ptr)
+			m.cpu.sys(emt.SystemCall(instr.Address))
 
 		default:
 			return fmt.Errorf("halt - unknown operation '%v' at address '%v'", instr.Operation, m.cpu.registers[ip]-1)
@@ -268,272 +239,100 @@ func (c *cpu) pop(reg register) {
 
 // Negate int64 element from top of stack.
 func (c *cpu) neg() {
-	a := -int64(c.stack[c.registers[sp]])
+	c.pop(ax)
+	c.registers[ax] = uint64(-int64(c.registers[ax]))
 
-	c.set_zf(a)
-	c.set_sf(a)
-	c.set_of_neg(a)
+	c.set_zf(ax)
+	c.set_sf(ax)
+	c.set_of_neg(ax)
 
-	c.stack[c.registers[sp]] = uint64(a)
+	c.push(c.registers[ax])
 }
 
 // Perform bitwise 'and' operation with uint64 element from top of stack and uint64 argument.
 func (c *cpu) and(arg uint64) {
-	a := uint64(c.stack[c.registers[sp]]) & arg
+	c.pop(ax)
+	c.registers[ax] = c.registers[ax] & arg
 
-	c.set_zf(int64(a))
-	c.set_sf(int64(a))
+	c.set_zf(ax)
+	c.set_sf(ax)
 	c.unset_of()
 
-	c.stack[c.registers[sp]] = uint64(a)
+	c.push(c.registers[ax])
+}
+
+// Add two int64 elements from top of stack and store the result onto the stack.
+func (c *cpu) add() {
+	c.pop(bx)
+	c.pop(ax)
+	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
+
+	c.set_zf(ax)
+	c.set_sf(ax)
+	c.set_of_add(ax, bx)
+
+	c.push(c.registers[ax])
+}
+
+// Subtract two int64 elements from top of stack and store the result onto the stack.
+func (c *cpu) sub() {
+	c.pop(bx)
+	c.pop(ax)
+	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
+
+	c.set_zf(ax)
+	c.set_sf(ax)
+	c.set_of_sub(ax, bx)
+
+	c.push(c.registers[ax])
+}
+
+// Multiply two int64 elements from top of stack and store the result onto the stack.
+func (c *cpu) mul() {
+	c.pop(bx)
+	c.pop(ax)
+	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
+
+	c.set_zf(ax)
+	c.set_sf(ax)
+	c.set_of_mul(ax, bx)
+
+	c.push(c.registers[ax])
+}
+
+// Divide two int64 elements from top of stack and store the result onto the stack.
+func (c *cpu) div() error {
+	c.pop(bx)
+	c.pop(ax)
+
+	if c.registers[bx] == 0 {
+		return fmt.Errorf("halt - division by zero at address '%v'", c.registers[ip]-1)
+	}
+
+	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))
+
+	c.set_zf(ax)
+	c.set_sf(ax)
+	c.set_of_div(ax, bx)
+
+	c.push(c.registers[ax])
+	return nil
+}
+
+// Compare two int64 elements from top of stack and set flags register based on result (zero zf, sign sf, overflow of).
+func (c *cpu) cmp() {
+	c.pop(bx)
+	c.pop(ax)
+	c.registers[dx] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
+
+	c.set_zf(dx)
+	c.set_sf(dx)
+	c.set_of_sub(ax, bx)
 }
 
 // Unconditionally jump to uint64 address.
 func (c *cpu) jmp(addr uint64) {
 	c.registers[ip] = addr
-}
-
-// Follow static link to declaration depth of target variable.
-func (c *cpu) link(depth int32) uint64 {
-	basePointer := c.registers[bp]
-
-	for ; depth > 0; depth-- {
-		basePointer = c.stack[basePointer]
-	}
-
-	return basePointer
-}
-
-// Set zero flag if int64 element is zero.
-func (c *cpu) set_zf(a int64) {
-	if a == 0 {
-		c.registers[flags] |= uint64(zf)
-	} else {
-		c.registers[flags] &= ^uint64(zf)
-	}
-}
-
-// Set sign flag if int64 element is negative.
-func (c *cpu) set_sf(a int64) {
-	if a < 0 {
-		c.registers[flags] |= uint64(sf)
-	} else {
-		c.registers[flags] &= ^uint64(sf)
-	}
-}
-
-// Set overflow flag if negation of the int64 element overflows.
-func (c *cpu) set_of_neg(a int64) {
-	if a == math.MinInt64 {
-		c.registers[flags] |= uint64(of)
-	} else {
-		c.registers[flags] &= ^uint64(of)
-	}
-}
-
-// Set overflow flag if addition of two int64 elements overflows.
-func (c *cpu) set_of_add(a, b int64) {
-	if (a + b) < a {
-		c.registers[flags] |= uint64(of)
-	} else {
-		c.registers[flags] &= ^uint64(of)
-	}
-}
-
-// Set overflow flag if subtraction of two int64 elements overflows.
-func (c *cpu) set_of_sub(a, b int64) {
-	if b > 0 && a < math.MinInt64+b || b < 0 && a > math.MaxInt64+b {
-		c.registers[flags] |= uint64(of)
-	} else {
-		c.registers[flags] &= ^uint64(of)
-	}
-}
-
-// Set overflow flag if multiplication of two int64 elements overflows.
-func (c *cpu) set_of_mul(a, b int64) {
-	if a != 0 && (a*b)/a != b {
-		c.registers[flags] |= uint64(of)
-	} else {
-		c.registers[flags] &= ^uint64(of)
-	}
-}
-
-// Set overflow flag if division of two int64 elements overflows.
-func (c *cpu) set_of_div(a, b int64) {
-	if b == -1 && a == math.MinInt64 {
-		c.registers[flags] |= uint64(of)
-	} else {
-		c.registers[flags] &= ^uint64(of)
-	}
-}
-
-// Clear overflow flag.
-func (c *cpu) unset_of() {
-	c.registers[flags] &= ^uint64(of)
-}
-
-// System call to operating system based on system call code.
-func (c *cpu) sys(code emt.SystemCall, reg register, ptr uint64) {
-	switch code {
-	case emt.Read:
-		// read integer from stdin
-		var input int64
-
-		for {
-			fmt.Print("> ")
-			_, err := fmt.Scanln(&input)
-
-			if err == nil {
-				if reg == sp {
-					c.stack[ptr] = uint64(input)
-				} else {
-					c.registers[reg] = uint64(input)
-				}
-				break
-			}
-		}
-
-	case emt.Write:
-		// write integer to stdout
-		if reg == sp {
-			fmt.Printf("%v\n", int64(c.stack[ptr]))
-		} else {
-			fmt.Printf("%v\n", int64(c.registers[reg]))
-		}
-	}
-}
-
-// Add two int64 elements and store the result in first stack or register int64 element.
-func (c *cpu) add(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
-	var a, b int64
-
-	if reg1 == sp {
-		a = int64(c.stack[ptr1])
-	} else {
-		a = int64(c.registers[reg1])
-	}
-
-	if reg2 == sp {
-		b = int64(c.stack[ptr2])
-	} else {
-		b = int64(c.registers[reg2])
-	}
-
-	r := a + b
-	c.set_zf(r)
-	c.set_sf(r)
-	c.set_of_add(a, b)
-
-	if reg1 == sp {
-		c.stack[ptr1] = uint64(r)
-	} else {
-		c.registers[reg1] = uint64(r)
-	}
-}
-
-// Subtract two int64 elements and store the result in first stack or register int64 element.
-func (c *cpu) sub(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
-	var a, b int64
-
-	if reg1 == sp {
-		a = int64(c.stack[ptr1])
-	} else {
-		a = int64(c.registers[reg1])
-	}
-
-	if reg2 == sp {
-		b = int64(c.stack[ptr2])
-	} else {
-		b = int64(c.registers[reg2])
-	}
-
-	r := a - b
-	c.set_zf(r)
-	c.set_sf(r)
-	c.set_of_sub(a, b)
-
-	if reg1 == sp {
-		c.stack[ptr1] = uint64(r)
-	} else {
-		c.registers[reg1] = uint64(r)
-	}
-}
-
-// Multiply two int64 elements and store the result in first stack or register int64 element.
-func (c *cpu) mul(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
-	var a, b int64
-
-	if reg1 == sp {
-		a = int64(c.stack[ptr1])
-	} else {
-		a = int64(c.registers[reg1])
-	}
-
-	if reg2 == sp {
-		b = int64(c.stack[ptr2])
-	} else {
-		b = int64(c.registers[reg2])
-	}
-
-	r := a * b
-	c.set_zf(r)
-	c.set_sf(r)
-	c.set_of_mul(a, b)
-
-	if reg1 == sp {
-		c.stack[ptr1] = uint64(r)
-	} else {
-		c.registers[reg1] = uint64(r)
-	}
-}
-
-// Divide two int64 elements and store the result in first stack or register int64 element.
-func (c *cpu) div(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
-	var a, b int64
-
-	if reg1 == sp {
-		a = int64(c.stack[ptr1])
-	} else {
-		a = int64(c.registers[reg1])
-	}
-
-	if reg2 == sp {
-		b = int64(c.stack[ptr2])
-	} else {
-		b = int64(c.registers[reg2])
-	}
-
-	r := a / b
-	c.set_zf(r)
-	c.set_sf(r)
-	c.set_of_div(a, b)
-
-	if reg1 == sp {
-		c.stack[ptr1] = uint64(r)
-	} else {
-		c.registers[reg1] = uint64(r)
-	}
-}
-
-// Compare two int64 elements and set flags register based on result (zero zf, sign sf, overflow of).
-func (c *cpu) cmp(reg1 register, ptr1 uint64, reg2 register, ptr2 uint64) {
-	var a, b int64
-
-	if reg1 == sp {
-		a = int64(c.stack[ptr1])
-	} else {
-		a = int64(c.registers[reg1])
-	}
-
-	if reg2 == sp {
-		b = int64(c.stack[ptr2])
-	} else {
-		b = int64(c.registers[reg2])
-	}
-
-	c.set_zf(a - b)
-	c.set_sf(a - b)
-	c.set_of_sub(a, b)
 }
 
 // Jump to uint64 address if zero flag is set, nz (not zero).
@@ -575,6 +374,111 @@ func (c *cpu) jg(addr uint64) {
 func (c *cpu) jge(addr uint64) {
 	if c.registers[flags]&uint64(sf) == c.registers[flags]&uint64(of) {
 		c.registers[ip] = addr
+	}
+}
+
+// Follow static link to declaration depth of target variable.
+func (c *cpu) link(depth int32) uint64 {
+	basePointer := c.registers[bp]
+
+	for ; depth > 0; depth-- {
+		basePointer = c.stack[basePointer]
+	}
+
+	return basePointer
+}
+
+// Set zero flag if int64 element in register reg is zero.
+func (c *cpu) set_zf(reg register) {
+	if int64(c.registers[reg]) == 0 {
+		c.registers[flags] |= uint64(zf)
+	} else {
+		c.registers[flags] &= ^uint64(zf)
+	}
+}
+
+// Set sign flag if int64 element in register reg is negative.
+func (c *cpu) set_sf(reg register) {
+	if int64(c.registers[reg]) < 0 {
+		c.registers[flags] |= uint64(sf)
+	} else {
+		c.registers[flags] &= ^uint64(sf)
+	}
+}
+
+// Set overflow flag if negation of the int64 element in register reg overflows.
+func (c *cpu) set_of_neg(reg register) {
+	if int64(c.registers[reg]) == math.MinInt64 {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// Set overflow flag if addition of two int64 elements in registers reg1/reg2 overflows.
+func (c *cpu) set_of_add(reg1, reg2 register) {
+	if int64(c.registers[reg1])+int64(c.registers[reg2]) < int64(c.registers[reg1]) {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// Set overflow flag if subtraction of two int64 elements in registers reg1/reg2 overflows.
+func (c *cpu) set_of_sub(reg1, reg2 register) {
+	if int64(c.registers[reg2]) > 0 && int64(c.registers[reg1]) < math.MinInt64+int64(c.registers[reg2]) ||
+		int64(c.registers[reg2]) < 0 && int64(c.registers[reg1]) > math.MaxInt64+int64(c.registers[reg2]) {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// Set overflow flag if multiplication of two int64 elements in registers reg1/reg2 overflows.
+func (c *cpu) set_of_mul(reg1, reg2 register) {
+	if int64(c.registers[reg1]) != 0 &&
+		(int64(c.registers[reg1])*int64(c.registers[reg2]))/int64(c.registers[reg1]) != int64(c.registers[reg2]) {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// Set overflow flag if division of two int64 elements in registers reg1/reg2 overflows.
+func (c *cpu) set_of_div(reg1, reg2 register) {
+	if int64(c.registers[reg2]) == -1 && int64(c.registers[reg1]) == math.MinInt64 {
+		c.registers[flags] |= uint64(of)
+	} else {
+		c.registers[flags] &= ^uint64(of)
+	}
+}
+
+// Clear overflow flag.
+func (c *cpu) unset_of() {
+	c.registers[flags] &= ^uint64(of)
+}
+
+// System call to operating system based on system call code.
+func (c *cpu) sys(code emt.SystemCall) {
+	switch code {
+	case emt.Read:
+		// read integer from stdin
+		var input int64
+
+		for {
+			fmt.Print("> ")
+			_, err := fmt.Scanln(&input)
+
+			if err == nil {
+				c.push(uint64(input))
+				break
+			}
+		}
+
+	case emt.Write:
+		// write integer to stdout
+		c.pop(ax)
+		fmt.Printf("%v\n", int64(c.registers[ax]))
 	}
 }
 
