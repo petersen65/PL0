@@ -144,19 +144,27 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.registers[sp] += uint64(instr.Address)
 
 		case emt.Neg: // negate int64 element on top of stack
-			m.cpu.neg()
+		if err := m.cpu.neg(); err != nil {
+			return err
+		}
 
 		case emt.And: // test if top of stack's uint64 element is odd and set zero flag if it is
 			m.cpu.and(1)
 
 		case emt.Add: // add two int64 elements from top of stack and store the result onto the stack
-			m.cpu.add()
+			if err := m.cpu.add(); err != nil {
+				return err
+			}
 
 		case emt.Sub: // subtract two int64 elements from top of stack and store the result onto the stack
-			m.cpu.sub()
+			if err := m.cpu.sub(); err != nil {
+				return err
+			}
 
 		case emt.Mul: // multiply two int64 elements from top of stack and store the result onto the stack
-			m.cpu.mul()
+			if err := m.cpu.mul(); err != nil {
+				return err
+			}
 
 		case emt.Div: // divide two int64 elements from top of stack and store the result onto the stack
 			if err := m.cpu.div(); err != nil {
@@ -238,15 +246,20 @@ func (c *cpu) pop(reg register) {
 }
 
 // Negate int64 element from top of stack.
-func (c *cpu) neg() {
+func (c *cpu) neg() error {
 	c.pop(ax)
-	c.registers[ax] = uint64(-int64(c.registers[ax]))
-
-	c.set_zf(ax)
-	c.set_sf(ax)
 	c.set_of_neg(ax)
 
+	if c.test_of() {
+		return fmt.Errorf("halt - arithmetic overflow for negation at address '%v'", c.registers[ip]-1)
+	}
+
+	c.registers[ax] = uint64(-int64(c.registers[ax]))
+	c.set_zf(ax)
+	c.set_sf(ax)
+
 	c.push(c.registers[ax])
+	return nil
 }
 
 // Perform bitwise 'and' operation with uint64 element from top of stack and uint64 argument.
@@ -262,58 +275,76 @@ func (c *cpu) and(arg uint64) {
 }
 
 // Add two int64 elements from top of stack and store the result onto the stack.
-func (c *cpu) add() {
+func (c *cpu) add() error {
 	c.pop(bx)
 	c.pop(ax)
-	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
-
-	c.set_zf(ax)
-	c.set_sf(ax)
 	c.set_of_add(ax, bx)
 
+	if c.test_of() {
+		return fmt.Errorf("halt - arithmetic overflow for addition at address '%v'", c.registers[ip]-1)
+	}
+
+	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
+	c.set_zf(ax)
+	c.set_sf(ax)
+
 	c.push(c.registers[ax])
+	return nil
 }
 
 // Subtract two int64 elements from top of stack and store the result onto the stack.
-func (c *cpu) sub() {
+func (c *cpu) sub() error {
 	c.pop(bx)
 	c.pop(ax)
-	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
-
-	c.set_zf(ax)
-	c.set_sf(ax)
 	c.set_of_sub(ax, bx)
 
+	if c.test_of() {
+		return fmt.Errorf("halt - arithmetic overflow for subtraction at address '%v'", c.registers[ip]-1)
+	}
+
+	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
+	c.set_zf(ax)
+	c.set_sf(ax)
+
 	c.push(c.registers[ax])
+	return nil
 }
 
 // Multiply two int64 elements from top of stack and store the result onto the stack.
-func (c *cpu) mul() {
+func (c *cpu) mul() error {
 	c.pop(bx)
 	c.pop(ax)
-	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
-
-	c.set_zf(ax)
-	c.set_sf(ax)
 	c.set_of_mul(ax, bx)
 
+	if c.test_of() {
+		return fmt.Errorf("halt - arithmetic overflow for multiplication at address '%v'", c.registers[ip]-1)
+	}
+
+	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
+	c.set_zf(ax)
+	c.set_sf(ax)
+
 	c.push(c.registers[ax])
+	return nil
 }
 
 // Divide two int64 elements from top of stack and store the result onto the stack.
 func (c *cpu) div() error {
 	c.pop(bx)
 	c.pop(ax)
+	c.set_of_div(ax, bx)
 
 	if c.registers[bx] == 0 {
 		return fmt.Errorf("halt - division by zero at address '%v'", c.registers[ip]-1)
 	}
 
-	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))
+	if c.test_of() {
+		return fmt.Errorf("halt - arithmetic overflow for division at address '%v'", c.registers[ip]-1)
+	}
 
+	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))
 	c.set_zf(ax)
 	c.set_sf(ax)
-	c.set_of_div(ax, bx)
 
 	c.push(c.registers[ax])
 	return nil
@@ -323,11 +354,11 @@ func (c *cpu) div() error {
 func (c *cpu) cmp() {
 	c.pop(bx)
 	c.pop(ax)
-	c.registers[dx] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
-
-	c.set_zf(dx)
-	c.set_sf(dx)
 	c.set_of_sub(ax, bx)
+
+	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
+	c.set_zf(ax)
+	c.set_sf(ax)
 }
 
 // Unconditionally jump to uint64 address.
@@ -417,7 +448,13 @@ func (c *cpu) set_of_neg(reg register) {
 
 // Set overflow flag if addition of two int64 elements in registers reg1/reg2 overflows.
 func (c *cpu) set_of_add(reg1, reg2 register) {
-	if int64(c.registers[reg1])+int64(c.registers[reg2]) < int64(c.registers[reg1]) {
+	a := int64(c.registers[reg1])
+	b := int64(c.registers[reg2])
+	s := a + b
+
+	if (a > 0 && b > 0 && s < a) || (a < 0 && b < 0 && s > a) {
+		c.registers[flags] |= uint64(of)
+	} else if (a > 0 && b < 0 && s > a) || (a < 0 && b > 0 && s < a) {
 		c.registers[flags] |= uint64(of)
 	} else {
 		c.registers[flags] &= ^uint64(of)
@@ -426,8 +463,13 @@ func (c *cpu) set_of_add(reg1, reg2 register) {
 
 // Set overflow flag if subtraction of two int64 elements in registers reg1/reg2 overflows.
 func (c *cpu) set_of_sub(reg1, reg2 register) {
-	if int64(c.registers[reg2]) > 0 && int64(c.registers[reg1]) < math.MinInt64+int64(c.registers[reg2]) ||
-		int64(c.registers[reg2]) < 0 && int64(c.registers[reg1]) > math.MaxInt64+int64(c.registers[reg2]) {
+	a := int64(c.registers[reg1])
+	b := int64(c.registers[reg2])
+	s := a - b
+	
+	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
+		c.registers[flags] |= uint64(of)
+	} else if (a > 0 && b > 0 && s > a) || (a < 0 && b < 0 && s < a) {
 		c.registers[flags] |= uint64(of)
 	} else {
 		c.registers[flags] &= ^uint64(of)
@@ -436,8 +478,11 @@ func (c *cpu) set_of_sub(reg1, reg2 register) {
 
 // Set overflow flag if multiplication of two int64 elements in registers reg1/reg2 overflows.
 func (c *cpu) set_of_mul(reg1, reg2 register) {
-	if int64(c.registers[reg1]) != 0 &&
-		(int64(c.registers[reg1])*int64(c.registers[reg2]))/int64(c.registers[reg1]) != int64(c.registers[reg2]) {
+	a := int64(c.registers[reg1])
+	b := int64(c.registers[reg2])
+	s := a * b
+
+	if a != 0 && s/a != b {
 		c.registers[flags] |= uint64(of)
 	} else {
 		c.registers[flags] &= ^uint64(of)
@@ -446,11 +491,19 @@ func (c *cpu) set_of_mul(reg1, reg2 register) {
 
 // Set overflow flag if division of two int64 elements in registers reg1/reg2 overflows.
 func (c *cpu) set_of_div(reg1, reg2 register) {
-	if int64(c.registers[reg2]) == -1 && int64(c.registers[reg1]) == math.MinInt64 {
+	a := int64(c.registers[reg1])
+	b := int64(c.registers[reg2])
+
+	if b == -1 && a == math.MinInt64 {
 		c.registers[flags] |= uint64(of)
 	} else {
 		c.registers[flags] &= ^uint64(of)
 	}
+}
+
+// Test overflow flag
+func (c *cpu) test_of() bool {
+	return c.registers[flags]&uint64(of) != 0
 }
 
 // Clear overflow flag.

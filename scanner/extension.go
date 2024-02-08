@@ -90,7 +90,7 @@ func merge(targetToken Token, sourceToken TokenDescription) TokenDescription {
 	return TokenDescription{
 		Token:       targetToken,
 		TokenName:   TokenNames[targetToken],
-		TokenValue:  nil,
+		TokenValue:  "",
 		TokenType:   None,
 		Line:        sourceToken.Line,
 		Column:      sourceToken.Column,
