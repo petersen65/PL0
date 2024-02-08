@@ -117,7 +117,7 @@ func (m *machine) runProgram(sections []byte) error {
 
 		switch instr.Operation {
 		case emt.Ldc: // copy int64 constant onto the stack
-			m.cpu.push(uint64(instr.Arg1))
+			m.cpu.push(uint64(instr.ArgInt))
 
 		case emt.Jmp: // unconditionally jump to uint64 address
 			m.cpu.jmp(uint64(instr.Address))
@@ -502,7 +502,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "dep", "addr", "arg1")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "dep", "adr", "ai")))
 
 	for text, instr := range p.text {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
@@ -510,7 +510,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 			emt.OperationNames[instr.Operation],
 			instr.DeclarationDepthDifference,
 			instr.Address,
-			instr.Arg1)))
+			instr.ArgInt)))
 	}
 
 	return nil

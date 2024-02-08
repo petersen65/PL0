@@ -59,7 +59,7 @@ type (
 		Operation                  Operation // operation code of the instruction
 		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
 		Address                    Address   // target address or offset of a variable of the operation
-		Arg1                       int64     // int64 argument of the operation
+		ArgInt                     int64     // int64 argument of the operation
 	}
 
 	Emitter interface {

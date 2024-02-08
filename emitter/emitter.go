@@ -31,7 +31,7 @@ func (e *emitter) Update(instruction, target Address, value any) error {
 	e.textSection[instruction].Address = target
 
 	if value != nil {
-		e.textSection[instruction].Arg1 = value.(int64)
+		e.textSection[instruction].ArgInt = value.(int64)
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (e *emitter) Export() ([]byte, error) {
 
 // Load a constant value onto the stack.
 func (e *emitter) Constant(value any) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Ldc, Arg1: value.(int64)})
+	e.textSection = append(e.textSection, Instruction{Operation: Ldc, ArgInt: value.(int64)})
 	return Address(len(e.textSection) - 1)
 }
 
