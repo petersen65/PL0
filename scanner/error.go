@@ -15,10 +15,6 @@ const (
 const (
 	_ = failure(iota + 1000)
 	eofReached
-	eofComment
-	eofIdentifier
-	eofNumber
-	eofOperator
 	tooLongIdentifier
 	tooLongNumber
 	illegalInteger
@@ -30,10 +26,6 @@ type failure int
 // Map error codes to error messages.
 var errorMap = map[failure]string{
 	eofReached:          "unexpected end of file",
-	eofComment:          "unexpected end of file while reading comment",
-	eofIdentifier:       "unexpected end of file while reading identifier %s",
-	eofNumber:           "unexpected end of file while reading number %s",
-	eofOperator:         "unexpected end of file while reading operator %s",
 	tooLongIdentifier:   "identifier %s is too long",
 	tooLongNumber:       "number %s is too long",
 	illegalInteger:      "cannot parse number %s into integer value",

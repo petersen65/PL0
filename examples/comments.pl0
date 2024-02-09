@@ -2,7 +2,7 @@ var x, y, z;
 
 (* xxx }
 
-begin { xxx )
+begin { xxx }
     x := 4; { xxx }
     
     
