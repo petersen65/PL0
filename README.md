@@ -12,6 +12,8 @@ The reason for creating the compiler is that I have been interested in compiler 
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
+For Visual Studio Code, you should be able to run the compiler with F5. Please install the lastest Go version before that. You will be guided to a playground.pl0 file where you can try out PL/0 programming. Support for dev-containers is also provided, if you cannot install Go on your operating system. The PL/0 compiler was tested under Windows 11, Linux Ubuntu x86_64, and macOS Sonoma M2.
+
 I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
 
 ## License
@@ -85,7 +87,7 @@ The programming language PL/0 (1986 version) supports the following features:
 
 ## Change Log
 
-* Mar 1st, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
+* Feb 9th, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
