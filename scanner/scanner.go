@@ -19,7 +19,6 @@ type scanner struct {
 	lastCharacter rune   // last UTF-8 character that was read
 	lastValue     any    // last identifier or number value that was read
 	currentLine   []byte // current line of source code that is being scanned
-	endOfFile     bool   // true if the end of the source code has been reached
 }
 
 // UTF-8 characters that are mapped to their corresponding PL/0 token.
@@ -62,14 +61,30 @@ func newScanner() Scanner {
 }
 
 // Run the multi-pass PL/0 scanner to map the source code to its corresponding concrete syntax.
-func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
-	if err := s.reset(content); err != nil {
-		return make(ConcreteSyntax, 0), err
-	}
+func (s *scanner) Scan(content []byte) (syntax ConcreteSyntax, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			syntax = append(syntax, TokenDescription{
+				Token:       Eof,
+				TokenName:   TokenNames[Eof],
+				TokenValue:  "",
+				TokenType:   None,
+				Line:        s.line,
+				Column:      s.column,
+				CurrentLine: s.currentLine,
+			})
 
+			err = p.(error)
+		}
+	}()
+
+	s.reset(content)
 	basicSyntax, errBasic := s.basicScan()
 	fullSyntax, errFull := slidingScan(basicSyntax)
-	return fullSyntax, errors.Join(errBasic, errFull)
+	syntax = fullSyntax
+	err = errors.Join(errBasic, errFull)
+
+	return
 }
 
 // Perform a basic scan that supports identifiers, unsigned numbers and single UTF-8 character operators.
@@ -93,49 +108,34 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 			return basicSyntax, err
 		}
 
-		if token == Eof {
+		if token == Period {
 			return basicSyntax, nil
 		}
 	}
 }
 
 // Reset the scanner to its initial state so that it can be reused.
-func (s *scanner) reset(content []byte) error {
+func (s *scanner) reset(content []byte) {
 	s.sourceIndex = 0
 	s.sourceCode = content
 	s.line = 0
 	s.column = 0
 	s.lastValue = nil
 	s.currentLine = make([]byte, 0)
-	s.endOfFile = false
-
-	if len(content) == 0 || !s.nextCharacter() {
-		return newError(eofReached, nil, s.line, s.column)
-	}
-
-	return nil
+	s.nextCharacter()
 }
 
 // Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
 
-	if s.endOfFile {
-		return Eof, nil
-	}
-
 	for unicode.IsSpace(s.lastCharacter) {
-		if !s.nextCharacter() {
-			return Eof, nil
-		}
+		s.nextCharacter()
 	}
 
 	switch {
 	case s.isComment():
-		if err := s.comment(); err != nil {
-			return Eof, err
-		}
-
+		s.comment()
 		return s.getToken()
 
 	case unicode.IsLetter(s.lastCharacter):
@@ -150,10 +150,9 @@ func (s *scanner) getToken() (Token, error) {
 }
 
 // Read the next UTF-8 character from the source code and update the line and column counters.
-func (s *scanner) nextCharacter() bool {
+func (s *scanner) nextCharacter() {
 	if s.sourceIndex >= len(s.sourceCode) {
-		s.endOfFile = true
-		return false
+		panic(newError(eofReached, nil, s.line, s.column))
 	}
 
 	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
@@ -179,7 +178,6 @@ func (s *scanner) nextCharacter() bool {
 	}
 
 	s.sourceIndex += width
-	return true
 }
 
 // Peek the next UTF-8 character from the source code to check if it matches the given character.
@@ -226,33 +224,25 @@ func (s *scanner) isComment() bool {
 }
 
 // Scan a comment that starts with '{' or '(*' and ends with '}' or '*)'.
-func (s *scanner) comment() error {
+func (s *scanner) comment() {
 	if s.lastCharacter == '{' {
 		s.nextCharacter()
-		
+
 		for s.lastCharacter != '}' {
-			if !s.nextCharacter() {
-				return newError(eofComment, nil, s.line, s.column)
-			}
+			s.nextCharacter()
 		}
 	} else {
 		s.nextCharacter()
 		s.nextCharacter()
 
 		for !(s.lastCharacter == '*' && s.peekCharacter(')')) {
-			if !s.nextCharacter() {
-				return newError(eofComment, nil, s.line, s.column)
-			}
+			s.nextCharacter()
 		}
 
 		s.nextCharacter()
 	}
 
-	if !s.nextCharacter() {
-		return newError(eofComment, nil, s.line, s.column)
-	}
-
-	return nil
+	s.nextCharacter()
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
@@ -261,10 +251,7 @@ func (s *scanner) identifierOrWord() (Token, error) {
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
-
-		if !s.nextCharacter() {
-			return Identifier, newError(eofIdentifier, builder.String(), s.line, s.column)
-		}
+		s.nextCharacter()
 	}
 
 	if token, ok := tokenMap[builder.String()]; ok {
@@ -285,10 +272,7 @@ func (s *scanner) number() (Token, error) {
 
 	for unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
-
-		if !s.nextCharacter() {
-			return Number, newError(eofNumber, builder.String(), s.line, s.column)
-		}
+		s.nextCharacter()
 	}
 
 	if len(builder.String()) > digitsMax {
@@ -302,10 +286,7 @@ func (s *scanner) number() (Token, error) {
 // Scan a single UTF-8 character operator token or return an error if the character cannot be mapped to a token and hence is unexpected.
 func (s *scanner) operator() (Token, error) {
 	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
-		if !s.nextCharacter() && token != Period {
-			return token, newError(eofReached, nil, s.line, s.column)
-		}
-
+		s.nextCharacter()
 		return token, nil
 	}
 
