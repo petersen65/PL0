@@ -1,31 +1,14 @@
 var x, y, z;
 
-(* xxx }
+begin
+    x := 4;
+    y := 5;
+    z := -x - y;
 
-begin { xxx )
-    x := 4; { xxx }
-    
-    
-    y :(**)= 5;
-    
-    
-    z :(*
-    
-    
-    *)= -x {
-
-
-
-    }- y;
-
-    ! x { xxx };
-    ! { xxx } y;
+    ! x;
+    ! y;
     ! z;
 
-    if odd { xx
-    
-    
-    
-    x } z then
+    if odd z then
         ! 42;
 end.

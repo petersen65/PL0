@@ -1,0 +1,31 @@
+var x, y, z;
+
+(* xxx }
+
+begin { xxx )
+    x := 4; { xxx }
+    
+    
+    y :(**)= 5;
+    
+    
+    z :(*
+    
+    
+    *)= -x {
+
+
+
+    }- y;
+
+    ! x { xxx };
+    ! { xxx } y;
+    ! z;
+
+    if odd { xx
+    
+    
+    
+    x } z then
+        ! 42;
+end.

@@ -12,8 +12,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "-cs",
-                "examples/playground.pl0",
-                "build/playground.il0"
+                "examples/comments.pl0",
+                "build/comments.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

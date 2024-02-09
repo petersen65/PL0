@@ -131,7 +131,7 @@ func (s *scanner) getToken() (Token, error) {
 	}
 
 	switch {
-	case s.lastCharacter == '{' || s.lastCharacter == '(' && s.peekCharacter('*'):
+	case s.isComment():
 		if err := s.comment(); err != nil {
 			return Eof, err
 		}
@@ -139,7 +139,7 @@ func (s *scanner) getToken() (Token, error) {
 		return s.getToken()
 
 	case unicode.IsLetter(s.lastCharacter):
-		return s.identifierWord()
+		return s.identifierOrWord()
 
 	case unicode.IsDigit(s.lastCharacter):
 		return s.number()
@@ -220,6 +220,11 @@ func (s *scanner) setCurrentLine() {
 	}
 }
 
+// Check if the current characters are the start of a comment.
+func (s *scanner) isComment() bool {
+	return s.lastCharacter == '{' || s.lastCharacter == '(' && s.peekCharacter('*')
+}
+
 // Scan a comment that starts with '{' or '(*' and ends with '}' or '*)'.
 func (s *scanner) comment() error {
 	if s.lastCharacter == '{' {
@@ -251,7 +256,7 @@ func (s *scanner) comment() error {
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
-func (s *scanner) identifierWord() (Token, error) {
+func (s *scanner) identifierOrWord() (Token, error) {
 	var builder strings.Builder
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
