@@ -17,7 +17,7 @@ import (
 //
 // The command line arguments are:
 //
-//	-c[r|p] <source file> <target file>
+//	-c[r|p|s] <source file> <target file>
 //	-r <target file>
 //	-p <target file>
 func main() {
