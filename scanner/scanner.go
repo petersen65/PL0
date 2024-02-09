@@ -116,6 +116,39 @@ func (s *scanner) reset(content []byte) error {
 	return nil
 }
 
+// Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
+func (s *scanner) getToken() (Token, error) {
+	s.lastValue = ""
+
+	if s.endOfFile {
+		return Eof, nil
+	}
+
+	for unicode.IsSpace(s.lastCharacter) {
+		if !s.nextCharacter() {
+			return Eof, nil
+		}
+	}
+
+	switch {
+	case s.lastCharacter == '{' || s.lastCharacter == '(' && s.peekCharacter('*'):
+		if err := s.comment(); err != nil {
+			return Eof, err
+		}
+
+		return s.getToken()
+
+	case unicode.IsLetter(s.lastCharacter):
+		return s.identifierWord()
+
+	case unicode.IsDigit(s.lastCharacter):
+		return s.number()
+
+	default:
+		return s.operator()
+	}
+}
+
 // Read the next UTF-8 character from the source code and update the line and column counters.
 func (s *scanner) nextCharacter() bool {
 	if s.sourceIndex >= len(s.sourceCode) {
@@ -149,6 +182,16 @@ func (s *scanner) nextCharacter() bool {
 	return true
 }
 
+// Peek the next UTF-8 character from the source code to check if it matches the given character.
+func (s *scanner) peekCharacter(next rune) bool {
+	if s.sourceIndex >= len(s.sourceCode) {
+		return false
+	}
+
+	character, _ := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
+	return character == next
+}
+
 // Extract the current line of source code if the scanner is positioned on a new line.
 func (s *scanner) setCurrentLine() {
 	s.currentLine = make([]byte, 0)
@@ -177,30 +220,34 @@ func (s *scanner) setCurrentLine() {
 	}
 }
 
-// Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
-func (s *scanner) getToken() (Token, error) {
-	s.lastValue = ""
-
-	if s.endOfFile {
-		return Eof, nil
-	}
-
-	for unicode.IsSpace(s.lastCharacter) {
-		if !s.nextCharacter() {
-			return Eof, nil
+// Scan a comment that starts with '{' or '(*' and ends with '}' or '*)'.
+func (s *scanner) comment() error {
+	if s.lastCharacter == '{' {
+		s.nextCharacter()
+		
+		for s.lastCharacter != '}' {
+			if !s.nextCharacter() {
+				return newError(eofComment, nil, s.line, s.column)
+			}
 		}
+	} else {
+		s.nextCharacter()
+		s.nextCharacter()
+
+		for !(s.lastCharacter == '*' && s.peekCharacter(')')) {
+			if !s.nextCharacter() {
+				return newError(eofComment, nil, s.line, s.column)
+			}
+		}
+
+		s.nextCharacter()
 	}
 
-	switch {
-	case unicode.IsLetter(s.lastCharacter):
-		return s.identifierWord()
-
-	case unicode.IsDigit(s.lastCharacter):
-		return s.number()
-
-	default:
-		return s.operator()
+	if !s.nextCharacter() {
+		return newError(eofComment, nil, s.line, s.column)
 	}
+
+	return nil
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.

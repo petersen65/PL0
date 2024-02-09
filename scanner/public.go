@@ -54,13 +54,20 @@ const (
 	Integer64
 )
 
-// Core API for the PL/0 scanner.
 type (
-	Token          int
-	TokenType      int
-	Tokens         []Token
+	// Token is a type that represents a token in the source code.
+	Token int
+
+	// Data types for constants and variables in PL/0.
+	TokenType int
+
+	// Tokens represents a set of tokens.
+	Tokens []Token
+
+	// The concrete syntax table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
 	ConcreteSyntax []TokenDescription
 
+	// Describes a token with its type, name, value, and position in the source code.
 	TokenDescription struct {
 		Token        Token
 		TokenName    string
@@ -70,10 +77,12 @@ type (
 		CurrentLine  []byte
 	}
 
+	// TokenSet is an interface that is used for types that can be converted to the 'Tokens' type.
 	TokenSet interface {
 		ToTokens() Tokens
 	}
 
+	// Scanner is the public interface of the scanner implementation.
 	Scanner interface {
 		Scan(content []byte) (ConcreteSyntax, error)
 	}
