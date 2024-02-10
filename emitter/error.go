@@ -12,6 +12,7 @@ const (
 	instructionOutOfRange
 )
 
+// Failure is a type for error codes of the IL/0 emitter.
 type failure int
 
 // Map error codes to error messages.

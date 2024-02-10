@@ -21,6 +21,7 @@ const (
 	unexpectedCharacter
 )
 
+// Failure is a type for error codes of the PL/0 scanner.
 type failure int
 
 // Map error codes to error messages.

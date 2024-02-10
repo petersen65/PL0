@@ -19,11 +19,14 @@ const (
 	integer64
 )
 
-// The symbol table is a table that stores all symbols of the program.
 type (
-	entry      int
+	// Kind of symbol table entries.
+	entry int
+
+	// Data types of symbol table entries.
 	symbolType int
 
+	// The symbol table entry.
 	symbol struct {
 		name    string     // name of constant, variable, or procedure
 		kind    entry      // constant, variable, or procedure
@@ -34,7 +37,8 @@ type (
 		label   string     // label of procedure for assembly generation
 		address uint64     // absolute address of procedure in text section
 	}
-
+	
+	// The symbol table is a table that stores all symbols of the program.
 	symbolTable struct {
 		symbols []symbol
 	}

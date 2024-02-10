@@ -6,12 +6,14 @@ package parser
 
 import "fmt"
 
-const blockNestingMax = 8 // maximum depth of block nesting
+// Maximum depth of block nesting.
+const blockNestingMax = 8
 
 // Error codes for the PL/0 parser.
 const (
 	_ = failure(iota + 2000)
 	eofReached
+	notFullyParsed
 	parsingError
 	parsingErrors
 	maxBlockDepth
@@ -38,11 +40,13 @@ const (
 	unexpectedTokens
 )
 
+// Failure is a type for error codes of the PL/0 parser.
 type failure int
 
 // Map error codes to error messages.
 var errorMap = map[failure]string{
 	eofReached:                              "unexpected end of file",
+	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	parsingError:                            "a parsing error occurred",
 	parsingErrors:                           "%v parsing errors occurred",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",

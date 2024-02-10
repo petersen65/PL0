@@ -33,8 +33,15 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
 	p.block(emt.EntryPointName, set(declarations, statements, scn.Period))
 
+	// the program must end with a period
 	if p.lastToken() != scn.Period {
 		p.appendError(expectedPeriod, p.lastTokenName())
+	}
+
+	// the program must comply with the syntax rules of the programming language
+	if !p.tokenHandler.isFullyParsed() {
+		p.tokenHandler.setFullyParsed()
+		p.appendError(notFullyParsed, nil)
 	}
 
 	errorReport := p.tokenHandler.getErrorReport()
@@ -423,7 +430,6 @@ func (p *parser) procedureIdentifier() string {
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
 func (p *parser) statement(expected scn.Tokens) {
-
 	switch p.lastToken() {
 	case scn.Identifier:
 		p.assignment(expected)

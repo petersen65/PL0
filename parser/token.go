@@ -6,14 +6,15 @@ package parser
 
 import scn "github.com/petersen65/PL0/scanner"
 
-// Token slices enable the parser to check for expected tokens and forward to them in the case of syntax errors.
 var (
+	// Tokens that are used to begin constants, variables, and procedures declarations.
 	declarations = scn.Tokens{
 		scn.ConstWord,
 		scn.VarWord,
 		scn.ProcedureWord,
 	}
 
+	// Tokens that are used to begin statements within a block.
 	statements = scn.Tokens{
 		scn.Read,
 		scn.Write,
@@ -23,6 +24,7 @@ var (
 		scn.WhileWord,
 	}
 
+	// Tokens that are used to begin factors in expressions.
 	factors = scn.Tokens{
 		scn.Identifier,
 		scn.Number,
@@ -100,6 +102,18 @@ func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
 			t.nextTokenDescription()
 		}
 	}
+}
+
+// The concrete syntax is fully parsed if the index of the current token is equal to the length of the concrete syntax.
+func (t *tokenHandler) isFullyParsed() bool {
+	return t.concreteSyntaxIndex == len(t.concreteSyntax)
+}
+
+// Set index of the current token to the last entry of the concrete syntax and update next token description.
+func (t *tokenHandler) setFullyParsed() {
+	t.concreteSyntaxIndex = len(t.concreteSyntax) - 1
+	t.lastTokenDescription = t.concreteSyntax[t.concreteSyntaxIndex]
+	t.concreteSyntaxIndex++
 }
 
 // Expose error report to the parser.

@@ -1,31 +1,21 @@
 var x, y, z;
 
-(* xxx }
+(* single line comment *)
 
-begin { xxx }
-    x := 4; { xxx }
+begin { single line comment }
+    x := 4; { single line comment }
+    y :(* possible but not recommended *)= 5;
     
-    
-    y :(**)= 5;
-    
-    
-    z :(*
-    
-    
-    *)= -x {
+    z := -x {
+        multi line comment
+        } - y;
 
-
-
-    }- y;
-
-    ! x { xxx };
-    ! { xxx } y;
+    ! x { single line comment };
+    ! { single line comment } y;
     ! z;
 
-    if odd { xx
-    
-    
-    
-    x } z then
-        ! 42;
+    if odd (* 
+        multi line comment
+        x *) z then
+            ! 42;
 end.
