@@ -101,7 +101,18 @@ func (s *scanner) reset(content []byte) {
 func (s *scanner) basicScan() (ConcreteSyntax, error) {
 	basicSyntax := make(ConcreteSyntax, 0)
 
-	for {
+	for !s.isEndOfContent() {
+		s.whitespace()
+
+		if s.isEndOfContent() {
+			continue
+		}
+
+		if s.isComment() {
+			s.comment()
+			continue
+		}
+
 		token, err := s.getToken()
 
 		basicSyntax = append(basicSyntax, TokenDescription{
@@ -117,22 +128,33 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 		if err != nil {
 			return basicSyntax, err
 		}
-
-		xx
 	}
+
+	if s.isEndOfProgram() {
+		basicSyntax = append(basicSyntax, TokenDescription{
+			Token:       ProgramEnd,
+			TokenName:   TokenNames[ProgramEnd],
+			TokenValue:  "",
+			TokenType:   None,
+			Line:        s.line,
+			Column:      s.column + 1,
+			CurrentLine: s.currentLine,
+		})
+	}
+
+	return basicSyntax, nil
 }
 
 // Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
-	s.whitespace()
 
 	switch {
-	case s.isComment():
-		s.comment()
-		return s.getToken()
-
 	case s.isEndOfProgram():
+		if !s.isEndOfContent() {
+			s.nextCharacter()
+		}
+
 		return ProgramEnd, nil
 
 	case s.isIdentifierOrWord():
@@ -149,7 +171,7 @@ func (s *scanner) getToken() (Token, error) {
 // Read the next UTF-8 character from the source code and update the line and column counters.
 func (s *scanner) nextCharacter() {
 	if s.isEndOfContent() {
-		panic(newError(unexpectedEndOfContent, nil, s.line, s.column))
+		panic(newError(eofReached, nil, s.line, s.column))
 	}
 
 	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])

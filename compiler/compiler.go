@@ -151,6 +151,11 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bot
 func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
 	print.Write([]byte("Error Report:"))
 
+	if len(errorReport) == 0 {
+		print.Write([]byte("\n"))
+		return
+	}
+
 	for _, e := range errorReport {
 		linePrefix := fmt.Sprintf("%5v: ", e.Line)
 		trimmedLine := strings.TrimSpace(string(e.CurrentLine))

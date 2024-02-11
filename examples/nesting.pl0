@@ -1,5 +1,93 @@
+{ demonstrate nesting }
+
+const a = 1;
+var x, y, z;
+
 procedure Level1;
-begin
+var l1;
+
+procedure Level2;
+var l2;
+
+procedure Level3;
+var l3;
+
+procedure Level4;
+var l4;
+
+procedure Level5;
+var l5;
+
+begin { Level 5 }
+    ! 5;
+    x := x + 10;
+    z := z * 6 - 2;
+
+    l5 := l5 + 5;
+    l4 := l4 + 5;
+    l3 := l3 + 5;
+    l2 := l2 + 5;
+    l1 := l1 + 5;
+
+    ! -5;
+end;
+
+begin { Level 4 }
+    ! 4;
+    l4 := 0;
+    x := x + 10;
+    
+    call Level5;
+
+    l2 := l2 + 2;
+    l3 := l3 + 2;
+    l1 := l1 + 3;
+
+    if x = 50 then
+        call Level2;
+
+    ! -4;
+end;
+
+begin { Level 3 }
+    ! 3;
+    l3 := 0;
+    x := x + 10;
+    y := y * 4;
+    
+    call Level4;
+
+    l2 := l2 + 15;
+    ! l3;
+    ! -3;
+end;
+
+begin { Level 2 }
+    ! 2;
+    l2 := 0;
+    x := x + 10;
+
+    call Level3;
+
+    ! l2;
+    ! -2;
+end;
+
+begin { Level 1 }
+    ! 1;
+    l1 := 0;
+
+    x := 10;
+    y := 6;
+    z := 7;
+
+    call Level2;
+    
+    ! x;
+    ! y;
+    ! z;
+    ! l1;
+    ! -1;
 end;
 
 { Level 0 }
