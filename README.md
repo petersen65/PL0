@@ -33,7 +33,7 @@ Tokens form the vocabulary of the PL/0 language. There are four classes:
 
 ## Syntax
 
-The syntax of PL/0 (1986 version) is described in extended Backus-Naur form with the following productions:
+The syntax of PL/0 (2024 version) is described in extended Backus-Naur form with the following productions:
 
 | nonterminal symbol | terminal or nonterminal symbols
 |--------------------|----------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ The syntax of PL/0 (1986 version) is described in extended Backus-Naur form with
 
 ## Features
 
-The programming language PL/0 (1986 version) supports the following features:
+The programming language PL/0 (2024 version) supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
@@ -77,12 +77,13 @@ The programming language PL/0 (1986 version) supports the following features:
 | Function Definition	        | procedure \<name\>; \<body\>;
 | Function Call	                | call \<name\>;
 | Sequence	                    | ;
-| Read Number	                | stdin
-| Write Number	                | stdout
+| Read Number	                | ? \<stdin\>
+| Write Number	                | ! \<stdout\>
 | If Then	                    | if \<condition\> then \<true-block\>;
 | Loop Forever	                | while 1 = 1 do \<loop-body\>;
 | While Condition Do	        | while \<condition\> do \<loop-body\>;
 | Program End                   | .
+| Multi-Line Comments           | { } or (* *)
 |                               | 
 
 ## Change Log
@@ -96,12 +97,15 @@ The programming language PL/0 (1986 version) supports the following features:
 
 ## Planning
 
-* H1 2024, Compiler version 1.1 2024, make core engine more mature
+* Q1 2024, Compiler version 1.1.0 2024, bug fixes, improved documentation
+	* comments for the programming language PL/0
+
+* H1 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* comments for the programming language PL/0
 	* migration to abstract syntax trees as interface between parser and emitter
 	* support for Intel x86_64 assembler generation based on NASM project
 
-* H2 2024, Compiler version 1.2 2024, enhance programming language
+* H2 2024, Compiler version 2.1.0 2024, enhance programming language
 	* data types for variables, constants and parameters, start with integer only
 	* parameter for procedures
 	* boolean, real, string datatypes

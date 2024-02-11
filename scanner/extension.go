@@ -7,41 +7,17 @@ package scanner
 
 import "strconv"
 
-// This extension analyzes the concrete syntax with a 2 or 3 tokens sliding window approach to enable multi-character operators and signed numbers.
+// This extension analyzes the concrete syntax with a sliding window approach to enable signed and valued numbers.
 func slidingScan(syntax ConcreteSyntax) (ConcreteSyntax, error) {
 	var errFull error
 	fullSyntax := make(ConcreteSyntax, 0, len(syntax))
 
 	for i := 0; errFull == nil && i < len(syntax); i++ {
 		switch syntax[i].Token {
-		case Colon:
-			if try(i+1, syntax) == Equal {
-				i++
-				fullSyntax = append(fullSyntax, merge(Becomes, syntax[i]))
-			} else {
-				fullSyntax = append(fullSyntax, syntax[i])
-			}
-
-		case Less:
-			if try(i+1, syntax) == Equal {
-				i++
-				fullSyntax = append(fullSyntax, merge(LessEqual, syntax[i]))
-			} else {
-				fullSyntax = append(fullSyntax, syntax[i])
-			}
-
-		case Greater:
-			if try(i+1, syntax) == Equal {
-				i++
-				fullSyntax = append(fullSyntax, merge(GreaterEqual, syntax[i]))
-			} else {
-				fullSyntax = append(fullSyntax, syntax[i])
-			}
-
 		case Plus:
 			fallthrough
 		case Minus:
-			if try(i+1, syntax) == Number && !try(i-1, syntax).In(Set(Identifier, Number, RightParenthesis)) {
+			if peekToken(i+1, syntax) == Number && !peekToken(i-1, syntax).In(Set(Identifier, Number, RightParenthesis)) {
 				i++
 				number := syntax[i]
 
@@ -76,25 +52,12 @@ func slidingScan(syntax ConcreteSyntax) (ConcreteSyntax, error) {
 }
 
 // Detect whether a sliding window exists and contains an expected set of tokens.
-func try(i int, syntax ConcreteSyntax) Token {
+func peekToken(i int, syntax ConcreteSyntax) Token {
 	if i > 0 && i < len(syntax) {
 		return syntax[i].Token
 	}
 
 	return Null
-}
-
-// Overwrite a source token with a target token's name, value and type and return the merged result.
-func merge(targetToken Token, sourceToken TokenDescription) TokenDescription {
-	return TokenDescription{
-		Token:       targetToken,
-		TokenName:   TokenNames[targetToken],
-		TokenValue:  "",
-		TokenType:   None,
-		Line:        sourceToken.Line,
-		Column:      sourceToken.Column,
-		CurrentLine: sourceToken.CurrentLine,
-	}
 }
 
 // Analyze the concrete syntax of a number and convert it to an Integer64 value.

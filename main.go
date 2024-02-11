@@ -21,7 +21,7 @@ import (
 //	-r <target file>
 //	-p <target file>
 func main() {
-	fmt.Println("PL/0 Compiler Version 1.0.0 1986")
+	fmt.Println("PL/0 Compiler Version 1.1.0 2024")
 	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
 
 	switch {
