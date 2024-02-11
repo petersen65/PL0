@@ -286,20 +286,22 @@ func (s *scanner) number() (Token, error) {
 // Scan an operator token or return an error if characters cannot be mapped to a token and hence is unexpected.
 func (s *scanner) operator() (Token, error) {
 	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
-		s.nextCharacter()
-
-		switch {
-		case token == Less && s.lastCharacter == '=':
+		if !(token == Period && s.sourceIndex == len(s.sourceCode)) {
 			s.nextCharacter()
-			token = LessEqual
 
-		case token == Greater && s.lastCharacter == '=':
-			s.nextCharacter()
-			token = GreaterEqual
+			switch {
+			case token == Less && s.lastCharacter == '=':
+				s.nextCharacter()
+				token = LessEqual
 
-		case token == Colon && s.lastCharacter == '=':
-			s.nextCharacter()
-			token = Becomes
+			case token == Greater && s.lastCharacter == '=':
+				s.nextCharacter()
+				token = GreaterEqual
+
+			case token == Colon && s.lastCharacter == '=':
+				s.nextCharacter()
+				token = Becomes
+			}
 		}
 
 		return token, nil
