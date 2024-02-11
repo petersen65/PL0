@@ -21,39 +21,48 @@ type scanner struct {
 	currentLine   []byte // current line of source code that is being scanned
 }
 
-// UTF-8 characters that are mapped to their corresponding PL/0 token.
-var tokenMap = map[string]Token{
-	"+":         Plus,
-	"-":         Minus,
-	"*":         Times,
-	"/":         Divide,
-	"=":         Equal,
-	"#":         NotEqual,
-	"<":         Less,
-	"<=":        LessEqual,
-	">":         Greater,
-	">=":        GreaterEqual,
-	"(":         LeftParenthesis,
-	")":         RightParenthesis,
-	",":         Comma,
-	":":         Colon,
-	";":         Semicolon,
-	".":         Period,
-	":=":        Becomes,
-	"?":         Read,
-	"!":         Write,
-	"odd":       OddWord,
-	"begin":     BeginWord,
-	"end":       EndWord,
-	"if":        IfWord,
-	"then":      ThenWord,
-	"while":     WhileWord,
-	"do":        DoWord,
-	"call":      CallWord,
-	"const":     ConstWord,
-	"var":       VarWord,
-	"procedure": ProcedureWord,
-}
+var (
+	// Map operator characters to their corresponding tokens.
+	operators = map[string]Token{
+		"+":  Plus,
+		"-":  Minus,
+		"*":  Times,
+		"/":  Divide,
+		"=":  Equal,
+		"#":  NotEqual,
+		"<":  Less,
+		"<=": LessEqual,
+		">":  Greater,
+		">=": GreaterEqual,
+		"(":  LeftParenthesis,
+		")":  RightParenthesis,
+		":=": Becomes,
+		",":  Comma,
+		":":  Colon,
+		";":  Semicolon,
+	}
+
+	// Map statement characters to their corresponding tokens.
+	statements = map[string]Token{
+		"?": Read,
+		"!": Write,
+	}
+
+	// Map reserved words to their corresponding tokens.
+	words = map[string]Token{
+		"odd":       OddWord,
+		"begin":     BeginWord,
+		"end":       EndWord,
+		"if":        IfWord,
+		"then":      ThenWord,
+		"while":     WhileWord,
+		"do":        DoWord,
+		"call":      CallWord,
+		"const":     ConstWord,
+		"var":       VarWord,
+		"procedure": ProcedureWord,
+	}
+)
 
 // Return the public interface of the private scanner implementation.
 func newScanner() Scanner {
@@ -64,16 +73,7 @@ func newScanner() Scanner {
 func (s *scanner) Scan(content []byte) (syntax ConcreteSyntax, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			syntax = append(syntax, TokenDescription{
-				Token:       Eof,
-				TokenName:   TokenNames[Eof],
-				TokenValue:  "",
-				TokenType:   None,
-				Line:        s.line,
-				Column:      s.column,
-				CurrentLine: s.currentLine,
-			})
-
+			syntax = make(ConcreteSyntax, 0)
 			err = p.(error)
 		}
 	}()
@@ -83,8 +83,18 @@ func (s *scanner) Scan(content []byte) (syntax ConcreteSyntax, err error) {
 	fullSyntax, errFull := slidingScan(basicSyntax)
 	syntax = fullSyntax
 	err = errors.Join(errBasic, errFull)
-
 	return
+}
+
+// Reset the scanner to its initial state so that it can be reused.
+func (s *scanner) reset(content []byte) {
+	s.sourceIndex = 0
+	s.sourceCode = content
+	s.line = 0
+	s.column = 0
+	s.lastValue = nil
+	s.currentLine = make([]byte, 0)
+	s.nextCharacter()
 }
 
 // Perform a basic scan that supports identifiers, unsigned non-valued numbers and operators.
@@ -108,51 +118,38 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 			return basicSyntax, err
 		}
 
-		if s.isEndOfFile() {
-			return basicSyntax, nil
-		}
+		xx
 	}
-}
-
-// Reset the scanner to its initial state so that it can be reused.
-func (s *scanner) reset(content []byte) {
-	s.sourceIndex = 0
-	s.sourceCode = content
-	s.line = 0
-	s.column = 0
-	s.lastValue = nil
-	s.currentLine = make([]byte, 0)
-	s.nextCharacter()
 }
 
 // Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
+	s.whitespace()
 
 	switch {
-	case s.isWhiteSpace():
-		s.whitespace()
-		return s.getToken()
-
 	case s.isComment():
 		s.comment()
 		return s.getToken()
 
-	case unicode.IsLetter(s.lastCharacter):
+	case s.isEndOfProgram():
+		return ProgramEnd, nil
+
+	case s.isIdentifierOrWord():
 		return s.identifierOrWord()
 
-	case unicode.IsDigit(s.lastCharacter):
+	case s.isNumber():
 		return s.number()
 
 	default:
-		return s.operator()
+		return s.operatorOrStatement()
 	}
 }
 
 // Read the next UTF-8 character from the source code and update the line and column counters.
 func (s *scanner) nextCharacter() {
-	if s.isEndOfFile() {
-		panic(newError(eofReached, nil, s.line, s.column))
+	if s.isEndOfContent() {
+		panic(newError(unexpectedEndOfContent, nil, s.line, s.column))
 	}
 
 	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
@@ -182,7 +179,7 @@ func (s *scanner) nextCharacter() {
 
 // Peek the next UTF-8 character from the source code to check if it matches the given character.
 func (s *scanner) peekCharacter(next rune) bool {
-	if s.isEndOfFile() {
+	if s.isEndOfContent() {
 		return false
 	}
 
@@ -219,23 +216,23 @@ func (s *scanner) setCurrentLine() {
 }
 
 // Check if the scanner has reached the end of the source code.
-func (s *scanner) isEndOfFile() bool {
+func (s *scanner) isEndOfContent() bool {
 	return s.sourceIndex >= len(s.sourceCode)
 }
 
-// Check if the current character is a white space.
-func (s *scanner) isWhiteSpace() bool {
-	return unicode.IsSpace(s.lastCharacter)
+// Check if the last character is the end of a program.
+func (s *scanner) isEndOfProgram() bool {
+	return s.lastCharacter == '.'
 }
 
 // Skip white spaces until a non-white space character is found.
 func (s *scanner) whitespace() {
-	for !s.isEndOfFile() && s.isWhiteSpace() {
+	for !s.isEndOfContent() && unicode.IsSpace(s.lastCharacter) {
 		s.nextCharacter()
 	}
 }
 
-// Check if the current characters are the start of a comment.
+// Check if the last character is the start of a comment.
 func (s *scanner) isComment() bool {
 	return s.lastCharacter == '{' || s.lastCharacter == '(' && s.peekCharacter('*')
 }
@@ -259,9 +256,14 @@ func (s *scanner) comment() {
 		s.nextCharacter()
 	}
 
-	if !s.isEndOfFile() {
+	if !s.isEndOfContent() {
 		s.nextCharacter()
 	}
+}
+
+// Check if the last character is the start of an identifier or a reserved word.
+func (s *scanner) isIdentifierOrWord() bool {
+	return unicode.IsLetter(s.lastCharacter)
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
@@ -273,7 +275,7 @@ func (s *scanner) identifierOrWord() (Token, error) {
 		s.nextCharacter()
 	}
 
-	if token, ok := tokenMap[builder.String()]; ok {
+	if token, ok := words[builder.String()]; ok {
 		return token, nil
 	}
 
@@ -283,6 +285,11 @@ func (s *scanner) identifierOrWord() (Token, error) {
 
 	s.lastValue = builder.String()
 	return Identifier, nil
+}
+
+// Check if the last character is the start of a number.
+func (s *scanner) isNumber() bool {
+	return unicode.IsDigit(s.lastCharacter)
 }
 
 // Scan consecutive digits to form an unsigned number token.
@@ -302,27 +309,27 @@ func (s *scanner) number() (Token, error) {
 	return Number, nil
 }
 
-// Scan an operator token or return an error if characters cannot be mapped to a token and hence is unexpected.
-func (s *scanner) operator() (Token, error) {
-	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
-		if !(token == Period && s.isEndOfFile()) {
+// Scan operator or statement token and return an error if last character cannot be mapped to a token and hence is unexpected.
+func (s *scanner) operatorOrStatement() (Token, error) {
+	if token, ok := operators[string(s.lastCharacter)]; ok {
+		switch {
+		case token == Less && s.peekCharacter('='):
 			s.nextCharacter()
+			token = LessEqual
 
-			switch {
-			case token == Less && s.lastCharacter == '=':
-				s.nextCharacter()
-				token = LessEqual
+		case token == Greater && s.peekCharacter('='):
+			s.nextCharacter()
+			token = GreaterEqual
 
-			case token == Greater && s.lastCharacter == '=':
-				s.nextCharacter()
-				token = GreaterEqual
-
-			case token == Colon && s.lastCharacter == '=':
-				s.nextCharacter()
-				token = Becomes
-			}
+		case token == Colon && s.peekCharacter('='):
+			s.nextCharacter()
+			token = Becomes
 		}
 
+		s.nextCharacter()
+		return token, nil
+	} else if token, ok := statements[string(s.lastCharacter)]; ok {
+		s.nextCharacter()
 		return token, nil
 	}
 

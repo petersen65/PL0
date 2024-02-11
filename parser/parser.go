@@ -31,10 +31,10 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 
 	// a program starts with a block of declaration depth 0 and an entrypoint address 0
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
-	p.block(emt.EntryPointName, set(declarations, statements, scn.Period))
+	p.block(emt.EntryPointName, set(declarations, statements, scn.ProgramEnd))
 
-	// the program must end with a period
-	if p.lastToken() != scn.Period {
+	// the program must end with a specific token
+	if p.lastToken() != scn.ProgramEnd {
 		p.appendError(expectedPeriod, p.lastTokenName())
 	}
 

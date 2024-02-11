@@ -14,7 +14,7 @@ const (
 // Error codes for the PL/0 scanner.
 const (
 	_ = failure(iota + 1000)
-	eofReached
+	unexpectedEndOfContent
 	tooLongIdentifier
 	tooLongNumber
 	illegalInteger
@@ -26,11 +26,11 @@ type failure int
 
 // Map error codes to error messages.
 var errorMap = map[failure]string{
-	eofReached:          "unexpected end of file",
-	tooLongIdentifier:   "identifier %s is too long",
-	tooLongNumber:       "number %s is too long",
-	illegalInteger:      "cannot parse number %s into integer value",
-	unexpectedCharacter: "unexpected character '%c'",
+	unexpectedEndOfContent: "unexpected end of content",
+	tooLongIdentifier:      "identifier %s is too long",
+	tooLongNumber:          "number %s is too long",
+	illegalInteger:         "cannot parse number %s into integer value",
+	unexpectedCharacter:    "unexpected character '%c'",
 }
 
 // Create a new error by mapping the error code to its corresponding error message.

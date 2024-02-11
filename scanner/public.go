@@ -31,7 +31,7 @@ const (
 	Comma
 	Colon
 	Semicolon
-	Period
+	ProgramEnd
 	Becomes
 	Read
 	Write
@@ -113,7 +113,7 @@ var (
 		Comma:            "comma",
 		Colon:            "colon",
 		Semicolon:        "semicolon",
-		Period:           "period",
+		ProgramEnd:       "programEnd",
 		Becomes:          "becomes",
 		Read:             "read",
 		Write:            "write",
