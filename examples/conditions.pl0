@@ -1,3 +1,5 @@
+{ demonstrate conditions }
+
 var x, y;
 begin
     x := 3;

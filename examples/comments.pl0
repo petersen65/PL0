@@ -1,10 +1,11 @@
-var x, y, z;
+{ demonstrate comments }
 
 (* single line comment *)
 
+var x, y, z;
 begin { single line comment }
     x := 4; { single line comment }
-    y :(* possible but not recommended *)= 5;
+    y := 5;
     
     z := -x {
         multi line comment
@@ -18,4 +19,12 @@ begin { single line comment }
         multi line comment
         x *) z then
             ! 42;
+
+    {
+        Correct output is:
+            4
+            5
+            -9
+            42
+    }
 end.

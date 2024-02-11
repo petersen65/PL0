@@ -108,7 +108,7 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 			return basicSyntax, err
 		}
 
-		if token == Period {
+		if s.isEndOfFile() {
 			return basicSyntax, nil
 		}
 	}
@@ -129,11 +129,11 @@ func (s *scanner) reset(content []byte) {
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
 
-	for unicode.IsSpace(s.lastCharacter) {
-		s.nextCharacter()
-	}
-
 	switch {
+	case s.isWhiteSpace():
+		s.whitespace()
+		return s.getToken()
+
 	case s.isComment():
 		s.comment()
 		return s.getToken()
@@ -151,7 +151,7 @@ func (s *scanner) getToken() (Token, error) {
 
 // Read the next UTF-8 character from the source code and update the line and column counters.
 func (s *scanner) nextCharacter() {
-	if s.sourceIndex >= len(s.sourceCode) {
+	if s.isEndOfFile() {
 		panic(newError(eofReached, nil, s.line, s.column))
 	}
 
@@ -182,7 +182,7 @@ func (s *scanner) nextCharacter() {
 
 // Peek the next UTF-8 character from the source code to check if it matches the given character.
 func (s *scanner) peekCharacter(next rune) bool {
-	if s.sourceIndex >= len(s.sourceCode) {
+	if s.isEndOfFile() {
 		return false
 	}
 
@@ -218,6 +218,23 @@ func (s *scanner) setCurrentLine() {
 	}
 }
 
+// Check if the scanner has reached the end of the source code.
+func (s *scanner) isEndOfFile() bool {
+	return s.sourceIndex >= len(s.sourceCode)
+}
+
+// Check if the current character is a white space.
+func (s *scanner) isWhiteSpace() bool {
+	return unicode.IsSpace(s.lastCharacter)
+}
+
+// Skip white spaces until a non-white space character is found.
+func (s *scanner) whitespace() {
+	for !s.isEndOfFile() && s.isWhiteSpace() {
+		s.nextCharacter()
+	}
+}
+
 // Check if the current characters are the start of a comment.
 func (s *scanner) isComment() bool {
 	return s.lastCharacter == '{' || s.lastCharacter == '(' && s.peekCharacter('*')
@@ -242,7 +259,9 @@ func (s *scanner) comment() {
 		s.nextCharacter()
 	}
 
-	s.nextCharacter()
+	if !s.isEndOfFile() {
+		s.nextCharacter()
+	}
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
@@ -286,7 +305,7 @@ func (s *scanner) number() (Token, error) {
 // Scan an operator token or return an error if characters cannot be mapped to a token and hence is unexpected.
 func (s *scanner) operator() (Token, error) {
 	if token, ok := tokenMap[string(s.lastCharacter)]; ok {
-		if !(token == Period && s.sourceIndex == len(s.sourceCode)) {
+		if !(token == Period && s.isEndOfFile()) {
 			s.nextCharacter()
 
 			switch {
