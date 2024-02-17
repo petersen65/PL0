@@ -57,7 +57,7 @@ func peekToken(i int, syntax ConcreteSyntax) Token {
 		return syntax[i].Token
 	}
 
-	return Null
+	return Unknown
 }
 
 // Analyze the concrete syntax of a number and convert it to an Integer64 value.

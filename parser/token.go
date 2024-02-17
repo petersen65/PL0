@@ -56,7 +56,7 @@ func set(tss ...scn.TokenSet) scn.Tokens {
 // Set next token description in the concrete syntax or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
 	if t.concreteSyntaxIndex >= len(t.concreteSyntax) {
-		if t.eof.Token == scn.Null {
+		if t.eof.Token == scn.Unknown {
 			t.eof = scn.TokenDescription{
 				Token:       scn.Eof,
 				TokenName:   "eof",
