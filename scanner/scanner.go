@@ -11,6 +11,9 @@ import (
 	"unicode/utf8"
 )
 
+// Last character of the source code that is read when the end of the file is reached.
+const EndOfFileCharacter = 0
+
 // Private implementation of the multi-pass PL/0 scanner.
 type scanner struct {
 	sourceIndex   int    // index of the current character in the source code byte slice
@@ -71,20 +74,11 @@ func newScanner() Scanner {
 }
 
 // Run the multi-pass PL/0 scanner to map the source code to its corresponding concrete syntax.
-func (s *scanner) Scan(content []byte) (syntax ConcreteSyntax, err error) {
-	defer func() {
-		if p := recover(); p != nil {
-			syntax = append(syntax, s.newTokenDescription(Eof))
-			err = p.(error)
-		}
-	}()
-
+func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
 	s.reset(content)
 	concreteSyntax, errScan := s.scan()
 	preParsedSyntax, errPreParse := parseNumbers(concreteSyntax)
-	syntax = preParsedSyntax
-	err = errors.Join(errScan, errPreParse)
-	return
+	return preParsedSyntax, errors.Join(errScan, errPreParse)
 }
 
 // Reset the scanner to its initial state so that it can be reused.
@@ -103,52 +97,36 @@ func (s *scanner) scan() (ConcreteSyntax, error) {
 	syntax := make(ConcreteSyntax, 0)
 
 	for {
-		if s.isWhitespace() {
-			s.whitespace()
-
-			if s.isWhitespace() && s.isEndOfContent() {
-				return syntax, nil
+		for s.isWhitespace() || s.isComment() {
+			if s.isWhitespace() {
+				s.whitespace()
 			}
-		}
 
-		if s.isComment() {
-			s.comment()
-			continue
-		}
-
-		token, err := s.getToken()
-		syntax = append(syntax, s.newTokenDescription(token))
-
-		if token != ProgramEnd && s.isEndOfProgram() && s.isEndOfContent() {
-			syntax = append(syntax, s.newTokenDescription(ProgramEnd))
-		}
-		
-		if err != nil {
-			return syntax, err
+			if s.isComment() {
+				if err := s.comment(); err != nil {
+					return syntax, err
+				}
+			}
 		}
 
 		if s.isEndOfContent() {
 			return syntax, nil
 		}
-	}
-}
 
-func (s *scanner) newTokenDescription(token Token) TokenDescription {
-	td := TokenDescription{
-		Token:       token,
-		TokenName:   TokenNames[token],
-		TokenValue:  s.lastValue,
-		DataType:    None,
-		Line:        s.line,
-		Column:      s.column,
-		CurrentLine: s.currentLine,
+		if token, err := s.getToken(); err != nil {
+			return syntax, err
+		} else {
+			syntax = append(syntax, TokenDescription{
+				Token:       token,
+				TokenName:   TokenNames[token],
+				TokenValue:  s.lastValue,
+				DataType:    None,
+				Line:        s.line,
+				Column:      s.column,
+				CurrentLine: s.currentLine,
+			})
+		}
 	}
-
-	if token == Eof || token == ProgramEnd {
-		td.TokenValue = ""
-	}
-
-	return td
 }
 
 // Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
@@ -169,8 +147,9 @@ func (s *scanner) getToken() (Token, error) {
 
 // Read the next UTF-8 character from the source code and update the line and column counters.
 func (s *scanner) nextCharacter() {
-	if s.isEndOfContent() {
-		panic(newError(eofReached, nil, s.line, s.column))
+	if s.sourceIndex >= len(s.sourceCode) {
+		s.lastCharacter = EndOfFileCharacter
+		return
 	}
 
 	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
@@ -238,12 +217,7 @@ func (s *scanner) setCurrentLine() {
 
 // Check if the scanner has reached the end of the source code.
 func (s *scanner) isEndOfContent() bool {
-	return s.sourceIndex >= len(s.sourceCode)
-}
-
-// Check if the last character is the end of a program.
-func (s *scanner) isEndOfProgram() bool {
-	return s.lastCharacter == '.'
+	return s.lastCharacter == EndOfFileCharacter
 }
 
 // Check if the last character is a white space.
@@ -253,7 +227,7 @@ func (s *scanner) isWhitespace() bool {
 
 // Skip white spaces until a non-white space character is found.
 func (s *scanner) whitespace() {
-	for !s.isEndOfContent() && unicode.IsSpace(s.lastCharacter) {
+	for unicode.IsSpace(s.lastCharacter) {
 		s.nextCharacter()
 	}
 }
@@ -264,27 +238,34 @@ func (s *scanner) isComment() bool {
 }
 
 // Scan a comment that starts with '{' or '(*' and ends with '}' or '*)'.
-func (s *scanner) comment() {
+func (s *scanner) comment() error {
 	if s.lastCharacter == '{' {
 		s.nextCharacter()
 
-		for s.lastCharacter != '}' {
+		for !s.isEndOfContent() && s.lastCharacter != '}' {
 			s.nextCharacter()
+		}
+
+		if s.isEndOfContent() {
+			return newError(eofComment, nil, s.line, s.column)
 		}
 	} else {
 		s.nextCharacter()
 		s.nextCharacter()
 
-		for !(s.lastCharacter == '*' && s.peekCharacter(')')) {
+		for !s.isEndOfContent() && !(s.lastCharacter == '*' && s.peekCharacter(')')) {
 			s.nextCharacter()
+		}
+
+		if s.isEndOfContent() {
+			return newError(eofComment, nil, s.line, s.column)
 		}
 
 		s.nextCharacter()
 	}
 
-	if !s.isEndOfContent() {
-		s.nextCharacter()
-	}
+	s.nextCharacter()
+	return nil
 }
 
 // Check if the last character is the start of an identifier or a reserved word.
@@ -298,11 +279,6 @@ func (s *scanner) identifierOrWord() (Token, error) {
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
-
-		if s.isEndOfContent() {
-			break
-		}
-
 		s.nextCharacter()
 	}
 
@@ -329,11 +305,6 @@ func (s *scanner) number() (Token, error) {
 
 	for unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
-
-		if s.isEndOfContent() {
-			break
-		}
-
 		s.nextCharacter()
 	}
 
@@ -348,32 +319,27 @@ func (s *scanner) number() (Token, error) {
 // Scan operator or statement token and return an error if last character cannot be mapped to a token and hence is unexpected.
 func (s *scanner) operatorOrStatement() (Token, error) {
 	if token, ok := operators[string(s.lastCharacter)]; ok {
+		s.nextCharacter()
+
 		switch {
-		case token == Less && s.peekCharacter('='):
+		case token == Less && s.lastCharacter == '=':
 			s.nextCharacter()
 			token = LessEqual
 
-		case token == Greater && s.peekCharacter('='):
+		case token == Greater && s.lastCharacter == '=':
 			s.nextCharacter()
 			token = GreaterEqual
 
-		case token == Colon && s.peekCharacter('='):
+		case token == Colon && s.lastCharacter == '=':
 			s.nextCharacter()
 			token = Becomes
 		}
 
-		if !s.isEndOfContent() {
-			s.nextCharacter()
-		}
-
 		return token, nil
 	} else if token, ok := statements[string(s.lastCharacter)]; ok {
-		if !s.isEndOfContent() {
-			s.nextCharacter()
-		}
-
+		s.nextCharacter()
 		return token, nil
 	}
 
-	return Null, newError(unexpectedCharacter, s.lastCharacter, s.line, s.column)
+	return Unknown, newError(unexpectedCharacter, s.lastCharacter, s.line, s.column)
 }
