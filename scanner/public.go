@@ -48,9 +48,9 @@ const (
 	ProcedureWord
 )
 
-// Token types for constants and variables.
+// Data types for constants and variables.
 const (
-	None = TokenType(iota)
+	None = DataType(iota)
 	Integer64
 )
 
@@ -59,7 +59,7 @@ type (
 	Token int
 
 	// Data types for constants and variables in PL/0.
-	TokenType int
+	DataType int
 
 	// Tokens represents a set of tokens.
 	Tokens []Token
@@ -67,12 +67,12 @@ type (
 	// The concrete syntax table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
 	ConcreteSyntax []TokenDescription
 
-	// Describes a token with its type, name, value, and position in the source code.
+	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
 		Token        Token
 		TokenName    string
 		TokenValue   any
-		TokenType    TokenType
+		DataType     DataType
 		Line, Column int
 		CurrentLine  []byte
 	}
@@ -128,60 +128,6 @@ var (
 		ConstWord:        "const",
 		VarWord:          "var",
 		ProcedureWord:    "procedure",
-	}
-
-	// KeyWords is a token set of all keywords.
-	KeyWords = Tokens{
-		OddWord,
-		BeginWord,
-		EndWord,
-		IfWord,
-		ThenWord,
-		WhileWord,
-		DoWord,
-		CallWord,
-		ConstWord,
-		VarWord,
-		ProcedureWord,
-	}
-
-	// Operators is a token set of all operators.
-	Operators = Tokens{
-		OddWord,
-		Plus,
-		Minus,
-		Times,
-		Divide,
-		Equal,
-		NotEqual,
-		Less,
-		LessEqual,
-		Greater,
-		GreaterEqual,
-	}
-
-	// Declarations is a set of all declaration keywords.
-	Declarations = Tokens{
-		ConstWord,
-		VarWord,
-		ProcedureWord,
-	}
-
-	// Statements is a set of all statement introductions.
-	Statements = Tokens{
-		Read,
-		Write,
-		BeginWord,
-		CallWord,
-		IfWord,
-		WhileWord,
-	}
-
-	// Factors is a set of all factors: an identifier, a number, or an expression surrounded by parentheses.
-	Factors = Tokens{
-		Identifier,
-		Number,
-		LeftParenthesis,
 	}
 )
 

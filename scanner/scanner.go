@@ -40,6 +40,7 @@ var (
 		",":  Comma,
 		":":  Colon,
 		";":  Semicolon,
+		".":  ProgramEnd,
 	}
 
 	// Map statement characters to their corresponding tokens.
@@ -73,16 +74,16 @@ func newScanner() Scanner {
 func (s *scanner) Scan(content []byte) (syntax ConcreteSyntax, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			syntax = make(ConcreteSyntax, 0)
+			syntax = append(syntax, s.newTokenDescription(Eof))
 			err = p.(error)
 		}
 	}()
 
 	s.reset(content)
-	basicSyntax, errBasic := s.basicScan()
-	fullSyntax, errFull := slidingScan(basicSyntax)
-	syntax = fullSyntax
-	err = errors.Join(errBasic, errFull)
+	concreteSyntax, errScan := s.scan()
+	preParsedSyntax, errPreParse := parseNumbers(concreteSyntax)
+	syntax = preParsedSyntax
+	err = errors.Join(errScan, errPreParse)
 	return
 }
 
@@ -97,15 +98,17 @@ func (s *scanner) reset(content []byte) {
 	s.nextCharacter()
 }
 
-// Perform a basic scan that supports identifiers, unsigned non-valued numbers and operators.
-func (s *scanner) basicScan() (ConcreteSyntax, error) {
-	basicSyntax := make(ConcreteSyntax, 0)
+// Perform a character scan that supports identifiers, unsigned non-valued numbers and operators.
+func (s *scanner) scan() (ConcreteSyntax, error) {
+	syntax := make(ConcreteSyntax, 0)
 
-	for !s.isEndOfContent() {
-		s.whitespace()
+	for {
+		if s.isWhitespace() {
+			s.whitespace()
 
-		if s.isEndOfContent() {
-			continue
+			if s.isWhitespace() && s.isEndOfContent() {
+				return syntax, nil
+			}
 		}
 
 		if s.isComment() {
@@ -114,35 +117,38 @@ func (s *scanner) basicScan() (ConcreteSyntax, error) {
 		}
 
 		token, err := s.getToken()
+		syntax = append(syntax, s.newTokenDescription(token))
 
-		basicSyntax = append(basicSyntax, TokenDescription{
-			Token:       token,
-			TokenName:   TokenNames[token],
-			TokenValue:  s.lastValue,
-			TokenType:   None,
-			Line:        s.line,
-			Column:      s.column,
-			CurrentLine: s.currentLine,
-		})
-
+		if token != ProgramEnd && s.isEndOfProgram() && s.isEndOfContent() {
+			syntax = append(syntax, s.newTokenDescription(ProgramEnd))
+		}
+		
 		if err != nil {
-			return basicSyntax, err
+			return syntax, err
+		}
+
+		if s.isEndOfContent() {
+			return syntax, nil
 		}
 	}
+}
 
-	if s.isEndOfProgram() {
-		basicSyntax = append(basicSyntax, TokenDescription{
-			Token:       ProgramEnd,
-			TokenName:   TokenNames[ProgramEnd],
-			TokenValue:  "",
-			TokenType:   None,
-			Line:        s.line,
-			Column:      s.column + 1,
-			CurrentLine: s.currentLine,
-		})
+func (s *scanner) newTokenDescription(token Token) TokenDescription {
+	td := TokenDescription{
+		Token:       token,
+		TokenName:   TokenNames[token],
+		TokenValue:  s.lastValue,
+		DataType:    None,
+		Line:        s.line,
+		Column:      s.column,
+		CurrentLine: s.currentLine,
 	}
 
-	return basicSyntax, nil
+	if token == Eof || token == ProgramEnd {
+		td.TokenValue = ""
+	}
+
+	return td
 }
 
 // Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
@@ -150,13 +156,6 @@ func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
 
 	switch {
-	case s.isEndOfProgram():
-		if !s.isEndOfContent() {
-			s.nextCharacter()
-		}
-
-		return ProgramEnd, nil
-
 	case s.isIdentifierOrWord():
 		return s.identifierOrWord()
 
@@ -199,14 +198,14 @@ func (s *scanner) nextCharacter() {
 	s.sourceIndex += width
 }
 
-// Peek the next UTF-8 character from the source code to check if it matches the given character.
-func (s *scanner) peekCharacter(next rune) bool {
+// Peek the next UTF-8 character from the source code to check if it matches an expected character.
+func (s *scanner) peekCharacter(expected rune) bool {
 	if s.isEndOfContent() {
 		return false
 	}
 
 	character, _ := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
-	return character == next
+	return character == expected
 }
 
 // Extract the current line of source code if the scanner is positioned on a new line.
@@ -245,6 +244,11 @@ func (s *scanner) isEndOfContent() bool {
 // Check if the last character is the end of a program.
 func (s *scanner) isEndOfProgram() bool {
 	return s.lastCharacter == '.'
+}
+
+// Check if the last character is a white space.
+func (s *scanner) isWhitespace() bool {
+	return unicode.IsSpace(s.lastCharacter)
 }
 
 // Skip white spaces until a non-white space character is found.
@@ -294,6 +298,11 @@ func (s *scanner) identifierOrWord() (Token, error) {
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
+
+		if s.isEndOfContent() {
+			break
+		}
+
 		s.nextCharacter()
 	}
 
@@ -320,6 +329,11 @@ func (s *scanner) number() (Token, error) {
 
 	for unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
+
+		if s.isEndOfContent() {
+			break
+		}
+
 		s.nextCharacter()
 	}
 
@@ -348,10 +362,16 @@ func (s *scanner) operatorOrStatement() (Token, error) {
 			token = Becomes
 		}
 
-		s.nextCharacter()
+		if !s.isEndOfContent() {
+			s.nextCharacter()
+		}
+
 		return token, nil
 	} else if token, ok := statements[string(s.lastCharacter)]; ok {
-		s.nextCharacter()
+		if !s.isEndOfContent() {
+			s.nextCharacter()
+		}
+
 		return token, nil
 	}
 

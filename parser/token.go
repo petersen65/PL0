@@ -61,7 +61,7 @@ func (t *tokenHandler) nextTokenDescription() bool {
 				Token:       scn.Eof,
 				TokenName:   "eof",
 				TokenValue:  nil,
-				TokenType:   scn.None,
+				DataType:    scn.None,
 				Line:        t.lastTokenDescription.Line,
 				Column:      t.lastTokenDescription.Column,
 				CurrentLine: t.lastTokenDescription.CurrentLine,
