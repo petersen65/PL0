@@ -129,7 +129,7 @@ func (s *scanner) scan() (ConcreteSyntax, error) {
 	}
 }
 
-// Return an identifier, number or operator token for the basic scan pass (unsigned numbers and single UTF-8 character operators).
+// Return an identifier, reserved word, number, or operator token.
 func (s *scanner) getToken() (Token, error) {
 	s.lastValue = ""
 

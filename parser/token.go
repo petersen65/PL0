@@ -6,6 +6,9 @@ package parser
 
 import scn "github.com/petersen65/PL0/scanner"
 
+// The eof token is used to indicate the end of the concrete syntax and is used only internally by the token handler.
+const eof scn.Token = -1
+
 var (
 	// Tokens that are used to begin constants, variables, and procedures declarations.
 	declarations = scn.Tokens{
@@ -34,10 +37,10 @@ var (
 
 // Token handler manages the current and next token in the concrete syntax.
 type tokenHandler struct {
-	concreteSyntaxIndex       int                  // index of the current token in the concrete syntax
-	concreteSyntax            scn.ConcreteSyntax   // concrete syntax to parse
-	lastTokenDescription, eof scn.TokenDescription // description of the last token that was read
-	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
+	concreteSyntaxIndex  int                  // index of the current token in the concrete syntax
+	concreteSyntax       scn.ConcreteSyntax   // concrete syntax to parse
+	lastTokenDescription scn.TokenDescription // description of the last token that was read
+	errorReport          ErrorReport          // error report that stores all errors that occured during parsing
 }
 
 // Create a new token handler for the PL/0 parser.
@@ -56,9 +59,9 @@ func set(tss ...scn.TokenSet) scn.Tokens {
 // Set next token description in the concrete syntax or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
 	if t.concreteSyntaxIndex >= len(t.concreteSyntax) {
-		if t.eof.Token == scn.Unknown {
-			t.eof = scn.TokenDescription{
-				Token:       scn.Eof,
+		if t.lastTokenDescription.Token != eof {
+			t.lastTokenDescription = scn.TokenDescription{
+				Token:       eof,
 				TokenName:   "eof",
 				TokenValue:  nil,
 				DataType:    scn.None,
@@ -66,8 +69,6 @@ func (t *tokenHandler) nextTokenDescription() bool {
 				Column:      t.lastTokenDescription.Column,
 				CurrentLine: t.lastTokenDescription.CurrentLine,
 			}
-
-			t.lastTokenDescription = t.eof
 		}
 
 		return false
@@ -98,7 +99,7 @@ func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
 	if !t.lastToken().In(expected) {
 		t.appendError(t.error(code, t.lastTokenName()))
 
-		for next := set(expected, fallback, scn.Eof); !t.lastToken().In(next); {
+		for next := set(expected, fallback, eof); !t.lastToken().In(next); {
 			t.nextTokenDescription()
 		}
 	}

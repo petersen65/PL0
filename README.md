@@ -99,6 +99,7 @@ The programming language PL/0 (2024 version) supports the following features:
 
 * Q1 2024, Compiler version 1.1.0 2024, bug fixes, improved documentation
 	* comments for the programming language PL/0
+	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
 
 * H1 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* migration to abstract syntax trees as interface between parser and emitter

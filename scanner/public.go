@@ -13,7 +13,6 @@ const IntegerBitSize = 64
 // Tokens that are supported by the PL/0 scanner.
 const (
 	Unknown = Token(iota)
-	Eof
 	Identifier
 	Number
 	Plus
@@ -95,7 +94,6 @@ var (
 	// TokenNames maps tokens to their string representation.
 	TokenNames = map[Token]string{
 		Unknown:          "unknown",
-		Eof:              "eof",
 		Identifier:       "identifier",
 		Number:           "number",
 		Plus:             "plus",
