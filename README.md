@@ -101,9 +101,8 @@ The programming language PL/0 (2024 version) supports the following features:
 	* comments for the programming language PL/0
 
 * H1 2024, Compiler version 2.0.0 2024, make core engine more mature
-	* comments for the programming language PL/0
 	* migration to abstract syntax trees as interface between parser and emitter
-	* support for Intel x86_64 assembler generation based on NASM project
+	* support for Intel x86_64 assembler generation
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language
 	* data types for variables, constants and parameters, start with integer only
