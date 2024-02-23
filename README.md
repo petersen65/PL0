@@ -8,7 +8,7 @@ This module provides a complete compiler for the programming language PL0. It pr
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
 * compiler: compiler driver for scanning, parsing, emitting, printing, and emulating from source code to the resultant IL/0 code
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person. Beginning with version 1.1.0 of the compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2024. The programming language PL/0 2024 will be aligned to Pascal syntax and language features.
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
@@ -24,38 +24,49 @@ The complete compiler source code is licensed under Apache License v2.0.
 
 PL/0 is a programming language, intended as an educational programming language, that is similar to but much simpler than Pascal, a general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It features quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations make writing real applications in this language impractical, it helps the compiler remain compact and simple.
 
-Tokens form the vocabulary of the PL/0 language. There are four classes: 
+## Grammar
 
-* identifiers
-* keywords
-* operators and punctuation
-* literals
-
-## Syntax
-
-The syntax of PL/0 (2024 version) is described in extended Backus-Naur form with the following productions:
+The grammar of PL/0 (2024 version) is described in extended Backus-Naur form EBNF with the following productions:
 
 | nonterminal symbol | terminal or nonterminal symbols
 |--------------------|----------------------------------------------------------------------------------
 | program            | block "." ;
 |                    | &nbsp;
-| block              | [ "const" ident "=" number {"," ident "=" number} ";"]
-|                    | [ "var" ident {"," ident} ";"]
-|                    | { "procedure" ident ";" block ";" } statement ;
+| block              | [ "const" identifier "=" number {"," identifier "=" number} ";" ]
+|                    | [ "var" identifier {"," identifier} ";" ]
+|                    | { "procedure" identifier ";" block ";" } statement ";"
 |                    | &nbsp;
-| statement          | [ ident ":=" expression | "call" ident
-|                    | &nbsp;&nbsp;\| "?" ident | "!" expression
-|                    | &nbsp;&nbsp;\| "begin" statement {";" statement } "end"
+| statement          | [ identifier ":=" expression | "call" identifier
+|                    | &nbsp;&nbsp;\| "?" identifier | "!" expression
+|                    | &nbsp;&nbsp;\| "begin" statement {";" statement} "end"
 |                    | &nbsp;&nbsp;\| "if" condition "then" statement
-|                    | &nbsp;&nbsp;\| "while" condition "do" statement ] ;
+|                    | &nbsp;&nbsp;\| "while" condition "do" statement ] ";"
 |                    | &nbsp;
 | condition          | "odd" expression
 |                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression ;
 |                    | &nbsp;
-| expression         | ["+" \| "-"] term { ( "+" \| "-") term} ;
+| expression         | ["+" \| "-"] term {( "+" \| "-") term} ;
 | term               | factor {("*" \| "/") factor} ;
-| factor             | ident \| number \| "(" expression ")" ;
+| factor             | identifier \| ["+" \| "-"] number \| "(" expression ")" ;
 |                    | 
+
+A context free grammar is formally defined as G = (S,N,T,P):
+* S is the start symbol
+* N is a set of non-terminal symbols
+* T is a set of terminal symbols or words
+* P is a set of productions or rewrite rules (P:N → N ∪ T)
+
+Given the EBNF of PL/0, the grammar G for PL/0 is:
+* S = program
+* N = program, block, statement, condition, expression, term, factor
+* T = identifier, number, "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
+* T = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
+
+Tokens are the set of accepting states from a finite automaton for the PL/0 language. Given T above, there are four classes: 
+* identifiers = identifier
+* keywords = "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
+* operators and punctuation = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
+* literals = number
 
 ## Features
 
