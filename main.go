@@ -17,7 +17,7 @@ import (
 //
 // The command line arguments are:
 //
-//	-c[r|p|s] <source file> <target file>
+//	-c[r|t|p] <source file> <target file>
 //	-r <target file>
 //	-p <target file>
 func main() {
@@ -39,13 +39,13 @@ func main() {
 			run(os.Args[3])
 		}
 
+	case len(os.Args) > 3 && os.Args[1] == "-ct" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
+		compile(os.Args[2], os.Args[3], true)
+
 	case len(os.Args) > 3 && os.Args[1] == "-cp" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
 		if compile(os.Args[2], os.Args[3], false) == nil {
 			print(os.Args[3])
-		}
-
-	case len(os.Args) > 3 && os.Args[1] == "-cs" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], true)
+		}	
 
 	default:
 		usage()
@@ -93,7 +93,7 @@ func print(il0 string) error {
 
 // Function 'usage' prints the command line usage information to the standard output (console).
 func usage() {
-	fmt.Println("Usage: pl0 -c[r|p|s] <source file> <target file>")
+	fmt.Println("Usage: pl0 -c[r|t|p] <source file> <target file>")
 	fmt.Println("       pl0 -r <target file>")
 	fmt.Println("       pl0 -p <target file>")
 }
