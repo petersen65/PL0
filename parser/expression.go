@@ -25,6 +25,53 @@ func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, e
 	}
 }
 
+// A condition is either an odd expression or two expressions separated by a relational operator.
+func (e *expressionParser) condition(depth int32, expected scn.Tokens) scn.Token {
+	var relationalOperator scn.Token
+
+	if e.lastToken() == scn.OddWord {
+		relationalOperator = e.lastToken()
+		e.nextToken()
+		e.expression(depth, expected)
+		e.emitter.Odd()
+	} else {
+		// handle left expression of a relational operator
+		e.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+
+		if !e.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			e.appendError(expectedRelationalOperator, e.lastTokenName())
+		} else {
+			relationalOperator = e.lastToken()
+			e.nextToken()
+
+			// handle right expression of a relational operator
+			e.expression(depth, expected)
+
+			switch relationalOperator {
+			case scn.Equal:
+				e.emitter.Equal()
+
+			case scn.NotEqual:
+				e.emitter.NotEqual()
+
+			case scn.Less:
+				e.emitter.Less()
+
+			case scn.LessEqual:
+				e.emitter.LessEqual()
+
+			case scn.Greater:
+				e.emitter.Greater()
+
+			case scn.GreaterEqual:
+				e.emitter.GreaterEqual()
+			}
+		}
+	}
+
+	return relationalOperator
+}
+
 // An expression is a sequence of terms separated by plus or minus.
 func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 	// handle leading plus or minus sign of a term

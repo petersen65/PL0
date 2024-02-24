@@ -456,53 +456,6 @@ func (p *parser) statement(expected scn.Tokens) {
 	p.tokenHandler.rebase(expectedStatement, expected, scn.Empty)
 }
 
-// A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(expected scn.Tokens) scn.Token {
-	var relationalOperator scn.Token
-
-	if p.lastToken() == scn.OddWord {
-		relationalOperator = p.lastToken()
-		p.nextToken()
-		p.expression(expected)
-		p.emitter.Odd()
-	} else {
-		// handle left expression of a relational operator
-		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
-
-		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
-			p.appendError(expectedRelationalOperator, p.lastTokenName())
-		} else {
-			relationalOperator = p.lastToken()
-			p.nextToken()
-
-			// handle right expression of a relational operator
-			p.expression(expected)
-
-			switch relationalOperator {
-			case scn.Equal:
-				p.emitter.Equal()
-
-			case scn.NotEqual:
-				p.emitter.NotEqual()
-
-			case scn.Less:
-				p.emitter.Less()
-
-			case scn.LessEqual:
-				p.emitter.LessEqual()
-
-			case scn.Greater:
-				p.emitter.Greater()
-
-			case scn.GreaterEqual:
-				p.emitter.GreaterEqual()
-			}
-		}
-	}
-
-	return relationalOperator
-}
-
 // Emit a conditional jump instruction based on the relational operator of a condition.
 func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
 	var address emt.Address
@@ -585,6 +538,10 @@ func (p *parser) appendError(code failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
+// Start the expression parser and parse a condition.
+func (p *parser) condition(expected scn.Tokens) scn.Token {
+	return p.expressionParser.condition(p.declarationDepth, expected)
+}
 // Start the expression parser and parse an expression.
 func (p *parser) expression(expected scn.Tokens) {
 	p.expressionParser.expression(p.declarationDepth, expected)
