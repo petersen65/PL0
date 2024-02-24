@@ -53,8 +53,8 @@ func main() {
 }
 
 // Function compile compiles the PL/0 source file pl0 and writes the IL/0 code to the target file il0.
-func compile(pl0, il0 string, syntax bool) error {
-	err := compiler.CompileFile(pl0, il0, syntax, os.Stdout)
+func compile(pl0, il0 string, tokenStream bool) error {
+	err := compiler.CompileFile(pl0, il0, tokenStream, os.Stdout)
 
 	if err != nil {
 		fmt.Println("Error:", err)

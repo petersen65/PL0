@@ -6,7 +6,7 @@ package parser
 
 import scn "github.com/petersen65/PL0/scanner"
 
-// The eof token is used to indicate the end of the concrete syntax and is used only internally by the token handler.
+// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof scn.Token = -1
 
 var (
@@ -35,19 +35,19 @@ var (
 	}
 )
 
-// Token handler manages the current and next token in the concrete syntax.
+// Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
-	concreteSyntaxIndex  int                  // index of the current token in the concrete syntax
-	concreteSyntax       scn.ConcreteSyntax   // concrete syntax to parse
+	tokenStreamIndex     int                  // index of the current token in the token stream table
+	tokenStream          scn.TokenStream      // token stream to parse
 	lastTokenDescription scn.TokenDescription // description of the last token that was read
 	errorReport          ErrorReport          // error report that stores all errors that occured during parsing
 }
 
 // Create a new token handler for the PL/0 parser.
-func newTokenHandler(concreteSyntax scn.ConcreteSyntax) *tokenHandler {
+func newTokenHandler(tokenStream scn.TokenStream) *tokenHandler {
 	return &tokenHandler{
-		concreteSyntax: concreteSyntax,
-		errorReport:    make(ErrorReport, 0),
+		tokenStream: tokenStream,
+		errorReport: make(ErrorReport, 0),
 	}
 }
 
@@ -56,9 +56,9 @@ func set(tss ...scn.TokenSet) scn.Tokens {
 	return scn.Set(tss...)
 }
 
-// Set next token description in the concrete syntax or an eof description.
+// Set next token description in the token stream or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
-	if t.concreteSyntaxIndex >= len(t.concreteSyntax) {
+	if t.tokenStreamIndex >= len(t.tokenStream) {
 		if t.lastTokenDescription.Token != eof {
 			t.lastTokenDescription = scn.TokenDescription{
 				Token:       eof,
@@ -74,8 +74,8 @@ func (t *tokenHandler) nextTokenDescription() bool {
 		return false
 	}
 
-	t.lastTokenDescription = t.concreteSyntax[t.concreteSyntaxIndex]
-	t.concreteSyntaxIndex++
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
 	return true
 }
 
@@ -105,16 +105,16 @@ func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
 	}
 }
 
-// The concrete syntax is fully parsed if the index of the current token is equal to the length of the concrete syntax.
+// The token stream is fully parsed if the index of the current token is equal to the length of the token stream table.
 func (t *tokenHandler) isFullyParsed() bool {
-	return t.concreteSyntaxIndex == len(t.concreteSyntax)
+	return t.tokenStreamIndex == len(t.tokenStream)
 }
 
-// Set index of the current token to the last entry of the concrete syntax and update next token description.
+// Set index of the current token to the last entry of the token stream table and update next token description.
 func (t *tokenHandler) setFullyParsed() {
-	t.concreteSyntaxIndex = len(t.concreteSyntax) - 1
-	t.lastTokenDescription = t.concreteSyntax[t.concreteSyntaxIndex]
-	t.concreteSyntaxIndex++
+	t.tokenStreamIndex = len(t.tokenStream) - 1
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
 }
 
 // Expose error report to the parser.

@@ -12,7 +12,7 @@ import (
 // The expression parser is a parser that performs a syntactical analysis of an expression.
 type expressionParser struct {
 	emitter               emt.Emitter   // emitter that emits the code
-	tokenHandler          *tokenHandler // token handler that manages the tokens of the concrete syntax
+	tokenHandler          *tokenHandler // token handler that manages the tokens of the token stream
 	symbolTable           *symbolTable  // symbol table that stores all symbols of the program
 }
 

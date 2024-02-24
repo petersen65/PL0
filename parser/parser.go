@@ -13,7 +13,7 @@ import (
 type parser struct {
 	emitter          emt.Emitter       // emitter that emits the code
 	declarationDepth int32             // declaration depth of nested blocks
-	tokenHandler     *tokenHandler     // token handler that manages the tokens of the concrete syntax
+	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
 	symbolTable      *symbolTable      // symbol table that stores all symbols of the program
 	expressionParser *expressionParser // parse expressions that are part of statements
 }
@@ -23,9 +23,9 @@ func newParser() Parser {
 	return &parser{}
 }
 
-// Run the recursive descent parser to map the concrete syntax to its corresponding emitted code.
-func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
-	if err := p.reset(concreteSyntax, emitter); err != nil {
+// Run the recursive descent parser to map the token stream to its corresponding emitted code.
+func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorReport, error) {
+	if err := p.reset(tokenStream, emitter); err != nil {
 		return p.tokenHandler.getErrorReport(), err
 	}
 
@@ -56,14 +56,14 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 }
 
 // Reset the parser to its initial state so that it can be reused.
-func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) error {
+func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
 	p.emitter = emitter
 	p.declarationDepth = 0
-	p.tokenHandler = newTokenHandler(concreteSyntax)
+	p.tokenHandler = newTokenHandler(tokenStream)
 	p.symbolTable = newSymbolTable()
 	p.expressionParser = newExpressionParser(p.tokenHandler, p.symbolTable, p.emitter)
 
-	if len(concreteSyntax) == 0 || !p.nextToken() {
+	if len(tokenStream) == 0 || !p.nextToken() {
 		return p.tokenHandler.error(eofReached, nil)
 	}
 
@@ -518,10 +518,10 @@ func (p *parser) nextToken() bool {
 	return p.tokenHandler.nextTokenDescription()
 }
 
-// Wrapper to get token from the last token description. 
+// Wrapper to get token from the last token description.
 func (p *parser) lastToken() scn.Token {
 	return p.tokenHandler.lastToken()
-}	
+}
 
 // Wrapper to get the token name from the last token description.
 func (p *parser) lastTokenName() string {
@@ -542,6 +542,7 @@ func (p *parser) appendError(code failure, value any) {
 func (p *parser) condition(expected scn.Tokens) scn.Token {
 	return p.expressionParser.condition(p.declarationDepth, expected)
 }
+
 // Start the expression parser and parse an expression.
 func (p *parser) expression(expected scn.Tokens) {
 	p.expressionParser.expression(p.declarationDepth, expected)

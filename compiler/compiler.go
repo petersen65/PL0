@@ -17,7 +17,7 @@ import (
 )
 
 // Compile a PL/0 source file into an IL/0 program file.
-func CompileFile(source, target string, syntax bool, print io.Writer) error {
+func CompileFile(source, target string, printTokenStream bool, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
 		return err
 	}
@@ -28,15 +28,15 @@ func CompileFile(source, target string, syntax bool, print io.Writer) error {
 		return err
 	} else {
 		defer program.Close()
-		sections, concreteSyntax, errorReport, err := CompileContent(content)
+		sections, tokenStream, errorReport, err := CompileContent(content)
 
 		switch {
-		case err != nil && concreteSyntax != nil && errorReport != nil:
+		case err != nil && tokenStream != nil && errorReport != nil:
 			PrintErrorReport(errorReport, print)
 			return err
 
-		case err != nil && concreteSyntax != nil && errorReport == nil:
-			PrintConcreteSyntax(concreteSyntax, print, true)
+		case err != nil && tokenStream != nil && errorReport == nil:
+			PrintTokenStream(tokenStream, print, true)
 			return err
 
 		default:
@@ -45,8 +45,8 @@ func CompileFile(source, target string, syntax bool, print io.Writer) error {
 			}
 		}
 
-		if syntax {
-			PrintConcreteSyntax(concreteSyntax, print, false)
+		if printTokenStream {
+			PrintTokenStream(tokenStream, print, false)
 		}
 	}
 
@@ -84,22 +84,22 @@ func PrintFile(target string, print io.Writer) error {
 }
 
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
-// The concrete syntax and error report are also returned if an error occurs during compilation.
-func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
+// The token stream and error report are also returned if an error occurs during compilation.
+func CompileContent(content []byte) ([]byte, scn.TokenStream, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
 
-	if concreteSyntax, err := scanner.Scan(content); err != nil {
-		return nil, concreteSyntax, nil, err
+	if tokenStream, err := scanner.Scan(content); err != nil {
+		return nil, tokenStream, nil, err
 	} else {
 		emitter := emt.NewEmitter()
 		parser := par.NewParser()
 
-		if errorReport, err := parser.Parse(concreteSyntax, emitter); err != nil {
-			return nil, concreteSyntax, errorReport, err
+		if errorReport, err := parser.Parse(tokenStream, emitter); err != nil {
+			return nil, tokenStream, errorReport, err
 		} else if sections, err := emitter.Export(); err != nil {
-			return nil, concreteSyntax, errorReport, err
+			return nil, tokenStream, errorReport, err
 		} else {
-			return sections, concreteSyntax, errorReport, nil
+			return sections, tokenStream, errorReport, nil
 		}
 	}
 }
@@ -114,20 +114,20 @@ func PrintSections(sections []byte, print io.Writer) error {
 	return printProgram(sections, print)
 }
 
-// Print the concrete syntax of the scanner to the specified writer.
-func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bottom bool) {
+// Print the token stream of the scanner to the specified writer.
+func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool) {
 	var start, previousLine int
-	print.Write([]byte("Concrete Syntax:"))
+	print.Write([]byte("Token Stream:"))
 
-	if len(concreteSyntax) == 0 {
+	if len(tokenStream) == 0 {
 		print.Write([]byte("\n"))
 		return
 	}
 
 	if bottom {
-		lastLine := concreteSyntax[len(concreteSyntax)-1].Line
+		lastLine := tokenStream[len(tokenStream)-1].Line
 
-		for start = len(concreteSyntax) - 1; start >= 0 && concreteSyntax[start].Line == lastLine; start-- {
+		for start = len(tokenStream) - 1; start >= 0 && tokenStream[start].Line == lastLine; start-- {
 		}
 
 		start++
@@ -135,8 +135,8 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bot
 		start = 0
 	}
 
-	for i := start; i < len(concreteSyntax); i++ {
-		td := concreteSyntax[i]
+	for i := start; i < len(tokenStream); i++ {
+		td := tokenStream[i]
 
 		if td.Line != previousLine {
 			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))

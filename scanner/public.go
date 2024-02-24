@@ -63,8 +63,8 @@ type (
 	// Tokens represents a set of tokens.
 	Tokens []Token
 
-	// The concrete syntax table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
-	ConcreteSyntax []TokenDescription
+	// The token stream table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
+	TokenStream []TokenDescription
 
 	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
@@ -83,7 +83,7 @@ type (
 
 	// Scanner is the public interface of the scanner implementation.
 	Scanner interface {
-		Scan(content []byte) (ConcreteSyntax, error)
+		Scan(content []byte) (TokenStream, error)
 	}
 )
 

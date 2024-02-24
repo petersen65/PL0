@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
+// Package parser implements the PL/0 parser that performs a syntactical analysis of the token stream.
 package parser
 
 import (
@@ -23,7 +23,7 @@ type (
 
 	// Parser is the public interface of the parser implementation.
 	Parser interface {
-		Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error)
+		Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorReport, error)
 	}
 )
 

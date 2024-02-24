@@ -73,12 +73,12 @@ func newScanner() Scanner {
 	return &scanner{}
 }
 
-// Run the multi-pass PL/0 scanner to map the source code to its corresponding concrete syntax.
-func (s *scanner) Scan(content []byte) (ConcreteSyntax, error) {
+// Run the multi-pass PL/0 scanner to map the source code to its corresponding token stream.
+func (s *scanner) Scan(content []byte) (TokenStream, error) {
 	s.reset(content)
-	concreteSyntax, errScan := s.scan()
-	preParsedSyntax, errPreParse := parseNumbers(concreteSyntax)
-	return preParsedSyntax, errors.Join(errScan, errPreParse)
+	tokenStream, errScan := s.scan()
+	preParsed, errPreParse := parseNumbers(tokenStream)
+	return preParsed, errors.Join(errScan, errPreParse)
 }
 
 // Reset the scanner to its initial state so that it can be reused.
@@ -93,8 +93,8 @@ func (s *scanner) reset(content []byte) {
 }
 
 // Perform a character scan that supports identifiers, unsigned non-valued numbers and operators.
-func (s *scanner) scan() (ConcreteSyntax, error) {
-	syntax := make(ConcreteSyntax, 0)
+func (s *scanner) scan() (TokenStream, error) {
+	tokenStream := make(TokenStream, 0)
 
 	for {
 		for s.isWhitespace() || s.isComment() {
@@ -104,19 +104,19 @@ func (s *scanner) scan() (ConcreteSyntax, error) {
 
 			if s.isComment() {
 				if err := s.comment(); err != nil {
-					return syntax, err
+					return tokenStream, err
 				}
 			}
 		}
 
 		if s.isEndOfContent() {
-			return syntax, nil
+			return tokenStream, nil
 		}
 
 		if token, err := s.getToken(); err != nil {
-			return syntax, err
+			return tokenStream, err
 		} else {
-			syntax = append(syntax, TokenDescription{
+			tokenStream = append(tokenStream, TokenDescription{
 				Token:       token,
 				TokenName:   TokenNames[token],
 				TokenValue:  s.lastValue,

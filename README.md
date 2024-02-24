@@ -2,7 +2,7 @@
 
 This module provides a complete compiler for the programming language PL0. It provides several packages that can be used independently of its command line interface.
 
-* scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a concrete syntax table with token descriptions
+* scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 code, ensuring it adheres to the rules defined in the extended Backus-Naur form for the language
 * emitter: code generation of IL/0 intermediate language code, called by recursive descent parser during syntax analysis of PL/0 code
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
@@ -103,7 +103,7 @@ The programming language PL/0 (2024 version) supports the following features:
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
-	* single pass parser: recursive descent parser directly calls emitter while analyzing concrete syntax
+	* single pass parser: recursive descent parser directly calls emitter while analyzing token stream
 	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
 ## Planning
@@ -111,12 +111,15 @@ The programming language PL/0 (2024 version) supports the following features:
 * Q1 2024, Compiler version 1.1.0 2024, bug fixes, improved documentation
 	* comments for the programming language PL/0
 	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
+	* replace misused wording "concrete syntax" with "token stream"
+	* finite automaton documentation for scanner
 
 * H1 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* migration to abstract syntax trees as interface between parser and emitter
-	* support for Intel x86_64 assembler generation
+	* introduce semantic analysis passes into parser (e.g. type verification, symbol declaration check)
 
-* H2 2024, Compiler version 2.1.0 2024, enhance programming language
+* H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
+	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
 	* data types for variables, constants and parameters, start with integer only
 	* parameter for procedures
 	* boolean, real, string datatypes
