@@ -227,7 +227,6 @@ func (p *parser) assignment(expected scn.Tokens) {
 
 	if ok && symbol.kind == variable {
 		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
-
 	}
 }
 

@@ -11,9 +11,9 @@ import (
 
 // The expression parser is a parser that performs a syntactical analysis of an expression.
 type expressionParser struct {
-	emitter               emt.Emitter   // emitter that emits the code
-	tokenHandler          *tokenHandler // token handler that manages the tokens of the token stream
-	symbolTable           *symbolTable  // symbol table that stores all symbols of the program
+	emitter      emt.Emitter   // emitter that emits the code
+	tokenHandler *tokenHandler // token handler that manages the tokens of the token stream
+	symbolTable  *symbolTable  // symbol table that stores all symbols of the program
 }
 
 // Create a new expression parser with the given token handler, symbol table, and emitter.
@@ -74,21 +74,8 @@ func (e *expressionParser) condition(depth int32, expected scn.Tokens) scn.Token
 
 // An expression is a sequence of terms separated by plus or minus.
 func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
-	// handle leading plus or minus sign of a term
-	if e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
-		plusOrMinus := e.lastToken()
-		e.nextToken()
-
-		// handle left term of a plus or minus operator
-		e.term(depth, set(expected, scn.Plus, scn.Minus))
-
-		if plusOrMinus == scn.Minus {
-			e.emitter.Negate()
-		}
-	} else {
-		// handle left term of a plus or minus operator
-		e.term(depth, set(expected, scn.Plus, scn.Minus))
-	}
+	// handle left term of a plus or minus operator
+	e.term(depth, set(expected, scn.Plus, scn.Minus))
 
 	for e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
 		plusOrMinus := e.lastToken()
@@ -129,6 +116,14 @@ func (e *expressionParser) term(depth int32, expected scn.Tokens) {
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
 func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
+	var sign scn.Token
+	
+	// handle leading plus or minus sign of a factor
+	if e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
+		sign = e.lastToken()
+		e.nextToken()
+	}
+	
 	e.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for e.lastToken().In(factors) {
@@ -165,6 +160,11 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 		e.tokenHandler.rebase(unexpectedTokens, expected, set(scn.LeftParenthesis))
 	}
+
+	// negate the factor if a leading minus sign is present
+	if sign == scn.Minus {
+		e.emitter.Negate()
+	}
 }
 
 // Return the next token description from the token handler.
@@ -172,10 +172,10 @@ func (e *expressionParser) nextToken() bool {
 	return e.tokenHandler.nextTokenDescription()
 }
 
-// Wrapper to get token from the last token description. 
+// Wrapper to get token from the last token description.
 func (e *expressionParser) lastToken() scn.Token {
 	return e.tokenHandler.lastToken()
-}	
+}
 
 // Wrapper to get the token name from the last token description.
 func (e *expressionParser) lastTokenName() string {

@@ -14,32 +14,32 @@ func experimental(tokens TokenStream) (TokenStream, error) {
 
 	for i := 0; errPreParsed == nil && i < len(tokens); i++ {
 		switch tokens[i].Token {
-		case Plus:
-			fallthrough
-		case Minus:
-			if peekToken(i+1, tokens) == Number && !peekToken(i-1, tokens).In(Set(Identifier, Number, RightParenthesis)) {
-				i++
-				number := tokens[i]
+		// case Plus:
+		// 	fallthrough
+		// case Minus:
+		// 	if peekToken(i+1, tokens) == Number && !peekToken(i-1, tokens).In(Set(Identifier, Number, RightParenthesis)) {
+		// 		i++
+		// 		number := tokens[i]
 
-				if len(number.TokenValue.(string)) == 0 {
-					number.TokenValue = "0"
-				} else if tokens[i-1].Token == Minus {
-					number.TokenValue = "-" + number.TokenValue.(string)
-				}
+		// 		if len(number.TokenValue.(string)) == 0 {
+		// 			number.TokenValue = "0"
+		// 		} else if tokens[i-1].Token == Minus {
+		// 			number.TokenValue = "-" + number.TokenValue.(string)
+		// 		}
 
-				number, errPreParsed = numberValue(number)
-				preParsed = append(preParsed, number)
-			} else if peekToken(i+1, tokens) == Identifier && !peekToken(i-1, tokens).In(Set(Identifier, Number, RightParenthesis)) {
-				if tokens[i].Token == Minus {
-					preParsed = append(preParsed, mergeToken(tokens[i], LeftParenthesis))
-					preParsed = append(preParsed, tokens[i])
-					preParsed = append(preParsed, tokens[i+1])
-					preParsed = append(preParsed, mergeToken(tokens[i+1], RightParenthesis))
-					i++
-				}
-			} else {
-				preParsed = append(preParsed, tokens[i])
-			}
+		// 		number, errPreParsed = numberValue(number)
+		// 		preParsed = append(preParsed, number)
+		// 	} else if peekToken(i+1, tokens) == Identifier && !peekToken(i-1, tokens).In(Set(Identifier, Number, RightParenthesis)) {
+		// 		if tokens[i].Token == Minus {
+		// 			preParsed = append(preParsed, mergeToken(tokens[i], LeftParenthesis))
+		// 			preParsed = append(preParsed, tokens[i])
+		// 			preParsed = append(preParsed, tokens[i+1])
+		// 			preParsed = append(preParsed, mergeToken(tokens[i+1], RightParenthesis))
+		// 			i++
+		// 		}
+		// 	} else {
+		// 		preParsed = append(preParsed, tokens[i])
+		// 	}
 
 		case Number:
 			number := tokens[i]
