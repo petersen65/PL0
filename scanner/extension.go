@@ -7,8 +7,8 @@ package scanner
 
 import "strconv"
 
-// This extension analyzes the token stream with a sliding window approach to parse signed and valued numbers.
-func parseNumbers(tokens TokenStream) (TokenStream, error) {
+// This extension analyzes the token stream with a sliding window approach to implement experimental changes for the PL/0 grammar.
+func experimental(tokens TokenStream) (TokenStream, error) {
 	var errPreParsed error
 	preParsed := make(TokenStream, 0, len(tokens))
 
@@ -29,6 +29,14 @@ func parseNumbers(tokens TokenStream) (TokenStream, error) {
 
 				number, errPreParsed = numberValue(number)
 				preParsed = append(preParsed, number)
+			} else if peekToken(i+1, tokens) == Identifier && !peekToken(i-1, tokens).In(Set(Identifier, Number, RightParenthesis)) {
+				if tokens[i].Token == Minus {
+					preParsed = append(preParsed, mergeToken(tokens[i], LeftParenthesis))
+					preParsed = append(preParsed, tokens[i])
+					preParsed = append(preParsed, tokens[i+1])
+					preParsed = append(preParsed, mergeToken(tokens[i+1], RightParenthesis))
+					i++
+				}
 			} else {
 				preParsed = append(preParsed, tokens[i])
 			}
@@ -58,6 +66,19 @@ func peekToken(i int, tokens TokenStream) Token {
 	}
 
 	return Unknown
+}
+
+// Merge a token with a template token description.
+func mergeToken(template TokenDescription, arg Token) TokenDescription {
+	return TokenDescription{
+		Token:       arg,
+		TokenName:   TokenNames[arg],
+		TokenValue:  "",
+		DataType:    None,
+		Line:        template.Line,
+		Column:      template.Column,
+		CurrentLine: template.CurrentLine,
+	}
 }
 
 // Analyze the token stream of a number and convert it to an Integer64 value.

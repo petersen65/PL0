@@ -77,7 +77,7 @@ func newScanner() Scanner {
 func (s *scanner) Scan(content []byte) (TokenStream, error) {
 	s.reset(content)
 	tokenStream, errScan := s.scan()
-	preParsed, errPreParse := parseNumbers(tokenStream)
+	preParsed, errPreParse := experimental(tokenStream)
 	return preParsed, errors.Join(errScan, errPreParse)
 }
 
