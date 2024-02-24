@@ -50,7 +50,7 @@ The grammar of PL/0 (2024 version) is described in extended Backus-Naur form EBN
 | factor             | identifier \| ["+" \| "-"] number \| "(" expression ")" ;
 |                    | 
 
-A context free grammar is formally defined as G = (S,N,T,P):
+In computer science theory, a context free grammar is formally defined as G = (S,N,T,P):
 * S is the start symbol
 * N is a set of non-terminal symbols
 * T is a set of terminal symbols or words
@@ -74,6 +74,7 @@ The programming language PL/0 (2024 version) supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
+| Identifier Encoding           | UTF-8
 | Case Sensitivity              | yes
 | Type System                   | no, only int64 numbers
 | Numerical Expressions         | yes
