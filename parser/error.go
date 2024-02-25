@@ -17,6 +17,7 @@ const (
 	parsingError
 	parsingErrors
 	maxBlockDepth
+	illegalInteger
 	identifierNotFound
 	identifierAlreadyDeclared
 	expectedRelationalOperator
@@ -50,6 +51,7 @@ var errorMap = map[failure]string{
 	parsingError:                            "a parsing error occurred",
 	parsingErrors:                           "%v parsing errors occurred",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",
+	illegalInteger:                          "cannot parse number %s into integer value",
 	identifierNotFound:                      "identifier not found: %v",
 	identifierAlreadyDeclared:               "identifier already declared: %v",
 	expectedRelationalOperator:              "expected one of =, #, <, <=, >, >= operator, found %v",

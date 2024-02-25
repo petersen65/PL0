@@ -5,7 +5,6 @@
 package scanner
 
 import (
-	"errors"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -20,7 +19,7 @@ type scanner struct {
 	sourceCode    []byte // source code to scan
 	line, column  int    // current line and column where the scanner is positioned
 	lastCharacter rune   // last UTF-8 character that was read
-	lastValue     any    // last identifier or number value that was read
+	lastValue     string // last identifier or number value that was read
 	currentLine   []byte // current line of source code that is being scanned
 }
 
@@ -76,9 +75,7 @@ func newScanner() Scanner {
 // Run the multi-pass PL/0 scanner to map the source code to its corresponding token stream.
 func (s *scanner) Scan(content []byte) (TokenStream, error) {
 	s.reset(content)
-	tokenStream, errScan := s.scan()
-	preParsed, errPreParse := experimental(tokenStream)
-	return preParsed, errors.Join(errScan, errPreParse)
+	return s.scan()
 }
 
 // Reset the scanner to its initial state so that it can be reused.
@@ -87,7 +84,7 @@ func (s *scanner) reset(content []byte) {
 	s.sourceCode = content
 	s.line = 0
 	s.column = 0
-	s.lastValue = nil
+	s.lastValue = ""
 	s.currentLine = make([]byte, 0)
 	s.nextCharacter()
 }
@@ -120,7 +117,6 @@ func (s *scanner) scan() (TokenStream, error) {
 				Token:       token,
 				TokenName:   TokenNames[token],
 				TokenValue:  s.lastValue,
-				DataType:    None,
 				Line:        s.line,
 				Column:      s.column,
 				CurrentLine: s.currentLine,

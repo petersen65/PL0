@@ -63,8 +63,6 @@ func (t *tokenHandler) nextTokenDescription() bool {
 			t.lastTokenDescription = scn.TokenDescription{
 				Token:       eof,
 				TokenName:   "eof",
-				TokenValue:  nil,
-				DataType:    scn.None,
 				Line:        t.lastTokenDescription.Line,
 				Column:      t.lastTokenDescription.Column,
 				CurrentLine: t.lastTokenDescription.CurrentLine,
@@ -90,7 +88,7 @@ func (t *tokenHandler) lastTokenName() string {
 }
 
 // Get token value from the last token description.
-func (t *tokenHandler) lastTokenValue() any {
+func (t *tokenHandler) lastTokenValue() string {
 	return t.lastTokenDescription.TokenValue
 }
 

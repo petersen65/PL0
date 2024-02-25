@@ -4,8 +4,6 @@
 
 package parser
 
-import "fmt"
-
 // Kind of supported symbol table entry.
 const (
 	constant = entry(iota)
@@ -13,31 +11,20 @@ const (
 	procedure
 )
 
-// Supported data types of constant and variable symbols.
-const (
-	none = symbolType(iota)
-	integer64
-)
-
 type (
 	// Kind of symbol table entries.
 	entry int
 
-	// Data types of symbol table entries.
-	symbolType int
-
 	// The symbol table entry.
 	symbol struct {
-		name    string     // name of constant, variable, or procedure
-		kind    entry      // constant, variable, or procedure
-		depth   int32      // declaration nesting depth of constant, variable, or procedure
-		value   any        // value of constant
-		stype   symbolType // type of constant or variable
-		offset  uint64     // offset of variable in its runtime procedure stack frame
-		label   string     // label of procedure for assembly generation
-		address uint64     // absolute address of procedure in text section
+		name    string // name of constant, variable, or procedure
+		kind    entry  // constant, variable, or procedure
+		depth   int32  // declaration nesting depth of constant, variable, or procedure
+		value   string // value of constant
+		offset  uint64 // offset of variable in its runtime procedure stack frame
+		address uint64 // absolute address of procedure in text section
 	}
-	
+
 	// The symbol table is a table that stores all symbols of the program.
 	symbolTable struct {
 		symbols []symbol
@@ -59,13 +46,12 @@ func newSymbolTable() *symbolTable {
 }
 
 // Add a constant symbol to the symbol table.
-func (s *symbolTable) addConstant(name string, depth int32, value any) {
+func (s *symbolTable) addConstant(name string, depth int32, value string) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,
 		depth: depth,
 		value: value,
-		stype: integer64,
 	})
 }
 
@@ -76,7 +62,6 @@ func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 		kind:   variable,
 		depth:  depth,
 		offset: *offset,
-		stype:  integer64,
 	})
 
 	*offset++
@@ -88,7 +73,6 @@ func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
 		name:    name,
 		kind:    procedure,
 		depth:   depth,
-		label:   fmt.Sprintf("_%v_%v", depth, name),
 		address: address,
 	})
 }

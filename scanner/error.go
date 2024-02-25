@@ -17,7 +17,6 @@ const (
 	eofComment
 	tooLongIdentifier
 	tooLongNumber
-	illegalInteger
 	unexpectedCharacter
 )
 
@@ -29,7 +28,6 @@ var errorMap = map[failure]string{
 	eofComment:             "end of file reached inside comment",
 	tooLongIdentifier:      "identifier %s is too long",
 	tooLongNumber:          "number %s is too long",
-	illegalInteger:         "cannot parse number %s into integer value",
 	unexpectedCharacter:    "unexpected character '%c'",
 }
 

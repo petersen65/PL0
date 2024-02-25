@@ -7,9 +7,6 @@ package scanner
 
 import "slices"
 
-// Number of bits of a signed integer.
-const IntegerBitSize = 64
-
 // Tokens that are supported by the PL/0 scanner.
 const (
 	Unknown = Token(iota)
@@ -47,18 +44,9 @@ const (
 	ProcedureWord
 )
 
-// Data types for constants and variables.
-const (
-	None = DataType(iota)
-	Integer64
-)
-
 type (
 	// Token is a type that represents a token in the source code.
 	Token int
-
-	// Data types for constants and variables in PL/0.
-	DataType int
 
 	// Tokens represents a set of tokens.
 	Tokens []Token
@@ -70,8 +58,7 @@ type (
 	TokenDescription struct {
 		Token        Token
 		TokenName    string
-		TokenValue   any
-		DataType     DataType
+		TokenValue   string
 		Line, Column int
 		CurrentLine  []byte
 	}

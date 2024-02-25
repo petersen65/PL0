@@ -207,10 +207,10 @@ func (p *parser) procedureWord(expected scn.Tokens) {
 
 // An assignment is an identifier followed by becomes followed by an expression.
 func (p *parser) assignment(expected scn.Tokens) {
-	symbol, ok := p.symbolTable.find(p.lastTokenValue().(string))
+	symbol, ok := p.symbolTable.find(p.lastTokenValue())
 
 	if !ok {
-		p.appendError(identifierNotFound, p.lastTokenValue().(string))
+		p.appendError(identifierNotFound, p.lastTokenValue())
 	} else if symbol.kind != variable {
 		p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
 	}
@@ -237,7 +237,7 @@ func (p *parser) read(expected scn.Tokens) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			if symbol.kind == variable {
 				p.emitter.System(emt.Read)
 				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
@@ -245,7 +245,7 @@ func (p *parser) read(expected scn.Tokens) {
 				p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
 			}
 		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue().(string))
+			p.appendError(identifierNotFound, p.lastTokenValue())
 		}
 
 	}
@@ -290,14 +290,14 @@ func (p *parser) callWord(expected scn.Tokens) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			if symbol.kind == procedure {
 				p.emitter.Call(emt.Address(symbol.address), p.declarationDepth-symbol.depth)
 			} else {
 				p.appendError(expectedProcedureIdentifier, kindNames[symbol.kind])
 			}
 		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue().(string))
+			p.appendError(identifierNotFound, p.lastTokenValue())
 		}
 
 		p.nextToken()
@@ -357,7 +357,7 @@ func (p *parser) constantIdentifier() {
 		return
 	}
 
-	constantName := p.lastTokenValue().(string)
+	constantName := p.lastTokenValue()
 	p.nextToken()
 
 	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
@@ -389,10 +389,10 @@ func (p *parser) variableIdentifier(offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue().(string))
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
-			p.symbolTable.addVariable(p.lastTokenValue().(string), p.declarationDepth, offset)
+			p.symbolTable.addVariable(p.lastTokenValue(), p.declarationDepth, offset)
 		}
 
 		p.nextToken()
@@ -406,10 +406,10 @@ func (p *parser) procedureIdentifier() string {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue().(string))
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
-			procedureName = p.lastTokenValue().(string)
+			procedureName = p.lastTokenValue()
 			p.symbolTable.addProcedure(procedureName, p.declarationDepth, uint64(p.emitter.GetNextAddress()))
 		}
 
@@ -528,7 +528,7 @@ func (p *parser) lastTokenName() string {
 }
 
 // Wrapper to get the token value from the last token description.
-func (p *parser) lastTokenValue() any {
+func (p *parser) lastTokenValue() string {
 	return p.tokenHandler.lastTokenValue()
 }
 

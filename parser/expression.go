@@ -5,9 +5,14 @@
 package parser
 
 import (
+	"strconv"
+
 	emt "github.com/petersen65/PL0/emitter"
 	scn "github.com/petersen65/PL0/scanner"
 )
+
+// Number of bits of a signed integer.
+const integerBitSize = 64
 
 // The expression parser is a parser that performs a syntactical analysis of an expression.
 type expressionParser struct {
@@ -94,7 +99,6 @@ func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 
 // A term is a sequence of factors separated by times or divide.
 func (e *expressionParser) term(depth int32, expected scn.Tokens) {
-
 	// handle left factor of a times or divide operator
 	e.factor(depth, set(expected, scn.Times, scn.Divide))
 
@@ -128,15 +132,15 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 	for e.lastToken().In(factors) {
 		if e.lastToken() == scn.Identifier {
-			if symbol, ok := e.symbolTable.find(e.lastTokenValue().(string)); ok {
+			if symbol, ok := e.symbolTable.find(e.lastTokenValue()); ok {
 				switch symbol.kind {
 				case constant:
-					e.emitter.Constant(symbol.value)
+					e.emitter.Constant(e.numberValue(symbol.value))
 
 				case variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth)
 
-				case procedure:
+				default:
 					e.appendError(expectedConstantsVariables, kindNames[symbol.kind])
 				}
 			} else {
@@ -145,7 +149,7 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
-			e.emitter.Constant(e.lastTokenValue())
+			e.emitter.Constant(e.numberValue(e.lastTokenValue()))
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
 			e.nextToken()
@@ -183,11 +187,22 @@ func (e *expressionParser) lastTokenName() string {
 }
 
 // Wrapper to get the token value from the last token description.
-func (e *expressionParser) lastTokenValue() any {
+func (e *expressionParser) lastTokenValue() string {
 	return e.tokenHandler.lastTokenValue()
 }
 
 // Append expression parser error to the error report of the token handler.
 func (e *expressionParser) appendError(code failure, value any) {
 	e.tokenHandler.appendError(e.tokenHandler.error(code, value))
+}
+
+// Analyze a number and convert it to an Integer64 value.
+func (e *expressionParser) numberValue(number string) int64 {
+	value, err := strconv.ParseInt(number, 10, integerBitSize)
+
+	if err != nil {
+		e.appendError(illegalInteger, number)
+	}
+
+	return value
 }
