@@ -114,10 +114,10 @@ The programming language PL/0 (2024 version) supports the following features:
 	* comments for the programming language PL/0
 	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
 	* replace misused wording "concrete syntax" with "token stream"
-	* finite automaton documentation for scanner
-	* define scanner extensions as way to introduce experimental changes to the PL/0 grammar
+	* change PL/0 arithmetic expression grammar to support signed factors
 
 * H1 2024, Compiler version 2.0.0 2024, make core engine more mature
+	* finite automaton documentation for scanner
 	* migration to abstract syntax trees as interface between parser and emitter
 	* introduce semantic analysis passes into parser (e.g. type verification, symbol declaration check)
 

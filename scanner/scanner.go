@@ -13,7 +13,7 @@ import (
 // Last character of the source code that is read when the end of the file is reached.
 const EndOfFileCharacter = 0
 
-// Private implementation of the multi-pass PL/0 scanner.
+// Private implementation of the PL/0 scanner.
 type scanner struct {
 	sourceIndex   int    // index of the current character in the source code byte slice
 	sourceCode    []byte // source code to scan
@@ -72,7 +72,7 @@ func newScanner() Scanner {
 	return &scanner{}
 }
 
-// Run the multi-pass PL/0 scanner to map the source code to its corresponding token stream.
+// Run the PL/0 scanner to map the source code to its corresponding token stream.
 func (s *scanner) Scan(content []byte) (TokenStream, error) {
 	s.reset(content)
 	return s.scan()
