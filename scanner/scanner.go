@@ -327,5 +327,6 @@ func (s *scanner) operatorOrStatement() Token {
 		return token
 	}
 
+	s.nextCharacter()
 	return Unknown
 }
