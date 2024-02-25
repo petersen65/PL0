@@ -29,25 +29,27 @@ PL/0 is a programming language, intended as an educational programming language,
 The grammar of PL/0 (2024 version) is described in extended Backus-Naur form EBNF with the following productions:
 
 | nonterminal symbol | terminal or nonterminal symbols
-|--------------------|----------------------------------------------------------------------------------
-| program            | block "." ;
+|--------------------|--------------------------------------------------------------------------------
+| program            | block "."
 |                    | &nbsp;
-| block              | [ "const" identifier "=" number {"," identifier "=" number} ";" ]
-|                    | [ "var" identifier {"," identifier} ";" ]
-|                    | { "procedure" identifier ";" block ";" } statement ";"
+| block              | ["const" identifier "=" number {"," identifier "=" number} ";"]
+|                    | ["var" identifier {"," identifier} ";"]
+|                    | {"procedure" identifier ";" block ";"} statement ";"
 |                    | &nbsp;
-| statement          | [ identifier ":=" expression | "call" identifier
-|                    | &nbsp;&nbsp;\| "?" identifier | "!" expression
-|                    | &nbsp;&nbsp;\| "begin" statement {";" statement} "end"
-|                    | &nbsp;&nbsp;\| "if" condition "then" statement
-|                    | &nbsp;&nbsp;\| "while" condition "do" statement ] ";"
+| statement          | [identifier ":=" expression
+|					 | &nbsp;\| "call" identifier
+| 					 | &nbsp;\| "!" expression
+|                    | &nbsp;\| "?" identifier 
+|                    | &nbsp;\| "begin" statement {";" statement} "end"
+|                    | &nbsp;\| "if" condition "then" statement
+|                    | &nbsp;\| "while" condition "do" statement] ";"
 |                    | &nbsp;
 | condition          | "odd" expression
-|                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression ;
+|                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression
 |                    | &nbsp;
-| expression         | ["+" \| "-"] term {( "+" \| "-") term} ;
-| term               | factor {("*" \| "/") factor} ;
-| factor             | identifier \| ["+" \| "-"] number \| "(" expression ")" ;
+| expression         | term {( "+" \| "-") term}
+| term               | factor {("*" \| "/") factor}
+| factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
 |                    | 
 
 In computer science theory, a context free grammar is formally defined as G = (S,N,T,P):
