@@ -143,6 +143,15 @@ func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool)
 	}
 }
 
+// Print one or several errors to the specified writer.
+func PrintError(err error, print io.Writer) {
+	if strings.Contains(err.Error(), "\n") {
+		print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
+	} else {
+		print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
+	}
+}
+
 // Print the error report of the parser to the specified writer.
 func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
 	print.Write([]byte("Error Report:"))

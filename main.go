@@ -57,7 +57,7 @@ func compile(pl0, il0 string, tokenStream bool) error {
 	err := compiler.CompileFile(pl0, il0, tokenStream, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Error:", err)
+		compiler.PrintError(err, os.Stdout)
 	} else {
 		fmt.Println("Compilation successful")
 	}
@@ -70,7 +70,7 @@ func run(il0 string) error {
 	err := compiler.RunFile(il0, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Error:", err)
+		compiler.PrintError(err, os.Stdout)
 	} else {
 		fmt.Println("Run successful")
 	}
@@ -83,7 +83,7 @@ func print(il0 string) error {
 	err := compiler.PrintFile(il0, os.Stdout)
 
 	if err != nil {
-		fmt.Println("Error:", err)
+		compiler.PrintError(err, os.Stdout)
 	} else {
 		fmt.Println("Print successful")
 	}
