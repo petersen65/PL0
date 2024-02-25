@@ -75,6 +75,7 @@ The programming language PL/0 (2024 version) supports the following features:
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
 | Identifier Encoding           | UTF-8
+| Identifier Length             | unlimited
 | Case Sensitivity              | yes
 | Type System                   | no, only int64 numbers
 | Numerical Expressions         | yes

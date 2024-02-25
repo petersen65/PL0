@@ -6,6 +6,7 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,19 +31,16 @@ func CompileFile(source, target string, printTokenStream bool, print io.Writer) 
 		defer program.Close()
 		sections, tokenStream, errorReport, err := CompileContent(content)
 
-		switch {
-		case err != nil && tokenStream != nil && errorReport != nil:
-			PrintErrorReport(errorReport, print)
-			return err
-
-		case err != nil && tokenStream != nil && errorReport == nil:
-			PrintTokenStream(tokenStream, print, true)
-			return err
-
-		default:
-			if _, err := program.Write(sections); err != nil {
-				return err
+		if err != nil {
+			if len(errorReport) != 0 {
+				PrintErrorReport(errorReport, print)
 			}
+
+			return err
+		}
+
+		if _, err := program.Write(sections); err != nil {
+			return err
 		}
 
 		if printTokenStream {
@@ -87,21 +85,19 @@ func PrintFile(target string, print io.Writer) error {
 // The token stream and error report are also returned if an error occurs during compilation.
 func CompileContent(content []byte) ([]byte, scn.TokenStream, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
+	parser := par.NewParser()
+	emitter := emt.NewEmitter()
 
-	if tokenStream, err := scanner.Scan(content); err != nil {
-		return nil, tokenStream, nil, err
-	} else {
-		emitter := emt.NewEmitter()
-		parser := par.NewParser()
+	tokenStream, scannerError := scanner.Scan(content)
+	errorReport, parserErr := parser.Parse(tokenStream, emitter)
+	scannerParserErrors := errors.Join(scannerError, parserErr)
 
-		if errorReport, err := parser.Parse(tokenStream, emitter); err != nil {
-			return nil, tokenStream, errorReport, err
-		} else if sections, err := emitter.Export(); err != nil {
-			return nil, tokenStream, errorReport, err
-		} else {
-			return sections, tokenStream, errorReport, nil
-		}
+	if scannerParserErrors == nil {
+		sections, emitterError := emitter.Export()
+		return sections, tokenStream, errorReport, emitterError
 	}
+
+	return nil, tokenStream, errorReport, scannerParserErrors
 }
 
 // Run a binary IL/0 program and return an error if the program fails to execute.

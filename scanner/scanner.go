@@ -89,7 +89,7 @@ func (s *scanner) reset(content []byte) {
 	s.nextCharacter()
 }
 
-// Perform a character scan that supports identifiers, unsigned non-valued numbers and operators.
+// Perform a character scan that supports whitespace, comments, identifiers, reserved words, numbers and operators.
 func (s *scanner) scan() (TokenStream, error) {
 	tokenStream := make(TokenStream, 0)
 
@@ -110,23 +110,21 @@ func (s *scanner) scan() (TokenStream, error) {
 			return tokenStream, nil
 		}
 
-		if token, err := s.getToken(); err != nil {
-			return tokenStream, err
-		} else {
-			tokenStream = append(tokenStream, TokenDescription{
-				Token:       token,
-				TokenName:   TokenNames[token],
-				TokenValue:  s.lastValue,
-				Line:        s.line,
-				Column:      s.column,
-				CurrentLine: s.currentLine,
-			})
-		}
+		token := s.getToken()
+
+		tokenStream = append(tokenStream, TokenDescription{
+			Token:       token,
+			TokenName:   TokenNames[token],
+			TokenValue:  s.lastValue,
+			Line:        s.line,
+			Column:      s.column,
+			CurrentLine: s.currentLine,
+		})
 	}
 }
 
-// Return an identifier, reserved word, number, or operator token.
-func (s *scanner) getToken() (Token, error) {
+// Return identifier, reserved word, number, or operator token.
+func (s *scanner) getToken() Token {
 	s.lastValue = ""
 
 	switch {
@@ -270,7 +268,7 @@ func (s *scanner) isIdentifierOrWord() bool {
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
-func (s *scanner) identifierOrWord() (Token, error) {
+func (s *scanner) identifierOrWord() Token {
 	var builder strings.Builder
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
@@ -279,15 +277,11 @@ func (s *scanner) identifierOrWord() (Token, error) {
 	}
 
 	if token, ok := words[builder.String()]; ok {
-		return token, nil
-	}
-
-	if len(builder.String()) > identifierMax {
-		return Identifier, newError(tooLongIdentifier, builder.String(), s.line, s.column)
+		return token
 	}
 
 	s.lastValue = builder.String()
-	return Identifier, nil
+	return Identifier
 }
 
 // Check if the last character is the start of a number.
@@ -296,7 +290,7 @@ func (s *scanner) isNumber() bool {
 }
 
 // Scan consecutive digits to form an unsigned number token.
-func (s *scanner) number() (Token, error) {
+func (s *scanner) number() Token {
 	var builder strings.Builder
 
 	for unicode.IsDigit(s.lastCharacter) {
@@ -304,16 +298,12 @@ func (s *scanner) number() (Token, error) {
 		s.nextCharacter()
 	}
 
-	if len(builder.String()) > digitsMax {
-		return Number, newError(tooLongNumber, builder.String(), s.line, s.column)
-	}
-
 	s.lastValue = builder.String()
-	return Number, nil
+	return Number
 }
 
-// Scan operator or statement token and return an error if last character cannot be mapped to a token and hence is unexpected.
-func (s *scanner) operatorOrStatement() (Token, error) {
+// Scan operator or statement token and return an Unknown token if last character cannot be mapped to a token.
+func (s *scanner) operatorOrStatement() Token {
 	if token, ok := operators[string(s.lastCharacter)]; ok {
 		s.nextCharacter()
 
@@ -331,11 +321,11 @@ func (s *scanner) operatorOrStatement() (Token, error) {
 			token = Becomes
 		}
 
-		return token, nil
+		return token
 	} else if token, ok := statements[string(s.lastCharacter)]; ok {
 		s.nextCharacter()
-		return token, nil
+		return token
 	}
 
-	return Unknown, newError(unexpectedCharacter, s.lastCharacter, s.line, s.column)
+	return Unknown
 }

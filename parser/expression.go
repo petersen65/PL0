@@ -121,13 +121,13 @@ func (e *expressionParser) term(depth int32, expected scn.Tokens) {
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
 func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 	var sign scn.Token
-	
+
 	// handle leading plus or minus sign of a factor
 	if e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
 		sign = e.lastToken()
 		e.nextToken()
 	}
-	
+
 	e.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
 
 	for e.lastToken().In(factors) {
@@ -196,7 +196,7 @@ func (e *expressionParser) appendError(code failure, value any) {
 	e.tokenHandler.appendError(e.tokenHandler.error(code, value))
 }
 
-// Analyze a number and convert it to an Integer64 value.
+// Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
 func (e *expressionParser) numberValue(number string) int64 {
 	value, err := strconv.ParseInt(number, 10, integerBitSize)
 

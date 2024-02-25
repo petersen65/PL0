@@ -6,18 +6,10 @@ package scanner
 
 import "fmt"
 
-const (
-	digitsMax     = 19 // maximum int64 length: -9223372036854775808 to 9223372036854775807
-	identifierMax = 64 // maximum length of any identifier
-)
-
 // Error codes for the PL/0 scanner.
 const (
 	_ = failure(iota + 1000)
 	eofComment
-	tooLongIdentifier
-	tooLongNumber
-	unexpectedCharacter
 )
 
 // Failure is a type for error codes of the PL/0 scanner.
@@ -25,10 +17,7 @@ type failure int
 
 // Map error codes to error messages.
 var errorMap = map[failure]string{
-	eofComment:             "end of file reached inside comment",
-	tooLongIdentifier:      "identifier %s is too long",
-	tooLongNumber:          "number %s is too long",
-	unexpectedCharacter:    "unexpected character '%c'",
+	eofComment: "end of file reached inside comment",
 }
 
 // Create a new error by mapping the error code to its corresponding error message.
