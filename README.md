@@ -8,7 +8,7 @@ This module provides a complete compiler for the programming language PL0. It pr
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
 * compiler: compiler driver for scanning, parsing, emitting, printing, and emulating from source code to the resultant IL/0 code
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person. Beginning with version 1.1.0 of the compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2024. The programming language PL/0 2024 will be aligned to Pascal syntax and language features.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. Not all features of Go were used (e.g. goroutines or channels) so that the compiler can be easily ported to other programming languages. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
@@ -22,7 +22,9 @@ The complete compiler source code is licensed under Apache License v2.0.
 
 ## PL/0
 
-PL/0 is a programming language, intended as an educational programming language, that is similar to but much simpler than Pascal, a general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It features quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations make writing real applications in this language impractical, it helps the compiler remain compact and simple.
+PL/0 in its original version from 1976 is an educational programming language, that is similar to but much simpler than Pascal, a well-known general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It featured quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations made writing real applications in this language impractical, it helped the compiler remain compact and simple.
+
+Beginning with version 1.1.0 of my compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2024. The programming language PL/0 2024 will be aligned to Pascal syntax and language features.
 
 ## Grammar
 
@@ -32,12 +34,14 @@ In computer science theory, a context free grammar is formally defined as G = (S
 * T is a set of terminal symbols or words
 * P is a set of productions or rewrite rules (P:N → N ∪ T)
 
-For the programming language PL/0 (2024 version), the grammar G is:
+Applied to the programming language PL/0, the grammar G is:
 * S = program
 * N = program, block, statement, condition, expression, term, factor
 * T = identifier, number, "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
 * T = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
-* P = the set of productions is described in extended Backus-Naur form EBNF in the table below
+* P = the set of productions is described in the table below
+
+The programming language PL/0 has the following productions (extended Backus-Naur form):
 
 | nonterminal symbol | terminal or nonterminal symbols
 |--------------------|--------------------------------------------------------------------------------
@@ -63,7 +67,7 @@ For the programming language PL/0 (2024 version), the grammar G is:
 | factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
 |                    | 
 
-Tokens are the set of accepting states from a finite automaton for the PL/0 language. There are four classes: 
+For PL/0, tokens define the set of accepting states of a finite automaton. There are four classes: 
 * identifiers = identifier
 * keywords = "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
 * operators and punctuation = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
@@ -71,7 +75,7 @@ Tokens are the set of accepting states from a finite automaton for the PL/0 lang
 
 ## Features
 
-The programming language PL/0 (2024 version) supports the following features:
+The programming language PL/0 2024 supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
