@@ -39,29 +39,29 @@ For the programming language PL/0 (2024 version), the grammar G is:
 * T = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
 * P = the set of productions is described in extended Backus-Naur form EBNF in the table below
 
-	   | nonterminal symbol | terminal or nonterminal symbols
-	   |--------------------|--------------------------------------------------------------------------------
-	   | program            | block "."
-	   |                    | &nbsp;
-	   | block              | ["const" identifier "=" number {"," identifier "=" number} ";"]
-	   |                    | ["var" identifier {"," identifier} ";"]
-	   |                    | {"procedure" identifier ";" block ";"} statement ";"
-	   |                    | &nbsp;
-	   | statement          | [identifier ":=" expression
-	   |				 	| &nbsp;\| "call" identifier
-	   | 					| &nbsp;\| "!" expression
-	   |                    | &nbsp;\| "?" identifier 
-	   |                    | &nbsp;\| "begin" statement {";" statement} "end"
-	   |                    | &nbsp;\| "if" condition "then" statement
-	   |                    | &nbsp;\| "while" condition "do" statement] ";"
-	   |                    | &nbsp;
-	   | condition          | "odd" expression
-	   |                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression
-	   |                    | &nbsp;
-	   | expression         | term {( "+" \| "-") term}
-	   | term               | factor {("*" \| "/") factor}
-	   | factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
-	   |                    | 
+| nonterminal symbol | terminal or nonterminal symbols
+|--------------------|--------------------------------------------------------------------------------
+| program            | block "."
+|                    | &nbsp;
+| block              | ["const" identifier "=" number {"," identifier "=" number} ";"]
+|                    | ["var" identifier {"," identifier} ";"]
+|                    | {"procedure" identifier ";" block ";"} statement ";"
+|                    | &nbsp;
+| statement          | [identifier ":=" expression
+|				 	 | &nbsp;\| "call" identifier
+| 					 | &nbsp;\| "!" expression
+|                    | &nbsp;\| "?" identifier 
+|                    | &nbsp;\| "begin" statement {";" statement} "end"
+|                    | &nbsp;\| "if" condition "then" statement
+|                    | &nbsp;\| "while" condition "do" statement] ";"
+|                    | &nbsp;
+| condition          | "odd" expression
+|                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression
+|                    | &nbsp;
+| expression         | term {( "+" \| "-") term}
+| term               | factor {("*" \| "/") factor}
+| factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
+|                    | 
 
 Tokens are the set of accepting states from a finite automaton for the PL/0 language. There are four classes: 
 * identifiers = identifier
