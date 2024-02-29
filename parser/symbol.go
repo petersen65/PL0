@@ -20,7 +20,7 @@ type (
 		name    string // name of constant, variable, or procedure
 		kind    entry  // constant, variable, or procedure
 		depth   int32  // declaration nesting depth of constant, variable, or procedure
-		value   string // value of constant
+		value   int64 // value of constant
 		offset  uint64 // offset of variable in its runtime procedure stack frame
 		address uint64 // absolute address of procedure in text section
 	}
@@ -46,7 +46,7 @@ func newSymbolTable() *symbolTable {
 }
 
 // Add a constant symbol to the symbol table.
-func (s *symbolTable) addConstant(name string, depth int32, value string) {
+func (s *symbolTable) addConstant(name string, depth int32, value int64) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,

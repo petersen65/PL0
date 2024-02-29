@@ -31,17 +31,17 @@ func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, e
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
-func (e *expressionParser) condition(depth int32, expected scn.Tokens) scn.Token {
+func (e *expressionParser) condition(depth int32, anchors scn.Tokens) scn.Token {
 	var relationalOperator scn.Token
 
 	if e.lastToken() == scn.OddWord {
 		relationalOperator = e.lastToken()
 		e.nextToken()
-		e.expression(depth, expected)
+		e.expression(depth, anchors)
 		e.emitter.Odd()
 	} else {
 		// handle left expression of a relational operator
-		e.expression(depth, set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		e.expression(depth, set(anchors, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !e.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			e.appendError(expectedRelationalOperator, e.lastTokenName())
@@ -50,7 +50,7 @@ func (e *expressionParser) condition(depth int32, expected scn.Tokens) scn.Token
 			e.nextToken()
 
 			// handle right expression of a relational operator
-			e.expression(depth, expected)
+			e.expression(depth, anchors)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -78,16 +78,16 @@ func (e *expressionParser) condition(depth int32, expected scn.Tokens) scn.Token
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
+func (e *expressionParser) expression(depth int32, anchors scn.Tokens) {
 	// handle left term of a plus or minus operator
-	e.term(depth, set(expected, scn.Plus, scn.Minus))
+	e.term(depth, set(anchors, scn.Plus, scn.Minus))
 
 	for e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
 		plusOrMinus := e.lastToken()
 		e.nextToken()
 
 		// handle right term of a plus or minus operator
-		e.term(depth, set(expected, scn.Plus, scn.Minus))
+		e.term(depth, set(anchors, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Plus {
 			e.emitter.Add()
@@ -98,16 +98,16 @@ func (e *expressionParser) expression(depth int32, expected scn.Tokens) {
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (e *expressionParser) term(depth int32, expected scn.Tokens) {
+func (e *expressionParser) term(depth int32, anchors scn.Tokens) {
 	// handle left factor of a times or divide operator
-	e.factor(depth, set(expected, scn.Times, scn.Divide))
+	e.factor(depth, set(anchors, scn.Times, scn.Divide))
 
 	for e.lastToken() == scn.Times || e.lastToken() == scn.Divide {
 		timesOrDevide := e.lastToken()
 		e.nextToken()
 
 		// handle right factor of a times or divide operator
-		e.factor(depth, set(expected, scn.Times, scn.Divide))
+		e.factor(depth, set(anchors, scn.Times, scn.Divide))
 
 		if timesOrDevide == scn.Times {
 			e.emitter.Multiply()
@@ -119,7 +119,7 @@ func (e *expressionParser) term(depth int32, expected scn.Tokens) {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
+func (e *expressionParser) factor(depth int32, anchors scn.Tokens) {
 	var sign scn.Token
 
 	// handle leading plus or minus sign of a factor
@@ -128,14 +128,17 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 		e.nextToken()
 	}
 
-	e.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, expected)
+	// at the beginning of a factor
+	//   the expected tokens are identifiers, numbers, and left parentheses
+	//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
+	e.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, anchors)
 
 	for e.lastToken().In(factors) {
 		if e.lastToken() == scn.Identifier {
 			if symbol, ok := e.symbolTable.find(e.lastTokenValue()); ok {
 				switch symbol.kind {
 				case constant:
-					e.emitter.Constant(e.numberValue(symbol.value))
+					e.emitter.Constant(symbol.value)
 
 				case variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth)
@@ -149,11 +152,12 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
-			e.emitter.Constant(e.numberValue(e.lastTokenValue()))
+			e.emitter.Constant(e.numberValue(sign, e.lastTokenValue()))
+			sign = scn.Unknown
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
 			e.nextToken()
-			e.expression(depth, set(expected, scn.RightParenthesis))
+			e.expression(depth, set(anchors, scn.RightParenthesis))
 
 			if e.lastToken() == scn.RightParenthesis {
 				e.nextToken()
@@ -162,7 +166,13 @@ func (e *expressionParser) factor(depth int32, expected scn.Tokens) {
 			}
 		}
 
-		e.tokenHandler.rebase(unexpectedTokens, expected, set(scn.LeftParenthesis))
+		// after a factor, the parser expects
+		//   a times or divide operator
+		//   a plus or minus operator
+		//   a relational operator
+		//   a right parenthesis
+		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
+		e.tokenHandler.rebase(unexpectedTokens, anchors, set(scn.LeftParenthesis))
 	}
 
 	// negate the factor if a leading minus sign is present
@@ -197,7 +207,11 @@ func (e *expressionParser) appendError(code failure, value any) {
 }
 
 // Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
-func (e *expressionParser) numberValue(number string) int64 {
+func (e *expressionParser) numberValue(sign scn.Token, number string) int64 {
+	if sign == scn.Minus {
+		number = "-" + number
+	}
+
 	value, err := strconv.ParseInt(number, 10, integerBitSize)
 
 	if err != nil {

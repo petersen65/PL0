@@ -44,10 +44,10 @@ Applied to the programming language PL/0, the grammar G is:
 The programming language PL/0 has the following productions (extended Backus-Naur form):
 
 | nonterminal symbol | terminal or nonterminal symbols
-|--------------------|--------------------------------------------------------------------------------
+|--------------------|------------------------------------------------------------------------------------------
 | program            | block "."
 |                    | &nbsp;
-| block              | ["const" identifier "=" number {"," identifier "=" number} ";"]
+| block              | ["const" identifier "=" ["+" \| "-"] number {"," identifier "=" ["+" \| "-"] number} ";"]
 |                    | ["var" identifier {"," identifier} ";"]
 |                    | {"procedure" identifier ";" block ";"} statement ";"
 |                    | &nbsp;
@@ -119,7 +119,7 @@ The programming language PL/0 2024 supports the following features:
 	* comments for the programming language PL/0
 	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
 	* replace misused wording "concrete syntax" with "token stream"
-	* change PL/0 arithmetic expression grammar to support signed factors
+	* change PL/0 arithmetic expression grammar to support signed factors and signed constants
 
 * H1 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* finite automaton documentation for scanner
