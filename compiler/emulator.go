@@ -86,20 +86,20 @@ func (m *machine) runProgram(sections []byte) error {
 	// state of caller is in descriptor of callee (first 3 entries of stack frame)
 	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
 
-	m.cpu.registers[ax] = 0    // accumulator register
-	m.cpu.registers[bx] = 0    // base register
-	m.cpu.registers[cx] = 0    // counter register
-	m.cpu.registers[dx] = 0    // data register
-	m.cpu.registers[flags] = 0 // flags register
-	m.cpu.registers[ip] = 0    // instruction pointer
-	m.cpu.registers[sp] = 0    // stack pointer to top of stack
-	m.cpu.registers[bp] = 0    // base pointer to bottom of stack frame
+	m.cpu.registers[ax] = 0                       // accumulator register
+	m.cpu.registers[bx] = 0                       // base register
+	m.cpu.registers[cx] = 0                       // counter register
+	m.cpu.registers[dx] = 0                       // data register
+	m.cpu.registers[flags] = 0                    // flags register
+	m.cpu.registers[ip] = 0                       // instruction pointer
+	m.cpu.registers[sp] = stackDescriptorSize - 1 // stack pointer to top of stack (end of stack frame descriptor)
+	m.cpu.registers[bp] = 0                       // base pointer to bottom of stack frame
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.push(m.cpu.registers[ip])           // return address (instruction pointer of caller + 1)
-	m.cpu.push(m.cpu.registers[bp])           // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[0] = m.cpu.link(0)            // static link
+	m.cpu.stack[0] = m.cpu.registers[ip]      // return address (instruction pointer of caller + 1)
+	m.cpu.stack[1] = m.cpu.registers[bp]      // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.cpu.stack[2] = m.cpu.link(0)            // static link
 	m.cpu.registers[bp] = m.cpu.registers[sp] // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
@@ -144,9 +144,9 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.registers[sp] += uint64(instr.Address)
 
 		case emt.Neg: // negate int64 element on top of stack
-		if err := m.cpu.neg(); err != nil {
-			return err
-		}
+			if err := m.cpu.neg(); err != nil {
+				return err
+			}
 
 		case emt.And: // test if top of stack's uint64 element is odd and set zero flag if it is
 			m.cpu.and(1)
@@ -466,7 +466,7 @@ func (c *cpu) set_of_sub(reg1, reg2 register) {
 	a := int64(c.registers[reg1])
 	b := int64(c.registers[reg2])
 	s := a - b
-	
+
 	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
 		c.registers[flags] |= uint64(of)
 	} else if (a > 0 && b > 0 && s > a) || (a < 0 && b < 0 && s < a) {
