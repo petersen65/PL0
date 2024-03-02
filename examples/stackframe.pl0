@@ -1,4 +1,5 @@
-{ sample to understand stack frame layout }
+{ sample to understand stack frame layout 
+  program will halt with stack overflow }
 
 { program main }
 var a, b;
