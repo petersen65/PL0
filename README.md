@@ -113,15 +113,16 @@ The programming language PL/0 2024 supports the following features:
 	* single pass parser: recursive descent parser directly calls emitter while analyzing token stream
 	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
-## Planning
-
-* Q1 2024, Compiler version 1.1.0 2024, bug fixes, improved documentation
+* Mar 3rd 2024 - [v1.1.0](https://github.com/petersen65/pl0/releases/tag/v1.1.0)
+	* bug fixes, improved documentation
 	* comments for the programming language PL/0
 	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
 	* replace misused wording "concrete syntax" with "token stream"
 	* change PL/0 arithmetic expression grammar to support signed factors and signed constants
 
-* H1 2024, Compiler version 2.0.0 2024, make core engine more mature
+## Planning
+
+* Q2 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* finite automaton documentation for scanner
 	* migration to abstract syntax trees as interface between parser and emitter
 	* introduce semantic analysis passes into parser (e.g. type verification, symbol declaration check)
