@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code. The package also enables the emulation of IL/0 programs.
+// The compiler package also enables the emulation of IL/0 programs.
 package compiler
 
 import (
@@ -86,20 +86,20 @@ func (m *machine) runProgram(sections []byte) error {
 	// state of caller is in descriptor of callee (first 3 entries of stack frame)
 	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
 
-	m.cpu.registers[ax] = 0    // accumulator register
-	m.cpu.registers[bx] = 0    // base register
-	m.cpu.registers[cx] = 0    // counter register
-	m.cpu.registers[dx] = 0    // data register
-	m.cpu.registers[flags] = 0 // flags register
-	m.cpu.registers[ip] = 0    // instruction pointer
-	m.cpu.registers[sp] = 0    // stack pointer to top of stack
-	m.cpu.registers[bp] = 0    // base pointer to bottom of stack frame
+	m.cpu.registers[ax] = 0                       // accumulator register
+	m.cpu.registers[bx] = 0                       // base register
+	m.cpu.registers[cx] = 0                       // counter register
+	m.cpu.registers[dx] = 0                       // data register
+	m.cpu.registers[flags] = 0                    // flags register
+	m.cpu.registers[ip] = 0                       // instruction pointer
+	m.cpu.registers[sp] = stackDescriptorSize - 1 // stack pointer to top of stack (end of stack frame descriptor)
+	m.cpu.registers[bp] = 0                       // base pointer to bottom of stack frame
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.push(m.cpu.registers[ip])           // return address (instruction pointer of caller + 1)
-	m.cpu.push(m.cpu.registers[bp])           // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[0] = m.cpu.link(0)            // static link
+	m.cpu.stack[0] = m.cpu.registers[ip]      // return address (instruction pointer of caller + 1)
+	m.cpu.stack[1] = m.cpu.registers[bp]      // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.cpu.stack[2] = m.cpu.parent(0)          // static link points to direct parent block in declaration nesting hierarchy
 	m.cpu.registers[bp] = m.cpu.registers[sp] // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
@@ -144,9 +144,9 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.registers[sp] += uint64(instr.Address)
 
 		case emt.Neg: // negate int64 element on top of stack
-		if err := m.cpu.neg(); err != nil {
-			return err
-		}
+			if err := m.cpu.neg(); err != nil {
+				return err
+			}
 
 		case emt.And: // test if top of stack's uint64 element is odd and set zero flag if it is
 			m.cpu.and(1)
@@ -191,9 +191,9 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(m.cpu.registers[ip])                          // return address
-			m.cpu.push(m.cpu.registers[bp])                          // dynamic link
-			m.cpu.push(m.cpu.link(instr.DeclarationDepthDifference)) // static link
+			m.cpu.push(m.cpu.registers[ip])                            // return address
+			m.cpu.push(m.cpu.registers[bp])                            // dynamic link
+			m.cpu.push(m.cpu.parent(instr.DeclarationDepthDifference)) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp]
@@ -203,7 +203,7 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Ret: // callee procedure returns to caller procedure
 			// restore state of caller procdure from descriptor of callee procedure
-			m.cpu.registers[sp] = m.cpu.registers[bp] - 1 // discard stack space and static link of callee procedure
+			m.cpu.registers[sp] = m.cpu.registers[bp] - 1 // discard stack space and static link
 			m.cpu.pop(bp)                                 // restore callers base pointer
 			m.cpu.pop(ip)                                 // restore callers instruction pointer
 
@@ -213,11 +213,11 @@ func (m *machine) runProgram(sections []byte) error {
 			}
 
 		case emt.Ldv: // copy int64 variable loaded from its base plus offset onto the stack
-			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1 // base pointer + 1
-			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])      // variables base + variable offset
+			variablesBase := m.cpu.parent(instr.DeclarationDepthDifference) + 1 // base pointer + 1
+			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])        // variables base + variable offset
 
 		case emt.Stv: // copy int64 element from top of stack to a variable stored within its base plus offset
-			variablesBase := m.cpu.link(instr.DeclarationDepthDifference) + 1      // base pointer + 1
+			variablesBase := m.cpu.parent(instr.DeclarationDepthDifference) + 1    // base pointer + 1
 			m.cpu.pop(ax)                                                          // int64 element to be stored in variable
 			m.cpu.stack[variablesBase+uint64(instr.Address)] = m.cpu.registers[ax] // variables base + variable offset
 
@@ -228,6 +228,17 @@ func (m *machine) runProgram(sections []byte) error {
 			return fmt.Errorf("halt - unknown operation '%v' at address '%v'", instr.Operation, m.cpu.registers[ip]-1)
 		}
 	}
+}
+
+// Follow static link to parent blocks in compile-time declaration nesting hierarchy.
+func (c *cpu) parent(difference int32) uint64 {
+	basePointer := c.registers[bp]
+
+	for i := int32(0); i < difference; i++ {
+		basePointer = c.stack[basePointer]
+	}
+
+	return basePointer
 }
 
 // Push argument on top of stack, top of stack points to new argument.
@@ -408,17 +419,6 @@ func (c *cpu) jge(addr uint64) {
 	}
 }
 
-// Follow static link to declaration depth of target variable.
-func (c *cpu) link(depth int32) uint64 {
-	basePointer := c.registers[bp]
-
-	for ; depth > 0; depth-- {
-		basePointer = c.stack[basePointer]
-	}
-
-	return basePointer
-}
-
 // Set zero flag if int64 element in register reg is zero.
 func (c *cpu) set_zf(reg register) {
 	if int64(c.registers[reg]) == 0 {
@@ -466,7 +466,7 @@ func (c *cpu) set_of_sub(reg1, reg2 register) {
 	a := int64(c.registers[reg1])
 	b := int64(c.registers[reg2])
 	s := a - b
-	
+
 	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
 		c.registers[flags] |= uint64(of)
 	} else if (a > 0 && b > 0 && s > a) || (a < 0 && b < 0 && s < a) {

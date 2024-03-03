@@ -1,4 +1,6 @@
-var a, b, c, d;
+{ demonstrate overflows, uncomment what you want to test }
+
+var a, b, c, d, e;
 
 procedure Recursion;
 begin
@@ -6,17 +8,26 @@ begin
 end;
 
 begin
-    call Recursion;
+    { stack overflow }
+    {call Recursion;}
 
-    a := -9223372036854775808;
-    ! -a;
+    { arithmetic overflow for negation }
+    {a := -9223372036854775808;
+    ! -a;}
 
-    b := -9223372036854775808 + -1;
-    ! b;
+    { arithmetic overflow for addition }
+    {b := -9223372036854775808 + -1;
+    ! b;}
 
-    c := 4611686018427387904 * 2;
-    ! c;
+    { arithmetic overflow for multiplication }
+    {c := 4611686018427387904 * 2;
+    ! c;}
 
-    d := 9223372036854775807 + 1;
-    ! d;
+    { arithmetic overflow for addition }
+    {d := 9223372036854775807 + 1;
+    ! d;}
+
+    { arithmetic overflow for division }
+    {e := -9223372036854775808 / -1;
+    ! e;}
 end.

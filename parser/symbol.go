@@ -2,10 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
-
-import "fmt"
 
 // Kind of supported symbol table entry.
 const (
@@ -14,28 +11,21 @@ const (
 	procedure
 )
 
-// Supported data types of constant and variable symbols.
-const (
-	none = symbolType(iota)
-	integer64
-)
-
-// The symbol table is a table that stores all symbols of the program.
 type (
-	entry      int
-	symbolType int
+	// Kind of symbol table entries.
+	entry int
 
+	// The symbol table entry.
 	symbol struct {
-		name    string     // name of constant, variable, or procedure
-		kind    entry      // constant, variable, or procedure
-		depth   int32      // declaration nesting depth of constant, variable, or procedure
-		value   any        // value of constant
-		stype   symbolType // type of constant or variable
-		offset  uint64     // offset of variable in its runtime procedure stack frame
-		label   string     // label of procedure for assembly generation
-		address uint64     // absolute address of procedure in text section
+		name    string // name of constant, variable, or procedure
+		kind    entry  // constant, variable, or procedure
+		depth   int32  // declaration nesting depth of constant, variable, or procedure
+		value   int64 // value of constant
+		offset  uint64 // offset of variable in its runtime procedure stack frame
+		address uint64 // absolute address of procedure in text section
 	}
 
+	// The symbol table is a table that stores all symbols of the program.
 	symbolTable struct {
 		symbols []symbol
 	}
@@ -56,13 +46,12 @@ func newSymbolTable() *symbolTable {
 }
 
 // Add a constant symbol to the symbol table.
-func (s *symbolTable) addConstant(name string, depth int32, value any) {
+func (s *symbolTable) addConstant(name string, depth int32, value int64) {
 	s.symbols = append(s.symbols, symbol{
 		name:  name,
 		kind:  constant,
 		depth: depth,
 		value: value,
-		stype: integer64,
 	})
 }
 
@@ -73,7 +62,6 @@ func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 		kind:   variable,
 		depth:  depth,
 		offset: *offset,
-		stype:  integer64,
 	})
 
 	*offset++
@@ -85,7 +73,6 @@ func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
 		name:    name,
 		kind:    procedure,
 		depth:   depth,
-		label:   fmt.Sprintf("_%v_%v", depth, name),
 		address: address,
 	})
 }

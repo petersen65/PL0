@@ -2,7 +2,6 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
 
 import (
@@ -14,7 +13,7 @@ import (
 type parser struct {
 	emitter          emt.Emitter       // emitter that emits the code
 	declarationDepth int32             // declaration depth of nested blocks
-	tokenHandler     *tokenHandler     // token handler that manages the tokens of the concrete syntax
+	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
 	symbolTable      *symbolTable      // symbol table that stores all symbols of the program
 	expressionParser *expressionParser // parse expressions that are part of statements
 }
@@ -24,18 +23,30 @@ func newParser() Parser {
 	return &parser{}
 }
 
-// Run the recursive descent parser to map the concrete syntax to its corresponding emitted code.
-func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (ErrorReport, error) {
-	if err := p.reset(concreteSyntax, emitter); err != nil {
+// Run the recursive descent parser to map the token stream to its corresponding emitted code.
+func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorReport, error) {
+	if err := p.reset(tokenStream, emitter); err != nil {
 		return p.tokenHandler.getErrorReport(), err
 	}
 
 	// a program starts with a block of declaration depth 0 and an entrypoint address 0
 	p.symbolTable.addProcedure(emt.EntryPointName, 0, 0)
-	p.block(emt.EntryPointName, set(declarations, statements, scn.Period))
 
-	if p.lastToken() != scn.Period {
+	// the main block starts with the
+	//   declaration of constants, variables and procedures
+	//   followed by a statement
+	//   and ends with the program-end
+	p.block(emt.EntryPointName, set(declarations, statements, scn.ProgramEnd))
+
+	// the program must end with a specific token
+	if p.lastToken() != scn.ProgramEnd {
 		p.appendError(expectedPeriod, p.lastTokenName())
+	}
+
+	// the program must comply with the syntax rules of the programming language
+	if !p.tokenHandler.isFullyParsed() {
+		p.tokenHandler.setFullyParsed()
+		p.appendError(notFullyParsed, nil)
 	}
 
 	errorReport := p.tokenHandler.getErrorReport()
@@ -50,14 +61,14 @@ func (p *parser) Parse(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) (
 }
 
 // Reset the parser to its initial state so that it can be reused.
-func (p *parser) reset(concreteSyntax scn.ConcreteSyntax, emitter emt.Emitter) error {
+func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
 	p.emitter = emitter
 	p.declarationDepth = 0
-	p.tokenHandler = newTokenHandler(concreteSyntax)
+	p.tokenHandler = newTokenHandler(tokenStream)
 	p.symbolTable = newSymbolTable()
 	p.expressionParser = newExpressionParser(p.tokenHandler, p.symbolTable, p.emitter)
 
-	if len(concreteSyntax) == 0 || !p.nextToken() {
+	if len(tokenStream) == 0 || !p.nextToken() {
 		return p.tokenHandler.error(eofReached, nil)
 	}
 
@@ -76,8 +87,8 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	// the address of the jump instruction itself was already stored in the symbol table as part of the block's procedure symbol
 	//
 	// for declaration depth
-	// 	0, jump is always used to start the program
-	//  1 and above, jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
+	// 	 0: jump is always used to start the program
+	//   1 and above: jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
 	firstInstruction := p.emitter.Jump(emt.NullAddress)
 
 	// declare all constants, variables and procedures of the block to fill up the symbol table
@@ -94,6 +105,9 @@ func (p *parser) block(name string, expected scn.Tokens) {
 			p.procedureWord(expected)
 		}
 
+		// after declarations, the block expects
+		//   a statement which also can be an assignment starting with an identifier
+		//   or the parser would fall back to declarations as anchor in the case of a syntax error
 		p.tokenHandler.rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
 
 		if !p.lastToken().In(declarations) {
@@ -113,6 +127,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	p.emitter.AllocateStackSpace(emt.Offset(varOffset))
 
 	// parse and emit all statement instructions which are defining the code logic of the block
+	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
 	p.statement(set(expected, scn.Semicolon, scn.EndWord))
 
 	// emit a return instruction to return from the block
@@ -122,7 +137,10 @@ func (p *parser) block(name string, expected scn.Tokens) {
 	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
 	p.symbolTable.remove(p.declarationDepth)
 
-	// Check if the last token is an expected token or report a syntax error
+	// after the block ends
+	//   a semicolon is expected to separate the block from the parent block
+	//   or a program-end is expected to end the program
+	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
 	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
 }
 
@@ -175,7 +193,7 @@ func (p *parser) varWord(offset *uint64) {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(expected scn.Tokens) {
+func (p *parser) procedureWord(anchors scn.Tokens) {
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextToken()
 		procedureName := p.procedureIdentifier()
@@ -186,13 +204,25 @@ func (p *parser) procedureWord(expected scn.Tokens) {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
+		// the procedure block gets anchor tokens from the parent block and starts with the
+		//   declaration of constants, variables and procedures
+		//   followed by a statement
+		//   and ends with a semicolon
 		p.declarationDepth++
-		p.block(procedureName, set(expected, scn.Semicolon))
+		p.block(procedureName, set(anchors, scn.Semicolon))
 		p.declarationDepth--
 
+		// after the procedure block ends a semicolon is expected to separate
+		//   the block from the parent block
+		//   or from the next procedure declaration
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
-			p.tokenHandler.rebase(expectedStatementsIdentifiersProcedures, set(statements, scn.Identifier, scn.ProcedureWord), expected)
+
+			// after the procedure block, the parser expects
+			//   a statement which also can be an assignment starting with an identifier
+			//   the beginning of a new procedure declaration
+			//   or the parser would fall back to parent tokens as anchors in the case of a syntax error
+			p.tokenHandler.rebase(expectedStatementsIdentifiersProcedures, set(statements, scn.Identifier, scn.ProcedureWord), anchors)
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
@@ -200,11 +230,11 @@ func (p *parser) procedureWord(expected scn.Tokens) {
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(expected scn.Tokens) {
-	symbol, ok := p.symbolTable.find(p.lastTokenValue().(string))
+func (p *parser) assignment(anchors scn.Tokens) {
+	symbol, ok := p.symbolTable.find(p.lastTokenValue())
 
 	if !ok {
-		p.appendError(identifierNotFound, p.lastTokenValue().(string))
+		p.appendError(identifierNotFound, p.lastTokenValue())
 	} else if symbol.kind != variable {
 		p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
 	}
@@ -217,22 +247,21 @@ func (p *parser) assignment(expected scn.Tokens) {
 		p.appendError(expectedBecomes, p.lastTokenName())
 	}
 
-	p.expression(expected)
+	p.expression(anchors)
 
 	if ok && symbol.kind == variable {
 		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
-
 	}
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
-func (p *parser) read(expected scn.Tokens) {
+func (p *parser) read() {
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			if symbol.kind == variable {
 				p.emitter.System(emt.Read)
 				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
@@ -240,7 +269,7 @@ func (p *parser) read(expected scn.Tokens) {
 				p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
 			}
 		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue().(string))
+			p.appendError(identifierNotFound, p.lastTokenValue())
 		}
 
 	}
@@ -249,16 +278,18 @@ func (p *parser) read(expected scn.Tokens) {
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(expected scn.Tokens) {
+func (p *parser) write(anchors scn.Tokens) {
 	p.nextToken()
-	p.expression(expected)
+	p.expression(anchors)
 	p.emitter.System(emt.Write)
 }
 
 // A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(expected scn.Tokens) {
+func (p *parser) beginWord(anchors scn.Tokens) {
 	p.nextToken()
-	p.statement(set(expected, scn.EndWord, scn.Semicolon))
+
+	// the first statement of a begin-end block
+	p.statement(set(anchors, scn.EndWord, scn.Semicolon))
 
 	for p.lastToken().In(set(statements, scn.Semicolon)) {
 		if p.lastToken() == scn.Semicolon {
@@ -267,7 +298,8 @@ func (p *parser) beginWord(expected scn.Tokens) {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		p.statement(set(expected, scn.EndWord, scn.Semicolon))
+		// the next statement of a begin-end block
+		p.statement(set(anchors, scn.EndWord, scn.Semicolon))
 
 	}
 
@@ -279,20 +311,20 @@ func (p *parser) beginWord(expected scn.Tokens) {
 }
 
 // A call statement is the call word followed by a procedure identifier.
-func (p *parser) callWord(expected scn.Tokens) {
+func (p *parser) callWord() {
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if symbol, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
+		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			if symbol.kind == procedure {
 				p.emitter.Call(emt.Address(symbol.address), p.declarationDepth-symbol.depth)
 			} else {
 				p.appendError(expectedProcedureIdentifier, kindNames[symbol.kind])
 			}
 		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue().(string))
+			p.appendError(identifierNotFound, p.lastTokenValue())
 		}
 
 		p.nextToken()
@@ -300,9 +332,9 @@ func (p *parser) callWord(expected scn.Tokens) {
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(expected scn.Tokens) {
+func (p *parser) ifWord(anchors scn.Tokens) {
 	p.nextToken()
-	relationalOperator := p.condition(set(expected, scn.ThenWord, scn.DoWord))
+	relationalOperator := p.condition(set(anchors, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextToken()
@@ -314,17 +346,17 @@ func (p *parser) ifWord(expected scn.Tokens) {
 	ifDecision := p.jumpConditional(relationalOperator, false)
 
 	// parse and emit the statement which is executed if the condition is true
-	p.statement(expected)
+	p.statement(anchors)
 
 	// update the conditional jump instruction address to the first instruction after the if statement
 	p.emitter.Update(ifDecision, p.emitter.GetNextAddress(), nil)
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(expected scn.Tokens) {
+func (p *parser) whileWord(anchors scn.Tokens) {
 	p.nextToken()
 	whileCondition := p.emitter.GetNextAddress()
-	relationalOperator := p.condition(set(expected, scn.DoWord))
+	relationalOperator := p.condition(set(anchors, scn.DoWord))
 
 	// jump over statement if the condition is false and remember the address of the jump instruction
 	whileDecision := p.jumpConditional(relationalOperator, false)
@@ -336,7 +368,7 @@ func (p *parser) whileWord(expected scn.Tokens) {
 	}
 
 	// parse and emit the statement which is executed as long as the condition is true
-	p.statement(expected)
+	p.statement(anchors)
 
 	// uncnoditional jump back to the condition evaluation
 	p.emitter.Jump(whileCondition)
@@ -352,7 +384,12 @@ func (p *parser) constantIdentifier() {
 		return
 	}
 
-	constantName := p.lastTokenValue().(string)
+	constantName := p.lastTokenValue()
+
+	if _, ok := p.symbolTable.find(constantName); ok {
+		p.appendError(identifierAlreadyDeclared, constantName)
+	}
+
 	p.nextToken()
 
 	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
@@ -361,19 +398,19 @@ func (p *parser) constantIdentifier() {
 		}
 
 		p.nextToken()
+		var sign scn.Token
+
+		if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
+			sign = p.lastToken()
+			p.nextToken()
+		}
 
 		if p.lastToken() != scn.Number {
 			p.appendError(expectedNumber, p.lastTokenName())
-			return
-		}
-
-		if _, ok := p.symbolTable.find(constantName); ok {
-			p.appendError(identifierAlreadyDeclared, constantName)
 		} else {
-			p.symbolTable.addConstant(constantName, p.declarationDepth, p.lastTokenValue())
+			p.symbolTable.addConstant(constantName, p.declarationDepth, p.numberValue(sign, p.lastTokenValue()))
+			p.nextToken()
 		}
-
-		p.nextToken()
 	} else {
 		p.appendError(expectedEqual, p.lastTokenName())
 	}
@@ -384,10 +421,10 @@ func (p *parser) variableIdentifier(offset *uint64) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue().(string))
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
-			p.symbolTable.addVariable(p.lastTokenValue().(string), p.declarationDepth, offset)
+			p.symbolTable.addVariable(p.lastTokenValue(), p.declarationDepth, offset)
 		}
 
 		p.nextToken()
@@ -401,10 +438,10 @@ func (p *parser) procedureIdentifier() string {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if _, ok := p.symbolTable.find(p.lastTokenValue().(string)); ok {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue().(string))
+		if _, ok := p.symbolTable.find(p.lastTokenValue()); ok {
+			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
-			procedureName = p.lastTokenValue().(string)
+			procedureName = p.lastTokenValue()
 			p.symbolTable.addProcedure(procedureName, p.declarationDepth, uint64(p.emitter.GetNextAddress()))
 		}
 
@@ -423,79 +460,35 @@ func (p *parser) procedureIdentifier() string {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(expected scn.Tokens) {
-
+func (p *parser) statement(anchors scn.Tokens) {
 	switch p.lastToken() {
 	case scn.Identifier:
-		p.assignment(expected)
+		p.assignment(anchors)
 
 	case scn.Read:
-		p.read(expected)
+		p.read()
 
 	case scn.Write:
-		p.write(expected)
+		p.write(anchors)
 
 	case scn.CallWord:
-		p.callWord(expected)
+		p.callWord()
 
 	case scn.IfWord:
-		p.ifWord(expected)
+		p.ifWord(anchors)
 
 	case scn.WhileWord:
-		p.whileWord(expected)
+		p.whileWord(anchors)
 
 	case scn.BeginWord:
-		p.beginWord(expected)
+		p.beginWord(anchors)
 	}
 
-	p.tokenHandler.rebase(expectedStatement, expected, scn.Empty)
-}
-
-// A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(expected scn.Tokens) scn.Token {
-	var relationalOperator scn.Token
-
-	if p.lastToken() == scn.OddWord {
-		relationalOperator = p.lastToken()
-		p.nextToken()
-		p.expression(expected)
-		p.emitter.Odd()
-	} else {
-		// handle left expression of a relational operator
-		p.expression(set(expected, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
-
-		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
-			p.appendError(expectedRelationalOperator, p.lastTokenName())
-		} else {
-			relationalOperator = p.lastToken()
-			p.nextToken()
-
-			// handle right expression of a relational operator
-			p.expression(expected)
-
-			switch relationalOperator {
-			case scn.Equal:
-				p.emitter.Equal()
-
-			case scn.NotEqual:
-				p.emitter.NotEqual()
-
-			case scn.Less:
-				p.emitter.Less()
-
-			case scn.LessEqual:
-				p.emitter.LessEqual()
-
-			case scn.Greater:
-				p.emitter.Greater()
-
-			case scn.GreaterEqual:
-				p.emitter.GreaterEqual()
-			}
-		}
-	}
-
-	return relationalOperator
+	// after a statement, the parser expects
+	//   a semicolon to separate the statement from the next statement
+	//   or the end of the parent block
+	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
+	p.tokenHandler.rebase(expectedStatement, anchors, scn.Empty)
 }
 
 // Emit a conditional jump instruction based on the relational operator of a condition.
@@ -560,10 +553,10 @@ func (p *parser) nextToken() bool {
 	return p.tokenHandler.nextTokenDescription()
 }
 
-// Wrapper to get token from the last token description. 
+// Wrapper to get token from the last token description.
 func (p *parser) lastToken() scn.Token {
 	return p.tokenHandler.lastToken()
-}	
+}
 
 // Wrapper to get the token name from the last token description.
 func (p *parser) lastTokenName() string {
@@ -571,7 +564,7 @@ func (p *parser) lastTokenName() string {
 }
 
 // Wrapper to get the token value from the last token description.
-func (p *parser) lastTokenValue() any {
+func (p *parser) lastTokenValue() string {
 	return p.tokenHandler.lastTokenValue()
 }
 
@@ -580,7 +573,17 @@ func (p *parser) appendError(code failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
+// Start the expression parser and parse a condition.
+func (p *parser) condition(anchors scn.Tokens) scn.Token {
+	return p.expressionParser.condition(p.declarationDepth, anchors)
+}
+
 // Start the expression parser and parse an expression.
-func (p *parser) expression(expected scn.Tokens) {
-	p.expressionParser.expression(p.declarationDepth, expected)
+func (p *parser) expression(anchors scn.Tokens) {
+	p.expressionParser.expression(p.declarationDepth, anchors)
+}
+
+// Wrapper to get the number value from the expression parser that automatically appends an error if the number is illegal.
+func (p *parser) numberValue(sign scn.Token, number string) int64 {
+	return p.expressionParser.numberValue(sign, number)
 }

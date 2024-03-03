@@ -2,10 +2,11 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code. The package also enables the emulation of IL/0 programs.
+// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code.
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +18,7 @@ import (
 )
 
 // Compile a PL/0 source file into an IL/0 program file.
-func CompileFile(source, target string, syntax bool, print io.Writer) error {
+func CompileFile(source, target string, printTokenStream bool, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
 		return err
 	}
@@ -28,25 +29,22 @@ func CompileFile(source, target string, syntax bool, print io.Writer) error {
 		return err
 	} else {
 		defer program.Close()
-		sections, concreteSyntax, errorReport, err := CompileContent(content)
+		sections, tokenStream, errorReport, err := CompileContent(content)
 
-		switch {
-		case err != nil && concreteSyntax != nil && errorReport != nil:
-			PrintErrorReport(errorReport, print)
-			return err
-
-		case err != nil && concreteSyntax != nil && errorReport == nil:
-			PrintConcreteSyntax(concreteSyntax, print, true)
-			return err
-
-		default:
-			if _, err := program.Write(sections); err != nil {
-				return err
+		if err != nil {
+			if len(errorReport) != 0 {
+				PrintErrorReport(errorReport, print)
 			}
+
+			return err
 		}
 
-		if syntax {
-			PrintConcreteSyntax(concreteSyntax, print, false)
+		if _, err := program.Write(sections); err != nil {
+			return err
+		}
+
+		if printTokenStream {
+			PrintTokenStream(tokenStream, print, false)
 		}
 	}
 
@@ -84,24 +82,22 @@ func PrintFile(target string, print io.Writer) error {
 }
 
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
-// The concrete syntax and error report are also returned if an error occurs during compilation.
-func CompileContent(content []byte) ([]byte, scn.ConcreteSyntax, par.ErrorReport, error) {
+// The token stream and error report are also returned if an error occurs during compilation.
+func CompileContent(content []byte) ([]byte, scn.TokenStream, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
+	parser := par.NewParser()
+	emitter := emt.NewEmitter()
 
-	if concreteSyntax, err := scanner.Scan(content); err != nil {
-		return nil, concreteSyntax, nil, err
-	} else {
-		emitter := emt.NewEmitter()
-		parser := par.NewParser()
+	tokenStream, scannerError := scanner.Scan(content)
+	errorReport, parserErr := parser.Parse(tokenStream, emitter)
+	scannerParserErrors := errors.Join(scannerError, parserErr)
 
-		if errorReport, err := parser.Parse(concreteSyntax, emitter); err != nil {
-			return nil, concreteSyntax, errorReport, err
-		} else if sections, err := emitter.Export(); err != nil {
-			return nil, concreteSyntax, errorReport, err
-		} else {
-			return sections, concreteSyntax, errorReport, nil
-		}
+	if scannerParserErrors == nil {
+		sections, emitterError := emitter.Export()
+		return sections, tokenStream, errorReport, emitterError
 	}
+
+	return nil, tokenStream, errorReport, scannerParserErrors
 }
 
 // Run a binary IL/0 program and return an error if the program fails to execute.
@@ -114,20 +110,20 @@ func PrintSections(sections []byte, print io.Writer) error {
 	return printProgram(sections, print)
 }
 
-// Print the concrete syntax of the scanner to the specified writer.
-func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bottom bool) {
+// Print the token stream of the scanner to the specified writer.
+func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool) {
 	var start, previousLine int
-	print.Write([]byte("Concrete Syntax:"))
+	print.Write([]byte("Token Stream:"))
 
-	if len(concreteSyntax) == 0 {
+	if len(tokenStream) == 0 {
 		print.Write([]byte("\n"))
 		return
 	}
 
 	if bottom {
-		lastLine := concreteSyntax[len(concreteSyntax)-1].Line
+		lastLine := tokenStream[len(tokenStream)-1].Line
 
-		for start = len(concreteSyntax) - 1; start >= 0 && concreteSyntax[start].Line == lastLine; start-- {
+		for start = len(tokenStream) - 1; start >= 0 && tokenStream[start].Line == lastLine; start-- {
 		}
 
 		start++
@@ -135,8 +131,8 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bot
 		start = 0
 	}
 
-	for i := start; i < len(concreteSyntax); i++ {
-		td := concreteSyntax[i]
+	for i := start; i < len(tokenStream); i++ {
+		td := tokenStream[i]
 
 		if td.Line != previousLine {
 			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
@@ -147,9 +143,23 @@ func PrintConcreteSyntax(concreteSyntax scn.ConcreteSyntax, print io.Writer, bot
 	}
 }
 
+// Print one or several errors to the specified writer.
+func PrintError(err error, print io.Writer) {
+	if strings.Contains(err.Error(), "\n") {
+		print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
+	} else {
+		print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
+	}
+}
+
 // Print the error report of the parser to the specified writer.
 func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
 	print.Write([]byte("Error Report:"))
+
+	if len(errorReport) == 0 {
+		print.Write([]byte("\n"))
+		return
+	}
 
 	for _, e := range errorReport {
 		linePrefix := fmt.Sprintf("%5v: ", e.Line)

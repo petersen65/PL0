@@ -1,0 +1,22 @@
+{ sample to understand stack frame layout 
+  program will halt with stack overflow }
+
+{ program main }
+var a, b;
+
+procedure P;
+var c, d;
+
+procedure Q;
+var e, f;
+
+procedure R;
+var g, h;
+
+call P; { R }
+
+call R; { Q }
+
+call Q; { P }
+
+call P. { MAIN }

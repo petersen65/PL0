@@ -1,0 +1,30 @@
+{ demonstrate comments }
+
+(* single line comment *)
+
+var x, y, z;
+begin { single line comment }
+    x := 4; { single line comment }
+    y := 5;
+    
+    z := -x {
+        multi line comment
+        } - y;
+
+    ! x { single line comment };
+    ! { single line comment } y;
+    ! z;
+
+    if odd (* 
+        multi line comment
+        x *) z then
+            ! 42;
+
+    {
+        Correct output is:
+            4
+            5
+            -9
+            42
+    }
+end.

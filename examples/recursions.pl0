@@ -1,0 +1,47 @@
+{ demonstrate recursions }
+
+procedure Recursion1;
+var count;
+
+procedure Recursion2;
+
+procedure Recursion3;
+begin { Recursion3 }
+    ! 3;
+    count := count + 1;
+
+    if count = 2 then
+        call Recursion2;
+    
+    ! -3;
+end;
+
+begin { Recursion2 }
+    ! 2;
+    count := count + 1;
+    call Recursion3;
+    ! -2;
+end;
+
+begin { Recursion1 }
+    ! 1;
+    count := 0;
+    call Recursion2;
+    ! -1;
+end;
+
+call Recursion1.
+
+{
+    Correct output is:
+        1
+        2
+        3
+        2
+        3
+        -3
+        -2
+        -3
+        -2
+        -1
+}

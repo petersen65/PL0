@@ -2,7 +2,7 @@
 
 This module provides a complete compiler for the programming language PL0. It provides several packages that can be used independently of its command line interface.
 
-* scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a concrete syntax table with token descriptions
+* scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 code, ensuring it adheres to the rules defined in the extended Backus-Naur form for the language
 * emitter: code generation of IL/0 intermediate language code, called by recursive descent parser during syntax analysis of PL/0 code
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
@@ -22,47 +22,65 @@ The complete compiler source code is licensed under Apache License v2.0.
 
 ## PL/0
 
-PL/0 is a programming language, intended as an educational programming language, that is similar to but much simpler than Pascal, a general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It features quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations make writing real applications in this language impractical, it helps the compiler remain compact and simple.
+PL/0 in its original version from 1976 is an educational programming language, that is similar to but much simpler than Pascal, a well-known general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It featured quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations made writing real applications in this language impractical, it helped the compiler remain compact and simple.
 
-Tokens form the vocabulary of the PL/0 language. There are four classes: 
+Beginning with version 1.1.0 of my compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2024. The programming language PL/0 2024 will be aligned to Pascal syntax and language features.
 
-* identifiers
-* keywords
-* operators and punctuation
-* literals
+## Grammar
 
-## Syntax
+In computer science theory, a context free grammar is formally defined as G = (S,N,T,P):
+* S is the start symbol
+* N is a set of non-terminal symbols
+* T is a set of terminal symbols or words
+* P is a set of productions or rewrite rules (P:N → N ∪ T)
 
-The syntax of PL/0 (1986 version) is described in extended Backus-Naur form with the following productions:
+Applied to the programming language PL/0, the grammar G is:
+* S = program
+* N = program, block, statement, condition, expression, term, factor
+* T = identifier, number, "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
+* T = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
+* P = the set of productions is described in the table below
+
+The programming language PL/0 has the following productions (extended Backus-Naur form):
 
 | nonterminal symbol | terminal or nonterminal symbols
-|--------------------|----------------------------------------------------------------------------------
-| program            | block "." ;
+|--------------------|------------------------------------------------------------------------------------------
+| program            | block "."
 |                    | &nbsp;
-| block              | [ "const" ident "=" number {"," ident "=" number} ";"]
-|                    | [ "var" ident {"," ident} ";"]
-|                    | { "procedure" ident ";" block ";" } statement ;
+| block              | ["const" identifier "=" ["+" \| "-"] number {"," identifier "=" ["+" \| "-"] number} ";"]
+|                    | ["var" identifier {"," identifier} ";"]
+|                    | {"procedure" identifier ";" block ";"} statement ";"
 |                    | &nbsp;
-| statement          | [ ident ":=" expression | "call" ident
-|                    | &nbsp;&nbsp;\| "?" ident | "!" expression
-|                    | &nbsp;&nbsp;\| "begin" statement {";" statement } "end"
-|                    | &nbsp;&nbsp;\| "if" condition "then" statement
-|                    | &nbsp;&nbsp;\| "while" condition "do" statement ] ;
+| statement          | [identifier ":=" expression
+|				 	 | &nbsp;\| "call" identifier
+| 					 | &nbsp;\| "!" expression
+|                    | &nbsp;\| "?" identifier 
+|                    | &nbsp;\| "begin" statement {";" statement} "end"
+|                    | &nbsp;\| "if" condition "then" statement
+|                    | &nbsp;\| "while" condition "do" statement] ";"
 |                    | &nbsp;
 | condition          | "odd" expression
-|                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression ;
+|                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression
 |                    | &nbsp;
-| expression         | ["+" \| "-"] term { ( "+" \| "-") term} ;
-| term               | factor {("*" \| "/") factor} ;
-| factor             | ident \| number \| "(" expression ")" ;
+| expression         | term {( "+" \| "-") term}
+| term               | factor {("*" \| "/") factor}
+| factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
 |                    | 
+
+For PL/0, tokens define the set of accepting states of a finite automaton. There are four classes: 
+* identifiers = identifier
+* keywords = "const", "var", "procedure", "call", "begin", "end", "if", "then", "while", "do", "odd"
+* operators and punctuation = ".", ",", ";", ":=", "?", "!", "=", "#", "<", "<=", ">", ">=", "+", "-", "*", "/"
+* literals = number
 
 ## Features
 
-The programming language PL/0 (1986 version) supports the following features:
+The programming language PL/0 2024 supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
+| Identifier Encoding           | UTF-8
+| Identifier Length             | unlimited
 | Case Sensitivity              | yes
 | Type System                   | no, only int64 numbers
 | Numerical Expressions         | yes
@@ -77,12 +95,13 @@ The programming language PL/0 (1986 version) supports the following features:
 | Function Definition	        | procedure \<name\>; \<body\>;
 | Function Call	                | call \<name\>;
 | Sequence	                    | ;
-| Read Number	                | stdin
-| Write Number	                | stdout
+| Read Number	                | ? \<stdin\>
+| Write Number	                | ! \<stdout\>
 | If Then	                    | if \<condition\> then \<true-block\>;
 | Loop Forever	                | while 1 = 1 do \<loop-body\>;
 | While Condition Do	        | while \<condition\> do \<loop-body\>;
 | Program End                   | .
+| Multi-Line Comments           | { } or (* *)
 |                               | 
 
 ## Change Log
@@ -91,17 +110,24 @@ The programming language PL/0 (1986 version) supports the following features:
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
-	* single pass parser: recursive descent parser directly calls emitter while analyzing concrete syntax
+	* single pass parser: recursive descent parser directly calls emitter while analyzing token stream
 	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
 ## Planning
 
-* H1 2024, Compiler version 1.1 2024, make core engine more mature
-	* migration to abstract syntax trees as interface between parser and emitter
+* Q1 2024, Compiler version 1.1.0 2024, bug fixes, improved documentation
 	* comments for the programming language PL/0
-	* support for Intel x86_64 assembler generation based on NASM project
+	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
+	* replace misused wording "concrete syntax" with "token stream"
+	* change PL/0 arithmetic expression grammar to support signed factors and signed constants
 
-* H2 2024, Compiler version 1.2 2024, enhance programming language
+* H1 2024, Compiler version 2.0.0 2024, make core engine more mature
+	* finite automaton documentation for scanner
+	* migration to abstract syntax trees as interface between parser and emitter
+	* introduce semantic analysis passes into parser (e.g. type verification, symbol declaration check)
+
+* H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
+	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
 	* data types for variables, constants and parameters, start with integer only
 	* parameter for procedures
 	* boolean, real, string datatypes

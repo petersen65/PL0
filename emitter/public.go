@@ -47,14 +47,23 @@ const (
 	Write
 )
 
-// Core API for the IL/0 emitter.
 type (
-	Operation   int32
-	SystemCall  int32
-	Address     uint64
-	Offset      uint64
+	// Type for operation codes.
+	Operation int32
+
+	// Type for system call codes.
+	SystemCall int32
+
+	// Type for 64 bit addresses.
+	Address uint64
+
+	// Type for 64 bit offsets.
+	Offset uint64
+
+	// Text section of the emitted IL/0 program.
 	TextSection []Instruction
 
+	// Instruction is the internal representation of an IL/0 instruction.
 	Instruction struct {
 		Operation                  Operation // operation code of the instruction
 		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
@@ -62,6 +71,7 @@ type (
 		ArgInt                     int64     // int64 argument of the operation
 	}
 
+	// Emitter is the public interface of the emitter implementation.
 	Emitter interface {
 		Update(instruction, target Address, value any) error
 		GetNextAddress() Address

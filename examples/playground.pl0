@@ -1,5 +1,6 @@
-var x, y, z;
+{ provide playground for trying out PL/0 }
 
+var x, y, z;
 begin
     x := 4;
     y := 5;
@@ -11,4 +12,12 @@ begin
 
     if odd z then
         ! 42;
+
+    {
+        Correct output is:
+            4
+            5
+            -9
+            42
+    }
 end.

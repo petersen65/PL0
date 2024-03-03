@@ -7,13 +7,9 @@ package scanner
 
 import "slices"
 
-// Number of bits of a signed integer.
-const IntegerBitSize = 64
-
 // Tokens that are supported by the PL/0 scanner.
 const (
-	Null = Token(iota)
-	Eof
+	Unknown = Token(iota)
 	Identifier
 	Number
 	Plus
@@ -31,7 +27,7 @@ const (
 	Comma
 	Colon
 	Semicolon
-	Period
+	ProgramEnd
 	Becomes
 	Read
 	Write
@@ -48,34 +44,33 @@ const (
 	ProcedureWord
 )
 
-// Token types for constants and variables.
-const (
-	None = TokenType(iota)
-	Integer64
-)
-
-// Core API for the PL/0 scanner.
 type (
-	Token          int
-	TokenType      int
-	Tokens         []Token
-	ConcreteSyntax []TokenDescription
+	// Token is a type that represents a token in the source code.
+	Token int
 
+	// Tokens represents a set of tokens.
+	Tokens []Token
+
+	// The token stream table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
+	TokenStream []TokenDescription
+
+	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
 		Token        Token
 		TokenName    string
-		TokenValue   any
-		TokenType    TokenType
+		TokenValue   string
 		Line, Column int
 		CurrentLine  []byte
 	}
 
+	// TokenSet is an interface that is used for types that can be converted to the 'Tokens' type.
 	TokenSet interface {
 		ToTokens() Tokens
 	}
 
+	// Scanner is the public interface of the scanner implementation.
 	Scanner interface {
-		Scan(content []byte) (ConcreteSyntax, error)
+		Scan(content []byte) (TokenStream, error)
 	}
 )
 
@@ -85,8 +80,7 @@ var (
 
 	// TokenNames maps tokens to their string representation.
 	TokenNames = map[Token]string{
-		Null:             "null",
-		Eof:              "eof",
+		Unknown:          "unknown",
 		Identifier:       "identifier",
 		Number:           "number",
 		Plus:             "plus",
@@ -104,7 +98,7 @@ var (
 		Comma:            "comma",
 		Colon:            "colon",
 		Semicolon:        "semicolon",
-		Period:           "period",
+		ProgramEnd:       "programEnd",
 		Becomes:          "becomes",
 		Read:             "read",
 		Write:            "write",
@@ -119,60 +113,6 @@ var (
 		ConstWord:        "const",
 		VarWord:          "var",
 		ProcedureWord:    "procedure",
-	}
-
-	// KeyWords is a token set of all keywords.
-	KeyWords = Tokens{
-		OddWord,
-		BeginWord,
-		EndWord,
-		IfWord,
-		ThenWord,
-		WhileWord,
-		DoWord,
-		CallWord,
-		ConstWord,
-		VarWord,
-		ProcedureWord,
-	}
-
-	// Operators is a token set of all operators.
-	Operators = Tokens{
-		OddWord,
-		Plus,
-		Minus,
-		Times,
-		Divide,
-		Equal,
-		NotEqual,
-		Less,
-		LessEqual,
-		Greater,
-		GreaterEqual,
-	}
-
-	// Declarations is a set of all declaration keywords.
-	Declarations = Tokens{
-		ConstWord,
-		VarWord,
-		ProcedureWord,
-	}
-
-	// Statements is a set of all statement introductions.
-	Statements = Tokens{
-		Read,
-		Write,
-		BeginWord,
-		CallWord,
-		IfWord,
-		WhileWord,
-	}
-
-	// Factors is a set of all factors: an identifier, a number, or an expression surrounded by parentheses.
-	Factors = Tokens{
-		Identifier,
-		Number,
-		LeftParenthesis,
 	}
 )
 

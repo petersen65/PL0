@@ -2,19 +2,22 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package parser implements the PL/0 parser that performs a syntactical analysis of the concrete syntax.
 package parser
 
 import scn "github.com/petersen65/PL0/scanner"
 
-// Token slices enable the parser to check for expected tokens and forward to them in the case of syntax errors.
+// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
+const eof scn.Token = -1
+
 var (
+	// Tokens that are used to begin constants, variables, and procedures declarations.
 	declarations = scn.Tokens{
 		scn.ConstWord,
 		scn.VarWord,
 		scn.ProcedureWord,
 	}
 
+	// Tokens that are used to begin statements within a block.
 	statements = scn.Tokens{
 		scn.Read,
 		scn.Write,
@@ -24,6 +27,7 @@ var (
 		scn.WhileWord,
 	}
 
+	// Tokens that are used to begin factors in expressions.
 	factors = scn.Tokens{
 		scn.Identifier,
 		scn.Number,
@@ -31,19 +35,19 @@ var (
 	}
 )
 
-// Token handler manages the current and next token in the concrete syntax.
+// Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
-	concreteSyntaxIndex       int                  // index of the current token in the concrete syntax
-	concreteSyntax            scn.ConcreteSyntax   // concrete syntax to parse
-	lastTokenDescription, eof scn.TokenDescription // description of the last token that was read
-	errorReport               ErrorReport          // error report that stores all errors that occured during parsing
+	tokenStreamIndex     int                  // index of the current token in the token stream table
+	tokenStream          scn.TokenStream      // token stream to parse
+	lastTokenDescription scn.TokenDescription // description of the last token that was read
+	errorReport          ErrorReport          // error report that stores all errors that occured during parsing
 }
 
 // Create a new token handler for the PL/0 parser.
-func newTokenHandler(concreteSyntax scn.ConcreteSyntax) *tokenHandler {
+func newTokenHandler(tokenStream scn.TokenStream) *tokenHandler {
 	return &tokenHandler{
-		concreteSyntax: concreteSyntax,
-		errorReport:    make(ErrorReport, 0),
+		tokenStream: tokenStream,
+		errorReport: make(ErrorReport, 0),
 	}
 }
 
@@ -52,28 +56,24 @@ func set(tss ...scn.TokenSet) scn.Tokens {
 	return scn.Set(tss...)
 }
 
-// Set next token description in the concrete syntax or an eof description.
+// Set next token description in the token stream or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
-	if t.concreteSyntaxIndex >= len(t.concreteSyntax) {
-		if t.eof.Token == scn.Null {
-			t.eof = scn.TokenDescription{
-				Token:       scn.Eof,
+	if t.tokenStreamIndex >= len(t.tokenStream) {
+		if t.lastTokenDescription.Token != eof {
+			t.lastTokenDescription = scn.TokenDescription{
+				Token:       eof,
 				TokenName:   "eof",
-				TokenValue:  nil,
-				TokenType:   scn.None,
 				Line:        t.lastTokenDescription.Line,
 				Column:      t.lastTokenDescription.Column,
 				CurrentLine: t.lastTokenDescription.CurrentLine,
 			}
-
-			t.lastTokenDescription = t.eof
 		}
 
 		return false
 	}
 
-	t.lastTokenDescription = t.concreteSyntax[t.concreteSyntaxIndex]
-	t.concreteSyntaxIndex++
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
 	return true
 }
 
@@ -88,7 +88,7 @@ func (t *tokenHandler) lastTokenName() string {
 }
 
 // Get token value from the last token description.
-func (t *tokenHandler) lastTokenValue() any {
+func (t *tokenHandler) lastTokenValue() string {
 	return t.lastTokenDescription.TokenValue
 }
 
@@ -97,10 +97,22 @@ func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
 	if !t.lastToken().In(expected) {
 		t.appendError(t.error(code, t.lastTokenName()))
 
-		for next := set(expected, fallback, scn.Eof); !t.lastToken().In(next); {
+		for next := set(expected, fallback, eof); !t.lastToken().In(next); {
 			t.nextTokenDescription()
 		}
 	}
+}
+
+// The token stream is fully parsed if the index of the current token is equal to the length of the token stream table.
+func (t *tokenHandler) isFullyParsed() bool {
+	return t.tokenStreamIndex == len(t.tokenStream)
+}
+
+// Set index of the current token to the last entry of the token stream table and update next token description.
+func (t *tokenHandler) setFullyParsed() {
+	t.tokenStreamIndex = len(t.tokenStream) - 1
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
 }
 
 // Expose error report to the parser.
