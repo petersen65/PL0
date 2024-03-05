@@ -119,8 +119,9 @@ func (e *expressionParser) term(depth int32, anchors scn.Tokens) {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (e *expressionParser) factor(depth int32, anchors scn.Tokens) {
+func (e *expressionParser) factor(depth int32, anchors scn.Tokens) expression {
 	var sign scn.Token
+	var operand expression
 
 	// handle leading plus or minus sign of a factor
 	if e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
@@ -139,9 +140,11 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) {
 				switch symbol.kind {
 				case constant:
 					e.emitter.Constant(symbol.value)
+					operand = newIdentifier(symbol)
 
 				case variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.offset), depth-symbol.depth)
+					operand = newIdentifier(symbol)
 
 				default:
 					e.appendError(expectedConstantsVariables, kindNames[symbol.kind])
@@ -153,6 +156,7 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) {
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
 			e.emitter.Constant(e.numberValue(sign, e.lastTokenValue()))
+			operand = newLiteral(e.numberValue(sign, e.lastTokenValue()), integer64)
 			sign = scn.Unknown
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
@@ -178,7 +182,10 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) {
 	// negate the factor if a leading minus sign is present
 	if sign == scn.Minus {
 		e.emitter.Negate()
+		operand = newUnaryOperation(negate, operand)
 	}
+
+	return operand
 }
 
 // Return the next token description from the token handler.

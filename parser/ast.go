@@ -99,6 +99,11 @@ type (
 		symbol symbol
 	}
 
+	unaryOperation struct {
+		operation unaryOperator
+		operand   expression
+	}
+
 	binaryOperation struct {
 		operation binaryOperator
 		left      expression
@@ -164,16 +169,23 @@ func newBeginStatement(statements []statement) statement {
 	}
 }
 
-func newLiteral(value any, dataType dataType) expression {
+func newLiteral(value any, dataType dataType) *literal {
 	return &literal{
 		value:    value,
 		dataType: dataType,
 	}
 }
 
-func newIdentifier(symbol symbol) expression {
+func newIdentifier(symbol symbol) *identifier {
 	return &identifier{
 		symbol: symbol,
+	}
+}
+
+func newUnaryOperation(operation unaryOperator, operand expression) *unaryOperation {
+	return &unaryOperation{
+		operation: operation,
+		operand:   operand,
 	}
 }
 
@@ -193,8 +205,21 @@ func (i *identifier) expression() string {
 	return i.symbol.name
 }
 
-func (b *binaryOperation) expression() string {
-	switch b.operation {
+func (uo *unaryOperation) expression() string {
+	switch uo.operation {
+	case odd:
+		return "odd"
+
+	case negate:
+		return "negate"
+
+	default:
+		return "unknown unary operation"
+	}
+}
+
+func (bo *binaryOperation) expression() string {
+	switch bo.operation {
 	case plus:
 		return "addition"
 
@@ -215,8 +240,8 @@ func (b *binaryOperation) expression() string {
 	}
 }
 
-func (c *conditionalOperation) condition() string {
-	switch c.operation {
+func (co *conditionalOperation) condition() string {
+	switch co.operation {
 	case equal:
 		return "equal"
 
