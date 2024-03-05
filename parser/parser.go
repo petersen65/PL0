@@ -16,6 +16,7 @@ type parser struct {
 	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
 	symbolTable      *symbolTable      // symbol table that stores all symbols of the program
 	expressionParser *expressionParser // parse expressions that are part of statements
+	abstractSyntax   statement         // abstract syntax tree of the program
 }
 
 // Return the public interface of the private parser implementation.
@@ -67,6 +68,7 @@ func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
 	p.tokenHandler = newTokenHandler(tokenStream)
 	p.symbolTable = newSymbolTable()
 	p.expressionParser = newExpressionParser(p.tokenHandler, p.symbolTable, p.emitter)
+	p.abstractSyntax = nil
 
 	if len(tokenStream) == 0 || !p.nextToken() {
 		return p.tokenHandler.error(eofReached, nil)
