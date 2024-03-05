@@ -271,7 +271,6 @@ func (p *parser) read() {
 		} else {
 			p.appendError(identifierNotFound, p.lastTokenValue())
 		}
-
 	}
 
 	p.nextToken()
