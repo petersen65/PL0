@@ -6,6 +6,7 @@ package parser
 
 import (
 	emt "github.com/petersen65/PL0/emitter"
+	ast "github.com/petersen65/PL0/parser/ast"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
@@ -16,7 +17,7 @@ type parser struct {
 	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
 	symbolTable      *symbolTable      // symbol table that stores all symbols of the program
 	expressionParser *expressionParser // parse expressions that are part of statements
-	abstractSyntax   statement         // abstract syntax tree of the program
+	abstractSyntax   ast.Statement     // abstract syntax tree of the program
 }
 
 // Return the public interface of the private parser implementation.
@@ -122,7 +123,7 @@ func (p *parser) block(name string, expected scn.Tokens) {
 
 	// update the code address of the block's procedure symbol to the first instruction of the block
 	procdureSymbol, _ := p.symbolTable.find(name)
-	procdureSymbol.address = uint64(p.emitter.GetNextAddress())
+	procdureSymbol.Address = uint64(p.emitter.GetNextAddress())
 	p.symbolTable.update(procdureSymbol)
 
 	// allocating stack space for block variables is the first code instruction of the block
@@ -237,8 +238,8 @@ func (p *parser) assignment(anchors scn.Tokens) {
 
 	if !ok {
 		p.appendError(identifierNotFound, p.lastTokenValue())
-	} else if symbol.kind != variable {
-		p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
+	} else if symbol.Kind != ast.Variable {
+		p.appendError(expectedVariableIdentifier, kindNames[symbol.Kind])
 	}
 
 	p.nextToken()
@@ -251,8 +252,8 @@ func (p *parser) assignment(anchors scn.Tokens) {
 
 	p.expression(anchors)
 
-	if ok && symbol.kind == variable {
-		p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
+	if ok && symbol.Kind == ast.Variable {
+		p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
 	}
 }
 
@@ -264,11 +265,11 @@ func (p *parser) read() {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
-			if symbol.kind == variable {
+			if symbol.Kind == ast.Variable {
 				p.emitter.System(emt.Read)
-				p.emitter.StoreVariable(emt.Offset(symbol.offset), p.declarationDepth-symbol.depth)
+				p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
 			} else {
-				p.appendError(expectedVariableIdentifier, kindNames[symbol.kind])
+				p.appendError(expectedVariableIdentifier, kindNames[symbol.Kind])
 			}
 		} else {
 			p.appendError(identifierNotFound, p.lastTokenValue())
@@ -319,10 +320,10 @@ func (p *parser) callWord() {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
-			if symbol.kind == procedure {
-				p.emitter.Call(emt.Address(symbol.address), p.declarationDepth-symbol.depth)
+			if symbol.Kind == ast.Procedure {
+				p.emitter.Call(emt.Address(symbol.Address), p.declarationDepth-symbol.Depth)
 			} else {
-				p.appendError(expectedProcedureIdentifier, kindNames[symbol.kind])
+				p.appendError(expectedProcedureIdentifier, kindNames[symbol.Kind])
 			}
 		} else {
 			p.appendError(identifierNotFound, p.lastTokenValue())
@@ -335,7 +336,7 @@ func (p *parser) callWord() {
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
 func (p *parser) ifWord(anchors scn.Tokens) {
 	p.nextToken()
-	relationalOperator := p.condition(set(anchors, scn.ThenWord, scn.DoWord))
+	relationalOperator, _ := p.condition(set(anchors, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextToken()
@@ -357,7 +358,7 @@ func (p *parser) ifWord(anchors scn.Tokens) {
 func (p *parser) whileWord(anchors scn.Tokens) {
 	p.nextToken()
 	whileCondition := p.emitter.GetNextAddress()
-	relationalOperator := p.condition(set(anchors, scn.DoWord))
+	relationalOperator, _ := p.condition(set(anchors, scn.DoWord))
 
 	// jump over statement if the condition is false and remember the address of the jump instruction
 	whileDecision := p.jumpConditional(relationalOperator, false)
@@ -575,13 +576,13 @@ func (p *parser) appendError(code failure, value any) {
 }
 
 // Start the expression parser and parse a condition.
-func (p *parser) condition(anchors scn.Tokens) scn.Token {
+func (p *parser) condition(anchors scn.Tokens) (scn.Token, ast.Expression) {
 	return p.expressionParser.condition(p.declarationDepth, anchors)
 }
 
 // Start the expression parser and parse an expression.
-func (p *parser) expression(anchors scn.Tokens) {
-	p.expressionParser.expression(p.declarationDepth, anchors)
+func (p *parser) expression(anchors scn.Tokens) ast.Expression {
+	return p.expressionParser.expression(p.declarationDepth, anchors)
 }
 
 // Wrapper to get the number value from the expression parser that automatically appends an error if the number is illegal.

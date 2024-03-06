@@ -4,64 +4,44 @@
 
 package parser
 
-// Kind of supported symbol table entry.
-const (
-	constant = entry(iota)
-	variable
-	procedure
-)
+import "github.com/petersen65/PL0/parser/ast"
 
-type (
-	// Kind of symbol table entries.
-	entry int
-
-	// The symbol table entry.
-	symbol struct {
-		name    string // name of constant, variable, or procedure
-		kind    entry  // constant, variable, or procedure
-		depth   int32  // declaration nesting depth of constant, variable, or procedure
-		value   int64 // value of constant
-		offset  uint64 // offset of variable in its runtime procedure stack frame
-		address uint64 // absolute address of procedure in text section
-	}
-
-	// The symbol table is a table that stores all symbols of the program.
-	symbolTable struct {
-		symbols []symbol
-	}
-)
+// The symbol table is a table that stores all symbols of the program.
+type symbolTable struct {
+	symbols []ast.Symbol
+}
 
 // KindNames maps symbol kinds to their string representation.
-var kindNames = map[entry]string{
-	constant:  "constant",
-	variable:  "variable",
-	procedure: "procedure",
+var kindNames = map[ast.Entry]string{
+	ast.Constant:  "constant",
+	ast.Variable:  "variable",
+	ast.Procedure: "procedure",
 }
 
 // Create a new symbol table for the PL/0 parser.
 func newSymbolTable() *symbolTable {
 	return &symbolTable{
-		symbols: make([]symbol, 0),
+		symbols: make([]ast.Symbol, 0),
 	}
 }
 
 // Add a constant symbol to the symbol table.
 func (s *symbolTable) addConstant(name string, depth int32, value int64) {
-	s.symbols = append(s.symbols, symbol{
-		name:  name,
-		kind:  constant,
-		depth: depth,
-		value: value,
+	s.symbols = append(s.symbols, ast.Symbol{
+		Name:  name,
+		Kind:  ast.Constant,
+		Depth: depth,
+		Value: value,
 	})
 }
 
 // Add a variable symbol to the symbol table.
 func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
-	s.symbols = append(s.symbols, symbol{
-		name:   name,
-		kind:   variable,
-		depth:  depth,
-		offset: *offset,
+	s.symbols = append(s.symbols, ast.Symbol{
+		Name:   name,
+		Kind:   ast.Variable,
+		Depth:  depth,
+		Offset: *offset,
 	})
 
 	*offset++
@@ -69,29 +49,29 @@ func (s *symbolTable) addVariable(name string, depth int32, offset *uint64) {
 
 // Add a procedure symbol to the symbol table.
 func (s *symbolTable) addProcedure(name string, depth int32, address uint64) {
-	s.symbols = append(s.symbols, symbol{
-		name:    name,
-		kind:    procedure,
-		depth:   depth,
-		address: address,
+	s.symbols = append(s.symbols, ast.Symbol{
+		Name:    name,
+		Kind:    ast.Procedure,
+		Depth:   depth,
+		Address: address,
 	})
 }
 
 // Find first symbol in the symbol table by searching from top to bottom.
-func (s *symbolTable) find(name string) (symbol, bool) {
+func (s *symbolTable) find(name string) (ast.Symbol, bool) {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
-		if s.symbols[i].name == name {
+		if s.symbols[i].Name == name {
 			return s.symbols[i], true
 		}
 	}
 
-	return symbol{}, false
+	return ast.Symbol{}, false
 }
 
 // Update first found symbol in the symbol table by searching from top to bottom.
-func (s *symbolTable) update(symbol symbol) bool {
+func (s *symbolTable) update(symbol ast.Symbol) bool {
 	for i := len(s.symbols) - 1; i >= 0; i-- {
-		if s.symbols[i].name == symbol.name {
+		if s.symbols[i].Name == symbol.Name {
 			s.symbols[i] = symbol
 			return true
 		}
@@ -102,10 +82,10 @@ func (s *symbolTable) update(symbol symbol) bool {
 
 // Remove all symbols from the symbol table that are declared at the given declaration depth.
 func (s *symbolTable) remove(depth int32) {
-	var filtered []symbol = make([]symbol, 0, len(s.symbols))
+	var filtered []ast.Symbol = make([]ast.Symbol, 0, len(s.symbols))
 
 	for _, sym := range s.symbols {
-		if sym.depth != depth {
+		if sym.Depth != depth {
 			filtered = append(filtered, sym)
 		}
 	}
