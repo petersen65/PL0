@@ -71,6 +71,11 @@ type (
 		Address uint64 // absolute address of procedure in text section
 	}
 
+	// A block represented as an abstract syntax tree.
+	Block interface {
+		BlockString() string
+	}
+
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		ExpressionString() string
@@ -81,6 +86,11 @@ type (
 		StatementString() string
 	}
 )
+
+// NewBlock creates a new block node in the abstract syntax tree.
+func NewBlock(symbol Symbol, procedures []Block, statement Statement) Block {
+	return newBlock(symbol, procedures, statement)
+}
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
 func NewLiteral(value any, dataType DataType) Expression {
@@ -95,21 +105,6 @@ func NewConstant(symbol Symbol) Expression {
 // NewVariable creates a new variable node in the abstract syntax tree.
 func NewVariable(symbol Symbol) Expression {
 	return newVariable(symbol)
-}
-
-// NewProcedure creates a new procedure node in the abstract syntax tree.
-func NewProcedure(symbol Symbol, statement Statement) Statement {
-	return newProcedure(symbol, statement)
-}
-
-// NewProgram creates the root program node in the abstract syntax tree.
-func NewProgram(symbol Symbol, statement Statement) Statement {
-	return newProgram(symbol, statement)
-}
-
-// NewProcedures creates a procedures statement node in the abstract syntax tree.
-func NewProcedures(statements []Statement) Statement {
-	return newProcedures(statements)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.

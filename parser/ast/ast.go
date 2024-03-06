@@ -4,12 +4,16 @@
 
 package ast
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 type (
+	// Block node represents a block in the AST.
+	block struct {
+		symbol     Symbol
+		procedures []Block
+		statement  Statement
+	}
+
 	// Literal node represents a literal value in the AST.
 	literal struct {
 		value    any
@@ -24,23 +28,6 @@ type (
 	// Variable node represents a variable in the AST.
 	variable struct {
 		symbol Symbol
-	}
-
-	// Procedure node represents a procedure in the AST.
-	procedure struct {
-		symbol    Symbol
-		statement Statement
-	}
-
-	// Program node represents the main program and root in the AST.
-	program struct {
-		symbol    Symbol
-		statement Statement
-	}
-
-	// Procedures node represents a list of procedure nodes in the AST.
-	procedures struct {
-		statements []Statement
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -102,6 +89,15 @@ type (
 	}
 )
 
+// Create a new block node in the abstract syntax tree.
+func newBlock(symbol Symbol, procedures []Block, statement Statement) Block {
+	return &block{
+		symbol:     symbol,
+		procedures: procedures,
+		statement:  statement,
+	}
+}
+
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, dataType DataType) Expression {
 	return &literal{
@@ -121,29 +117,6 @@ func newConstant(symbol Symbol) Expression {
 func newVariable(symbol Symbol) Expression {
 	return &variable{
 		symbol: symbol,
-	}
-}
-
-// Create a new procedure node in the abstract syntax tree.
-func newProcedure(symbol Symbol, statement Statement) Statement {
-	return &procedure{
-		symbol:    symbol,
-		statement: statement,
-	}
-}
-
-// Create the root program node in the abstract syntax tree.
-func newProgram(symbol Symbol, statement Statement) Statement {
-	return &program{
-		symbol:    symbol,
-		statement: statement,
-	}
-}
-
-// Create a new procedures node in the abstract syntax tree.
-func newProcedures(statements []Statement) Statement {
-	return &procedures{
-		statements: statements,
 	}
 }
 
@@ -225,6 +198,11 @@ func newCompoundStatement(statements []Statement) Statement {
 	}
 }
 
+// BlockString returns the string representation of the block node.
+func (b *block) BlockString() string {
+	return "block"
+}
+
 // ExpressionString returns the string representation of the literal node.
 func (l *literal) ExpressionString() string {
 	return fmt.Sprint(l.value)
@@ -238,27 +216,6 @@ func (c *constant) ExpressionString() string {
 // ExpressionString returns the string representation of the variable node.
 func (v *variable) ExpressionString() string {
 	return v.symbol.Name
-}
-
-// StatementString returns the string representation of the procedure node.
-func (p *procedure) StatementString() string {
-	return fmt.Sprintf("procedure %v", p.symbol.Name)
-}
-
-// StatementString returns the string representation of the root program node.
-func (p *program) StatementString() string {
-	return fmt.Sprintf("program %v", p.symbol.Name)
-}
-
-// StatementString returns the string representation of the procedures node.
-func (p *procedures) StatementString() string {
-	var builder strings.Builder	
-
-	for _, s := range p.statements {
-		builder.WriteString(s.StatementString())
-	}
-
-	return builder.String()
 }
 
 // ExpressionString returns the string representation of the unary operation node.
