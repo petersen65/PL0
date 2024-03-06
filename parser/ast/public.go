@@ -19,7 +19,6 @@ const (
 	Minus
 	Times
 	Divide
-	Becomes
 )
 
 // Operators for comparison.
@@ -77,12 +76,6 @@ type (
 		ExpressionString() string
 	}
 
-	// A condition represented as an abstract syntax tree.
-	Condition interface {
-		Expression
-		ConditionString() string
-	}
-
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
 		StatementString() string
@@ -94,9 +87,24 @@ func NewLiteral(value any, dataType DataType) Expression {
 	return newLiteral(value, dataType)
 }
 
-// NewIdentifier creates a new identifier node in the abstract syntax tree.
-func NewIdentifier(symbol Symbol) Expression {
-	return newIdentifier(symbol)
+// NewConstant creates a new constant node in the abstract syntax tree.
+func NewConstant(symbol Symbol) Expression {
+	return newConstant(symbol)
+}
+
+// NewVariable creates a new variable node in the abstract syntax tree.
+func NewVariable(symbol Symbol) Expression {
+	return newVariable(symbol)
+}
+
+// NewProcedure creates a new procedure node in the abstract syntax tree.
+func NewProcedure(symbol Symbol, statement Statement) Statement {
+	return newProcedure(symbol, statement)
+}
+
+// NewProgram creates the root program node in the abstract syntax tree.
+func NewProgram(symbol Symbol, statement Statement) Statement {
+	return newProgram(symbol, statement)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
@@ -110,13 +118,8 @@ func NewBinaryOperation(operation BinaryOperator, left, right Expression) Expres
 }
 
 // NewConditionalOperation creates a new conditional operation node in the abstract syntax tree.
-func NewConditionalOperation(operation RelationalOperator, left, right Expression) Condition {
+func NewConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
 	return newConditionalOperation(operation, left, right)
-}
-
-// NewProgram creates the root program node in the abstract syntax tree.
-func NewProgram(symbol Symbol, statement Statement) Statement {
-	return newProgram(symbol, statement)
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
@@ -140,12 +143,12 @@ func NewCallStatement(symbol Symbol) Statement {
 }
 
 // NewIfStatement creates a new if-then statement node in the abstract syntax tree.
-func NewIfStatement(condition Condition, statement Statement) Statement {
+func NewIfStatement(condition Expression, statement Statement) Statement {
 	return newIfStatement(condition, statement)
 }
 
 // NewWhileStatement creates a new while-do statement node in the abstract syntax tree.
-func NewWhileStatement(condition Condition, statement Statement) Statement {
+func NewWhileStatement(condition Expression, statement Statement) Statement {
 	return newWhileStatement(condition, statement)
 }
 

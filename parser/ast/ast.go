@@ -13,9 +13,26 @@ type (
 		dataType DataType
 	}
 
-	// Identifier node represents an identifier in the AST.
-	identifier struct {
+	// Constant node represents a constant in the AST.
+	constant struct {
 		symbol Symbol
+	}
+
+	// Variable node represents a variable in the AST.
+	variable struct {
+		symbol Symbol
+	}
+
+	// Procedure node represents a procedure in the AST.
+	procedure struct {
+		symbol    Symbol
+		statement Statement
+	}
+
+	// Program node represents the main program and root in the AST.
+	program struct {
+		symbol    Symbol
+		statement Statement
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -36,12 +53,6 @@ type (
 		operation RelationalOperator
 		left      Expression
 		right     Expression
-	}
-
-	// Program node represents the main program and root in the AST.
-	program struct {
-		symbol Symbol
-		main   Statement
 	}
 
 	// AssignmentStatement node represents an assignment statement in the AST.
@@ -67,13 +78,13 @@ type (
 
 	// IfStatement node represents an if-then statement in the AST.
 	ifStatement struct {
-		condition Condition
+		condition Expression
 		statement Statement
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	whileStatement struct {
-		condition Condition
+		condition Expression
 		statement Statement
 	}
 
@@ -91,10 +102,33 @@ func newLiteral(value any, dataType DataType) Expression {
 	}
 }
 
-// Create a new identifier node in the abstract syntax tree.
-func newIdentifier(symbol Symbol) Expression {
-	return &identifier{
+// Create a new constant node in the abstract syntax tree.
+func newConstant(symbol Symbol) Expression {
+	return &constant{
 		symbol: symbol,
+	}
+}
+
+// Create a new variable node in the abstract syntax tree.
+func newVariable(symbol Symbol) Expression {
+	return &variable{
+		symbol: symbol,
+	}
+}
+
+// Create a new procedure node in the abstract syntax tree.
+func newProcedure(symbol Symbol, statement Statement) Statement {
+	return &procedure{
+		symbol:    symbol,
+		statement: statement,
+	}
+}
+
+// Create the root program node in the abstract syntax tree.
+func newProgram(symbol Symbol, statement Statement) Statement {
+	return &program{
+		symbol:    symbol,
+		statement: statement,
 	}
 }
 
@@ -116,19 +150,11 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression) Expres
 }
 
 // Create a new conditional operation node in the abstract syntax tree.
-func newConditionalOperation(operation RelationalOperator, left, right Expression) Condition {
+func newConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
 	return &conditionalOperation{
 		operation: operation,
 		left:      left,
 		right:     right,
-	}
-}
-
-// Create the root program node in the abstract syntax tree.
-func newProgram(symbol Symbol, statement Statement) Statement {
-	return &program{
-		symbol: symbol,
-		main:   statement,
 	}
 }
 
@@ -162,7 +188,7 @@ func newCallStatement(symbol Symbol) Statement {
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
-func newIfStatement(condition Condition, statement Statement) Statement {
+func newIfStatement(condition Expression, statement Statement) Statement {
 	return &ifStatement{
 		condition: condition,
 		statement: statement,
@@ -170,7 +196,7 @@ func newIfStatement(condition Condition, statement Statement) Statement {
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
-func newWhileStatement(condition Condition, statement Statement) Statement {
+func newWhileStatement(condition Expression, statement Statement) Statement {
 	return &whileStatement{
 		condition: condition,
 		statement: statement,
@@ -189,9 +215,24 @@ func (l *literal) ExpressionString() string {
 	return fmt.Sprint(l.value)
 }
 
-// ExpressionString returns the string representation of the identifier node.
-func (i *identifier) ExpressionString() string {
-	return i.symbol.Name
+// ExpressionString returns the string representation of the constant node.
+func (c *constant) ExpressionString() string {
+	return c.symbol.Name
+}
+
+// ExpressionString returns the string representation of the variable node.
+func (v *variable) ExpressionString() string {
+	return v.symbol.Name
+}
+
+// StatementString returns the string representation of the procedure node.
+func (p *procedure) StatementString() string {
+	return fmt.Sprintf("procedure %v", p.symbol.Name)
+}
+
+// StatementString returns the string representation of the root program node.
+func (p *program) StatementString() string {
+	return fmt.Sprintf("program %v", p.symbol.Name)
 }
 
 // ExpressionString returns the string representation of the unary operation node.
@@ -223,16 +264,13 @@ func (o *binaryOperation) ExpressionString() string {
 	case Divide:
 		return "division"
 
-	case Becomes:
-		return "assignment"
-
 	default:
 		return "unknown binary operation"
 	}
 }
 
 // ConditionString returns the string representation of the conditional operation node.
-func (o *conditionalOperation) ConditionString() string {
+func (o *conditionalOperation) ExpressionString() string {
 	switch o.operation {
 	case Equal:
 		return "equal"
@@ -255,16 +293,6 @@ func (o *conditionalOperation) ConditionString() string {
 	default:
 		return "unknown conditional operation"
 	}
-}
-
-// ExpressionString returns the string representation of the conditional operation node.
-func (o *conditionalOperation) ExpressionString() string {
-	return o.ConditionString()
-}
-
-// StatementString returns the string representation of the program node.
-func (p *program) StatementString() string {
-	return fmt.Sprintf("program %v", p.symbol.Name)
 }
 
 // StatementString returns the string representation of the assignment statement node.

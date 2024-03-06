@@ -109,6 +109,10 @@ func (e *expressionParser) expression(depth int32, anchors scn.Tokens) ast.Expre
 		}
 	}
 
+	if operation == nil {
+		operation = left
+	}
+
 	return operation
 }
 
@@ -136,6 +140,10 @@ func (e *expressionParser) term(depth int32, anchors scn.Tokens) ast.Expression 
 		}
 	}
 
+	if operation == nil {
+		operation = left
+	}
+
 	return operation
 }
 
@@ -161,11 +169,11 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 				switch symbol.Kind {
 				case ast.Constant:
 					e.emitter.Constant(symbol.Value)
-					operand = ast.NewIdentifier(symbol)
+					operand = ast.NewConstant(symbol)
 
 				case ast.Variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.Offset), depth-symbol.Depth)
-					operand = ast.NewIdentifier(symbol)
+					operand = ast.NewVariable(symbol)
 
 				default:
 					e.appendError(expectedConstantsVariables, kindNames[symbol.Kind])
