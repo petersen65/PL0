@@ -41,7 +41,7 @@ func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorR
 	//   and ends with the program-end
 	statement := p.block(emt.EntryPointName, set(declarations, statements, scn.ProgramEnd))
 
-	// the abstract syntax tree of the program is its symbol and its block statement
+	// the abstract syntax tree of the program is its symbol entry and its block statement
 	p.abstractSyntax = ast.NewProgram(program, statement)
 
 	// the program must end with a specific token
@@ -84,6 +84,7 @@ func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
 
 // A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
 func (p *parser) block(name string, expected scn.Tokens) ast.Statement {
+	var procedures ast.Statement
 	var varOffset uint64 = emt.VariableOffsetStart
 
 	if p.declarationDepth > blockNestingMax {
@@ -109,7 +110,7 @@ func (p *parser) block(name string, expected scn.Tokens) ast.Statement {
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
-			p.procedureWord(expected)
+			procedures = p.procedureWord(expected)
 		}
 
 		// after declarations, the block expects
@@ -201,10 +202,13 @@ func (p *parser) varWord(offset *uint64) {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(anchors scn.Tokens) {
+func (p *parser) procedureWord(anchors scn.Tokens) ast.Statement {
+	procedures := make([]ast.Statement, 0)
+
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextToken()
 		procedureName := p.procedureIdentifier()
+		procedure, _ := p.symbolTable.find(procedureName)
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
@@ -217,8 +221,11 @@ func (p *parser) procedureWord(anchors scn.Tokens) {
 		//   followed by a statement
 		//   and ends with a semicolon
 		p.declarationDepth++
-		p.block(procedureName, set(anchors, scn.Semicolon))
+		statement := p.block(procedureName, set(anchors, scn.Semicolon))
 		p.declarationDepth--
+
+		// the abstract syntax tree of the procedure is its symbol entry and its block statement
+		procedures = append(procedures, ast.NewProcedure(procedure, statement))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
@@ -235,6 +242,8 @@ func (p *parser) procedureWord(anchors scn.Tokens) {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 	}
+
+	return ast.NewProcedures(procedures)
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.

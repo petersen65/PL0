@@ -4,7 +4,10 @@
 
 package ast
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type (
 	// Literal node represents a literal value in the AST.
@@ -33,6 +36,11 @@ type (
 	program struct {
 		symbol    Symbol
 		statement Statement
+	}
+
+	// Procedures node represents a list of procedure nodes in the AST.
+	procedures struct {
+		statements []Statement
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -129,6 +137,13 @@ func newProgram(symbol Symbol, statement Statement) Statement {
 	return &program{
 		symbol:    symbol,
 		statement: statement,
+	}
+}
+
+// Create a new procedures node in the abstract syntax tree.
+func newProcedures(statements []Statement) Statement {
+	return &procedures{
+		statements: statements,
 	}
 }
 
@@ -233,6 +248,17 @@ func (p *procedure) StatementString() string {
 // StatementString returns the string representation of the root program node.
 func (p *program) StatementString() string {
 	return fmt.Sprintf("program %v", p.symbol.Name)
+}
+
+// StatementString returns the string representation of the procedures node.
+func (p *procedures) StatementString() string {
+	var builder strings.Builder	
+
+	for _, s := range p.statements {
+		builder.WriteString(s.StatementString())
+	}
+
+	return builder.String()
 }
 
 // ExpressionString returns the string representation of the unary operation node.

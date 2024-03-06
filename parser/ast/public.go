@@ -107,6 +107,11 @@ func NewProgram(symbol Symbol, statement Statement) Statement {
 	return newProgram(symbol, statement)
 }
 
+// NewProcedures creates a procedures statement node in the abstract syntax tree.
+func NewProcedures(statements []Statement) Statement {
+	return newProcedures(statements)
+}
+
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
 func NewUnaryOperation(operation UnaryOperator, operand Expression) Expression {
 	return newUnaryOperation(operation, operand)
