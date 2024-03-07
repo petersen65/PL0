@@ -6,8 +6,11 @@
 package emitter
 
 const (
-	EntryPointName      = "_start" // name of the entry point procedure of a program
-	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
+	// Name of the entry point procedure of a program.
+	EntryPointName = "_start"
+
+	// Start offset for variables on top of stack frame descriptor.
+	VariableOffsetStart = 0
 )
 
 // Operation codes for IL/0.
