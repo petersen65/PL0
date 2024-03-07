@@ -135,7 +135,9 @@ func (p *parser) block(name string, expected scn.Tokens) ast.Block {
 
 	// parse and emit all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
+	from := p.gatherSourceDescription()
 	statement := p.statement(set(expected, scn.Semicolon, scn.EndWord))
+	source := p.collectSourceDescription(from)
 
 	// emit a return instruction to return from the block
 	p.emitter.Return()
@@ -151,7 +153,7 @@ func (p *parser) block(name string, expected scn.Tokens) ast.Block {
 	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
 
 	// return a new block node in the abstract syntax tree
-	return ast.NewBlock(procedureSymbol, p.declarationDepth, declarations, procedures, statement, p.lastTokenSource())
+	return ast.NewBlock(procedureSymbol, p.declarationDepth, declarations, procedures, statement, source)
 }
 
 // Sequence of constants declarations.
@@ -256,6 +258,7 @@ func (p *parser) assignment(anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedVariableIdentifier, kindNames[symbol.Kind])
 	}
 
+	from := p.gatherSourceDescription()
 	p.nextToken()
 
 	if p.lastToken() == scn.Becomes {
@@ -264,20 +267,22 @@ func (p *parser) assignment(anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedBecomes, p.lastTokenName())
 	}
 
-	var statement ast.Statement
 	right := p.expression(anchors)
+	source := p.collectSourceDescription(from)
 
-	if ok && symbol.Kind == ast.Variable {
-		p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-		statement = ast.NewAssignmentStatement(symbol, right, p.lastTokenSource())
+	if !ok || symbol.Kind != ast.Variable {
+		return nil
 	}
 
-	return statement
+	p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
+	return ast.NewAssignmentStatement(symbol, right, source)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
 func (p *parser) read() ast.Statement {
 	var statement ast.Statement
+
+	from := p.gatherSourceDescription()
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
@@ -287,7 +292,7 @@ func (p *parser) read() ast.Statement {
 			if symbol.Kind == ast.Variable {
 				p.emitter.System(emt.Read)
 				p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-				statement = ast.NewReadStatement(symbol, p.lastTokenSource())
+				statement = ast.NewReadStatement(symbol, p.collectSourceDescription(from))
 			} else {
 				p.appendError(expectedVariableIdentifier, kindNames[symbol.Kind])
 			}
@@ -302,10 +307,11 @@ func (p *parser) read() ast.Statement {
 
 // A write statement is the write operator followed by an expression.
 func (p *parser) write(anchors scn.Tokens) ast.Statement {
+	from := p.gatherSourceDescription()
 	p.nextToken()
 	expression := p.expression(anchors)
 	p.emitter.System(emt.Write)
-	return ast.NewWriteStatement(expression, p.lastTokenSource())
+	return ast.NewWriteStatement(expression, p.collectSourceDescription(from))
 }
 
 // A call statement is the call word followed by a procedure identifier.
@@ -609,7 +615,17 @@ func (p *parser) lastTokenValue() string {
 
 // Wrapper to get the source description from the last token description.
 func (p *parser) lastTokenSource() ast.SourceDescription {
-	return p.tokenHandler.lastTokenSource()
+	return ast.SourceDescription{}
+}
+
+// Wrapper to gather source description from the current token index.
+func (p *parser) gatherSourceDescription() int {
+	return p.tokenHandler.gatherSourceDescription()
+}
+
+// Wrapper to collect source description from the given index to the current token index.
+func (p *parser) collectSourceDescription(from int) ast.SourceDescription {
+	return p.tokenHandler.collectSourceDescription(from)
 }
 
 // Append parser error to the error report of the token handler.

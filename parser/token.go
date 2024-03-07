@@ -80,6 +80,45 @@ func (t *tokenHandler) nextTokenDescription() bool {
 	return true
 }
 
+// Gather source description from the current token index.
+func (t *tokenHandler) gatherSourceDescription() int {
+	return t.tokenStreamIndex - 1
+}
+
+// Collect source description from the given index to the current token index.
+func (t *tokenHandler) collectSourceDescription(from int) ast.SourceDescription {
+	if from < 0 || from >= t.tokenStreamIndex {
+		from = t.gatherSourceDescription()
+	}
+
+	sourceDescription := ast.SourceDescription{
+		From: t.tokenStream[from].Line,
+		To:   t.tokenStream[t.tokenStreamIndex-1].Line,
+		Lines: make([]struct {
+			Line int
+			Code []byte
+		}, 0),
+	}
+
+	previousLine := -1
+
+	for i := from; i < t.tokenStreamIndex; i++ {
+		if t.tokenStream[i].Line != previousLine {
+			previousLine = t.tokenStream[i].Line
+
+			sourceDescription.Lines = append(sourceDescription.Lines, struct {
+				Line int
+				Code []byte
+			}{
+				Line: previousLine,
+				Code: t.tokenStream[i].CurrentLine,
+			})
+		}
+	}
+
+	return sourceDescription
+}
+
 // Get token from the last token description.
 func (t *tokenHandler) lastToken() scn.Token {
 	return t.lastTokenDescription.Token
@@ -93,15 +132,6 @@ func (t *tokenHandler) lastTokenName() string {
 // Get token value from the last token description.
 func (t *tokenHandler) lastTokenValue() string {
 	return t.lastTokenDescription.TokenValue
-}
-
-// Get token source description from the last token description.
-func (t *tokenHandler) lastTokenSource() ast.SourceDescription {
-	return ast.SourceDescription{
-		Line:        t.lastTokenDescription.Line,
-		Column:      t.lastTokenDescription.Column,
-		CurrentLine: t.lastTokenDescription.CurrentLine,
-	}
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.

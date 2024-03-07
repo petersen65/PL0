@@ -239,7 +239,7 @@ func (e *expressionParser) lastTokenValue() string {
 
 // Wrapper to get the source description from the last token description.
 func (e *expressionParser) lastTokenSource() ast.SourceDescription {
-	return e.tokenHandler.lastTokenSource()
+	return ast.SourceDescription{}
 }
 
 // Append expression parser error to the error report of the token handler.

@@ -14,33 +14,33 @@ type (
 		declarations []Symbol          // local declarations of the block
 		procedures   []Block           // nested procedures of the block
 		statement    Statement         // statement of the block
-		source       SourceDescription // source description when the block was created
+		source       SourceDescription // source description for the block node
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
 	literal struct {
 		value    any               // literal value
 		dataType DataType          // data type of the literal
-		source   SourceDescription // source description when the literal was created
+		source   SourceDescription // source description for the literal node
 	}
 
 	// Constant node represents the usage of a constant in the AST.
 	constant struct {
 		symbol Symbol            // constant symbol entry
-		source SourceDescription // source description when the constant was created
+		source SourceDescription // source description for the constant node
 	}
 
 	// Variable node represents the usage of a variable in the AST.
 	variable struct {
 		symbol Symbol            // variable symbol entry
-		source SourceDescription // source description when the variable was created
+		source SourceDescription // source description for the variable node
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
 	unaryOperation struct {
 		operation UnaryOperator     // unary operation
 		operand   Expression        // operand of the unary operation
-		source    SourceDescription // source description when the unary operation was created
+		source    SourceDescription // source description for the unary operation node
 	}
 
 	// BinaryOperation node represents a binary operation in the AST.
@@ -48,7 +48,7 @@ type (
 		operation BinaryOperator    // binary operation
 		left      Expression        // left operand of the binary operation
 		right     Expression        // right operand of the binary operation
-		source    SourceDescription // source description when the binary operation was created
+		source    SourceDescription // source description for the binary operation node
 	}
 
 	// ConditionalOperation node represents a conditional operation in the AST.
@@ -56,52 +56,52 @@ type (
 		operation RelationalOperator // conditional operation
 		left      Expression         // left operand of the conditional operation
 		right     Expression         // right operand of the conditional operation
-		source    SourceDescription  // source description when the conditional operation was created
+		source    SourceDescription  // source description for the conditional operation node
 	}
 
 	// AssignmentStatement node represents an assignment statement in the AST.
 	assignmentStatement struct {
 		symbol     Symbol            // variable symbol entry on the left side of the assignment statement
 		expression Expression        // expression on the right side of the assignment statement
-		source     SourceDescription // source description when the assignment statement was created
+		source     SourceDescription // source description for the assignment statement node
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	readStatement struct {
 		symbol Symbol            // variable symbol entry of the read statement
-		source SourceDescription // source description when the read statement was created
+		source SourceDescription // source description for the read statement node
 	}
 
 	// WriteStatement node represents a write statement in the AST.
 	writeStatement struct {
 		expression Expression        // expression of the write statement
-		source     SourceDescription // source description when the write statement was created
+		source     SourceDescription // source description for the write statement node
 	}
 
 	// CallStatement node represents a call statement in the AST.
 	callStatement struct {
 		symbol Symbol            // procedure symbol entry of the call statement
-		source SourceDescription // source description when the call statement was created
+		source SourceDescription // source description for the call statement node
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
 	ifStatement struct {
 		condition Expression        // if-condition of the if-then statement
 		statement Statement         // then-statement of the if-then statement
-		source    SourceDescription // source description when the if-then statement was created
+		source    SourceDescription // source description for the if-then statement node
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	whileStatement struct {
 		condition Expression        // while-condition of the while-do statement
 		statement Statement         // do-statement of the while-do statement
-		source    SourceDescription // source description when the while-do statement was created
+		source    SourceDescription // source description for the while-do statement node
 	}
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	compoundStatement struct {
 		statements []Statement       // all statements of the begin-end compound statement
-		source     SourceDescription // source description when the begin-end statement was created
+		source     SourceDescription // source description for the begin-end statement node
 	}
 )
 

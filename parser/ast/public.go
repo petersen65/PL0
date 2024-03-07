@@ -71,10 +71,14 @@ type (
 		Address uint64 // absolute address of procedure in text section
 	}
 
-	// Describes a position in the source code.
+	// Describes a range of lines in the source code.
 	SourceDescription struct {
-		Line, Column int
-		CurrentLine  []byte
+		From, To int
+
+		Lines []struct {
+			Line int
+			Code []byte
+		}
 	}
 
 	// A block represented as an abstract syntax tree.
