@@ -239,29 +239,30 @@ func (b *block) BlockString() string {
 
 	builder.WriteString("block(")
 	builder.WriteString(b.symbol.Name)
-	builder.WriteString(", ")
-	builder.WriteString(fmt.Sprintf("%d", b.depth))
-	builder.WriteString(", [")
-	
+	builder.WriteString(",")
+	builder.WriteString(fmt.Sprintf("%v", b.depth))
+	builder.WriteString(",[")
+
 	for i, declaration := range b.declarations {
 		builder.WriteString(declaration.Name)
+
 		if i < len(b.declarations)-1 {
-			builder.WriteString(", ")
-		}
-	}
-	
-	builder.WriteString("], [")
-	
-	for i, procedure := range b.procedures {
-		builder.WriteString(procedure.BlockString())
-		if i < len(b.procedures)-1 {
-			builder.WriteString(", ")
+			builder.WriteString(",")
 		}
 	}
 
-	builder.WriteString("], ")
+	builder.WriteString("]\n")
+
+	for i, procedure := range b.procedures {
+		builder.WriteString(procedure.BlockString())
+
+		if i < len(b.procedures)-1 {
+			builder.WriteString("\n")
+		}
+	}
+
 	builder.WriteString(b.statement.StatementString())
-	builder.WriteString(")")
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -337,19 +338,19 @@ func (o *conditionalOperation) ExpressionString() string {
 		builder.WriteString("equal(")
 
 	case NotEqual:
-		builder.WriteString("not equal(")
+		builder.WriteString("notEqual(")
 
 	case Less:
-		builder.WriteString("less than(")
+		builder.WriteString("less(")
 
 	case LessEqual:
-		builder.WriteString("less than or equal(")
+		builder.WriteString("lessEqual(")
 
 	case Greater:
-		builder.WriteString("greater than(")
+		builder.WriteString("greater(")
 
 	case GreaterEqual:
-		builder.WriteString("greater than or equal(")
+		builder.WriteString("greaterEqual(")
 
 	default:
 		builder.WriteString("unknown conditional operation(")
@@ -370,7 +371,7 @@ func (s *assignmentStatement) StatementString() string {
 	builder.WriteString(s.symbol.Name)
 	builder.WriteString("=")
 	builder.WriteString(s.expression.ExpressionString())
-	builder.WriteString(")")
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -380,7 +381,7 @@ func (s *readStatement) StatementString() string {
 
 	builder.WriteString("read(")
 	builder.WriteString(s.symbol.Name)
-	builder.WriteString(")")
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -390,7 +391,7 @@ func (s *writeStatement) StatementString() string {
 
 	builder.WriteString("write(")
 	builder.WriteString(s.expression.ExpressionString())
-	builder.WriteString(")")
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -400,7 +401,7 @@ func (s *callStatement) StatementString() string {
 
 	builder.WriteString("call(")
 	builder.WriteString(s.symbol.Name)
-	builder.WriteString(")")
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -408,10 +409,11 @@ func (s *callStatement) StatementString() string {
 func (s *ifStatement) StatementString() string {
 	var builder strings.Builder
 
-	builder.WriteString("if(")
+	builder.WriteString("decision(")
 	builder.WriteString(s.condition.ExpressionString())
-	builder.WriteString(") then ")
+	builder.WriteString(") (\n")
 	builder.WriteString(s.statement.StatementString())
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -419,10 +421,11 @@ func (s *ifStatement) StatementString() string {
 func (s *whileStatement) StatementString() string {
 	var builder strings.Builder
 
-	builder.WriteString("while(")
+	builder.WriteString("loop(")
 	builder.WriteString(s.condition.ExpressionString())
-	builder.WriteString(") do ")
+	builder.WriteString(") (\n")
 	builder.WriteString(s.statement.StatementString())
+	builder.WriteString(")\n")
 	return builder.String()
 }
 
@@ -430,15 +433,12 @@ func (s *whileStatement) StatementString() string {
 func (s *compoundStatement) StatementString() string {
 	var builder strings.Builder
 
-	builder.WriteString("begin ")
+	builder.WriteString("compound(\n")
 
-	for i, statement := range s.statements {
+	for _, statement := range s.statements {
 		builder.WriteString(statement.StatementString())
-		if i < len(s.statements)-1 {
-			builder.WriteString("; ")
-		}
 	}
 
-	builder.WriteString(" end")
+	builder.WriteString(")\n")
 	return builder.String()
 }
