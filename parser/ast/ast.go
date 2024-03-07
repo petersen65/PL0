@@ -4,7 +4,10 @@
 
 package ast
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type (
 	// Block node represents a block in the AST.
@@ -232,115 +235,210 @@ func newCompoundStatement(statements []Statement, source SourceDescription) Stat
 
 // BlockString returns the string representation of the block node.
 func (b *block) BlockString() string {
-	return "block"
+	var builder strings.Builder
+
+	builder.WriteString("block(")
+	builder.WriteString(b.symbol.Name)
+	builder.WriteString(", ")
+	builder.WriteString(fmt.Sprintf("%d", b.depth))
+	builder.WriteString(", [")
+	
+	for i, declaration := range b.declarations {
+		builder.WriteString(declaration.Name)
+		if i < len(b.declarations)-1 {
+			builder.WriteString(", ")
+		}
+	}
+	
+	builder.WriteString("], [")
+	
+	for i, procedure := range b.procedures {
+		builder.WriteString(procedure.BlockString())
+		if i < len(b.procedures)-1 {
+			builder.WriteString(", ")
+		}
+	}
+
+	builder.WriteString("], ")
+	builder.WriteString(b.statement.StatementString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // ExpressionString returns the string representation of the literal node.
 func (l *literal) ExpressionString() string {
-	return fmt.Sprint(l.value)
+	return fmt.Sprintf("literal(%v)", l.value)
 }
 
 // ExpressionString returns the string representation of the constant node.
 func (c *constant) ExpressionString() string {
-	return c.symbol.Name
+	return fmt.Sprintf("constant(%v=%v)", c.symbol.Name, c.symbol.Value)
 }
 
 // ExpressionString returns the string representation of the variable node.
 func (v *variable) ExpressionString() string {
-	return v.symbol.Name
+	return fmt.Sprintf("variable(%v)", v.symbol.Name)
 }
 
 // ExpressionString returns the string representation of the unary operation node.
 func (o *unaryOperation) ExpressionString() string {
+	var builder strings.Builder
+
 	switch o.operation {
 	case Odd:
-		return "odd"
+		builder.WriteString("odd(")
 
 	case Negate:
-		return "negate"
+		builder.WriteString("negate(")
 
 	default:
-		return "unknown unary operation"
+		builder.WriteString("unknown unary operation(")
 	}
+
+	builder.WriteString(o.operand.ExpressionString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // ExpressionString returns the string representation of the binary operation node.
 func (o *binaryOperation) ExpressionString() string {
+	var builder strings.Builder
+
 	switch o.operation {
 	case Plus:
-		return "addition"
+		builder.WriteString("addition(")
 
 	case Minus:
-		return "subtraction"
+		builder.WriteString("subtraction(")
 
 	case Times:
-		return "multiplication"
+		builder.WriteString("multiplication(")
 
 	case Divide:
-		return "division"
+		builder.WriteString("division(")
 
 	default:
-		return "unknown binary operation"
+		builder.WriteString("unknown binary operation(")
 	}
+
+	builder.WriteString(o.left.ExpressionString())
+	builder.WriteString(",")
+	builder.WriteString(o.right.ExpressionString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // ConditionString returns the string representation of the conditional operation node.
 func (o *conditionalOperation) ExpressionString() string {
+	var builder strings.Builder
+
 	switch o.operation {
 	case Equal:
-		return "equal"
+		builder.WriteString("equal(")
 
 	case NotEqual:
-		return "not equal"
+		builder.WriteString("not equal(")
 
 	case Less:
-		return "less than"
+		builder.WriteString("less than(")
 
 	case LessEqual:
-		return "less than or equal"
+		builder.WriteString("less than or equal(")
 
 	case Greater:
-		return "greater than"
+		builder.WriteString("greater than(")
 
 	case GreaterEqual:
-		return "greater than or equal"
+		builder.WriteString("greater than or equal(")
 
 	default:
-		return "unknown conditional operation"
+		builder.WriteString("unknown conditional operation(")
 	}
+
+	builder.WriteString(o.left.ExpressionString())
+	builder.WriteString(",")
+	builder.WriteString(o.right.ExpressionString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // StatementString returns the string representation of the assignment statement node.
 func (s *assignmentStatement) StatementString() string {
-	return fmt.Sprintf("assignment %v", s.symbol.Name)
+	var builder strings.Builder
+
+	builder.WriteString("assignment(")
+	builder.WriteString(s.symbol.Name)
+	builder.WriteString("=")
+	builder.WriteString(s.expression.ExpressionString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // StatementString returns the string representation of the read statement node.
 func (s *readStatement) StatementString() string {
-	return fmt.Sprintf("read %v", s.symbol.Name)
+	var builder strings.Builder
+
+	builder.WriteString("read(")
+	builder.WriteString(s.symbol.Name)
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // StatementString returns the string representation of the write statement node.
 func (s *writeStatement) StatementString() string {
-	return "write"
+	var builder strings.Builder
+
+	builder.WriteString("write(")
+	builder.WriteString(s.expression.ExpressionString())
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // StatementString returns the string representation of the call statement node.
 func (s *callStatement) StatementString() string {
-	return fmt.Sprintf("call %v", s.symbol.Name)
+	var builder strings.Builder
+
+	builder.WriteString("call(")
+	builder.WriteString(s.symbol.Name)
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // StatementString returns the string representation of the if-then statement node.
 func (s *ifStatement) StatementString() string {
-	return "if then"
+	var builder strings.Builder
+
+	builder.WriteString("if(")
+	builder.WriteString(s.condition.ExpressionString())
+	builder.WriteString(") then ")
+	builder.WriteString(s.statement.StatementString())
+	return builder.String()
 }
 
 // StatementString returns the string representation of the while-do statement node.
 func (s *whileStatement) StatementString() string {
-	return "while do"
+	var builder strings.Builder
+
+	builder.WriteString("while(")
+	builder.WriteString(s.condition.ExpressionString())
+	builder.WriteString(") do ")
+	builder.WriteString(s.statement.StatementString())
+	return builder.String()
 }
 
 // StatementString returns the string representation of the compound statement node.
 func (s *compoundStatement) StatementString() string {
-	return "begin end"
+	var builder strings.Builder
+
+	builder.WriteString("begin ")
+
+	for i, statement := range s.statements {
+		builder.WriteString(statement.StatementString())
+		if i < len(s.statements)-1 {
+			builder.WriteString("; ")
+		}
+	}
+
+	builder.WriteString(" end")
+	return builder.String()
 }
