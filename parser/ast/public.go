@@ -71,6 +71,12 @@ type (
 		Address uint64 // absolute address of procedure in text section
 	}
 
+	// Describes a position in the source code.
+	SourceDescription struct {
+		Line, Column int
+		CurrentLine  []byte
+	}
+
 	// A block represented as an abstract syntax tree.
 	Block interface {
 		BlockString() string
@@ -88,71 +94,71 @@ type (
 )
 
 // NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(symbol Symbol, procedures []Block, statement Statement) Block {
-	return newBlock(symbol, procedures, statement)
+func NewBlock(symbol Symbol, depth int32, declarations []Symbol, procedures []Block, statement Statement, source SourceDescription) Block {
+	return newBlock(symbol, depth, declarations, procedures, statement, source)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType DataType) Expression {
-	return newLiteral(value, dataType)
+func NewLiteral(value any, dataType DataType, source SourceDescription) Expression {
+	return newLiteral(value, dataType, source)
 }
 
 // NewConstant creates a new constant node in the abstract syntax tree.
-func NewConstant(symbol Symbol) Expression {
-	return newConstant(symbol)
+func NewConstant(symbol Symbol, source SourceDescription) Expression {
+	return newConstant(symbol, source)
 }
 
 // NewVariable creates a new variable node in the abstract syntax tree.
-func NewVariable(symbol Symbol) Expression {
-	return newVariable(symbol)
+func NewVariable(symbol Symbol, source SourceDescription) Expression {
+	return newVariable(symbol, source)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
-func NewUnaryOperation(operation UnaryOperator, operand Expression) Expression {
-	return newUnaryOperation(operation, operand)
+func NewUnaryOperation(operation UnaryOperator, operand Expression, source SourceDescription) Expression {
+	return newUnaryOperation(operation, operand, source)
 }
 
 // NewBinaryOperation creates a new binary operation node in the abstract syntax tree.
-func NewBinaryOperation(operation BinaryOperator, left, right Expression) Expression {
-	return newBinaryOperation(operation, left, right)
+func NewBinaryOperation(operation BinaryOperator, left, right Expression, source SourceDescription) Expression {
+	return newBinaryOperation(operation, left, right, source)
 }
 
 // NewConditionalOperation creates a new conditional operation node in the abstract syntax tree.
-func NewConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
-	return newConditionalOperation(operation, left, right)
+func NewConditionalOperation(operation RelationalOperator, left, right Expression, source SourceDescription) Expression {
+	return newConditionalOperation(operation, left, right, source)
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
-func NewAssignmentStatement(symbol Symbol, expression Expression) Statement {
-	return newAssignmentStatement(symbol, expression)
+func NewAssignmentStatement(symbol Symbol, expression Expression, source SourceDescription) Statement {
+	return newAssignmentStatement(symbol, expression, source)
 }
 
 // NewReadStatement creates a new read statement node in the abstract syntax tree.
-func NewReadStatement(symbol Symbol) Statement {
-	return newReadStatement(symbol)
+func NewReadStatement(symbol Symbol, source SourceDescription) Statement {
+	return newReadStatement(symbol, source)
 }
 
 // NewWriteStatement creates a new write statement node in the abstract syntax tree.
-func NewWriteStatement(expression Expression) Statement {
-	return newWriteStatement(expression)
+func NewWriteStatement(expression Expression, source SourceDescription) Statement {
+	return newWriteStatement(expression, source)
 }
 
 // NewCallStatement creates a new call statement node in the abstract syntax tree.
-func NewCallStatement(symbol Symbol) Statement {
-	return newCallStatement(symbol)
+func NewCallStatement(symbol Symbol, source SourceDescription) Statement {
+	return newCallStatement(symbol, source)
 }
 
 // NewIfStatement creates a new if-then statement node in the abstract syntax tree.
-func NewIfStatement(condition Expression, statement Statement) Statement {
-	return newIfStatement(condition, statement)
+func NewIfStatement(condition Expression, statement Statement, source SourceDescription) Statement {
+	return newIfStatement(condition, statement, source)
 }
 
 // NewWhileStatement creates a new while-do statement node in the abstract syntax tree.
-func NewWhileStatement(condition Expression, statement Statement) Statement {
-	return newWhileStatement(condition, statement)
+func NewWhileStatement(condition Expression, statement Statement, source SourceDescription) Statement {
+	return newWhileStatement(condition, statement, source)
 }
 
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
-func NewCompoundStatement(statements []Statement) Statement {
-	return newCompoundStatement(statements)
+func NewCompoundStatement(statements []Statement, source SourceDescription) Statement {
+	return newCompoundStatement(statements, source)
 }

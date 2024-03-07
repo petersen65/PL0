@@ -4,7 +4,10 @@
 
 package parser
 
-import scn "github.com/petersen65/PL0/scanner"
+import (
+	"github.com/petersen65/PL0/parser/ast"
+	scn "github.com/petersen65/PL0/scanner"
+)
 
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof scn.Token = -1
@@ -90,6 +93,15 @@ func (t *tokenHandler) lastTokenName() string {
 // Get token value from the last token description.
 func (t *tokenHandler) lastTokenValue() string {
 	return t.lastTokenDescription.TokenValue
+}
+
+// Get token source description from the last token description.
+func (t *tokenHandler) lastTokenSource() ast.SourceDescription {
+	return ast.SourceDescription{
+		Line:        t.lastTokenDescription.Line,
+		Column:      t.lastTokenDescription.Column,
+		CurrentLine: t.lastTokenDescription.CurrentLine,
+	}
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.

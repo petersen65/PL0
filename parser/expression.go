@@ -41,7 +41,7 @@ func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token
 		e.nextToken()
 		operand := e.expression(depth, anchors)
 		e.emitter.Odd()
-		operation = ast.NewUnaryOperation(ast.Odd, operand)
+		operation = ast.NewUnaryOperation(ast.Odd, operand, e.lastTokenSource())
 	} else {
 		// handle left expression of a relational operator
 		left := e.expression(depth, set(anchors, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
@@ -58,27 +58,27 @@ func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token
 			switch relationalOperator {
 			case scn.Equal:
 				e.emitter.Equal()
-				operation = ast.NewConditionalOperation(ast.Equal, left, right)
+				operation = ast.NewConditionalOperation(ast.Equal, left, right, e.lastTokenSource())
 
 			case scn.NotEqual:
 				e.emitter.NotEqual()
-				operation = ast.NewConditionalOperation(ast.NotEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.NotEqual, left, right, e.lastTokenSource())
 
 			case scn.Less:
 				e.emitter.Less()
-				operation = ast.NewConditionalOperation(ast.Less, left, right)
+				operation = ast.NewConditionalOperation(ast.Less, left, right, e.lastTokenSource())
 
 			case scn.LessEqual:
 				e.emitter.LessEqual()
-				operation = ast.NewConditionalOperation(ast.LessEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.LessEqual, left, right, e.lastTokenSource())
 
 			case scn.Greater:
 				e.emitter.Greater()
-				operation = ast.NewConditionalOperation(ast.Greater, left, right)
+				operation = ast.NewConditionalOperation(ast.Greater, left, right, e.lastTokenSource())
 
 			case scn.GreaterEqual:
 				e.emitter.GreaterEqual()
-				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right, e.lastTokenSource())
 			}
 		}
 	}
@@ -102,10 +102,10 @@ func (e *expressionParser) expression(depth int32, anchors scn.Tokens) ast.Expre
 
 		if plusOrMinus == scn.Plus {
 			e.emitter.Add()
-			operation = ast.NewBinaryOperation(ast.Plus, left, right)
+			operation = ast.NewBinaryOperation(ast.Plus, left, right, e.lastTokenSource())
 		} else {
 			e.emitter.Subtract()
-			operation = ast.NewBinaryOperation(ast.Minus, left, right)
+			operation = ast.NewBinaryOperation(ast.Minus, left, right, e.lastTokenSource())
 		}
 	}
 
@@ -132,11 +132,11 @@ func (e *expressionParser) term(depth int32, anchors scn.Tokens) ast.Expression 
 
 		if timesOrDevide == scn.Times {
 			e.emitter.Multiply()
-			operation = ast.NewBinaryOperation(ast.Times, left, right)
+			operation = ast.NewBinaryOperation(ast.Times, left, right, e.lastTokenSource())
 
 		} else {
 			e.emitter.Divide()
-			operation = ast.NewBinaryOperation(ast.Divide, left, right)
+			operation = ast.NewBinaryOperation(ast.Divide, left, right, e.lastTokenSource())
 		}
 	}
 
@@ -169,11 +169,11 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 				switch symbol.Kind {
 				case ast.Constant:
 					e.emitter.Constant(symbol.Value)
-					operand = ast.NewConstant(symbol)
+					operand = ast.NewConstant(symbol, e.lastTokenSource())
 
 				case ast.Variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.Offset), depth-symbol.Depth)
-					operand = ast.NewVariable(symbol)
+					operand = ast.NewVariable(symbol, e.lastTokenSource())
 
 				default:
 					e.appendError(expectedConstantsVariables, kindNames[symbol.Kind])
@@ -185,7 +185,7 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
 			e.emitter.Constant(e.numberValue(sign, e.lastTokenValue()))
-			operand = ast.NewLiteral(e.numberValue(sign, e.lastTokenValue()), ast.Integer64)
+			operand = ast.NewLiteral(e.numberValue(sign, e.lastTokenValue()), ast.Integer64, e.lastTokenSource())
 			sign = scn.Unknown
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
@@ -211,7 +211,7 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 	// negate the factor if a leading minus sign is present
 	if sign == scn.Minus {
 		e.emitter.Negate()
-		operand = ast.NewUnaryOperation(ast.Negate, operand)
+		operand = ast.NewUnaryOperation(ast.Negate, operand, e.lastTokenSource())
 	}
 
 	return operand
@@ -235,6 +235,11 @@ func (e *expressionParser) lastTokenName() string {
 // Wrapper to get the token value from the last token description.
 func (e *expressionParser) lastTokenValue() string {
 	return e.tokenHandler.lastTokenValue()
+}
+
+// Wrapper to get the source description from the last token description.
+func (e *expressionParser) lastTokenSource() ast.SourceDescription {
+	return e.tokenHandler.lastTokenSource()
 }
 
 // Append expression parser error to the error report of the token handler.

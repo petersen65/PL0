@@ -51,6 +51,7 @@ func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorR
 		p.appendError(notFullyParsed, nil)
 	}
 
+	// collect all errors from the parser and return the error report
 	errorReport := p.tokenHandler.getErrorReport()
 
 	if len(errorReport) == 1 {
@@ -141,14 +142,16 @@ func (p *parser) block(name string, expected scn.Tokens) ast.Block {
 
 	// at the end of the block, remove all symbols with its declaration depth from the symbol table
 	// statements of a block are only allowed to reference symbols with a lower or equal declaration depth
-	p.symbolTable.remove(p.declarationDepth)
+	declarations := p.symbolTable.remove(p.declarationDepth)
 
 	// after the block ends
 	//   a semicolon is expected to separate the block from the parent block
 	//   or a program-end is expected to end the program
 	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
 	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
-	return ast.NewBlock(procedureSymbol, procedures, statement)
+
+	// return a new block node in the abstract syntax tree
+	return ast.NewBlock(procedureSymbol, p.declarationDepth, declarations, procedures, statement, p.lastTokenSource())
 }
 
 // Sequence of constants declarations.
@@ -266,7 +269,7 @@ func (p *parser) assignment(anchors scn.Tokens) ast.Statement {
 
 	if ok && symbol.Kind == ast.Variable {
 		p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-		statement = ast.NewAssignmentStatement(symbol, right)
+		statement = ast.NewAssignmentStatement(symbol, right, p.lastTokenSource())
 	}
 
 	return statement
@@ -284,7 +287,7 @@ func (p *parser) read() ast.Statement {
 			if symbol.Kind == ast.Variable {
 				p.emitter.System(emt.Read)
 				p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-				statement = ast.NewReadStatement(symbol)
+				statement = ast.NewReadStatement(symbol, p.lastTokenSource())
 			} else {
 				p.appendError(expectedVariableIdentifier, kindNames[symbol.Kind])
 			}
@@ -302,7 +305,7 @@ func (p *parser) write(anchors scn.Tokens) ast.Statement {
 	p.nextToken()
 	expression := p.expression(anchors)
 	p.emitter.System(emt.Write)
-	return ast.NewWriteStatement(expression)
+	return ast.NewWriteStatement(expression, p.lastTokenSource())
 }
 
 // A call statement is the call word followed by a procedure identifier.
@@ -316,7 +319,7 @@ func (p *parser) callWord() ast.Statement {
 		if symbol, ok := p.symbolTable.find(p.lastTokenValue()); ok {
 			if symbol.Kind == ast.Procedure {
 				p.emitter.Call(emt.Address(symbol.Address), p.declarationDepth-symbol.Depth)
-				statement = ast.NewCallStatement(symbol)
+				statement = ast.NewCallStatement(symbol, p.lastTokenSource())
 			} else {
 				p.appendError(expectedProcedureIdentifier, kindNames[symbol.Kind])
 			}
@@ -349,7 +352,7 @@ func (p *parser) ifWord(anchors scn.Tokens) ast.Statement {
 
 	// update the conditional jump instruction address to the first instruction after the if statement
 	p.emitter.Update(ifDecision, p.emitter.GetNextAddress(), nil)
-	return ast.NewIfStatement(condition, statement)
+	return ast.NewIfStatement(condition, statement, p.lastTokenSource())
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
@@ -375,7 +378,7 @@ func (p *parser) whileWord(anchors scn.Tokens) ast.Statement {
 
 	// update the conditional jump instruction address to the first instruction after the while statement
 	p.emitter.Update(whileDecision, p.emitter.GetNextAddress(), nil)
-	return ast.NewWhileStatement(condition, statement)
+	return ast.NewWhileStatement(condition, statement, p.lastTokenSource())
 }
 
 // A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
@@ -407,7 +410,7 @@ func (p *parser) beginWord(anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedEnd, p.lastTokenName())
 	}
 
-	return ast.NewCompoundStatement(compound)
+	return ast.NewCompoundStatement(compound, p.lastTokenSource())
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
@@ -602,6 +605,11 @@ func (p *parser) lastTokenName() string {
 // Wrapper to get the token value from the last token description.
 func (p *parser) lastTokenValue() string {
 	return p.tokenHandler.lastTokenValue()
+}
+
+// Wrapper to get the source description from the last token description.
+func (p *parser) lastTokenSource() ast.SourceDescription {
+	return p.tokenHandler.lastTokenSource()
 }
 
 // Append parser error to the error report of the token handler.

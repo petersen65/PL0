@@ -81,16 +81,22 @@ func (s *symbolTable) update(symbol ast.Symbol) bool {
 }
 
 // Remove all symbols from the symbol table that are declared at the given declaration depth.
-func (s *symbolTable) remove(depth int32) {
-	var filtered []ast.Symbol = make([]ast.Symbol, 0, len(s.symbols))
+func (s *symbolTable) remove(depth int32) []ast.Symbol {
+	var removed = make([]ast.Symbol, 0)
+	var filtered = make([]ast.Symbol, 0, len(s.symbols))
 
 	for _, sym := range s.symbols {
-		if sym.Depth != depth {
+		if sym.Depth == depth {
+			removed = append(removed, sym)
+		} else {
 			filtered = append(filtered, sym)
 		}
 	}
 
-	if len(filtered) > 0 {
+	// Update the symbol table only if any symbols were removed.
+	if len(removed) > 0 {
 		s.symbols = filtered
 	}
+
+	return removed
 }
