@@ -7,8 +7,8 @@ package parser
 import (
 	"strconv"
 
+	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
-	ast "github.com/petersen65/PL0/parser/ast"
 	scn "github.com/petersen65/PL0/scanner"
 )
 

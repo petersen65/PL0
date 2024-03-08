@@ -12,13 +12,23 @@ import (
 	"os"
 	"strings"
 
+	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
 	par "github.com/petersen65/PL0/parser"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// Options for the compiler.
+const (
+	PrintTokens         Options = 1 << iota
+	PrintAbstractSyntax Options = 1 << iota
+)
+
+// Options for the compiler.
+type Options uint64
+
 // Compile a PL/0 source file into an IL/0 program file.
-func CompileFile(source, target string, printTokenStream bool, print io.Writer) error {
+func CompileFile(source, target string, options Options, print io.Writer) error {
 	if _, err := print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target))); err != nil {
 		return err
 	}
@@ -29,7 +39,7 @@ func CompileFile(source, target string, printTokenStream bool, print io.Writer) 
 		return err
 	} else {
 		defer program.Close()
-		sections, tokenStream, errorReport, err := CompileContent(content)
+		sections, tokenStream, abstractSyntax, errorReport, err := CompileContent(content)
 
 		if err != nil {
 			if len(errorReport) != 0 {
@@ -43,8 +53,12 @@ func CompileFile(source, target string, printTokenStream bool, print io.Writer) 
 			return err
 		}
 
-		if printTokenStream {
+		if options&PrintTokens != 0 {
 			PrintTokenStream(tokenStream, print, false)
+		}
+
+		if options&PrintAbstractSyntax != 0 {
+			PrintAbstractSyntaxTree(abstractSyntax, print)
 		}
 	}
 
@@ -83,21 +97,21 @@ func PrintFile(target string, print io.Writer) error {
 
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
 // The token stream and error report are also returned if an error occurs during compilation.
-func CompileContent(content []byte) ([]byte, scn.TokenStream, par.ErrorReport, error) {
+func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.ErrorReport, error) {
 	scanner := scn.NewScanner()
 	parser := par.NewParser()
 	emitter := emt.NewEmitter()
 
 	tokenStream, scannerError := scanner.Scan(content)
-	errorReport, parserErr := parser.Parse(tokenStream, emitter)
+	abstractSyntax, errorReport, parserErr := parser.Parse(tokenStream, emitter)
 	scannerParserErrors := errors.Join(scannerError, parserErr)
 
 	if scannerParserErrors == nil {
 		sections, emitterError := emitter.Export()
-		return sections, tokenStream, errorReport, emitterError
+		return sections, tokenStream, abstractSyntax, errorReport, emitterError
 	}
 
-	return nil, tokenStream, errorReport, scannerParserErrors
+	return nil, tokenStream, nil, errorReport, scannerParserErrors
 }
 
 // Run a binary IL/0 program and return an error if the program fails to execute.
@@ -141,6 +155,12 @@ func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool)
 
 		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
 	}
+}
+
+// Print the abstract syntax tree of the parser to the specified writer.
+func PrintAbstractSyntaxTree(abstractSyntax ast.Block, print io.Writer) {
+	print.Write([]byte("Abstract Syntax Tree:"))
+	print.Write([]byte(fmt.Sprintf("\n%v", abstractSyntax.BlockString())))
 }
 
 // Print one or several errors to the specified writer.

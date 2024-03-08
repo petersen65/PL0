@@ -5,7 +5,7 @@
 package parser
 
 import (
-	"github.com/petersen65/PL0/parser/ast"
+	ast "github.com/petersen65/PL0/ast"
 	scn "github.com/petersen65/PL0/scanner"
 )
 

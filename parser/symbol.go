@@ -4,7 +4,7 @@
 
 package parser
 
-import "github.com/petersen65/PL0/parser/ast"
+import "github.com/petersen65/PL0/ast"
 
 // The symbol table is a table that stores all symbols of the program.
 type symbolTable struct {

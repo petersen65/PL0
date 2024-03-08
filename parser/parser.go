@@ -5,8 +5,8 @@
 package parser
 
 import (
+	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
-	ast "github.com/petersen65/PL0/parser/ast"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
@@ -26,9 +26,9 @@ func newParser() Parser {
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding emitted code.
-func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorReport, error) {
+func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Block, ErrorReport, error) {
 	if err := p.reset(tokenStream, emitter); err != nil {
-		return p.tokenHandler.getErrorReport(), err
+		return nil, p.tokenHandler.getErrorReport(), err
 	}
 
 	// a program starts with a block of declaration depth 0 and an entrypoint address 0
@@ -55,11 +55,11 @@ func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorR
 	errorReport := p.tokenHandler.getErrorReport()
 
 	if len(errorReport) == 1 {
-		return errorReport, p.tokenHandler.error(parsingError, nil)
+		return nil, errorReport, p.tokenHandler.error(parsingError, nil)
 	} else if len(errorReport) > 1 {
-		return errorReport, p.tokenHandler.error(parsingErrors, len(errorReport))
+		return nil, errorReport, p.tokenHandler.error(parsingErrors, len(errorReport))
 	} else {
-		return errorReport, nil
+		return p.abstractSyntax, errorReport, nil
 	}
 }
 

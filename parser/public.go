@@ -6,6 +6,7 @@
 package parser
 
 import (
+	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
 	scn "github.com/petersen65/PL0/scanner"
 )
@@ -23,7 +24,7 @@ type (
 
 	// Parser is the public interface of the parser implementation.
 	Parser interface {
-		Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ErrorReport, error)
+		Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Block, ErrorReport, error)
 	}
 )
 
