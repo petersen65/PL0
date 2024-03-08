@@ -84,16 +84,18 @@ type (
 	// A block represented as an abstract syntax tree.
 	Block interface {
 		BlockString() string
+		String() string
 	}
 
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		ExpressionString() string
+		String() string
 	}
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
-		StatementString() string
+		StatementString(depth int) string
 	}
 )
 
