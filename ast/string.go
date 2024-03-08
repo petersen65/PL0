@@ -21,7 +21,7 @@ const (
 func (b *block) BlockString() string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(int(b.depth)), "block(", b.symbol.Name, ":", fmt.Sprintf("%v", b.depth), ",[")
+	writeString(&builder, indent(int(b.depth)), "+- block(", b.symbol.Name, ":", fmt.Sprintf("%v", b.depth), ",[")
 
 	for i, declaration := range b.declarations {
 		writeString(&builder, declaration.Name, ":", fmt.Sprintf("%v", declaration.Depth))
@@ -42,8 +42,6 @@ func (b *block) BlockString() string {
 	}
 
 	builder.WriteString(b.statement.StatementString(int(b.depth + 1)))
-
-	writeString(&builder, indent(int(b.depth)), ")\n")
 	return builder.String()
 }
 
@@ -181,28 +179,28 @@ func (o *conditionalOperation) String() string {
 // StatementString returns the string representation of the assignment statement node.
 func (s *assignmentStatement) StatementString(depth int) string {
 	var builder strings.Builder
-	writeString(&builder, indent(depth), "assignment(", s.symbol.Name, "=", s.expression.String(), ")\n")
+	writeString(&builder, indent(depth), "+- assignment(", s.symbol.Name, "=", s.expression.String(), ")\n")
 	return builder.String()
 }
 
 // StatementString returns the string representation of the read statement node.
 func (s *readStatement) StatementString(depth int) string {
 	var builder strings.Builder
-	writeString(&builder, indent(depth), "read(", s.symbol.Name, ")\n")
+	writeString(&builder, indent(depth), "+- read(", s.symbol.Name, ")\n")
 	return builder.String()
 }
 
 // StatementString returns the string representation of the write statement node.
 func (s *writeStatement) StatementString(depth int) string {
 	var builder strings.Builder
-	writeString(&builder, indent(depth), "write(", s.expression.String(), ")\n")
+	writeString(&builder, indent(depth), "+- write(", s.expression.String(), ")\n")
 	return builder.String()
 }
 
 // StatementString returns the string representation of the call statement node.
 func (s *callStatement) StatementString(depth int) string {
 	var builder strings.Builder
-	writeString(&builder, indent(depth), "call(", s.symbol.Name, ":", fmt.Sprintf("%v", s.symbol.Depth), ")\n")
+	writeString(&builder, indent(depth), "+- call(", s.symbol.Name, ":", fmt.Sprintf("%v", s.symbol.Depth), ")\n")
 	return builder.String()
 }
 
@@ -210,9 +208,8 @@ func (s *callStatement) StatementString(depth int) string {
 func (s *ifStatement) StatementString(depth int) string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "decision(", s.condition.String(), ") (\n")
+	writeString(&builder, indent(depth), "+- decision", s.condition.String(), ") (\n")
 	builder.WriteString(s.statement.StatementString(depth + 1))
-	writeString(&builder, indent(depth), ")\n")
 
 	return builder.String()
 }
@@ -221,9 +218,8 @@ func (s *ifStatement) StatementString(depth int) string {
 func (s *whileStatement) StatementString(depth int) string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "loop(", s.condition.String(), ") (\n")
+	writeString(&builder, indent(depth), "+- loop", s.condition.String(), ") (\n")
 	builder.WriteString(s.statement.StatementString(depth + 1))
-	writeString(&builder, indent(depth), ")\n")
 
 	return builder.String()
 }
@@ -232,13 +228,12 @@ func (s *whileStatement) StatementString(depth int) string {
 func (s *compoundStatement) StatementString(depth int) string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "compound(\n")
+	writeString(&builder, indent(depth), "+- compound\n")
 
 	for _, statement := range s.statements {
 		builder.WriteString(statement.StatementString(depth + 1))
 	}
 
-	writeString(&builder, indent(depth), ")\n")
 	return builder.String()
 }
 
@@ -253,3 +248,32 @@ func writeString(builder *strings.Builder, items ...string) {
 		builder.WriteString(item)
 	}
 }
+
+/*
+public static void PrintTree(Node tree, String indent, Bool last)
+{
+    Console.Write(indent + "+- " + tree.Name);
+    indent += last ? "   " : "|  ";
+
+    for (int i = 0; i < tree.Children.Count; i++)
+    {
+        PrintTree(tree.Children[i], indent, i == tree.Children.Count - 1);
+    }
+}
+
++- root
+   +- branch-A
+   |  +- sibling-X
+   |  |  +- grandchild-A
+   |  |  +- grandchild-B
+   |  +- sibling-Y
+   |  |  +- grandchild-C
+   |  |  +- grandchild-D
+   |  +- sibling-Z
+   |     +- grandchild-E
+   |     +- grandchild-F
+   +- branch-B
+      +- sibling-J
+      +- sibling-K
+
+*/
