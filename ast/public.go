@@ -81,20 +81,27 @@ type (
 		}
 	}
 
+	Node interface {
+		Children() []Node
+	}
+
 	// A block represented as an abstract syntax tree.
 	Block interface {
+		Children() []Node
 		BlockString() string
 		String() string
 	}
 
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
+		Children() []Node
 		ExpressionString() string
 		String() string
 	}
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
+		Children() []Node
 		StatementString(depth int) string
 	}
 )

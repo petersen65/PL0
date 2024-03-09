@@ -11,10 +11,10 @@ import (
 
 const (
 	// Indentation size for the block node.
-	indentSize = 2
+	indentSize = 3
 
 	// String used for indentation.
-	indentString = " "
+	indentString = "|  "
 )
 
 // BlockString returns the string representation of the block node.
@@ -51,46 +51,46 @@ func (b *block) String() string {
 }
 
 // ExpressionString returns the string representation of the literal node.
-func (l *literal) ExpressionString() string {
-	switch l.dataType {
+func (e *literal) ExpressionString() string {
+	switch e.dataType {
 	case Integer64:
-		return fmt.Sprintf("literal(%v:i64)", l.value.(int64))
+		return fmt.Sprintf("literal(%v:i64)", e.value.(int64))
 
 	default:
-		return fmt.Sprintf("literal(%v)", l.value)
+		return fmt.Sprintf("literal(%v)", e.value)
 	}
 }
 
 // String returns the string representation of the literal node.
-func (l *literal) String() string {
-	return l.ExpressionString()
+func (e *literal) String() string {
+	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the constant node.
-func (c *constant) ExpressionString() string {
-	return fmt.Sprintf("constant(%v=%v)", c.symbol.Name, c.symbol.Value)
+func (e *constant) ExpressionString() string {
+	return fmt.Sprintf("constant(%v=%v)", e.symbol.Name, e.symbol.Value)
 }
 
 // String returns the string representation of the constant node.
-func (c *constant) String() string {
-	return c.ExpressionString()
+func (e *constant) String() string {
+	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the variable node.
-func (v *variable) ExpressionString() string {
-	return fmt.Sprintf("variable(%v:%v)", v.symbol.Name, v.symbol.Depth)
+func (e *variable) ExpressionString() string {
+	return fmt.Sprintf("variable(%v:%v)", e.symbol.Name, e.symbol.Depth)
 }
 
 // String returns the string representation of the variable node.
-func (v *variable) String() string {
-	return v.ExpressionString()
+func (e *variable) String() string {
+	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the unary operation node.
-func (o *unaryOperation) ExpressionString() string {
+func (e *unaryOperation) ExpressionString() string {
 	var builder strings.Builder
 
-	switch o.operation {
+	switch e.operation {
 	case Odd:
 		builder.WriteString("odd(")
 
@@ -101,20 +101,20 @@ func (o *unaryOperation) ExpressionString() string {
 		builder.WriteString("unary(")
 	}
 
-	writeString(&builder, o.operand.String(), ")")
+	writeString(&builder, e.operand.String(), ")")
 	return builder.String()
 }
 
 // String returns the string representation of the unary operation node.
-func (o *unaryOperation) String() string {
-	return o.ExpressionString()
+func (e *unaryOperation) String() string {
+	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the binary operation node.
-func (o *binaryOperation) ExpressionString() string {
+func (e *binaryOperation) ExpressionString() string {
 	var builder strings.Builder
 
-	switch o.operation {
+	switch e.operation {
 	case Plus:
 		builder.WriteString("addition(")
 
@@ -131,20 +131,20 @@ func (o *binaryOperation) ExpressionString() string {
 		builder.WriteString("binary(")
 	}
 
-	writeString(&builder, o.left.String(), ",", o.right.String(), ")")
+	writeString(&builder, e.left.String(), ",", e.right.String(), ")")
 	return builder.String()
 }
 
 // String returns the string representation of the binary operation node.
-func (o *binaryOperation) String() string {
-	return o.ExpressionString()
+func (e *binaryOperation) String() string {
+	return e.ExpressionString()
 }
 
 // ConditionString returns the string representation of the conditional operation node.
-func (o *conditionalOperation) ExpressionString() string {
+func (e *conditionalOperation) ExpressionString() string {
 	var builder strings.Builder
 
-	switch o.operation {
+	switch e.operation {
 	case Equal:
 		builder.WriteString("equal(")
 
@@ -167,13 +167,13 @@ func (o *conditionalOperation) ExpressionString() string {
 		builder.WriteString("conditional(")
 	}
 
-	writeString(&builder, o.left.String(), ",", o.right.String(), ")")
+	writeString(&builder, e.left.String(), ",", e.right.String(), ")")
 	return builder.String()
 }
 
 // String returns the string representation of the conditional operation node.
-func (o *conditionalOperation) String() string {
-	return o.ExpressionString()
+func (e *conditionalOperation) String() string {
+	return e.ExpressionString()
 }
 
 // StatementString returns the string representation of the assignment statement node.
@@ -239,7 +239,7 @@ func (s *compoundStatement) StatementString(depth int) string {
 
 // Return a string with the specified number of spaces.
 func indent(depth int) string {
-	return strings.Repeat(indentString, depth*indentSize)
+	return strings.Replace(strings.Repeat("|  ", depth), "|", " ", 1)
 }
 
 // Write the specified string items to the builder.
@@ -268,7 +268,6 @@ public static void PrintTree(Node tree, String indent, Bool last)
    |  |  +- grandchild-B
    |  +- sibling-Y
    |  |  +- grandchild-C
-   |  |  +- grandchild-D
    |  +- sibling-Z
    |     +- grandchild-E
    |     +- grandchild-F
