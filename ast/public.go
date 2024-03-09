@@ -61,9 +61,8 @@ type (
 	// Kind of symbol entries.
 	Entry int
 
-	// The Symbol entry.
+	// The symbol entry.
 	Symbol struct {
-		ParentNode Node   // AST parent node of the symbol
 		Name       string // name of constant, variable, or procedure
 		Kind       Entry  // constant, variable, or procedure
 		Depth      int32  // declaration nesting depth of constant, variable, or procedure
@@ -74,7 +73,6 @@ type (
 
 	// Describes a range of lines in the source code.
 	SourceDescription struct {
-		ParentNode Node // AST parent node of the source description
 		From, To   int  // range of lines in the source code
 
 		// Lines of source code.
