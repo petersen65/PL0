@@ -121,8 +121,8 @@ type (
 func newBlock(symbol Symbol, depth int32, declarations []Symbol, procedures []Block, statement Statement, source SourceDescription) Block {
 	parent := new(block)
 
-	for _, declaration := range declarations {
-		declaration.ParentNode = parent
+	for i := range declarations {
+		declarations[i].ParentNode = parent
 	}
 
 	for _, procedure := range procedures {
@@ -130,6 +130,7 @@ func newBlock(symbol Symbol, depth int32, declarations []Symbol, procedures []Bl
 	}
 
 	setParent(statement, parent)
+	symbol.ParentNode = parent
 	source.ParentNode = parent
 
 	parent.symbol = symbol
@@ -326,12 +327,20 @@ func newCompoundStatement(statements []Statement, source SourceDescription) Stat
 	return parent
 }
 
+func (s Symbol) Title() string {
+	return "Symbol"
+}
+
 func (s Symbol) Parent() Node {
 	return s.ParentNode
 }
 
 func (s Symbol) Children() []Node {
 	return make([]Node, 0)
+}
+
+func (s SourceDescription) Title() string {
+	return "SourceDescription"
 }
 
 func (s SourceDescription) Parent() Node {
@@ -342,12 +351,20 @@ func (s SourceDescription) Children() []Node {
 	return make([]Node, 0)
 }
 
+func (e *literal) Title() string {
+	return "Literal"
+}
+
 func (e *literal) Parent() Node {
 	return e.parent
 }
 
 func (e *literal) Children() []Node {
 	return []Node{e.source}
+}
+
+func (e *constant) Title() string {
+	return "Constant"
 }
 
 func (e *constant) Parent() Node {
@@ -358,12 +375,20 @@ func (e *constant) Children() []Node {
 	return []Node{e.symbol, e.source}
 }
 
+func (e *variable) Title() string {
+	return "Variable"
+}
+
 func (e *variable) Parent() Node {
 	return e.parent
 }
 
 func (e *variable) Children() []Node {
 	return []Node{e.symbol, e.source}
+}
+
+func (e *unaryOperation) Title() string {
+	return "UnaryOperation"
 }
 
 func (e *unaryOperation) Parent() Node {
@@ -374,6 +399,10 @@ func (e *unaryOperation) Children() []Node {
 	return []Node{e.operand, e.source}
 }
 
+func (e *binaryOperation) Title() string {
+	return "BinaryOperation"
+}
+
 func (e *binaryOperation) Parent() Node {
 	return e.parent
 }
@@ -382,12 +411,20 @@ func (e *binaryOperation) Children() []Node {
 	return []Node{e.left, e.right, e.source}
 }
 
+func (e *conditionalOperation) Title() string {
+	return "ConditionalOperation"
+}
+
 func (e *conditionalOperation) Parent() Node {
 	return e.parent
 }
 
 func (e *conditionalOperation) Children() []Node {
 	return []Node{e.left, e.right, e.source}
+}
+
+func (b *block) Title() string {
+	return "Block"
 }
 
 func (b *block) Parent() Node {
@@ -408,12 +445,20 @@ func (b *block) Children() []Node {
 	return append(children, b.statement, b.source)
 }
 
+func (s *assignmentStatement) Title() string {
+	return "AssignmentStatement"
+}
+
 func (s *assignmentStatement) Parent() Node {
 	return s.parent
 }
 
 func (s *assignmentStatement) Children() []Node {
 	return []Node{s.symbol, s.expression, s.source}
+}
+
+func (s *readStatement) Title() string {
+	return "ReadStatement"
 }
 
 func (s *readStatement) Parent() Node {
@@ -424,12 +469,20 @@ func (s *readStatement) Children() []Node {
 	return []Node{s.symbol, s.source}
 }
 
+func (s *writeStatement) Title() string {
+	return "WriteStatement"
+}
+
 func (s *writeStatement) Parent() Node {
 	return s.parent
 }
 
 func (s *writeStatement) Children() []Node {
 	return []Node{s.expression, s.source}
+}
+
+func (s *callStatement) Title() string {
+	return "CallStatement"
 }
 
 func (s *callStatement) Parent() Node {
@@ -440,6 +493,10 @@ func (s *callStatement) Children() []Node {
 	return []Node{s.symbol, s.source}
 }
 
+func (s *ifStatement) Title() string {
+	return "IfStatement"
+}
+
 func (s *ifStatement) Parent() Node {
 	return s.parent
 }
@@ -448,12 +505,20 @@ func (s *ifStatement) Children() []Node {
 	return []Node{s.condition, s.statement, s.source}
 }
 
+func (s *whileStatement) Title() string {
+	return "WhileStatement"
+}
+
 func (s *whileStatement) Parent() Node {
 	return s.parent
 }
 
 func (s *whileStatement) Children() []Node {
 	return []Node{s.condition, s.statement, s.source}
+}
+
+func (c *compoundStatement) Title() string {
+	return "CompoundStatement"
 }
 
 func (c *compoundStatement) Parent() Node {

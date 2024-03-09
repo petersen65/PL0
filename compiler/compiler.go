@@ -58,7 +58,8 @@ func CompileFile(source, target string, options Options, print io.Writer) error 
 		}
 
 		if options&PrintAbstractSyntax != 0 {
-			PrintAbstractSyntaxTree(abstractSyntax, print)
+			//PrintAbstractSyntaxTree(abstractSyntax, print)
+			ast.PrintTree(abstractSyntax, "", true)
 		}
 	}
 

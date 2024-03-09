@@ -208,7 +208,7 @@ func (s *callStatement) StatementString(depth int) string {
 func (s *ifStatement) StatementString(depth int) string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "+- decision", s.condition.String(), ") (\n")
+	writeString(&builder, indent(depth), "+- if(", s.condition.String(), ") (\n")
 	builder.WriteString(s.statement.StatementString(depth + 1))
 
 	return builder.String()
@@ -218,7 +218,7 @@ func (s *ifStatement) StatementString(depth int) string {
 func (s *whileStatement) StatementString(depth int) string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "+- loop", s.condition.String(), ") (\n")
+	writeString(&builder, indent(depth), "+- while(", s.condition.String(), ") (\n")
 	builder.WriteString(s.statement.StatementString(depth + 1))
 
 	return builder.String()
@@ -249,30 +249,17 @@ func writeString(builder *strings.Builder, items ...string) {
 	}
 }
 
-/*
-public static void PrintTree(Node tree, String indent, Bool last)
-{
-    Console.Write(indent + "+- " + tree.Name);
-    indent += last ? "   " : "|  ";
+// PrintTree prints the tree structure of the AST.
+func PrintTree(node Node, indent string, last bool) {
+	fmt.Printf("%v+- %v\n", indent, node.Title())
 
-    for (int i = 0; i < tree.Children.Count; i++)
-    {
-        PrintTree(tree.Children[i], indent, i == tree.Children.Count - 1);
-    }
+	if last {
+		indent += "   "
+	} else {
+		indent += "|  "
+	}
+
+	for i, child := range node.Children() {
+		PrintTree(child, indent, i == len(node.Children())-1)
+	}
 }
-
-+- root
-   +- branch-A
-   |  +- sibling-X
-   |  |  +- grandchild-A
-   |  |  +- grandchild-B
-   |  +- sibling-Y
-   |  |  +- grandchild-C
-   |  +- sibling-Z
-   |     +- grandchild-E
-   |     +- grandchild-F
-   +- branch-B
-      +- sibling-J
-      +- sibling-K
-
-*/

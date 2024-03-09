@@ -86,12 +86,14 @@ type (
 
 	// A node in the abstract syntax tree.
 	Node interface {
+		Title() string
 		Parent() Node
 		Children() []Node
 	}
 
 	// A block represented as an abstract syntax tree.
 	Block interface {
+		Title() string
 		Parent() Node
 		Children() []Node
 		BlockString() string
@@ -100,6 +102,7 @@ type (
 
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
+		Title() string
 		Parent() Node
 		Children() []Node
 		ExpressionString() string
@@ -108,6 +111,7 @@ type (
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
+		Title() string
 		Parent() Node
 		Children() []Node
 		StatementString(depth int) string
