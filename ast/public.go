@@ -38,7 +38,7 @@ const (
 	Integer64
 )
 
-// Kind of supported symbol table entry.
+// Kind of supported symbol entry.
 const (
 	Constant = Entry(iota)
 	Variable
@@ -58,35 +58,41 @@ type (
 	// The data type of a symbol.
 	DataType int
 
-	// Kind of symbol table entries.
+	// Kind of symbol entries.
 	Entry int
 
-	// The Symbol table entry.
+	// The Symbol entry.
 	Symbol struct {
-		Name    string // name of constant, variable, or procedure
-		Kind    Entry  // constant, variable, or procedure
-		Depth   int32  // declaration nesting depth of constant, variable, or procedure
-		Value   int64  // value of constant
-		Offset  uint64 // offset of variable in its runtime procedure stack frame
-		Address uint64 // absolute address of procedure in text section
+		ParentNode Node   // AST parent node of the symbol
+		Name       string // name of constant, variable, or procedure
+		Kind       Entry  // constant, variable, or procedure
+		Depth      int32  // declaration nesting depth of constant, variable, or procedure
+		Value      int64  // value of constant
+		Offset     uint64 // offset of variable in its runtime procedure stack frame
+		Address    uint64 // absolute address of procedure in text section
 	}
 
 	// Describes a range of lines in the source code.
 	SourceDescription struct {
-		From, To int
+		ParentNode Node // AST parent node of the source description
+		From, To   int  // range of lines in the source code
 
+		// Lines of source code.
 		Lines []struct {
-			Line int
-			Code []byte
+			Line int    // line number
+			Code []byte // line of source code
 		}
 	}
 
+	// A node in the abstract syntax tree.
 	Node interface {
+		Parent() Node
 		Children() []Node
 	}
 
 	// A block represented as an abstract syntax tree.
 	Block interface {
+		Parent() Node
 		Children() []Node
 		BlockString() string
 		String() string
@@ -94,6 +100,7 @@ type (
 
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
+		Parent() Node
 		Children() []Node
 		ExpressionString() string
 		String() string
@@ -101,6 +108,7 @@ type (
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
+		Parent() Node
 		Children() []Node
 		StatementString(depth int) string
 	}
@@ -111,17 +119,17 @@ func NewBlock(symbol Symbol, depth int32, declarations []Symbol, procedures []Bl
 	return newBlock(symbol, depth, declarations, procedures, statement, source)
 }
 
-// NewLiteral creates a new literal node in the abstract syntax tree.
+// NewLiteral creates a new literal-usage node in the abstract syntax tree.
 func NewLiteral(value any, dataType DataType, source SourceDescription) Expression {
 	return newLiteral(value, dataType, source)
 }
 
-// NewConstant creates a new constant node in the abstract syntax tree.
+// NewConstant creates a new constant-usage node in the abstract syntax tree.
 func NewConstant(symbol Symbol, source SourceDescription) Expression {
 	return newConstant(symbol, source)
 }
 
-// NewVariable creates a new variable node in the abstract syntax tree.
+// NewVariable creates a new variable-usage node in the abstract syntax tree.
 func NewVariable(symbol Symbol, source SourceDescription) Expression {
 	return newVariable(symbol, source)
 }
