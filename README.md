@@ -1,6 +1,6 @@
 # PL/0 Compiler
 
-This module provides a complete compiler for the programming language PL0. It provides several packages that can be used independently of its command line interface.
+This module provides a complete compiler for the programming language PL/0. It provides several packages that can be used independently of its command line interface.
 
 * scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 code, ensuring source code adheres to the rules defined in the extended Backus-Naur form for the language
