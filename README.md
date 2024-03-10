@@ -3,7 +3,8 @@
 This module provides a complete compiler for the programming language PL0. It provides several packages that can be used independently of its command line interface.
 
 * scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a token stream table with token descriptions
-* parser: syntax analysis of PL/0 code, ensuring it adheres to the rules defined in the extended Backus-Naur form for the language
+* parser: syntax analysis of PL/0 code, ensuring source code adheres to the rules defined in the extended Backus-Naur form for the language
+* ast: semantic analysis of PL/0 code, creating a normalized representation of source code as in-memory abstract syntax tree 
 * emitter: code generation of IL/0 intermediate language code, called by recursive descent parser during syntax analysis of PL/0 code
 * emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
 * compiler: compiler driver for scanning, parsing, emitting, printing, and emulating from source code to the resultant IL/0 code
