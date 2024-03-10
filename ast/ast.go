@@ -320,174 +320,217 @@ func newCompoundStatement(statements []Statement, source SourceDescription) Stat
 	return parent
 }
 
+// Node type of the symbol entry.
 func (s symbol) Type() NodeType {
 	return SymbolNode
 }
 
+// Title of the symbol entry.
 func (s symbol) Title() string {
 	return s.String()
 }
 
+// Parent node of the symbol entry node.
 func (s symbol) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the symbol entry node.
 func (s symbol) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Determine if the symbol entry is a declaration (otherwise it is a reference).
 func (s symbol) isDeclaration() bool {
 	return s.parent != nil && s.parent.Type() == BlockNode
 }
 
+// Node type of the source description.
 func (s sourceDescription) Type() NodeType {
 	return SourceDescriptionNode
 }
 
+// Title of the source description.
 func (s sourceDescription) Title() string {
 	return s.String()
 }
 
+// Parent node of the source description node.
 func (s sourceDescription) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the source description node.
 func (s sourceDescription) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Node type of the literal.
 func (e *literal) Type() NodeType {
 	return LiteralNode
 }
 
+// Title of the literal.
 func (e *literal) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the literal node.
 func (e *literal) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the literal node.
 func (e *literal) Children() []Node {
 	return []Node{e.source}
 }
 
+// Set the parent node of the literal node.
 func (e *literal) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the constant.
 func (e *constant) Type() NodeType {
 	return ConstantNode
 }
 
+// Title of the constant.
 func (e *constant) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the constant node.
 func (e *constant) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the constant node.
 func (e *constant) Children() []Node {
 	return []Node{e.symbol, e.source}
 }
 
+// Set the parent node of the constant node.
 func (e *constant) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the variable.
 func (e *variable) Type() NodeType {
 	return VariableNode
 }
 
+// Title of the variable.
 func (e *variable) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the variable node.
 func (e *variable) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the variable node.
 func (e *variable) Children() []Node {
 	return []Node{e.symbol, e.source}
 }
 
+// Set the parent node of the variable node.
 func (e *variable) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the unary operation.
 func (e *unaryOperation) Type() NodeType {
 	return UnaryOperationNode
 }
 
+// Title of the unary operation.
 func (e *unaryOperation) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the unary operation node.
 func (e *unaryOperation) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the unary operation node.
 func (e *unaryOperation) Children() []Node {
 	return []Node{e.operand, e.source}
 }
 
+// Set the parent node of the unary operation node.
 func (e *unaryOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the binary operation.
 func (e *binaryOperation) Type() NodeType {
 	return BinaryOperationNode
 }
 
+// Title of the binary operation.
 func (e *binaryOperation) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the binary operation node.
 func (e *binaryOperation) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the binary operation node.
 func (e *binaryOperation) Children() []Node {
 	return []Node{e.left, e.right, e.source}
 }
 
+// Set the parent node of the binary operation node.
 func (e *binaryOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the conditional operation.
 func (e *conditionalOperation) Type() NodeType {
 	return ConditionalOperationNode
 }
 
+// Title of the conditional operation.
 func (e *conditionalOperation) Title() string {
 	return e.ExpressionString()
 }
 
+// Parent node of the conditional operation node.
 func (e *conditionalOperation) Parent() Node {
 	return e.parent
 }
 
+// Children nodes of the conditional operation node.
 func (e *conditionalOperation) Children() []Node {
 	return []Node{e.left, e.right, e.source}
 }
 
+// Set the parent node of the conditional operation node.
 func (e *conditionalOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+// Node type of the block.
 func (b *block) Type() NodeType {
 	return BlockNode
 }
 
+// Title of the block.
 func (b *block) Title() string {
 	return b.BlockString()
 }
 
+// Parent node of the block node.
 func (b *block) Parent() Node {
 	return b.parent
 }
 
+// Children nodes of the block node.
 func (b *block) Children() []Node {
 	children := make([]Node, 0, len(b.declarations)+len(b.procedures)+2)
 
@@ -502,142 +545,177 @@ func (b *block) Children() []Node {
 	return append(children, b.statement, b.source)
 }
 
+// Set the parent node of the block node.
 func (b *block) setParent(parent node) {
 	b.parent = parent
 }
 
+// Node type of the assignment statement.
 func (s *assignmentStatement) Type() NodeType {
 	return AssignmentStatementNode
 }
 
+// Title of the assignment statement.
 func (s *assignmentStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the assignment statement node.
 func (s *assignmentStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the assignment statement node.
 func (s *assignmentStatement) Children() []Node {
 	return []Node{s.symbol, s.expression, s.source}
 }
 
+// Set the parent node of the assignment statement node.
 func (s *assignmentStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the read statement.
 func (s *readStatement) Type() NodeType {
 	return ReadStatementNode
 }
 
+// Title of the read statement.
 func (s *readStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the read statement node.
 func (s *readStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the read statement node.
 func (s *readStatement) Children() []Node {
 	return []Node{s.symbol, s.source}
 }
 
+// Set the parent node of the read statement node.
 func (s *readStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the write statement.
 func (s *writeStatement) Type() NodeType {
 	return WriteStatementNode
 }
 
+// Title of the write statement.
 func (s *writeStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the write statement node.
 func (s *writeStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the write statement node.
 func (s *writeStatement) Children() []Node {
 	return []Node{s.expression, s.source}
 }
 
+// Set the parent node of the write statement node.
 func (s *writeStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the call statement.
 func (s *callStatement) Type() NodeType {
 	return CallStatementNode
 }
 
+// Title of the call statement.
 func (s *callStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the call statement node.
 func (s *callStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the call statement node.
 func (s *callStatement) Children() []Node {
 	return []Node{s.symbol, s.source}
 }
 
+// Set the parent node of the call statement node.
 func (s *callStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the if-then statement.
 func (s *ifStatement) Type() NodeType {
 	return IfStatementNode
 }
 
+// Title of the if-then statement.
 func (s *ifStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the if-then statement node.
 func (s *ifStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the if-then statement node.
 func (s *ifStatement) Children() []Node {
 	return []Node{s.condition, s.statement, s.source}
 }
 
+// Set the parent node of the if-then statement node.
 func (s *ifStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the while-do statement.
 func (s *whileStatement) Type() NodeType {
 	return WhileStatementNode
 }
 
+// Title of the while-do statement.
 func (s *whileStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the while-do statement node.
 func (s *whileStatement) Parent() Node {
 	return s.parent
 }
 
+// Children nodes of the while-do statement node.
 func (s *whileStatement) Children() []Node {
 	return []Node{s.condition, s.statement, s.source}
 }
 
+// Set the parent node of the while-do statement node.
 func (s *whileStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+// Node type of the compound statement.
 func (s *compoundStatement) Type() NodeType {
 	return CompoundStatementNode
 }
 
+// Title of the compound statement.
 func (s *compoundStatement) Title() string {
 	return s.StatementString()
 }
 
+// Parent node of the compound statement node.
 func (c *compoundStatement) Parent() Node {
 	return c.parent
 }
 
+// Children nodes of the compound statement node.
 func (c *compoundStatement) Children() []Node {
 	children := make([]Node, 0, len(c.statements)+1)
 
@@ -648,6 +726,7 @@ func (c *compoundStatement) Children() []Node {
 	return append(children, c.source)
 }
 
+// Set the parent node of the compound statement node.
 func (c *compoundStatement) setParent(parent node) {
 	c.parent = parent
 }
