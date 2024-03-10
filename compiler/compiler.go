@@ -58,8 +58,7 @@ func CompileFile(source, target string, options Options, print io.Writer) error 
 		}
 
 		if options&PrintAbstractSyntax != 0 {
-			//PrintAbstractSyntaxTree(abstractSyntax, print)
-			ast.PrintTree(abstractSyntax, "", true)
+			PrintAbstractSyntaxTree(abstractSyntax, "", true, print)
 		}
 	}
 
@@ -159,9 +158,18 @@ func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool)
 }
 
 // Print the abstract syntax tree of the parser to the specified writer.
-func PrintAbstractSyntaxTree(abstractSyntax ast.Block, print io.Writer) {
-	print.Write([]byte("Abstract Syntax Tree:"))
-	print.Write([]byte(fmt.Sprintf("\n%v", abstractSyntax.BlockString())))
+func PrintAbstractSyntaxTree(node ast.Node, indent string, last bool, print io.Writer) {
+	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node.Title())))
+
+	if last {
+		indent += "   "
+	} else {
+		indent += "|  "
+	}
+
+	for i, child := range node.Children() {
+		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+	}
 }
 
 // Print one or several errors to the specified writer.

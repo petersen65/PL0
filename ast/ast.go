@@ -5,19 +5,19 @@
 package ast
 
 type (
-	// A node in the abstract syntax tree.
+	// A node in the abstract syntax tree (with embedded public Node interface).
 	node interface {
 		Node
 		setParent(node)
 	}
 
-	// The symbol entry.
+	// The symbol entry (with embedded public Symbol struct).
 	symbol struct {
 		Symbol
 		parent node
 	}
 
-	// Describes a range of lines in the source code.
+	// Describes a range of lines in the source code (with embedded public SourceDescription struct).
 	sourceDescription struct {
 		SourceDescription
 		parent node
@@ -320,8 +320,12 @@ func newCompoundStatement(statements []Statement, source SourceDescription) Stat
 	return parent
 }
 
+func (s symbol) Type() NodeType {
+	return SymbolNode
+}
+
 func (s symbol) Title() string {
-	return "Symbol"
+	return s.String()
 }
 
 func (s symbol) Parent() Node {
@@ -332,8 +336,16 @@ func (s symbol) Children() []Node {
 	return make([]Node, 0)
 }
 
+func (s symbol) isDeclaration() bool {
+	return s.parent != nil && s.parent.Type() == BlockNode
+}
+
+func (s sourceDescription) Type() NodeType {
+	return SourceDescriptionNode
+}
+
 func (s sourceDescription) Title() string {
-	return "SourceDescription"
+	return s.String()
 }
 
 func (s sourceDescription) Parent() Node {
@@ -344,8 +356,12 @@ func (s sourceDescription) Children() []Node {
 	return make([]Node, 0)
 }
 
+func (e *literal) Type() NodeType {
+	return LiteralNode
+}
+
 func (e *literal) Title() string {
-	return "Literal"
+	return e.ExpressionString()
 }
 
 func (e *literal) Parent() Node {
@@ -360,8 +376,12 @@ func (e *literal) setParent(parent node) {
 	e.parent = parent
 }
 
+func (e *constant) Type() NodeType {
+	return ConstantNode
+}
+
 func (e *constant) Title() string {
-	return "Constant"
+	return e.ExpressionString()
 }
 
 func (e *constant) Parent() Node {
@@ -376,8 +396,12 @@ func (e *constant) setParent(parent node) {
 	e.parent = parent
 }
 
+func (e *variable) Type() NodeType {
+	return VariableNode
+}
+
 func (e *variable) Title() string {
-	return "Variable"
+	return e.ExpressionString()
 }
 
 func (e *variable) Parent() Node {
@@ -392,8 +416,12 @@ func (e *variable) setParent(parent node) {
 	e.parent = parent
 }
 
+func (e *unaryOperation) Type() NodeType {
+	return UnaryOperationNode
+}
+
 func (e *unaryOperation) Title() string {
-	return "UnaryOperation"
+	return e.ExpressionString()
 }
 
 func (e *unaryOperation) Parent() Node {
@@ -408,8 +436,12 @@ func (e *unaryOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+func (e *binaryOperation) Type() NodeType {
+	return BinaryOperationNode
+}
+
 func (e *binaryOperation) Title() string {
-	return "BinaryOperation"
+	return e.ExpressionString()
 }
 
 func (e *binaryOperation) Parent() Node {
@@ -424,8 +456,12 @@ func (e *binaryOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+func (e *conditionalOperation) Type() NodeType {
+	return ConditionalOperationNode
+}
+
 func (e *conditionalOperation) Title() string {
-	return "ConditionalOperation"
+	return e.ExpressionString()
 }
 
 func (e *conditionalOperation) Parent() Node {
@@ -440,8 +476,12 @@ func (e *conditionalOperation) setParent(parent node) {
 	e.parent = parent
 }
 
+func (b *block) Type() NodeType {
+	return BlockNode
+}
+
 func (b *block) Title() string {
-	return "Block"
+	return b.BlockString()
 }
 
 func (b *block) Parent() Node {
@@ -466,8 +506,12 @@ func (b *block) setParent(parent node) {
 	b.parent = parent
 }
 
+func (s *assignmentStatement) Type() NodeType {
+	return AssignmentStatementNode
+}
+
 func (s *assignmentStatement) Title() string {
-	return "AssignmentStatement"
+	return s.StatementString()
 }
 
 func (s *assignmentStatement) Parent() Node {
@@ -482,8 +526,12 @@ func (s *assignmentStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+func (s *readStatement) Type() NodeType {
+	return ReadStatementNode
+}
+
 func (s *readStatement) Title() string {
-	return "ReadStatement"
+	return s.StatementString()
 }
 
 func (s *readStatement) Parent() Node {
@@ -498,8 +546,12 @@ func (s *readStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+func (s *writeStatement) Type() NodeType {
+	return WriteStatementNode
+}
+
 func (s *writeStatement) Title() string {
-	return "WriteStatement"
+	return s.StatementString()
 }
 
 func (s *writeStatement) Parent() Node {
@@ -514,8 +566,12 @@ func (s *writeStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+func (s *callStatement) Type() NodeType {
+	return CallStatementNode
+}
+
 func (s *callStatement) Title() string {
-	return "CallStatement"
+	return s.StatementString()
 }
 
 func (s *callStatement) Parent() Node {
@@ -530,8 +586,12 @@ func (s *callStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+func (s *ifStatement) Type() NodeType {
+	return IfStatementNode
+}
+
 func (s *ifStatement) Title() string {
-	return "IfStatement"
+	return s.StatementString()
 }
 
 func (s *ifStatement) Parent() Node {
@@ -546,8 +606,12 @@ func (s *ifStatement) setParent(parent node) {
 	s.parent = parent
 }
 
+func (s *whileStatement) Type() NodeType {
+	return WhileStatementNode
+}
+
 func (s *whileStatement) Title() string {
-	return "WhileStatement"
+	return s.StatementString()
 }
 
 func (s *whileStatement) Parent() Node {
@@ -562,8 +626,12 @@ func (s *whileStatement) setParent(parent node) {
 	s.parent = parent
 }
 
-func (c *compoundStatement) Title() string {
-	return "CompoundStatement"
+func (s *compoundStatement) Type() NodeType {
+	return CompoundStatementNode
+}
+
+func (s *compoundStatement) Title() string {
+	return s.StatementString()
 }
 
 func (c *compoundStatement) Parent() Node {

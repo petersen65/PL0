@@ -45,6 +45,27 @@ const (
 	Procedure
 )
 
+// Supported node types in the abstract syntax tree.
+const (
+	_ = NodeType(iota)
+	SymbolNode
+	SourceDescriptionNode
+	BlockNode
+	LiteralNode
+	ConstantNode
+	VariableNode
+	UnaryOperationNode
+	BinaryOperationNode
+	ConditionalOperationNode
+	AssignmentStatementNode
+	ReadStatementNode
+	WriteStatementNode
+	CallStatementNode
+	IfStatementNode
+	WhileStatementNode
+	CompoundStatementNode
+)
+
 type (
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
@@ -61,19 +82,22 @@ type (
 	// Kind of symbol entries.
 	Entry int
 
+	// The type of a node in the abstract syntax tree.
+	NodeType int
+
 	// The symbol entry.
 	Symbol struct {
-		Name       string // name of constant, variable, or procedure
-		Kind       Entry  // constant, variable, or procedure
-		Depth      int32  // declaration nesting depth of constant, variable, or procedure
-		Value      int64  // value of constant
-		Offset     uint64 // offset of variable in its runtime procedure stack frame
-		Address    uint64 // absolute address of procedure in text section
+		Name    string // name of constant, variable, or procedure
+		Kind    Entry  // constant, variable, or procedure
+		Depth   int32  // declaration nesting depth of constant, variable, or procedure
+		Value   int64  // value of constant
+		Offset  uint64 // offset of variable in its runtime procedure stack frame
+		Address uint64 // absolute address of procedure in text section
 	}
 
 	// Describes a range of lines in the source code.
 	SourceDescription struct {
-		From, To   int  // range of lines in the source code
+		From, To int // range of lines in the source code
 
 		// Lines of source code.
 		Lines []struct {
@@ -84,6 +108,7 @@ type (
 
 	// A node in the abstract syntax tree.
 	Node interface {
+		Type() NodeType
 		Title() string
 		Parent() Node
 		Children() []Node
@@ -91,28 +116,20 @@ type (
 
 	// A block represented as an abstract syntax tree.
 	Block interface {
-		Title() string
-		Parent() Node
-		Children() []Node
+		Node
 		BlockString() string
-		String() string
 	}
 
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
-		Title() string
-		Parent() Node
-		Children() []Node
+		Node
 		ExpressionString() string
-		String() string
 	}
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
-		Title() string
-		Parent() Node
-		Children() []Node
-		StatementString(depth int) string
+		Node
+		StatementString() string
 	}
 )
 

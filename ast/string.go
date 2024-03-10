@@ -9,81 +9,55 @@ import (
 	"strings"
 )
 
-const (
-	// Indentation size for the block node.
-	indentSize = 3
+// String returns the string representation of the symbol node.
+func (s *symbol) String() string {
+	if s.isDeclaration() {
+		return fmt.Sprintf("sym_decl(%v:%v)", s.Name, s.Depth)
+	}
 
-	// String used for indentation.
-	indentString = "|  "
-)
+	return fmt.Sprintf("sym_ref(%v:%v)", s.Name, s.Depth)
+}
+
+// String returns the string representation of the source description node.
+func (s *sourceDescription) String() string {
+	if len(s.Lines) == 0 {
+		return fmt.Sprintf("source %v-%v", s.From, s.To)
+	}
+
+	if len(s.Lines) == 1 {
+		return fmt.Sprintf("source %v", strings.Trim(string(s.Lines[0].Code), " "))
+	}
+
+	return fmt.Sprintf(
+		"source %v ... %v",
+		strings.Trim(string(s.Lines[0].Code), " "),
+		strings.Trim(string(s.Lines[len(s.Lines)-1].Code), " "))
+}
 
 // BlockString returns the string representation of the block node.
 func (b *block) BlockString() string {
-	var builder strings.Builder
-
-	writeString(&builder, indent(int(b.depth)), "+- block(", b.symbol.Name, ":", fmt.Sprintf("%v", b.depth), ",[")
-
-	for i, declaration := range b.declarations {
-		writeString(&builder, declaration.Name, ":", fmt.Sprintf("%v", declaration.Depth))
-
-		if i < len(b.declarations)-1 {
-			builder.WriteString(",")
-		}
-	}
-
-	builder.WriteString("]\n")
-
-	for i, procedure := range b.procedures {
-		builder.WriteString(procedure.String())
-
-		if i < len(b.procedures)-1 {
-			builder.WriteString("\n")
-		}
-	}
-
-	builder.WriteString(b.statement.StatementString(int(b.depth + 1)))
-	return builder.String()
-}
-
-// String returns the string representation of the block node.
-func (b *block) String() string {
-	return b.BlockString()
+	return fmt.Sprintf("block %v:%v", b.symbol.Name, b.depth)
 }
 
 // ExpressionString returns the string representation of the literal node.
 func (e *literal) ExpressionString() string {
 	switch e.dataType {
 	case Integer64:
-		return fmt.Sprintf("literal(%v:i64)", e.value.(int64))
+		return fmt.Sprintf("lit(%v:i64)", e.value)
 
 	default:
-		return fmt.Sprintf("literal(%v)", e.value)
+		return fmt.Sprintf("lit(%v)", e.value)
 	}
-}
-
-// String returns the string representation of the literal node.
-func (e *literal) String() string {
-	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the constant node.
 func (e *constant) ExpressionString() string {
-	return fmt.Sprintf("constant(%v=%v)", e.symbol.Name, e.symbol.Value)
-}
-
-// String returns the string representation of the constant node.
-func (e *constant) String() string {
-	return e.ExpressionString()
+	return fmt.Sprintf("const(%v=%v)", e.symbol.Name, e.symbol.Value)
 }
 
 // ExpressionString returns the string representation of the variable node.
 func (e *variable) ExpressionString() string {
-	return fmt.Sprintf("variable(%v:%v)", e.symbol.Name, e.symbol.Depth)
-}
-
-// String returns the string representation of the variable node.
-func (e *variable) String() string {
-	return e.ExpressionString()
+	return fmt.Sprintf("var(%v:%v)", e.symbol.Name, e.symbol.Depth)
 }
 
 // ExpressionString returns the string representation of the unary operation node.
@@ -95,19 +69,11 @@ func (e *unaryOperation) ExpressionString() string {
 		builder.WriteString("odd(")
 
 	case Negate:
-		builder.WriteString("negate(")
-
-	default:
-		builder.WriteString("unary(")
+		builder.WriteString("neg(")
 	}
 
-	writeString(&builder, e.operand.String(), ")")
+	writeString(&builder, e.operand.ExpressionString(), ")")
 	return builder.String()
-}
-
-// String returns the string representation of the unary operation node.
-func (e *unaryOperation) String() string {
-	return e.ExpressionString()
 }
 
 // ExpressionString returns the string representation of the binary operation node.
@@ -116,28 +82,20 @@ func (e *binaryOperation) ExpressionString() string {
 
 	switch e.operation {
 	case Plus:
-		builder.WriteString("addition(")
+		builder.WriteString("add(")
 
 	case Minus:
-		builder.WriteString("subtraction(")
+		builder.WriteString("sub(")
 
 	case Times:
-		builder.WriteString("multiplication(")
+		builder.WriteString("mul(")
 
 	case Divide:
-		builder.WriteString("division(")
-
-	default:
-		builder.WriteString("binary(")
+		builder.WriteString("div(")
 	}
 
-	writeString(&builder, e.left.String(), ",", e.right.String(), ")")
+	writeString(&builder, e.left.ExpressionString(), ",", e.right.ExpressionString(), ")")
 	return builder.String()
-}
-
-// String returns the string representation of the binary operation node.
-func (e *binaryOperation) String() string {
-	return e.ExpressionString()
 }
 
 // ConditionString returns the string representation of the conditional operation node.
@@ -146,120 +104,74 @@ func (e *conditionalOperation) ExpressionString() string {
 
 	switch e.operation {
 	case Equal:
-		builder.WriteString("equal(")
+		builder.WriteString("eq(")
 
 	case NotEqual:
-		builder.WriteString("notEqual(")
+		builder.WriteString("neq(")
 
 	case Less:
-		builder.WriteString("less(")
+		builder.WriteString("ls(")
 
 	case LessEqual:
-		builder.WriteString("lessEqual(")
+		builder.WriteString("le(")
 
 	case Greater:
-		builder.WriteString("greater(")
+		builder.WriteString("gr(")
 
 	case GreaterEqual:
-		builder.WriteString("greaterEqual(")
-
-	default:
-		builder.WriteString("conditional(")
+		builder.WriteString("ge(")
 	}
 
-	writeString(&builder, e.left.String(), ",", e.right.String(), ")")
+	writeString(&builder, e.left.ExpressionString(), ",", e.right.ExpressionString(), ")")
 	return builder.String()
-}
-
-// String returns the string representation of the conditional operation node.
-func (e *conditionalOperation) String() string {
-	return e.ExpressionString()
 }
 
 // StatementString returns the string representation of the assignment statement node.
-func (s *assignmentStatement) StatementString(depth int) string {
-	var builder strings.Builder
-	writeString(&builder, indent(depth), "+- assignment(", s.symbol.Name, "=", s.expression.String(), ")\n")
-	return builder.String()
+func (s *assignmentStatement) StatementString() string {
+	return "assign"
 }
 
 // StatementString returns the string representation of the read statement node.
-func (s *readStatement) StatementString(depth int) string {
-	var builder strings.Builder
-	writeString(&builder, indent(depth), "+- read(", s.symbol.Name, ")\n")
-	return builder.String()
+func (s *readStatement) StatementString() string {
+	return "read"
 }
 
 // StatementString returns the string representation of the write statement node.
-func (s *writeStatement) StatementString(depth int) string {
-	var builder strings.Builder
-	writeString(&builder, indent(depth), "+- write(", s.expression.String(), ")\n")
-	return builder.String()
+func (s *writeStatement) StatementString() string {
+	return "write"
 }
 
 // StatementString returns the string representation of the call statement node.
-func (s *callStatement) StatementString(depth int) string {
-	var builder strings.Builder
-	writeString(&builder, indent(depth), "+- call(", s.symbol.Name, ":", fmt.Sprintf("%v", s.symbol.Depth), ")\n")
-	return builder.String()
+func (s *callStatement) StatementString() string {
+	return "call"
 }
 
 // StatementString returns the string representation of the if-then statement node.
-func (s *ifStatement) StatementString(depth int) string {
-	var builder strings.Builder
-
-	writeString(&builder, indent(depth), "+- if(", s.condition.String(), ") (\n")
-	builder.WriteString(s.statement.StatementString(depth + 1))
-
-	return builder.String()
+func (s *ifStatement) StatementString() string {
+	return "if"
 }
 
 // StatementString returns the string representation of the while-do statement node.
-func (s *whileStatement) StatementString(depth int) string {
-	var builder strings.Builder
-
-	writeString(&builder, indent(depth), "+- while(", s.condition.String(), ") (\n")
-	builder.WriteString(s.statement.StatementString(depth + 1))
-
-	return builder.String()
+func (s *whileStatement) StatementString() string {
+	return "while"
 }
 
 // StatementString returns the string representation of the compound statement node.
-func (s *compoundStatement) StatementString(depth int) string {
+func (s *compoundStatement) StatementString() string {
 	var builder strings.Builder
 
-	writeString(&builder, indent(depth), "+- compound\n")
+	builder.WriteString("compound")
 
 	for _, statement := range s.statements {
-		builder.WriteString(statement.StatementString(depth + 1))
+		writeString(&builder, " ", statement.StatementString())
 	}
 
 	return builder.String()
-}
-
-// Return a string with the specified number of spaces.
-func indent(depth int) string {
-	return strings.Replace(strings.Repeat("|  ", depth), "|", " ", 1)
 }
 
 // Write the specified string items to the builder.
 func writeString(builder *strings.Builder, items ...string) {
 	for _, item := range items {
 		builder.WriteString(item)
-	}
-}
-
-// PrintTree prints the tree structure of the AST.
-func PrintTree(node Node, indent string, last bool) {
-	fmt.Printf("%v+- %v\n", indent, node.Title())
-
-	if last {
-		indent += "   "
-	} else {
-		indent += "|  "
-	}
-
-	for i, child := range node.Children() {
-		PrintTree(child, indent, i == len(node.Children())-1)
 	}
 }
