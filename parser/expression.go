@@ -107,6 +107,8 @@ func (e *expressionParser) expression(scope *ast.Scope, depth int32, anchors scn
 			e.emitter.Subtract()
 			operation = ast.NewBinaryOperation(ast.Minus, left, right, e.collectSourceDescription(from))
 		}
+
+		left = operation
 	}
 
 	if operation == nil {
@@ -139,6 +141,8 @@ func (e *expressionParser) term(scope *ast.Scope, depth int32, anchors scn.Token
 			e.emitter.Divide()
 			operation = ast.NewBinaryOperation(ast.Divide, left, right, e.collectSourceDescription(from))
 		}
+
+		left = operation
 	}
 
 	if operation == nil {
