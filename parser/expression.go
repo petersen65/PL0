@@ -19,20 +19,18 @@ const integerBitSize = 64
 type expressionParser struct {
 	emitter      emt.Emitter   // emitter that emits the code
 	tokenHandler *tokenHandler // token handler that manages the tokens of the token stream
-	symbolTable  *symbolTable  // symbol table that stores all symbols of the program
 }
 
-// Create a new expression parser with the given token handler, symbol table, and emitter.
-func newExpressionParser(tokenHandler *tokenHandler, symbolTable *symbolTable, emitter emt.Emitter) *expressionParser {
+// Create a new expression parser with the given token handler and emitter.
+func newExpressionParser(tokenHandler *tokenHandler, emitter emt.Emitter) *expressionParser {
 	return &expressionParser{
 		tokenHandler: tokenHandler,
-		symbolTable:  symbolTable,
 		emitter:      emitter,
 	}
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
-func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token, ast.Expression) {
+func (e *expressionParser) condition(scope *ast.Scope, depth int32, anchors scn.Tokens) (scn.Token, ast.Expression) {
 	from := e.gatherSourceDescription()
 	var operation ast.Expression
 	var relationalOperator scn.Token
@@ -40,12 +38,12 @@ func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token
 	if e.lastToken() == scn.OddWord {
 		relationalOperator = e.lastToken()
 		e.nextToken()
-		operand := e.expression(depth, anchors)
+		operand := e.expression(scope, depth, anchors)
 		e.emitter.Odd()
 		operation = ast.NewUnaryOperation(ast.Odd, operand, e.collectSourceDescription(from))
 	} else {
 		// handle left expression of a relational operator
-		left := e.expression(depth, set(anchors, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
+		left := e.expression(scope, depth, set(anchors, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
 		if !e.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
 			e.appendError(expectedRelationalOperator, e.lastTokenName())
@@ -54,7 +52,7 @@ func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token
 			e.nextToken()
 
 			// handle right expression of a relational operator
-			right := e.expression(depth, anchors)
+			right := e.expression(scope, depth, anchors)
 
 			switch relationalOperator {
 			case scn.Equal:
@@ -88,19 +86,19 @@ func (e *expressionParser) condition(depth int32, anchors scn.Tokens) (scn.Token
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (e *expressionParser) expression(depth int32, anchors scn.Tokens) ast.Expression {
+func (e *expressionParser) expression(scope *ast.Scope, depth int32, anchors scn.Tokens) ast.Expression {
 	from := e.gatherSourceDescription()
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
-	left := e.term(depth, set(anchors, scn.Plus, scn.Minus))
+	left := e.term(scope, depth, set(anchors, scn.Plus, scn.Minus))
 
 	for e.lastToken() == scn.Plus || e.lastToken() == scn.Minus {
 		plusOrMinus := e.lastToken()
 		e.nextToken()
 
 		// handle right term of a plus or minus operator
-		right := e.term(depth, set(anchors, scn.Plus, scn.Minus))
+		right := e.term(scope, depth, set(anchors, scn.Plus, scn.Minus))
 
 		if plusOrMinus == scn.Plus {
 			e.emitter.Add()
@@ -119,19 +117,19 @@ func (e *expressionParser) expression(depth int32, anchors scn.Tokens) ast.Expre
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (e *expressionParser) term(depth int32, anchors scn.Tokens) ast.Expression {
+func (e *expressionParser) term(scope *ast.Scope, depth int32, anchors scn.Tokens) ast.Expression {
 	from := e.gatherSourceDescription()
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
-	left := e.factor(depth, set(anchors, scn.Times, scn.Divide))
+	left := e.factor(scope, depth, set(anchors, scn.Times, scn.Divide))
 
 	for e.lastToken() == scn.Times || e.lastToken() == scn.Divide {
 		timesOrDevide := e.lastToken()
 		e.nextToken()
 
 		// handle right factor of a times or divide operator
-		right := e.factor(depth, set(anchors, scn.Times, scn.Divide))
+		right := e.factor(scope, depth, set(anchors, scn.Times, scn.Divide))
 
 		if timesOrDevide == scn.Times {
 			e.emitter.Multiply()
@@ -151,7 +149,7 @@ func (e *expressionParser) term(depth int32, anchors scn.Tokens) ast.Expression 
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expression {
+func (e *expressionParser) factor(scope *ast.Scope, depth int32, anchors scn.Tokens) ast.Expression {
 	from := e.gatherSourceDescription()
 	var sign scn.Token
 	var operand ast.Expression
@@ -169,18 +167,18 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 
 	for e.lastToken().In(factors) {
 		if e.lastToken() == scn.Identifier {
-			if symbol, ok := e.symbolTable.find(e.lastTokenValue()); ok {
+			if symbol := scope.Lookup(e.lastTokenValue()); symbol != nil{
 				switch symbol.Kind {
 				case ast.Constant:
 					e.emitter.Constant(symbol.Value)
-					operand = ast.NewConstant(symbol, e.collectSourceDescription(from))
+					operand = ast.NewConstantReference(symbol, e.collectSourceDescription(from))
 
 				case ast.Variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.Offset), depth-symbol.Depth)
-					operand = ast.NewVariable(symbol, e.collectSourceDescription(from))
+					operand = ast.NewVariableReference(symbol, e.collectSourceDescription(from))
 
 				default:
-					e.appendError(expectedConstantsVariables, kindNames[symbol.Kind])
+					e.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])
 				}
 			} else {
 				e.appendError(identifierNotFound, e.lastTokenValue())
@@ -189,12 +187,12 @@ func (e *expressionParser) factor(depth int32, anchors scn.Tokens) ast.Expressio
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
 			e.emitter.Constant(e.numberValue(sign, e.lastTokenValue()))
-			operand = ast.NewLiteral(e.numberValue(sign, e.lastTokenValue()), ast.Integer64, e.collectSourceDescription(from))
+			operand = ast.NewLiteralReference(e.numberValue(sign, e.lastTokenValue()), ast.Integer64, e.collectSourceDescription(from))
 			sign = scn.Unknown
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {
 			e.nextToken()
-			operand = e.expression(depth, set(anchors, scn.RightParenthesis))
+			operand = e.expression(scope, depth, set(anchors, scn.RightParenthesis))
 
 			if e.lastToken() == scn.RightParenthesis {
 				e.nextToken()
@@ -247,7 +245,7 @@ func (e *expressionParser) gatherSourceDescription() int {
 }
 
 // Wrapper to collect source description from the given index to the current token index.
-func (e *expressionParser) collectSourceDescription(from int) ast.SourceDescription {
+func (e *expressionParser) collectSourceDescription(from int) *ast.SourceDescription {
 	return e.tokenHandler.collectSourceDescription(from)
 }
 

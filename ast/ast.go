@@ -156,7 +156,7 @@ func newBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 }
 
 // Create a new literal-usage node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, source *SourceDescription) Expression {
+func newLiteralReference(value any, dataType DataType, source *SourceDescription) Expression {
 	parent := new(literal)
 
 	parent.value = value
@@ -167,7 +167,7 @@ func newLiteral(value any, dataType DataType, source *SourceDescription) Express
 }
 
 // Create a new constant-usage node in the abstract syntax tree.
-func newConstant(entry *Symbol, source *SourceDescription) Expression {
+func newConstantReference(entry *Symbol, source *SourceDescription) Expression {
 	parent := new(constant)
 
 	parent.symbol = symbol{entry, parent}
@@ -177,7 +177,7 @@ func newConstant(entry *Symbol, source *SourceDescription) Expression {
 }
 
 // Create a new variable-usage node in the abstract syntax tree.
-func newVariable(entry *Symbol, source *SourceDescription) Expression {
+func newVariableReference(entry *Symbol, source *SourceDescription) Expression {
 	parent := new(variable)
 
 	parent.symbol = symbol{entry, parent}

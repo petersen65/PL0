@@ -174,7 +174,7 @@ func (s *Scope) Lookup(name string) *Symbol {
 }
 
 // Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
-func (s* Scope) LookupCurrent(name string) *Symbol {
+func (s *Scope) LookupCurrent(name string) *Symbol {
 	if symbol, ok := (*s.SymbolTable)[name]; ok {
 		return symbol
 	}
@@ -187,19 +187,19 @@ func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 	return newBlock(name, depth, scope, procedures, statement, source)
 }
 
-// NewLiteral creates a new literal-usage node in the abstract syntax tree.
-func NewLiteral(value any, dataType DataType, source *SourceDescription) Expression {
-	return newLiteral(value, dataType, source)
+// NewLiteralReference creates a new literal-reference node in the abstract syntax tree.
+func NewLiteralReference(value any, dataType DataType, source *SourceDescription) Expression {
+	return newLiteralReference(value, dataType, source)
 }
 
-// NewConstant creates a new constant-usage node in the abstract syntax tree.
-func NewConstant(entry *Symbol, source *SourceDescription) Expression {
-	return newConstant(entry, source)
+// NewConstantReference creates a new constant-reference node in the abstract syntax tree.
+func NewConstantReference(entry *Symbol, source *SourceDescription) Expression {
+	return newConstantReference(entry, source)
 }
 
-// NewVariable creates a new variable-usage node in the abstract syntax tree.
-func NewVariable(entry *Symbol, source *SourceDescription) Expression {
-	return newVariable(entry, source)
+// NewVariableReference creates a new variable-reference node in the abstract syntax tree.
+func NewVariableReference(entry *Symbol, source *SourceDescription) Expression {
+	return newVariableReference(entry, source)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.

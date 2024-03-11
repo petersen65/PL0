@@ -86,7 +86,7 @@ func (t *tokenHandler) gatherSourceDescription() int {
 }
 
 // Collect source description from the given index to the current token index.
-func (t *tokenHandler) collectSourceDescription(from int) ast.SourceDescription {
+func (t *tokenHandler) collectSourceDescription(from int) *ast.SourceDescription {
 	if from < 0 || from >= t.tokenStreamIndex {
 		from = t.gatherSourceDescription()
 	}
@@ -116,7 +116,7 @@ func (t *tokenHandler) collectSourceDescription(from int) ast.SourceDescription 
 		}
 	}
 
-	return sourceDescription
+	return &sourceDescription
 }
 
 // Get token from the last token description.
