@@ -85,7 +85,7 @@ type (
 	// The type of a node in the abstract syntax tree.
 	NodeType int
 
-	// The symbol entry.
+	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
 		Name    string // name of constant, variable, or procedure
 		Kind    Entry  // constant, variable, or procedure
@@ -94,6 +94,9 @@ type (
 		Offset  uint64 // offset of variable in its runtime procedure stack frame
 		Address uint64 // absolute address of procedure in text section
 	}
+
+	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
+	SymbolTable map[string]*Symbol
 
 	// Describes a range of lines in the source code.
 	SourceDescription struct {
@@ -104,6 +107,12 @@ type (
 			Line int    // line number
 			Code []byte // line of source code
 		}
+	}
+
+	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
+	Scope struct {
+		Outer       *Scope       // outer scope or nil if this is the outermost scope
+		SymbolTable *SymbolTable // symbol table of the scope
 	}
 
 	// A node in the abstract syntax tree.
@@ -133,9 +142,49 @@ type (
 	}
 )
 
+// KindNames maps symbol kinds to their string representation.
+var KindNames = map[Entry]string{
+	Constant:  "constant",
+	Variable:  "variable",
+	Procedure: "procedure",
+}
+
+// NewScope creates a new scope with an empty symbol table.
+func NewScope(outer *Scope) *Scope {
+	symbolTable := make(SymbolTable)
+	return &Scope{Outer: outer, SymbolTable: &symbolTable}
+}
+
+// Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
+func (s *Scope) Insert(symbol *Symbol) {
+	(*s.SymbolTable)[symbol.Name] = symbol
+}
+
+// Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
+func (s *Scope) Lookup(name string) *Symbol {
+	if symbol := s.LookupCurrent(name); symbol != nil {
+		return symbol
+	}
+
+	if s.Outer != nil {
+		return s.Outer.Lookup(name)
+	}
+
+	return nil
+}
+
+// Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
+func (s* Scope) LookupCurrent(name string) *Symbol {
+	if symbol, ok := (*s.SymbolTable)[name]; ok {
+		return symbol
+	}
+
+	return nil
+}
+
 // NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(symbol Symbol, depth int32, declarations []Symbol, procedures []Block, statement Statement, source SourceDescription) Block {
-	return newBlock(symbol, depth, declarations, procedures, statement, source)
+func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement, source *SourceDescription) Block {
+	return newBlock(name, depth, scope, procedures, statement, source)
 }
 
 // NewLiteral creates a new literal-usage node in the abstract syntax tree.

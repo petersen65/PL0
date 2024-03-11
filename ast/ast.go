@@ -13,26 +13,25 @@ type (
 
 	// The symbol entry (with embedded public Symbol struct).
 	symbol struct {
-		Symbol
+		*Symbol
 		parent node
 	}
 
 	// Describes a range of lines in the source code (with embedded public SourceDescription struct).
 	sourceDescription struct {
-		SourceDescription
+		*SourceDescription
 		parent node
 	}
 
-
 	// Block node represents a block in the AST.
 	block struct {
-		parent       node              // parent node of the block
-		symbol       symbol            // procedure symbol entry of the block
-		depth        int32             // declaration nesting depth
-		declarations []symbol          // local declarations of the block
-		procedures   []Block           // nested procedures of the block
-		statement    Statement         // statement of the block
-		source       sourceDescription // source description for the block node
+		parent     node               // parent node of the block
+		name       string             // name of the block that can be used for lookup in the symbol table
+		depth      int32              // declaration nesting depth
+		scope      *Scope             // scope with symbol table of the block that has its own outer scope chain
+		procedures []Block            // nested procedures of the block
+		statement  Statement          // statement of the block
+		source     *sourceDescription // source description for the block node
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
@@ -137,12 +136,8 @@ type (
 )
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(entry Symbol, depth int32, declarations []Symbol, procedures []Block, statement Statement, source SourceDescription) Block {
+func newBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement, source *SourceDescription) Block {
 	parent := new(block)
-
-	for _, declaration := range declarations {
-		parent.declarations = append(parent.declarations, symbol{declaration, parent})
-	}
 
 	for _, procedure := range procedures {
 		procedure.(*block).parent = parent
@@ -150,17 +145,18 @@ func newBlock(entry Symbol, depth int32, declarations []Symbol, procedures []Blo
 
 	statement.(node).setParent(parent)
 
-	parent.symbol = symbol{entry, parent}
+	parent.name = name
 	parent.depth = depth
+	parent.scope = scope
 	parent.procedures = procedures
 	parent.statement = statement
-	parent.source = sourceDescription{source, parent}
+	parent.source = &sourceDescription{source, parent}
 
 	return parent
 }
 
 // Create a new literal-usage node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, source SourceDescription) Expression {
+func newLiteral(value any, dataType DataType, source *SourceDescription) Expression {
 	parent := new(literal)
 
 	parent.value = value
@@ -171,7 +167,7 @@ func newLiteral(value any, dataType DataType, source SourceDescription) Expressi
 }
 
 // Create a new constant-usage node in the abstract syntax tree.
-func newConstant(entry Symbol, source SourceDescription) Expression {
+func newConstant(entry *Symbol, source *SourceDescription) Expression {
 	parent := new(constant)
 
 	parent.symbol = symbol{entry, parent}
@@ -181,7 +177,7 @@ func newConstant(entry Symbol, source SourceDescription) Expression {
 }
 
 // Create a new variable-usage node in the abstract syntax tree.
-func newVariable(entry Symbol, source SourceDescription) Expression {
+func newVariable(entry *Symbol, source *SourceDescription) Expression {
 	parent := new(variable)
 
 	parent.symbol = symbol{entry, parent}
@@ -191,7 +187,7 @@ func newVariable(entry Symbol, source SourceDescription) Expression {
 }
 
 // Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(operation UnaryOperator, operand Expression, source SourceDescription) Expression {
+func newUnaryOperation(operation UnaryOperator, operand Expression, source *SourceDescription) Expression {
 	parent := new(unaryOperation)
 
 	operand.(node).setParent(parent)
@@ -204,7 +200,7 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, source Sourc
 }
 
 // Create a new binary operation node in the abstract syntax tree.
-func newBinaryOperation(operation BinaryOperator, left, right Expression, source SourceDescription) Expression {
+func newBinaryOperation(operation BinaryOperator, left, right Expression, source *SourceDescription) Expression {
 	parent := new(binaryOperation)
 
 	left.(node).setParent(parent)
@@ -219,7 +215,7 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression, source
 }
 
 // Create a new conditional operation node in the abstract syntax tree.
-func newConditionalOperation(operation RelationalOperator, left, right Expression, source SourceDescription) Expression {
+func newConditionalOperation(operation RelationalOperator, left, right Expression, source *SourceDescription) Expression {
 	parent := new(conditionalOperation)
 
 	left.(node).setParent(parent)
@@ -234,7 +230,7 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(entry Symbol, expression Expression, source SourceDescription) Statement {
+func newAssignmentStatement(entry *Symbol, expression Expression, source *SourceDescription) Statement {
 	parent := new(assignmentStatement)
 
 	expression.(node).setParent(parent)
@@ -247,7 +243,7 @@ func newAssignmentStatement(entry Symbol, expression Expression, source SourceDe
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(entry Symbol, source SourceDescription) Statement {
+func newReadStatement(entry *Symbol, source *SourceDescription) Statement {
 	parent := new(readStatement)
 
 	parent.symbol = symbol{entry, parent}
@@ -257,7 +253,7 @@ func newReadStatement(entry Symbol, source SourceDescription) Statement {
 }
 
 // Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(expression Expression, source SourceDescription) Statement {
+func newWriteStatement(expression Expression, source *SourceDescription) Statement {
 	parent := new(writeStatement)
 
 	expression.(node).setParent(parent)
@@ -269,7 +265,7 @@ func newWriteStatement(expression Expression, source SourceDescription) Statemen
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(entry Symbol, source SourceDescription) Statement {
+func newCallStatement(entry *Symbol, source *SourceDescription) Statement {
 	parent := new(callStatement)
 
 	parent.symbol = symbol{entry, parent}
@@ -279,7 +275,7 @@ func newCallStatement(entry Symbol, source SourceDescription) Statement {
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
-func newIfStatement(condition Expression, statement Statement, source SourceDescription) Statement {
+func newIfStatement(condition Expression, statement Statement, source *SourceDescription) Statement {
 	parent := new(ifStatement)
 
 	condition.(node).setParent(parent)
@@ -293,7 +289,7 @@ func newIfStatement(condition Expression, statement Statement, source SourceDesc
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
-func newWhileStatement(condition Expression, statement Statement, source SourceDescription) Statement {
+func newWhileStatement(condition Expression, statement Statement, source *SourceDescription) Statement {
 	parent := new(whileStatement)
 
 	condition.(node).setParent(parent)
@@ -307,7 +303,7 @@ func newWhileStatement(condition Expression, statement Statement, source SourceD
 }
 
 // Create a new compound statement node in the abstract syntax tree.
-func newCompoundStatement(statements []Statement, source SourceDescription) Statement {
+func newCompoundStatement(statements []Statement, source *SourceDescription) Statement {
 	parent := new(compoundStatement)
 
 	for _, statement := range statements {
@@ -532,10 +528,10 @@ func (b *block) Parent() Node {
 
 // Children nodes of the block node.
 func (b *block) Children() []Node {
-	children := make([]Node, 0, len(b.declarations)+len(b.procedures)+2)
+	children := make([]Node, 0, len(b.procedures)+2)
 
-	for _, declaration := range b.declarations {
-		children = append(children, declaration)
+	for _, entry := range *b.scope.SymbolTable {
+		children = append(children, symbol{entry, b})
 	}
 
 	for _, procedure := range b.procedures {

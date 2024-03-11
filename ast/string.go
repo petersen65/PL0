@@ -36,7 +36,7 @@ func (s *sourceDescription) String() string {
 
 // BlockString returns the string representation of the block node.
 func (b *block) BlockString() string {
-	return fmt.Sprintf("block %v:%v", b.symbol.Name, b.depth)
+	return fmt.Sprintf("block %v:%v", b.name, b.depth)
 }
 
 // ExpressionString returns the string representation of the literal node.
