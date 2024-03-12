@@ -273,7 +273,7 @@ func (e *ConstantNode) Children() []Node {
 
 // ExpressionString returns the string representation of the constant expression.
 func (e *ConstantNode) ExpressionString() string {
-	return e.ExpressionString()
+	return e.String()
 }
 
 // Set the parent Node of the variable node.
