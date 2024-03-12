@@ -4,137 +4,6 @@
 
 package ast
 
-type (
-	// A node in the abstract syntax tree (with embedded public Node interface).
-	node interface {
-		Node
-		setParent(node)
-	}
-
-	// The symbol entry (with embedded public Symbol struct).
-	symbol struct {
-		*Symbol
-		parent node
-	}
-
-	// Describes a range of lines in the source code (with embedded public SourceDescription struct).
-	sourceDescription struct {
-		*SourceDescription
-		parent node
-	}
-
-	// Block node represents a block in the AST.
-	block struct {
-		parent     node               // parent node of the block
-		name       string             // name of the block that can be used for lookup in the symbol table
-		depth      int32              // declaration nesting depth
-		scope      *Scope             // scope with symbol table of the block that has its own outer scope chain
-		procedures []Block            // nested procedures of the block
-		statement  Statement          // statement of the block
-		source     *sourceDescription // source description for the block node
-	}
-
-	// Literal node represents the usage of a literal value in the AST.
-	literal struct {
-		parent   node              // parent node of the literal
-		value    any               // literal value
-		dataType DataType          // data type of the literal
-		source   sourceDescription // source description for the literal node
-	}
-
-	// Constant node represents the usage of a constant in the AST.
-	constant struct {
-		parent node              // parent node of the constant
-		symbol symbol            // constant symbol entry
-		source sourceDescription // source description for the constant node
-	}
-
-	// Variable node represents the usage of a variable in the AST.
-	variable struct {
-		parent node              // parent node of the variable
-		symbol symbol            // variable symbol entry
-		source sourceDescription // source description for the variable node
-	}
-
-	// UnaryOperation node represents a unary operation in the AST.
-	unaryOperation struct {
-		parent    node              // parent node of the unary operation
-		operation UnaryOperator     // unary operation
-		operand   Expression        // operand of the unary operation
-		source    sourceDescription // source description for the unary operation node
-	}
-
-	// BinaryOperation node represents a binary operation in the AST.
-	binaryOperation struct {
-		parent    node              // parent node of the binary operation
-		operation BinaryOperator    // binary operation
-		left      Expression        // left operand of the binary operation
-		right     Expression        // right operand of the binary operation
-		source    sourceDescription // source description for the binary operation node
-	}
-
-	// ConditionalOperation node represents a conditional operation in the AST.
-	conditionalOperation struct {
-		parent    node               // parent node of the conditional
-		operation RelationalOperator // conditional operation
-		left      Expression         // left operand of the conditional operation
-		right     Expression         // right operand of the conditional operation
-		source    sourceDescription  // source description for the conditional operation node
-	}
-
-	// AssignmentStatement node represents an assignment statement in the AST.
-	assignmentStatement struct {
-		parent     node              // parent node of the assignment statement
-		symbol     symbol            // variable symbol entry on the left side of the assignment statement
-		expression Expression        // expression on the right side of the assignment statement
-		source     sourceDescription // source description for the assignment statement node
-	}
-
-	// ReadStatement node represents a read statement in the AST.
-	readStatement struct {
-		parent node              // parent node of the read statement
-		symbol symbol            // variable symbol entry of the read statement
-		source sourceDescription // source description for the read statement node
-	}
-
-	// WriteStatement node represents a write statement in the AST.
-	writeStatement struct {
-		parent     node              // parent node of the write statement
-		expression Expression        // expression of the write statement
-		source     sourceDescription // source description for the write statement node
-	}
-
-	// CallStatement node represents a call statement in the AST.
-	callStatement struct {
-		parent node              // parent node of the call statement
-		symbol symbol            // procedure symbol entry of the call statement
-		source sourceDescription // source description for the call statement node
-	}
-
-	// IfStatement node represents an if-then statement in the AST.
-	ifStatement struct {
-		parent    node              // parent node of the if-then statement
-		condition Expression        // if-condition of the if-then statement
-		statement Statement         // then-statement of the if-then statement
-		source    sourceDescription // source description for the if-then statement node
-	}
-
-	// WhileStatement node represents a while-do statement in the AST.
-	whileStatement struct {
-		parent    node              // parent node of the while-do statement
-		condition Expression        // while-condition of the while-do statement
-		statement Statement         // do-statement of the while-do statement
-		source    sourceDescription // source description for the while-do statement node
-	}
-
-	// CompoundStatement node represents a begin-end statement in the AST.
-	compoundStatement struct {
-		parent     node              // parent node of the begin-end compound statement
-		statements []Statement       // all statements of the begin-end compound statement
-		source     sourceDescription // source description for the begin-end statement node
-	}
-)
-
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement, source *SourceDescription) Block {
 	parent := new(block)
@@ -230,7 +99,7 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(entry *Symbol, expression Expression, source *SourceDescription) Statement {
+func newAssignmentStatement(entry *Symbol, Expression Expression, source *SourceDescription) Statement {
 	parent := new(assignmentStatement)
 
 	expression.(node).setParent(parent)
@@ -253,7 +122,7 @@ func newReadStatement(entry *Symbol, source *SourceDescription) Statement {
 }
 
 // Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(expression Expression, source *SourceDescription) Statement {
+func newWriteStatement(Expression Expression, source *SourceDescription) Statement {
 	parent := new(writeStatement)
 
 	expression.(node).setParent(parent)
