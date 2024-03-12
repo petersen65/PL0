@@ -61,18 +61,15 @@ type (
 	// Kind of symbol entries.
 	Entry int
 
-	// The type of a node in the abstract syntax tree.
-	NodeType int
-
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
-		Parent  Node   // parent node in the abstract syntax tree
-		Name    string // name of constant, variable, or procedure
-		Kind    Entry  // constant, variable, or procedure
-		Depth   int32  // declaration nesting depth of constant, variable, or procedure
-		Value   int64  // value of constant
-		Offset  uint64 // offset of variable in its runtime procedure stack frame
-		Address uint64 // absolute address of procedure in text section
+		ParentNode Node   // parent node in the abstract syntax tree
+		Name       string // name of constant, variable, or procedure
+		Kind       Entry  // constant, variable, or procedure
+		Depth      int32  // declaration nesting depth of constant, variable, or procedure
+		Value      int64  // value of constant
+		Offset     uint64 // offset of variable in its runtime procedure stack frame
+		Address    uint64 // absolute address of procedure in text section
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
@@ -80,8 +77,8 @@ type (
 
 	// Describes a range of lines in the source code.
 	SourceDescription struct {
-		Parent   Node // parent node in the abstract syntax tree
-		From, To int  // range of lines in the source code
+		ParentNode Node // parent node in the abstract syntax tree
+		From, To   int  // range of lines in the source code
 
 		// Lines of source code.
 		Lines []struct {
@@ -99,10 +96,9 @@ type (
 	// A node in the abstract syntax tree.
 	Node interface {
 		SetParent(Node)
-		Type() NodeType
-		Title() string
 		Parent() Node
 		Children() []Node
+		String() string
 	}
 
 	// A block represented as an abstract syntax tree.
@@ -169,7 +165,7 @@ type (
 		ParentNode Node               // parent node of the binary operation
 		Operation  BinaryOperator     // binary operation
 		Left       Expression         // left operand of the binary operation
-		right      Expression         // right operand of the binary operation
+		Right      Expression         // right operand of the binary operation
 		Source     *SourceDescription // source description for the binary operation node
 	}
 
@@ -213,23 +209,23 @@ type (
 
 	// IfStatement node represents an if-then statement in the AST.
 	IfStatementNode struct {
-		Parent    Node              // parent node of the if-then statement
-		Condition Expression        // if-condition of the if-then statement
-		Statement Statement         // then-statement of the if-then statement
-		Source    *SourceDescription // source description for the if-then statement node
+		ParentNode Node               // parent node of the if-then statement
+		Condition  Expression         // if-condition of the if-then statement
+		Statement  Statement          // then-statement of the if-then statement
+		Source     *SourceDescription // source description for the if-then statement node
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	WhileStatementNode struct {
-		Parent    Node              // parent node of the while-do statement
-		Condition Expression        // while-condition of the while-do statement
-		Statement Statement         // do-statement of the while-do statement
-		Source    *SourceDescription // source description for the while-do statement node
+		ParentNode Node               // parent node of the while-do statement
+		Condition  Expression         // while-condition of the while-do statement
+		Statement  Statement          // do-statement of the while-do statement
+		Source     *SourceDescription // source description for the while-do statement node
 	}
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	CompoundStatementNode struct {
-		Parent     Node               // parent node of the begin-end compound statement
+		ParentNode Node               // parent node of the begin-end compound statement
 		Statements []Statement        // all statements of the begin-end compound statement
 		Source     *SourceDescription // source description for the begin-end statement node
 	}
@@ -239,14 +235,14 @@ type (
 	//   the dynamic type of the object (the AST node) determines the method to be called, and
 	//   the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
-		VisitSymbol()
-		VisitSourceDescription()
-		VisitBlock()
-		VisitLiteral()
-		VisitConstant()
-		VisitVariable()
-		VisitUnaryOperation()
-		VisitBinaryOperation()
+		VisitSymbol(symbol *Symbol)
+		VisitSourceDescription(source *SourceDescription)
+		VisitBlock(block *BlockNode)
+		VisitLiteral(literal *LiteralNode)
+		VisitConstant(constant *ConstantNode)
+		VisitVariable(variable *VariableNode)
+		VisitUnaryOperation(operation *UnaryOperationNode)
+		VisitBinaryOperation(operation *BinaryOperationNode)
 		VisitConditionalOperation()
 		VisitAssignmentStatement()
 		VisitReadStatement()

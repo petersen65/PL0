@@ -159,7 +159,7 @@ func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool)
 
 // Print the abstract syntax tree of the parser to the specified writer.
 func PrintAbstractSyntaxTree(node ast.Node, indent string, last bool, print io.Writer) {
-	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node.Title())))
+	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
 
 	if last {
 		indent += "   "

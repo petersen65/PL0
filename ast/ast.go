@@ -4,594 +4,597 @@
 
 package ast
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement, source *SourceDescription) Block {
-	parent := new(block)
+	block := &BlockNode{Name: name, Depth: depth, Scope: scope, Procedures: procedures, Statement: statement, Source: source}
 
-	for _, procedure := range procedures {
-		procedure.(*block).parent = parent
+	for _, procedure := range block.Procedures {
+		procedure.SetParent(block)
 	}
 
-	statement.(node).setParent(parent)
-
-	parent.name = name
-	parent.depth = depth
-	parent.scope = scope
-	parent.procedures = procedures
-	parent.statement = statement
-	parent.source = &sourceDescription{source, parent}
-
-	return parent
+	statement.SetParent(block)
+	source.SetParent(block)
+	return block
 }
 
-// Create a new literal-usage node in the abstract syntax tree.
+// Create a new literal-reference node in the abstract syntax tree.
 func newLiteralReference(value any, dataType DataType, source *SourceDescription) Expression {
-	parent := new(literal)
-
-	parent.value = value
-	parent.dataType = dataType
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	literal := &LiteralNode{Value: value, DataType: dataType, Source: source}
+	source.SetParent(literal)
+	return literal
 }
 
 // Create a new constant-usage node in the abstract syntax tree.
 func newConstantReference(entry *Symbol, source *SourceDescription) Expression {
-	parent := new(constant)
-
-	parent.symbol = symbol{entry, parent}
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	constant := &ConstantNode{Symbol: entry, Source: source}
+	entry.SetParent(constant)
+	source.SetParent(constant)
+	return constant
 }
 
 // Create a new variable-usage node in the abstract syntax tree.
 func newVariableReference(entry *Symbol, source *SourceDescription) Expression {
-	parent := new(variable)
-
-	parent.symbol = symbol{entry, parent}
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	variable := &VariableNode{Symbol: entry, Source: source}
+	entry.SetParent(variable)
+	source.SetParent(variable)
+	return variable
 }
 
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression, source *SourceDescription) Expression {
-	parent := new(unaryOperation)
-
-	operand.(node).setParent(parent)
-
-	parent.operation = operation
-	parent.operand = operand
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	unary := &UnaryOperationNode{Operation: operation, Operand: operand, Source: source}
+	operand.SetParent(unary)
+	source.SetParent(unary)
+	return unary
 }
 
 // Create a new binary operation node in the abstract syntax tree.
 func newBinaryOperation(operation BinaryOperator, left, right Expression, source *SourceDescription) Expression {
-	parent := new(binaryOperation)
-
-	left.(node).setParent(parent)
-	right.(node).setParent(parent)
-
-	parent.operation = operation
-	parent.left = left
-	parent.right = right
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	binary := &BinaryOperationNode{Operation: operation, Left: left, Right: right, Source: source}
+	left.SetParent(binary)
+	right.SetParent(binary)
+	source.SetParent(binary)
+	return binary
 }
 
 // Create a new conditional operation node in the abstract syntax tree.
 func newConditionalOperation(operation RelationalOperator, left, right Expression, source *SourceDescription) Expression {
-	parent := new(conditionalOperation)
-
-	left.(node).setParent(parent)
-	right.(node).setParent(parent)
-
-	parent.operation = operation
-	parent.left = left
-	parent.right = right
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	conditional := &ConditionalOperationNode{Operation: operation, Left: left, Right: right, Source: source}
+	left.SetParent(conditional)
+	right.SetParent(conditional)
+	source.SetParent(conditional)
+	return conditional
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(entry *Symbol, Expression Expression, source *SourceDescription) Statement {
-	parent := new(assignmentStatement)
-
-	expression.(node).setParent(parent)
-
-	parent.symbol = symbol{entry, parent}
-	parent.expression = expression
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+func newAssignmentStatement(entry *Symbol, expression Expression, source *SourceDescription) Statement {
+	assignment := &AssignmentStatementNode{Symbol: entry, Expression: expression, Source: source}
+	entry.SetParent(assignment)
+	expression.SetParent(assignment)
+	source.SetParent(assignment)
+	return assignment
 }
 
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(entry *Symbol, source *SourceDescription) Statement {
-	parent := new(readStatement)
-
-	parent.symbol = symbol{entry, parent}
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	read := &ReadStatementNode{Symbol: entry, Source: source}
+	entry.SetParent(read)
+	source.SetParent(read)
+	return read
 }
 
 // Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(Expression Expression, source *SourceDescription) Statement {
-	parent := new(writeStatement)
-
-	expression.(node).setParent(parent)
-
-	parent.expression = expression
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+func newWriteStatement(expression Expression, source *SourceDescription) Statement {
+	write := &WriteStatementNode{Expression: expression, Source: source}
+	expression.SetParent(write)
+	source.SetParent(write)
+	return write
 }
 
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(entry *Symbol, source *SourceDescription) Statement {
-	parent := new(callStatement)
-
-	parent.symbol = symbol{entry, parent}
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	call := &CallStatementNode{Symbol: entry, Source: source}
+	entry.SetParent(call)
+	source.SetParent(call)
+	return call
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement, source *SourceDescription) Statement {
-	parent := new(ifStatement)
-
-	condition.(node).setParent(parent)
-	statement.(node).setParent(parent)
-
-	parent.condition = condition
-	parent.statement = statement
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	ifStmt := &IfStatementNode{Condition: condition, Statement: statement, Source: source}
+	condition.SetParent(ifStmt)
+	statement.SetParent(ifStmt)
+	source.SetParent(ifStmt)
+	return ifStmt
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement, source *SourceDescription) Statement {
-	parent := new(whileStatement)
-
-	condition.(node).setParent(parent)
-	statement.(node).setParent(parent)
-
-	parent.condition = condition
-	parent.statement = statement
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	whileStmt := &WhileStatementNode{Condition: condition, Statement: statement, Source: source}
+	condition.SetParent(whileStmt)
+	statement.SetParent(whileStmt)
+	source.SetParent(whileStmt)
+	return whileStmt
 }
 
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement, source *SourceDescription) Statement {
-	parent := new(compoundStatement)
+	compound := &CompoundStatementNode{Statements: statements, Source: source}
 
-	for _, statement := range statements {
-		statement.(node).setParent(parent)
+	for _, statement := range compound.Statements {
+		statement.SetParent(compound)
 	}
 
-	parent.statements = statements
-	parent.source = sourceDescription{source, parent}
-
-	return parent
+	source.SetParent(compound)
+	return compound
 }
 
-// Node type of the symbol entry.
-func (s symbol) Type() NodeType {
-	return SymbolNode
+// Set the parent Node of the symbol entry node.
+func (s *Symbol) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the symbol entry.
-func (s symbol) Title() string {
-	return s.String()
+// String of the symbol entry node.
+func (s *Symbol) String() string {
+	return fmt.Sprintf("symbol(%v:%v)", s.Name, s.Depth)
 }
 
 // Parent node of the symbol entry node.
-func (s symbol) Parent() Node {
-	return s.parent
+func (s *Symbol) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the symbol entry node.
-func (s symbol) Children() []Node {
+func (s *Symbol) Children() []Node {
 	return make([]Node, 0)
 }
 
-// Determine if the symbol entry is a declaration (otherwise it is a reference).
-func (s symbol) isDeclaration() bool {
-	return s.parent != nil && s.parent.Type() == BlockNode
+// Set the parent Node of the source description node.
+func (s *SourceDescription) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Node type of the source description.
-func (s sourceDescription) Type() NodeType {
-	return SourceDescriptionNode
-}
+// String of the source description node.
+func (s *SourceDescription) String() string {
+	if len(s.Lines) == 0 {
+		return fmt.Sprintf("source %v-%v", s.From, s.To)
+	}
 
-// Title of the source description.
-func (s sourceDescription) Title() string {
-	return s.String()
+	if len(s.Lines) == 1 {
+		return fmt.Sprintf("source %v", strings.Trim(string(s.Lines[0].Code), " "))
+	}
+
+	return fmt.Sprintf(
+		"source %v ... %v",
+		strings.Trim(string(s.Lines[0].Code), " "),
+		strings.Trim(string(s.Lines[len(s.Lines)-1].Code), " "))
 }
 
 // Parent node of the source description node.
-func (s sourceDescription) Parent() Node {
-	return s.parent
+func (s *SourceDescription) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the source description node.
-func (s sourceDescription) Children() []Node {
+func (s *SourceDescription) Children() []Node {
 	return make([]Node, 0)
 }
 
-// Node type of the literal.
-func (e *literal) Type() NodeType {
-	return LiteralNode
+// Set the parent Node of the block node.
+func (b *BlockNode) SetParent(parent Node) {
+	b.ParentNode = parent
 }
 
-// Title of the literal.
-func (e *literal) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the literal node.
-func (e *literal) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the literal node.
-func (e *literal) Children() []Node {
-	return []Node{e.source}
-}
-
-// Set the parent node of the literal node.
-func (e *literal) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the constant.
-func (e *constant) Type() NodeType {
-	return ConstantNode
-}
-
-// Title of the constant.
-func (e *constant) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the constant node.
-func (e *constant) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the constant node.
-func (e *constant) Children() []Node {
-	return []Node{e.symbol, e.source}
-}
-
-// Set the parent node of the constant node.
-func (e *constant) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the variable.
-func (e *variable) Type() NodeType {
-	return VariableNode
-}
-
-// Title of the variable.
-func (e *variable) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the variable node.
-func (e *variable) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the variable node.
-func (e *variable) Children() []Node {
-	return []Node{e.symbol, e.source}
-}
-
-// Set the parent node of the variable node.
-func (e *variable) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the unary operation.
-func (e *unaryOperation) Type() NodeType {
-	return UnaryOperationNode
-}
-
-// Title of the unary operation.
-func (e *unaryOperation) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the unary operation node.
-func (e *unaryOperation) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the unary operation node.
-func (e *unaryOperation) Children() []Node {
-	return []Node{e.operand, e.source}
-}
-
-// Set the parent node of the unary operation node.
-func (e *unaryOperation) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the binary operation.
-func (e *binaryOperation) Type() NodeType {
-	return BinaryOperationNode
-}
-
-// Title of the binary operation.
-func (e *binaryOperation) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the binary operation node.
-func (e *binaryOperation) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the binary operation node.
-func (e *binaryOperation) Children() []Node {
-	return []Node{e.left, e.right, e.source}
-}
-
-// Set the parent node of the binary operation node.
-func (e *binaryOperation) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the conditional operation.
-func (e *conditionalOperation) Type() NodeType {
-	return ConditionalOperationNode
-}
-
-// Title of the conditional operation.
-func (e *conditionalOperation) Title() string {
-	return e.ExpressionString()
-}
-
-// Parent node of the conditional operation node.
-func (e *conditionalOperation) Parent() Node {
-	return e.parent
-}
-
-// Children nodes of the conditional operation node.
-func (e *conditionalOperation) Children() []Node {
-	return []Node{e.left, e.right, e.source}
-}
-
-// Set the parent node of the conditional operation node.
-func (e *conditionalOperation) setParent(parent node) {
-	e.parent = parent
-}
-
-// Node type of the block.
-func (b *block) Type() NodeType {
-	return BlockNode
-}
-
-// Title of the block.
-func (b *block) Title() string {
-	return b.BlockString()
+// String of the block node.
+func (b *BlockNode) String() string {
+	return fmt.Sprintf("block %v:%v", b.Name, b.Depth)
 }
 
 // Parent node of the block node.
-func (b *block) Parent() Node {
-	return b.parent
+func (b *BlockNode) Parent() Node {
+	return b.ParentNode
 }
 
 // Children nodes of the block node.
-func (b *block) Children() []Node {
-	children := make([]Node, 0, len(b.procedures)+2)
+func (b *BlockNode) Children() []Node {
+	children := make([]Node, 0, len(*b.Scope.SymbolTable)+len(b.Procedures)+2)
 
-	for _, entry := range *b.scope.SymbolTable {
-		children = append(children, symbol{entry, b})
+	for _, entry := range *b.Scope.SymbolTable {
+		children = append(children, entry)
 	}
 
-	for _, procedure := range b.procedures {
+	for _, procedure := range b.Procedures {
 		children = append(children, procedure)
 	}
 
-	return append(children, b.statement, b.source)
+	return append(children, b.Statement, b.Source)
 }
 
-// Set the parent node of the block node.
-func (b *block) setParent(parent node) {
-	b.parent = parent
+// BlockString returns the string representation of the block.
+func (b *BlockNode) BlockString() string {
+	return b.String()
 }
 
-// Node type of the assignment statement.
-func (s *assignmentStatement) Type() NodeType {
-	return AssignmentStatementNode
+// Set the parent Node of the literal node.
+func (e *LiteralNode) SetParent(parent Node) {
+	e.ParentNode = parent
 }
 
-// Title of the assignment statement.
-func (s *assignmentStatement) Title() string {
-	return s.StatementString()
+// String of the literal node.
+func (e *LiteralNode) String() string {
+	switch e.DataType {
+	case Integer64:
+		return fmt.Sprintf("literal(%v:i64)", e.Value)
+
+	default:
+		return fmt.Sprintf("literal(%v)", e.Value)
+	}
+}
+
+// Parent node of the literal node.
+func (e *LiteralNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the literal node.
+func (e *LiteralNode) Children() []Node {
+	return []Node{e.Source}
+}
+
+// ExpressionString returns the string representation of the literal expression.
+func (e *LiteralNode) ExpressionString() string {
+	return e.String()
+}
+
+// Set the parent Node of the constant node.
+func (e *ConstantNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the constant.
+func (e *ConstantNode) String() string {
+	return fmt.Sprintf("constant(%v=%v)", e.Symbol.Name, e.Symbol.Value)
+}
+
+// Parent node of the constant node.
+func (e *ConstantNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the constant node.
+func (e *ConstantNode) Children() []Node {
+	return []Node{e.Symbol, e.Source}
+}
+
+// ExpressionString returns the string representation of the constant expression.
+func (e *ConstantNode) ExpressionString() string {
+	return e.ExpressionString()
+}
+
+// Set the parent Node of the variable node.
+func (e *VariableNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the variable node.
+func (e *VariableNode) String() string {
+	return fmt.Sprintf("variable(%v:%v)", e.Symbol.Name, e.Symbol.Depth)
+}
+
+// Parent node of the variable node.
+func (e *VariableNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the variable node.
+func (e *VariableNode) Children() []Node {
+	return []Node{e.Symbol, e.Source}
+}
+
+// ExpressionString returns the string representation of the variable expression.
+func (e *VariableNode) ExpressionString() string {
+	return e.String()
+}
+
+// Set the parent Node of the unary operation node.
+func (e *UnaryOperationNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the unary operation node.
+func (e *UnaryOperationNode) String() string {
+	switch e.Operation {
+	case Odd:
+		return "odd"
+
+	case Negate:
+		return "negate"
+	}
+
+	return "unknown"
+}
+
+// Parent node of the unary operation node.
+func (e *UnaryOperationNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the unary operation node.
+func (e *UnaryOperationNode) Children() []Node {
+	return []Node{e.Operand, e.Source}
+}
+
+// ExpressionString returns the string representation of the unary operation expression.
+func (e *UnaryOperationNode) ExpressionString() string {
+	return e.String()
+}
+
+// Set the parent Node of the binary operation node.
+func (e *BinaryOperationNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the binary operation node.
+func (e *BinaryOperationNode) String() string {
+	switch e.Operation {
+	case Plus:
+		return "addition"
+
+	case Minus:
+		return "subtraction"
+
+	case Times:
+		return "multiplication"
+
+	case Divide:
+		return "division"
+	}
+
+	return "unknown"
+}
+
+// Parent node of the binary operation node.
+func (e *BinaryOperationNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the binary operation node.
+func (e *BinaryOperationNode) Children() []Node {
+	return []Node{e.Left, e.Right, e.Source}
+}
+
+// ExpressionString returns the string representation of the binary operation expression.
+func (e *BinaryOperationNode) ExpressionString() string {
+	return e.String()
+}
+
+// Set the parent Node of the conditional operation node.
+func (e *ConditionalOperationNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the conditional operation node.
+func (e *ConditionalOperationNode) String() string {
+	switch e.Operation {
+	case Equal:
+		return "equal"
+
+	case NotEqual:
+		return "not equal"
+
+	case Less:
+		return "less"
+
+	case LessEqual:
+		return "less equal"
+
+	case Greater:
+		return "greater"
+
+	case GreaterEqual:
+		return "greater equal"
+	}
+
+	return "unknown"
+}
+
+// Parent node of the conditional operation node.
+func (e *ConditionalOperationNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the conditional operation node.
+func (e *ConditionalOperationNode) Children() []Node {
+	return []Node{e.Left, e.Right, e.Source}
+}
+
+// ConditionString returns the string representation of the conditional operation expression.
+func (e *ConditionalOperationNode) ExpressionString() string {
+	return e.String()
+}
+
+// Set the parent Node of the assignment statement node.
+func (s *AssignmentStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
+}
+
+// String of the assignment statement node.
+func (s *AssignmentStatementNode) String() string {
+	return "assignment"
 }
 
 // Parent node of the assignment statement node.
-func (s *assignmentStatement) Parent() Node {
-	return s.parent
+func (s *AssignmentStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the assignment statement node.
-func (s *assignmentStatement) Children() []Node {
-	return []Node{s.symbol, s.expression, s.source}
+func (s *AssignmentStatementNode) Children() []Node {
+	return []Node{s.Symbol, s.Expression, s.Source}
 }
 
-// Set the parent node of the assignment statement node.
-func (s *assignmentStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the assignment statement.
+func (s *AssignmentStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the read statement.
-func (s *readStatement) Type() NodeType {
-	return ReadStatementNode
+// Set the parent Node of the read statement node.
+func (s *ReadStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the read statement.
-func (s *readStatement) Title() string {
-	return s.StatementString()
+// String of the read statement node.
+func (s *ReadStatementNode) String() string {
+	return "read"
 }
 
 // Parent node of the read statement node.
-func (s *readStatement) Parent() Node {
-	return s.parent
+func (s *ReadStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the read statement node.
-func (s *readStatement) Children() []Node {
-	return []Node{s.symbol, s.source}
+func (s *ReadStatementNode) Children() []Node {
+	return []Node{s.Symbol, s.Source}
 }
 
-// Set the parent node of the read statement node.
-func (s *readStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the read statement.
+func (s *ReadStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the write statement.
-func (s *writeStatement) Type() NodeType {
-	return WriteStatementNode
+// Set the parent Node of the write statement node.
+func (s *WriteStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the write statement.
-func (s *writeStatement) Title() string {
-	return s.StatementString()
+// String of the write statement node.
+func (s *WriteStatementNode) String() string {
+	return "write"
 }
 
 // Parent node of the write statement node.
-func (s *writeStatement) Parent() Node {
-	return s.parent
+func (s *WriteStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the write statement node.
-func (s *writeStatement) Children() []Node {
-	return []Node{s.expression, s.source}
+func (s *WriteStatementNode) Children() []Node {
+	return []Node{s.Expression, s.Source}
 }
 
-// Set the parent node of the write statement node.
-func (s *writeStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the write statement.
+func (s *WriteStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the call statement.
-func (s *callStatement) Type() NodeType {
-	return CallStatementNode
+// Set the parent Node of the call statement node.
+func (s *CallStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the call statement.
-func (s *callStatement) Title() string {
-	return s.StatementString()
+// String of the call statement node.
+func (s *CallStatementNode) String() string {
+	return "call"
 }
 
 // Parent node of the call statement node.
-func (s *callStatement) Parent() Node {
-	return s.parent
+func (s *CallStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the call statement node.
-func (s *callStatement) Children() []Node {
-	return []Node{s.symbol, s.source}
+func (s *CallStatementNode) Children() []Node {
+	return []Node{s.Symbol, s.Source}
 }
 
-// Set the parent node of the call statement node.
-func (s *callStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the call statement.
+func (s *CallStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the if-then statement.
-func (s *ifStatement) Type() NodeType {
-	return IfStatementNode
+// Set the parent Node of the if-then statement node.
+func (s *IfStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the if-then statement.
-func (s *ifStatement) Title() string {
-	return s.StatementString()
+// String of the if-then statement node.
+func (s *IfStatementNode) String() string {
+	return "if"
 }
 
 // Parent node of the if-then statement node.
-func (s *ifStatement) Parent() Node {
-	return s.parent
+func (s *IfStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the if-then statement node.
-func (s *ifStatement) Children() []Node {
-	return []Node{s.condition, s.statement, s.source}
+func (s *IfStatementNode) Children() []Node {
+	return []Node{s.Condition, s.Statement, s.Source}
 }
 
-// Set the parent node of the if-then statement node.
-func (s *ifStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the if-then statement.
+func (s *IfStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the while-do statement.
-func (s *whileStatement) Type() NodeType {
-	return WhileStatementNode
+// Set the parent Node of the while-do statement node.
+func (s *WhileStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the while-do statement.
-func (s *whileStatement) Title() string {
-	return s.StatementString()
+// String of the while-do statement node.
+func (s *WhileStatementNode) String() string {
+	return "while"
 }
 
 // Parent node of the while-do statement node.
-func (s *whileStatement) Parent() Node {
-	return s.parent
+func (s *WhileStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the while-do statement node.
-func (s *whileStatement) Children() []Node {
-	return []Node{s.condition, s.statement, s.source}
+func (s *WhileStatementNode) Children() []Node {
+	return []Node{s.Condition, s.Statement, s.Source}
 }
 
-// Set the parent node of the while-do statement node.
-func (s *whileStatement) setParent(parent node) {
-	s.parent = parent
+// StatementString returns the string representation of the while statement.
+func (s *WhileStatementNode) StatementString() string {
+	return s.String()
 }
 
-// Node type of the compound statement.
-func (s *compoundStatement) Type() NodeType {
-	return CompoundStatementNode
+// Set the parent Node of the compound statement node.
+func (s *CompoundStatementNode) SetParent(parent Node) {
+	s.ParentNode = parent
 }
 
-// Title of the compound statement.
-func (s *compoundStatement) Title() string {
-	return s.StatementString()
+// String of the compound statement node.
+func (s *CompoundStatementNode) String() string {
+	return "compound"
 }
 
 // Parent node of the compound statement node.
-func (c *compoundStatement) Parent() Node {
-	return c.parent
+func (s *CompoundStatementNode) Parent() Node {
+	return s.ParentNode
 }
 
 // Children nodes of the compound statement node.
-func (c *compoundStatement) Children() []Node {
-	children := make([]Node, 0, len(c.statements)+1)
+func (s *CompoundStatementNode) Children() []Node {
+	children := make([]Node, 0, len(s.Statements)+1)
 
-	for _, statement := range c.statements {
+	for _, statement := range s.Statements {
 		children = append(children, statement)
 	}
 
-	return append(children, c.source)
+	return append(children, s.Source)
 }
 
-// Set the parent node of the compound statement node.
-func (c *compoundStatement) setParent(parent node) {
-	c.parent = parent
+// StatementString returns the string representation of the compound statement.
+func (s *CompoundStatementNode) StatementString() string {
+	return s.String()
 }
