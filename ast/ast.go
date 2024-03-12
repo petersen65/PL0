@@ -141,7 +141,7 @@ func (s *Symbol) SetParent(parent Node) {
 
 // String of the symbol entry node.
 func (s *Symbol) String() string {
-	return fmt.Sprintf("symbol(%v:%v)", s.Name, s.Depth)
+	return fmt.Sprintf("symbol(%v,%v:%v)", KindNames[s.Kind], s.Name, s.Depth)
 }
 
 // Parent node of the symbol entry node.
@@ -166,13 +166,13 @@ func (s *SourceDescription) String() string {
 	}
 
 	if len(s.Lines) == 1 {
-		return fmt.Sprintf("source %v", strings.Trim(string(s.Lines[0].Code), " "))
+		return fmt.Sprintf("source %v", strings.Trim(string(s.Lines[0].Code), " \t\n"))
 	}
 
 	return fmt.Sprintf(
 		"source %v ... %v",
-		strings.Trim(string(s.Lines[0].Code), " "),
-		strings.Trim(string(s.Lines[len(s.Lines)-1].Code), " "))
+		strings.Trim(string(s.Lines[0].Code), " \t\n"),
+		strings.Trim(string(s.Lines[len(s.Lines)-1].Code), " \t\n"))
 }
 
 // Parent node of the source description node.
