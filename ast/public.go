@@ -95,10 +95,11 @@ type (
 
 	// A node in the abstract syntax tree.
 	Node interface {
-		SetParent(Node)
+		SetParent(node Node)
 		Parent() Node
 		Children() []Node
 		String() string
+		Accept(visitor Visitor)
 	}
 
 	// A block represented as an abstract syntax tree.
