@@ -154,6 +154,11 @@ func (s *Symbol) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Accept the visitor for the symbol entry node.
+func (s *Symbol) Accept(visitor Visitor) {
+	visitor.VisitSymbol(s)
+}
+
 // Set the parent Node of the source description node.
 func (s *SourceDescription) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -183,6 +188,11 @@ func (s *SourceDescription) Parent() Node {
 // Children nodes of the source description node.
 func (s *SourceDescription) Children() []Node {
 	return make([]Node, 0)
+}
+
+// Accept the visitor for the source description node.
+func (s *SourceDescription) Accept(visitor Visitor) {
+	visitor.VisitSourceDescription(s)
 }
 
 // Set the parent Node of the block node.
@@ -220,6 +230,11 @@ func (b *BlockNode) BlockString() string {
 	return b.String()
 }
 
+// Accept the visitor for the block node.
+func (b *BlockNode) Accept(visitor Visitor) {
+	visitor.VisitBlock(b)
+}
+
 // Set the parent Node of the literal node.
 func (e *LiteralNode) SetParent(parent Node) {
 	e.ParentNode = parent
@@ -251,6 +266,11 @@ func (e *LiteralNode) ExpressionString() string {
 	return e.String()
 }
 
+// Accept the visitor for the literal node.
+func (e *LiteralNode) Accept(visitor Visitor) {
+	visitor.VisitLiteral(e)
+}
+
 // Set the parent Node of the constant node.
 func (e *ConstantNode) SetParent(parent Node) {
 	e.ParentNode = parent
@@ -276,6 +296,11 @@ func (e *ConstantNode) ExpressionString() string {
 	return e.String()
 }
 
+// Accept the visitor for the constant node.
+func (e *ConstantNode) Accept(visitor Visitor) {
+	visitor.VisitConstant(e)
+}
+
 // Set the parent Node of the variable node.
 func (e *VariableNode) SetParent(parent Node) {
 	e.ParentNode = parent
@@ -299,6 +324,11 @@ func (e *VariableNode) Children() []Node {
 // ExpressionString returns the string representation of the variable expression.
 func (e *VariableNode) ExpressionString() string {
 	return e.String()
+}
+
+// Accept the visitor for the variable node.
+func (e *VariableNode) Accept(visitor Visitor) {
+	visitor.VisitVariable(e)
 }
 
 // Set the parent Node of the unary operation node.
@@ -332,6 +362,11 @@ func (e *UnaryOperationNode) Children() []Node {
 // ExpressionString returns the string representation of the unary operation expression.
 func (e *UnaryOperationNode) ExpressionString() string {
 	return e.String()
+}
+
+// Accept the visitor for the unary operation node.
+func (e *UnaryOperationNode) Accept(visitor Visitor) {
+	visitor.VisitUnaryOperation(e)
 }
 
 // Set the parent Node of the binary operation node.
@@ -371,6 +406,11 @@ func (e *BinaryOperationNode) Children() []Node {
 // ExpressionString returns the string representation of the binary operation expression.
 func (e *BinaryOperationNode) ExpressionString() string {
 	return e.String()
+}
+
+// Accept the visitor for the binary operation node.
+func (e *BinaryOperationNode) Accept(visitor Visitor) {
+	visitor.VisitBinaryOperation(e)
 }
 
 // Set the parent Node of the conditional operation node.
@@ -418,6 +458,11 @@ func (e *ConditionalOperationNode) ExpressionString() string {
 	return e.String()
 }
 
+// Accept the visitor for the conditional operation node.
+func (e *ConditionalOperationNode) Accept(visitor Visitor) {
+	visitor.VisitConditionalOperation(e)
+}
+
 // Set the parent Node of the assignment statement node.
 func (s *AssignmentStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -441,6 +486,11 @@ func (s *AssignmentStatementNode) Children() []Node {
 // StatementString returns the string representation of the assignment statement.
 func (s *AssignmentStatementNode) StatementString() string {
 	return s.String()
+}
+
+// Accept the visitor for the assignment statement node.
+func (s *AssignmentStatementNode) Accept(visitor Visitor) {
+	visitor.VisitAssignmentStatement(s)
 }
 
 // Set the parent Node of the read statement node.
@@ -468,6 +518,11 @@ func (s *ReadStatementNode) StatementString() string {
 	return s.String()
 }
 
+// Accept the visitor for the read statement node.
+func (s *ReadStatementNode) Accept(visitor Visitor) {
+	visitor.VisitReadStatement(s)
+}
+
 // Set the parent Node of the write statement node.
 func (s *WriteStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -491,6 +546,11 @@ func (s *WriteStatementNode) Children() []Node {
 // StatementString returns the string representation of the write statement.
 func (s *WriteStatementNode) StatementString() string {
 	return s.String()
+}
+
+// Accept the visitor for the write statement node.
+func (s *WriteStatementNode) Accept(visitor Visitor) {
+	visitor.VisitWriteStatement(s)
 }
 
 // Set the parent Node of the call statement node.
@@ -518,6 +578,11 @@ func (s *CallStatementNode) StatementString() string {
 	return s.String()
 }
 
+// Accept the visitor for the call statement node.
+func (s *CallStatementNode) Accept(visitor Visitor) {
+	visitor.VisitCallStatement(s)
+}
+
 // Set the parent Node of the if-then statement node.
 func (s *IfStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -543,6 +608,11 @@ func (s *IfStatementNode) StatementString() string {
 	return s.String()
 }
 
+// Accept the visitor for the if-then statement node.
+func (s *IfStatementNode) Accept(visitor Visitor) {
+	visitor.VisitIfStatement(s)
+}
+
 // Set the parent Node of the while-do statement node.
 func (s *WhileStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -566,6 +636,11 @@ func (s *WhileStatementNode) Children() []Node {
 // StatementString returns the string representation of the while statement.
 func (s *WhileStatementNode) StatementString() string {
 	return s.String()
+}
+
+// Accept the visitor for the while-do statement node.
+func (s *WhileStatementNode) Accept(visitor Visitor) {
+	visitor.VisitWhileStatement(s)
 }
 
 // Set the parent Node of the compound statement node.
@@ -597,4 +672,9 @@ func (s *CompoundStatementNode) Children() []Node {
 // StatementString returns the string representation of the compound statement.
 func (s *CompoundStatementNode) StatementString() string {
 	return s.String()
+}
+
+// Accept the visitor for the compound statement node.
+func (s *CompoundStatementNode) Accept(visitor Visitor) {
+	visitor.VisitCompoundStatement(s)
 }
