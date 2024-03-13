@@ -23,24 +23,24 @@ func newBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 	return block
 }
 
-// Create a new literal-reference node in the abstract syntax tree.
-func newLiteralReference(value any, dataType DataType, source *SourceDescription) Expression {
+// Create a new literal node in the abstract syntax tree.
+func newLiteral(value any, dataType DataType, source *SourceDescription) Expression {
 	literal := &LiteralNode{Value: value, DataType: dataType, Source: source}
 	source.SetParent(literal)
 	return literal
 }
 
-// Create a new constant-usage node in the abstract syntax tree.
+// Create a new constant-reference node in the abstract syntax tree.
 func newConstantReference(entry *Symbol, source *SourceDescription) Expression {
-	constant := &ConstantNode{Symbol: entry, Source: source}
+	constant := &ConstantReferenceNode{Symbol: entry, Source: source}
 	entry.SetParent(constant)
 	source.SetParent(constant)
 	return constant
 }
 
-// Create a new variable-usage node in the abstract syntax tree.
-func newVariableReference(entry *Symbol, source *SourceDescription) Expression {
-	variable := &VariableNode{Symbol: entry, Source: source}
+// Create a new variable-reference node in the abstract syntax tree.
+func newVariableReference(referenceDepth int32, entry *Symbol, source *SourceDescription) Expression {
+	variable := &VariableReferenceNode{ReferenceDepth: referenceDepth, Symbol: entry, Source: source}
 	entry.SetParent(variable)
 	source.SetParent(variable)
 	return variable
@@ -273,62 +273,62 @@ func (e *LiteralNode) Accept(visitor Visitor) {
 }
 
 // Set the parent Node of the constant node.
-func (e *ConstantNode) SetParent(parent Node) {
+func (e *ConstantReferenceNode) SetParent(parent Node) {
 	e.ParentNode = parent
 }
 
 // String of the constant.
-func (e *ConstantNode) String() string {
+func (e *ConstantReferenceNode) String() string {
 	return fmt.Sprintf("constant(%v=%v)", e.Symbol.Name, e.Symbol.Value)
 }
 
 // Parent node of the constant node.
-func (e *ConstantNode) Parent() Node {
+func (e *ConstantReferenceNode) Parent() Node {
 	return e.ParentNode
 }
 
 // Children nodes of the constant node.
-func (e *ConstantNode) Children() []Node {
+func (e *ConstantReferenceNode) Children() []Node {
 	return []Node{e.Symbol, e.Source}
 }
 
 // ExpressionString returns the string representation of the constant expression.
-func (e *ConstantNode) ExpressionString() string {
+func (e *ConstantReferenceNode) ExpressionString() string {
 	return e.String()
 }
 
 // Accept the visitor for the constant node.
-func (e *ConstantNode) Accept(visitor Visitor) {
+func (e *ConstantReferenceNode) Accept(visitor Visitor) {
 	visitor.VisitConstant(e)
 }
 
 // Set the parent Node of the variable node.
-func (e *VariableNode) SetParent(parent Node) {
+func (e *VariableReferenceNode) SetParent(parent Node) {
 	e.ParentNode = parent
 }
 
 // String of the variable node.
-func (e *VariableNode) String() string {
+func (e *VariableReferenceNode) String() string {
 	return fmt.Sprintf("variable(%v:%v)", e.Symbol.Name, e.Symbol.Depth)
 }
 
 // Parent node of the variable node.
-func (e *VariableNode) Parent() Node {
+func (e *VariableReferenceNode) Parent() Node {
 	return e.ParentNode
 }
 
 // Children nodes of the variable node.
-func (e *VariableNode) Children() []Node {
+func (e *VariableReferenceNode) Children() []Node {
 	return []Node{e.Symbol, e.Source}
 }
 
 // ExpressionString returns the string representation of the variable expression.
-func (e *VariableNode) ExpressionString() string {
+func (e *VariableReferenceNode) ExpressionString() string {
 	return e.String()
 }
 
 // Accept the visitor for the variable node.
-func (e *VariableNode) Accept(visitor Visitor) {
+func (e *VariableReferenceNode) Accept(visitor Visitor) {
 	visitor.VisitVariable(e)
 }
 

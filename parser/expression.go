@@ -171,7 +171,7 @@ func (e *expressionParser) factor(scope *ast.Scope, depth int32, anchors scn.Tok
 
 	for e.lastToken().In(factors) {
 		if e.lastToken() == scn.Identifier {
-			if symbol := scope.Lookup(e.lastTokenValue()); symbol != nil{
+			if symbol := scope.Lookup(e.lastTokenValue()); symbol != nil {
 				switch symbol.Kind {
 				case ast.Constant:
 					e.emitter.Constant(symbol.Value)
@@ -179,7 +179,7 @@ func (e *expressionParser) factor(scope *ast.Scope, depth int32, anchors scn.Tok
 
 				case ast.Variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.Offset), depth-symbol.Depth)
-					operand = ast.NewVariableReference(symbol, e.collectSourceDescription(from))
+					operand = ast.NewVariableReference(depth, symbol, e.collectSourceDescription(from))
 
 				default:
 					e.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])
@@ -191,7 +191,7 @@ func (e *expressionParser) factor(scope *ast.Scope, depth int32, anchors scn.Tok
 			e.nextToken()
 		} else if e.lastToken() == scn.Number {
 			e.emitter.Constant(e.numberValue(sign, e.lastTokenValue()))
-			operand = ast.NewLiteralReference(e.numberValue(sign, e.lastTokenValue()), ast.Integer64, e.collectSourceDescription(from))
+			operand = ast.NewLiteral(e.numberValue(sign, e.lastTokenValue()), ast.Integer64, e.collectSourceDescription(from))
 			sign = scn.Unknown
 			e.nextToken()
 		} else if e.lastToken() == scn.LeftParenthesis {

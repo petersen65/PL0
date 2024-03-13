@@ -151,18 +151,19 @@ type (
 		Source     *SourceDescription // source description for the literal node
 	}
 
-	// Constant node represents the usage of a constant in the AST.
-	ConstantNode struct {
-		ParentNode Node               // parent node of the constant
+	// ConstantReferenceNode represents the usage of a constant in the AST.
+	ConstantReferenceNode struct {
+		ParentNode Node               // parent node of the constant reference
 		Symbol     *Symbol            // constant symbol entry
 		Source     *SourceDescription // source description for the constant node
 	}
 
-	// Variable node represents the usage of a variable in the AST.
-	VariableNode struct {
-		ParentNode Node               // parent node of the variable
-		Symbol     *Symbol            // variable symbol entry
-		Source     *SourceDescription // source description for the variable node
+	// VariableReferenceNode represents the usage of a variable in the AST.
+	VariableReferenceNode struct {
+		ParentNode     Node               // parent node of the variable reference
+		ReferenceDepth int32              // block depth while referencing the variable
+		Symbol         *Symbol            // variable symbol entry
+		Source         *SourceDescription // source description for the variable node
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -252,8 +253,8 @@ type (
 		VisitSourceDescription(source *SourceDescription)
 		VisitBlock(block *BlockNode)
 		VisitLiteral(literal *LiteralNode)
-		VisitConstant(constant *ConstantNode)
-		VisitVariable(variable *VariableNode)
+		VisitConstant(constant *ConstantReferenceNode)
+		VisitVariable(variable *VariableReferenceNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)
 		VisitBinaryOperation(operation *BinaryOperationNode)
 		VisitConditionalOperation(operation *ConditionalOperationNode)
@@ -312,9 +313,9 @@ func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 	return newBlock(name, depth, scope, procedures, statement, source)
 }
 
-// NewLiteralReference creates a new literal-reference node in the abstract syntax tree.
-func NewLiteralReference(value any, dataType DataType, source *SourceDescription) Expression {
-	return newLiteralReference(value, dataType, source)
+// NewLiteral creates a new literal node in the abstract syntax tree.
+func NewLiteral(value any, dataType DataType, source *SourceDescription) Expression {
+	return newLiteral(value, dataType, source)
 }
 
 // NewConstantReference creates a new constant-reference node in the abstract syntax tree.
@@ -323,8 +324,8 @@ func NewConstantReference(entry *Symbol, source *SourceDescription) Expression {
 }
 
 // NewVariableReference creates a new variable-reference node in the abstract syntax tree.
-func NewVariableReference(entry *Symbol, source *SourceDescription) Expression {
-	return newVariableReference(entry, source)
+func NewVariableReference(referenceDepth int32, entry *Symbol, source *SourceDescription) Expression {
+	return newVariableReference(referenceDepth, entry, source)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
