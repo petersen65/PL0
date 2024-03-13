@@ -5,6 +5,15 @@
 // Package ast implements the abstract syntax tree (AST) for the PL/0 parser.
 package ast
 
+// Traverse the abstract syntax tree in specific orders.
+const (
+	_ = TraversalOrder(iota)
+	PreOrder
+	InOrder
+	PostOrder
+	LevelOrder
+)
+
 // Operators with one operand.
 const (
 	_ = UnaryOperator(iota)
@@ -46,6 +55,9 @@ const (
 )
 
 type (
+	// Traversal order for the abstract syntax tree.
+	TraversalOrder int
+
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
 
@@ -363,4 +375,9 @@ func NewWhileStatement(condition Expression, statement Statement, source *Source
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
 func NewCompoundStatement(statements []Statement, source *SourceDescription) Statement {
 	return newCompoundStatement(statements, source)
+}
+
+// Walk traverses an abstract syntax tree in a specific order and calls the visitor for each node.
+func Walk(parent Node, order TraversalOrder, visitor Visitor) error {
+	return walk(parent, order, visitor)
 }
