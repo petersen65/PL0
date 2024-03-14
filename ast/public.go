@@ -170,9 +170,9 @@ type (
 
 	// VariableReferenceNode represents the usage of a variable in the AST.
 	VariableReferenceNode struct {
-		ParentNode     Node               // parent node of the variable reference
-		Symbol         *Symbol            // variable symbol entry
-		Source         *SourceDescription // source description for the variable node
+		ParentNode Node               // parent node of the variable reference
+		Symbol     *Symbol            // variable symbol entry
+		Source     *SourceDescription // source description for the variable node
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
