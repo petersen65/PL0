@@ -179,7 +179,7 @@ func (e *expressionParser) factor(scope *ast.Scope, depth int32, anchors scn.Tok
 
 				case ast.Variable:
 					e.emitter.LoadVariable(emt.Offset(symbol.Offset), depth-symbol.Depth)
-					operand = ast.NewVariableReference(depth, symbol, e.collectSourceDescription(from))
+					operand = ast.NewVariableReference(symbol, e.collectSourceDescription(from))
 
 				default:
 					e.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])

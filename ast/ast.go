@@ -39,8 +39,8 @@ func newConstantReference(entry *Symbol, source *SourceDescription) Expression {
 }
 
 // Create a new variable-reference node in the abstract syntax tree.
-func newVariableReference(referenceDepth int32, entry *Symbol, source *SourceDescription) Expression {
-	variable := &VariableReferenceNode{ReferenceDepth: referenceDepth, Symbol: entry, Source: source}
+func newVariableReference(entry *Symbol, source *SourceDescription) Expression {
+	variable := &VariableReferenceNode{Symbol: entry, Source: source}
 	entry.SetParent(variable)
 	source.SetParent(variable)
 	return variable

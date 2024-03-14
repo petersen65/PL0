@@ -39,7 +39,8 @@ func (g *generator) VisitConstant(cr *ast.ConstantReferenceNode) {
 }
 
 func (g *generator) VisitVariable(vr *ast.VariableReferenceNode) {
-	g.emitter.LoadVariable(emt.Offset(vr.Symbol.Offset), vr.ReferenceDepth-vr.Symbol.Depth)
+	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
+	g.emitter.LoadVariable(emt.Offset(vr.Symbol.Offset), referenceDeclarationDepth-vr.Symbol.Depth)
 }
 
 func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
@@ -94,10 +95,9 @@ func (g *generator) VisitAssignmentStatement(statement *ast.AssignmentStatementN
 }
 
 func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
-	declarationDepth := getBlockDeclarationDepth(rs)
-
+	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
 	g.emitter.System(emt.Read)
-	g.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
+	g.emitter.StoreVariable(emt.Offset(rs.Symbol.Offset), referenceDeclarationDepth-rs.Symbol.Depth)
 }
 
 func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
@@ -114,19 +114,4 @@ func (g *generator) VisitWhileStatement(statement *ast.WhileStatementNode) {
 }
 
 func (g *generator) VisitCompoundStatement(statement *ast.CompoundStatementNode) {
-}
-
-func getBlockDeclarationDepth(node ast.Node) int32 {
-	var depth int32
-
-	for node != nil {
-		if block, ok := node.(*ast.BlockNode); ok {
-			depth = block.Depth
-			break
-		}
-
-		node = node.Parent()
-	}
-
-	return depth
 }

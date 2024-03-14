@@ -14,6 +14,13 @@ const (
 	LevelOrder
 )
 
+// Search parent block nodes in the abstract syntax tree.
+const (
+	_ = BlockSearchMode(iota)
+	CurrentBlock
+	RootBlock
+)
+
 // Operators with one operand.
 const (
 	_ = UnaryOperator(iota)
@@ -57,6 +64,9 @@ const (
 type (
 	// Traversal order for the abstract syntax tree.
 	TraversalOrder int
+
+	// Search mode for block nodes in the abstract syntax tree.
+	BlockSearchMode int
 
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
@@ -161,7 +171,6 @@ type (
 	// VariableReferenceNode represents the usage of a variable in the AST.
 	VariableReferenceNode struct {
 		ParentNode     Node               // parent node of the variable reference
-		ReferenceDepth int32              // block depth while referencing the variable
 		Symbol         *Symbol            // variable symbol entry
 		Source         *SourceDescription // source description for the variable node
 	}
@@ -324,8 +333,8 @@ func NewConstantReference(entry *Symbol, source *SourceDescription) Expression {
 }
 
 // NewVariableReference creates a new variable-reference node in the abstract syntax tree.
-func NewVariableReference(referenceDepth int32, entry *Symbol, source *SourceDescription) Expression {
-	return newVariableReference(referenceDepth, entry, source)
+func NewVariableReference(entry *Symbol, source *SourceDescription) Expression {
+	return newVariableReference(entry, source)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
@@ -381,4 +390,21 @@ func NewCompoundStatement(statements []Statement, source *SourceDescription) Sta
 // Walk traverses an abstract syntax tree in a specific order and calls the visitor for each node.
 func Walk(parent Node, order TraversalOrder, visitor Visitor) error {
 	return walk(parent, order, visitor)
+}
+
+// SearchBlock searches for a parent block node in the abstract syntax tree based on the search mode.
+func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
+	for node != nil {
+		if block, ok := node.(*BlockNode); ok {
+			if mode == CurrentBlock {
+				return block
+			} else if mode == RootBlock && block.Parent() == nil {
+				return block
+			}
+		}
+
+		node = node.Parent()
+	}
+
+	return nil
 }
