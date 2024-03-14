@@ -16,9 +16,9 @@ const integerBitSize = 64
 
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
-	declarationDepth int32             // declaration depth of nested blocks
-	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
-	abstractSyntax   ast.Block         // abstract syntax tree of the program
+	declarationDepth int32         // declaration depth of nested blocks
+	tokenHandler     *tokenHandler // token handler that manages the tokens of the token stream
+	abstractSyntax   ast.Block     // abstract syntax tree of the program
 }
 
 // Return the public interface of the private parser implementation.
@@ -457,7 +457,8 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 			scope.Insert(&ast.Symbol{
 				Name:    procedureName,
 				Kind:    ast.Procedure,
-				Depth:   p.declarationDepth})
+				Depth:   p.declarationDepth,
+				Address: 0})
 		}
 
 		p.nextToken()
