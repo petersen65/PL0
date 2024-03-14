@@ -54,6 +54,8 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// emit all blocks of nested procedures which calls the generator recursively
 	for _, procedure := range bn.Procedures {
+		// update the address of the block's procedure symbol to the next instruction of its block
+		bn.Scope.Lookup(procedure.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
 		procedure.Accept(g)
 	}
 
