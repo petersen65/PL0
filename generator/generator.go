@@ -40,7 +40,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	var varOffset uint64 = emt.VariableOffsetStart // take the first offset for block variables from the emitter
 
 	// calculate the offset of the block's variables on the stack
-	for _, symbol := range *bn.Scope.SymbolTable {
+	for symbol := range bn.Scope.IterateCurrent() {
 		// only variables are allocated on the stack
 		if symbol.Kind == ast.Variable {
 			symbol.Offset = varOffset
@@ -96,6 +96,8 @@ func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
 
 // Generate code for a unary operation.
 func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+	uo.Operand.Accept(g)
+
 	switch uo.Operation {
 	case ast.Odd:
 		g.emitter.Odd()
@@ -107,6 +109,9 @@ func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 
 // Generate code for a binary operation.
 func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+	bo.Left.Accept(g)
+	bo.Right.Accept(g)
+
 	switch bo.Operation {
 	case ast.Plus:
 		g.emitter.Add()
@@ -124,6 +129,9 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 // Generate code for a conditional operation.
 func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+	co.Left.Accept(g)
+	co.Right.Accept(g)
+
 	switch co.Operation {
 	case ast.Equal:
 		g.emitter.Equal()
@@ -174,19 +182,19 @@ func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 // Generate code for an if-then statement.
 func (g *generator) VisitIfStatement(is *ast.IfStatementNode) {
 	is.Condition.Accept(g)
-	jumpInstruction := g.emitter.Jump(emt.NullAddress)
+	ifDecision := g.jumpConditional(is.Condition, false)	
 	is.Statement.Accept(g)
-	g.emitter.Update(jumpInstruction, g.emitter.GetNextAddress(), nil)
+	g.emitter.Update(ifDecision, g.emitter.GetNextAddress(), nil)
 }
 
 // Generate code for a while-do statement.
 func (g *generator) VisitWhileStatement(ws *ast.WhileStatementNode) {
 	conditionAddress := g.emitter.GetNextAddress()
 	ws.Condition.Accept(g)
-	jumpInstruction := g.emitter.Jump(emt.NullAddress)
+	whileDecision := g.jumpConditional(ws.Condition, false)
 	ws.Statement.Accept(g)
 	g.emitter.Jump(conditionAddress)
-	g.emitter.Update(jumpInstruction, g.emitter.GetNextAddress(), nil)
+	g.emitter.Update(whileDecision, g.emitter.GetNextAddress(), nil)
 }
 
 // Generate code for a compound begin-end statement.
@@ -194,4 +202,72 @@ func (g *generator) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 	for _, statement := range cs.Statements {
 		statement.Accept(g)
 	}
+}
+
+// Emit a conditional jump instruction based on an expression that must be a unary or conditional operation node.
+func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool) emt.Address {
+	var address emt.Address
+
+	switch condition := expression.(type) {
+	case *ast.UnaryOperationNode:
+		if condition.Operation == ast.Odd {
+			if jumpIfCondition {
+				address = g.emitter.JumpNotEqual(emt.NullAddress)
+			} else {
+				address = g.emitter.JumpEqual(emt.NullAddress)
+			}
+		} else {
+			panic("generator error: invalid unary operation")
+		}
+
+	case *ast.ConditionalOperationNode:
+		if jumpIfCondition {
+			// jump if the condition is true and remember the address of the jump instruction
+			switch condition.Operation {
+			case ast.Equal:
+				address = g.emitter.JumpEqual(emt.NullAddress)
+
+			case ast.NotEqual:
+				address = g.emitter.JumpNotEqual(emt.NullAddress)
+
+			case ast.Less:
+				address = g.emitter.JumpLess(emt.NullAddress)
+
+			case ast.LessEqual:
+				address = g.emitter.JumpLessEqual(emt.NullAddress)
+
+			case ast.Greater:
+				address = g.emitter.JumpGreater(emt.NullAddress)
+
+			case ast.GreaterEqual:
+				address = g.emitter.JumpGreaterEqual(emt.NullAddress)
+			}
+		} else {
+			// jump if the condition is false and remember the address of the jump instruction
+			switch condition.Operation {
+			case ast.Equal:
+				address = g.emitter.JumpNotEqual(emt.NullAddress)
+
+			case ast.NotEqual:
+				address = g.emitter.JumpEqual(emt.NullAddress)
+
+			case ast.Less:
+				address = g.emitter.JumpGreaterEqual(emt.NullAddress)
+
+			case ast.LessEqual:
+				address = g.emitter.JumpGreater(emt.NullAddress)
+
+			case ast.Greater:
+				address = g.emitter.JumpLessEqual(emt.NullAddress)
+
+			case ast.GreaterEqual:
+				address = g.emitter.JumpLess(emt.NullAddress)
+			}
+		}
+
+		default:
+			panic("generator error: invalid conditional operation")
+	}
+
+	return address
 }

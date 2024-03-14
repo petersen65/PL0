@@ -14,6 +14,7 @@ import (
 
 	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
+	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
 	scn "github.com/petersen65/PL0/scanner"
 )
@@ -107,6 +108,9 @@ func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.Err
 	scannerParserErrors := errors.Join(scannerError, parserErr)
 
 	if scannerParserErrors == nil {
+		g := gen.NewGenerator(abstractSyntax)
+		emitter = g.Generate()
+
 		sections, emitterError := emitter.Export()
 		return sections, tokenStream, abstractSyntax, errorReport, emitterError
 	}

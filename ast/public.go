@@ -112,6 +112,7 @@ type (
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
 		Outer       *Scope       // outer scope or nil if this is the outermost scope
+		Names       []string     // enable deterministic iteration over the symbol table
 		SymbolTable *SymbolTable // symbol table of the scope
 	}
 
@@ -292,7 +293,12 @@ func NewScope(outer *Scope) *Scope {
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
 func (s *Scope) Insert(symbol *Symbol) {
-	(*s.SymbolTable)[symbol.Name] = symbol
+	if s.LookupCurrent(symbol.Name) != nil {
+		(*s.SymbolTable)[symbol.Name] = symbol
+	} else {
+		s.Names = append(s.Names, symbol.Name)
+		(*s.SymbolTable)[symbol.Name] = symbol
+	}
 }
 
 // Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
@@ -315,6 +321,21 @@ func (s *Scope) LookupCurrent(name string) *Symbol {
 	}
 
 	return nil
+}
+
+// Deterministically iterate over all symbols in the symbol table of the current scope.
+func (s *Scope) IterateCurrent() <-chan *Symbol {
+	symbols := make(chan *Symbol)
+
+	go func() {
+		for _, name := range s.Names {
+			symbols <- (*s.SymbolTable)[name]
+		}
+
+		close(symbols)
+	}()
+
+	return symbols
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.
