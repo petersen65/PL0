@@ -126,6 +126,17 @@ func (s *Symbol) SetParent(parent Node) {
 
 // String of the symbol entry node.
 func (s *Symbol) String() string {
+	switch s.Kind {
+	case Constant:
+		return fmt.Sprintf("symbol(%v,%v=%v:%v)", KindNames[s.Kind], s.Name, s.Value, s.Depth)
+
+	case Variable:
+		return fmt.Sprintf("symbol(%v,%v:%v:%v)", KindNames[s.Kind], s.Name, s.Depth, s.Offset)
+
+	case Procedure:
+		return fmt.Sprintf("symbol(%v,%v:%v:%v)", KindNames[s.Kind], s.Name, s.Depth, s.Address)
+	}
+
 	return fmt.Sprintf("symbol(%v,%v:%v)", KindNames[s.Kind], s.Name, s.Depth)
 }
 
@@ -227,7 +238,7 @@ func (e *ConstantReferenceNode) SetParent(parent Node) {
 
 // String of the constant.
 func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("constant(%v=%v)", e.Symbol.Name, e.Symbol.Value)
+	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind],e.Symbol.Name)
 }
 
 // Parent node of the constant node.
@@ -257,7 +268,7 @@ func (e *VariableReferenceNode) SetParent(parent Node) {
 
 // String of the variable node.
 func (e *VariableReferenceNode) String() string {
-	return fmt.Sprintf("variable(%v:%v)", e.Symbol.Name, e.Symbol.Depth)
+	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind], e.Symbol.Name)
 }
 
 // Parent node of the variable node.
