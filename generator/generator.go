@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-package parser
+package generator
 
 import (
 	ast "github.com/petersen65/PL0/ast"
@@ -16,12 +16,13 @@ type generator struct {
 }
 
 // Create new code generator with the given abstract syntax tree.
-func newGenerator(abstractSyntax ast.Block) *generator {
+func newGenerator(abstractSyntax ast.Block) Generator {
 	return &generator{emitter: emt.NewEmitter(), abstractSyntax: abstractSyntax}
 }
 
 // Generate code for the given abstract syntax tree and return the emitter with the generated code.
-func (g *generator) generate() emt.Emitter {
+// The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
+func (g *generator) Generate() emt.Emitter {
 	g.abstractSyntax.Accept(g)
 	return g.emitter
 }
@@ -81,11 +82,13 @@ func (g *generator) VisitLiteral(l *ast.LiteralNode) {
 	g.emitter.Constant(l.Value)
 }
 
-func (g *generator) VisitConstant(cr *ast.ConstantReferenceNode) {
+// Generate code for a constant reference.
+func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
 	g.emitter.Constant(cr.Symbol.Value)
 }
 
-func (g *generator) VisitVariable(vr *ast.VariableReferenceNode) {
+// Generate code for a variable reference.
+func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
 	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
 	g.emitter.LoadVariable(emt.Offset(vr.Symbol.Offset), referenceDeclarationDepth-vr.Symbol.Depth)
 }
@@ -140,6 +143,7 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+	as.Expression.Accept(g)
 	g.emitter.StoreVariable(emt.Offset(as.Symbol.Offset), referenceDeclarationDepth-as.Symbol.Depth)
 }
 
@@ -150,6 +154,7 @@ func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 }
 
 func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
+	ws.Expression.Accept(g)
 	g.emitter.System(emt.Write)
 }
 
@@ -159,10 +164,23 @@ func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 }
 
 func (g *generator) VisitIfStatement(is *ast.IfStatementNode) {
+	is.Condition.Accept(g)
+	jumpInstruction := g.emitter.Jump(emt.NullAddress)
+	is.Statement.Accept(g)
+	g.emitter.Update(jumpInstruction, g.emitter.GetNextAddress(), nil)
 }
 
 func (g *generator) VisitWhileStatement(ws *ast.WhileStatementNode) {
+	conditionAddress := g.emitter.GetNextAddress()
+	ws.Condition.Accept(g)
+	jumpInstruction := g.emitter.Jump(emt.NullAddress)
+	ws.Statement.Accept(g)
+	g.emitter.Jump(conditionAddress)
+	g.emitter.Update(jumpInstruction, g.emitter.GetNextAddress(), nil)
 }
 
 func (g *generator) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+	for _, statement := range cs.Statements {
+		statement.Accept(g)
+	}
 }

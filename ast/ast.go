@@ -299,7 +299,7 @@ func (e *ConstantReferenceNode) ExpressionString() string {
 
 // Accept the visitor for the constant node.
 func (e *ConstantReferenceNode) Accept(visitor Visitor) {
-	visitor.VisitConstant(e)
+	visitor.VisitConstantReference(e)
 }
 
 // Set the parent Node of the variable node.
@@ -329,7 +329,7 @@ func (e *VariableReferenceNode) ExpressionString() string {
 
 // Accept the visitor for the variable node.
 func (e *VariableReferenceNode) Accept(visitor Visitor) {
-	visitor.VisitVariable(e)
+	visitor.VisitVariableReference(e)
 }
 
 // Set the parent Node of the unary operation node.
