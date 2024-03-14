@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	ast "github.com/petersen65/PL0/ast"
-	emt "github.com/petersen65/PL0/emitter"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
 	scn "github.com/petersen65/PL0/scanner"
@@ -99,18 +98,12 @@ func PrintFile(target string, print io.Writer) error {
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
 // The token stream and error report are also returned if an error occurs during compilation.
 func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.ErrorReport, error) {
-	scanner := scn.NewScanner()
-	parser := par.NewParser()
-	emitter := emt.NewEmitter()
-
-	tokenStream, scannerError := scanner.Scan(content)
-	abstractSyntax, errorReport, parserErr := parser.Parse(tokenStream, emitter)
+	tokenStream, scannerError := scn.NewScanner().Scan(content)
+	abstractSyntax, errorReport, parserErr := par.NewParser().Parse(tokenStream)
 	scannerParserErrors := errors.Join(scannerError, parserErr)
 
 	if scannerParserErrors == nil {
-		g := gen.NewGenerator(abstractSyntax)
-		emitter = g.Generate()
-
+		emitter := gen.NewGenerator(abstractSyntax).Generate()
 		sections, emitterError := emitter.Export()
 		return sections, tokenStream, abstractSyntax, errorReport, emitterError
 	}

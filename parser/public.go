@@ -7,9 +7,11 @@ package parser
 
 import (
 	ast "github.com/petersen65/PL0/ast"
-	emt "github.com/petersen65/PL0/emitter"
 	scn "github.com/petersen65/PL0/scanner"
 )
+
+// Name of the entry point procedure of a program.
+const EntryPointName = "_start"
 
 type (
 	// ErrorReport is a list of errors that occurred during the parsing process.
@@ -24,7 +26,7 @@ type (
 
 	// Parser is the public interface of the parser implementation.
 	Parser interface {
-		Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Block, ErrorReport, error)
+		Parse(tokenStream scn.TokenStream) (ast.Block, ErrorReport, error)
 	}
 )
 

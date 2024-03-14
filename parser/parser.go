@@ -5,17 +5,19 @@
 package parser
 
 import (
+	"strconv"
+
 	ast "github.com/petersen65/PL0/ast"
-	emt "github.com/petersen65/PL0/emitter"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// Number of bits of a signed integer.
+const integerBitSize = 64
+
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
-	emitter          emt.Emitter       // emitter that emits the code
 	declarationDepth int32             // declaration depth of nested blocks
 	tokenHandler     *tokenHandler     // token handler that manages the tokens of the token stream
-	expressionParser *expressionParser // parse expressions that are part of statements
 	abstractSyntax   ast.Block         // abstract syntax tree of the program
 }
 
@@ -24,9 +26,9 @@ func newParser() Parser {
 	return &parser{}
 }
 
-// Run the recursive descent parser to map the token stream to its corresponding emitted code.
-func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Block, ErrorReport, error) {
-	if err := p.reset(tokenStream, emitter); err != nil {
+// Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
+func (p *parser) Parse(tokenStream scn.TokenStream) (ast.Block, ErrorReport, error) {
+	if err := p.reset(tokenStream); err != nil {
 		return nil, p.tokenHandler.getErrorReport(), err
 	}
 
@@ -34,7 +36,7 @@ func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Bl
 	//   declaration of constants, variables and procedures
 	//   followed by a statement
 	//   and ends with the program-end
-	p.abstractSyntax = p.block(emt.EntryPointName, nil, set(declarations, statements, scn.ProgramEnd))
+	p.abstractSyntax = p.block(EntryPointName, nil, set(declarations, statements, scn.ProgramEnd))
 
 	// the program must end with a specific token
 	if p.lastToken() != scn.ProgramEnd {
@@ -60,11 +62,9 @@ func (p *parser) Parse(tokenStream scn.TokenStream, emitter emt.Emitter) (ast.Bl
 }
 
 // Reset the parser to its initial state so that it can be reused.
-func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
-	p.emitter = emitter
+func (p *parser) reset(tokenStream scn.TokenStream) error {
 	p.declarationDepth = 0
 	p.tokenHandler = newTokenHandler(tokenStream)
-	p.expressionParser = newExpressionParser(p.tokenHandler, p.emitter)
 	p.abstractSyntax = nil
 
 	if len(tokenStream) == 0 || !p.nextToken() {
@@ -77,13 +77,12 @@ func (p *parser) reset(tokenStream scn.TokenStream, emitter emt.Emitter) error {
 // A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
 func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.Block {
 	var scope = ast.NewScope(outer)
-	var varOffset uint64 = emt.VariableOffsetStart
 
 	// block of main program with outermost scope that has no further outer scope
 	if outer == nil {
 		// a program starts with a block of declaration depth 0 and an entrypoint address 0
 		scope.Insert(&ast.Symbol{
-			Name:    emt.EntryPointName,
+			Name:    name,
 			Kind:    ast.Procedure,
 			Depth:   0,
 			Address: 0,
@@ -97,14 +96,6 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 		p.appendError(maxBlockDepth, p.declarationDepth)
 	}
 
-	// emit a jump to the first instruction of the block whose address is not yet known
-	// the address of the jump instruction itself was already stored in the symbol table as part of the block's procedure symbol
-	//
-	// for declaration depth
-	// 	 0: jump is always used to start the program
-	//   1 and above: jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
-	firstInstruction := p.emitter.Jump(emt.NullAddress)
-
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
 		if p.lastToken() == scn.ConstWord {
@@ -112,7 +103,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 		}
 
 		if p.lastToken() == scn.VarWord {
-			p.varWord(scope, &varOffset)
+			p.varWord(scope)
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
@@ -129,24 +120,9 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 		}
 	}
 
-	// update the jump instruction address to the first instruction of the block
-	p.emitter.Update(firstInstruction, p.emitter.GetNextAddress(), nil)
-
-	// update the code address of the block's procedure symbol to the first instruction of the block
-	procedureSymbol := scope.Lookup(name)
-	procedureSymbol.Address = uint64(p.emitter.GetNextAddress())
-
-	// allocating stack space for block variables is the first code instruction of the block
-	p.emitter.AllocateStackSpace(emt.Offset(varOffset))
-
 	// parse and emit all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
-	from := p.gatherSourceDescription()
 	statement := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
-	source := p.collectSourceDescription(from)
-
-	// emit a return instruction to return from the block
-	p.emitter.Return()
 
 	// after the block ends
 	//   a semicolon is expected to separate the block from the parent block
@@ -155,7 +131,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
 
 	// return a new block node in the abstract syntax tree
-	return ast.NewBlock(name, p.declarationDepth, scope, procedures, statement, source)
+	return ast.NewBlock(name, p.declarationDepth, scope, procedures, statement)
 }
 
 // Sequence of constants declarations.
@@ -183,15 +159,15 @@ func (p *parser) constWord(scope *ast.Scope) {
 }
 
 // Sequence of variable declarations.
-func (p *parser) varWord(scope *ast.Scope, offset *uint64) {
+func (p *parser) varWord(scope *ast.Scope) {
 	p.nextToken()
 
 	for {
-		p.variableIdentifier(scope, offset)
+		p.variableIdentifier(scope)
 
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
-			p.variableIdentifier(scope, offset)
+			p.variableIdentifier(scope)
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -260,7 +236,6 @@ func (p *parser) assignment(scope *ast.Scope, anchors scn.Tokens) ast.Statement 
 		p.appendError(expectedVariableIdentifier, ast.KindNames[symbol.Kind])
 	}
 
-	from := p.gatherSourceDescription()
 	p.nextToken()
 
 	if p.lastToken() == scn.Becomes {
@@ -270,21 +245,17 @@ func (p *parser) assignment(scope *ast.Scope, anchors scn.Tokens) ast.Statement 
 	}
 
 	right := p.expression(scope, anchors)
-	source := p.collectSourceDescription(from)
 
 	if symbol == nil || symbol.Kind != ast.Variable {
 		return nil
 	}
 
-	p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-	return ast.NewAssignmentStatement(symbol, right, source)
+	return ast.NewAssignmentStatement(symbol, right)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
 func (p *parser) read(scope *ast.Scope) ast.Statement {
 	var symbol *ast.Symbol
-
-	from := p.gatherSourceDescription()
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
@@ -304,9 +275,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	p.nextToken()
 
 	if symbol != nil {
-		p.emitter.System(emt.Read)
-		p.emitter.StoreVariable(emt.Offset(symbol.Offset), p.declarationDepth-symbol.Depth)
-		return ast.NewReadStatement(symbol, p.collectSourceDescription(from))
+		return ast.NewReadStatement(symbol)
 	}
 
 	return nil
@@ -314,18 +283,14 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 
 // A write statement is the write operator followed by an expression.
 func (p *parser) write(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
-	from := p.gatherSourceDescription()
 	p.nextToken()
 	expression := p.expression(scope, anchors)
-	p.emitter.System(emt.Write)
-	return ast.NewWriteStatement(expression, p.collectSourceDescription(from))
+	return ast.NewWriteStatement(expression)
 }
 
 // A call statement is the call word followed by a procedure identifier.
 func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	var symbol *ast.Symbol
-
-	from := p.gatherSourceDescription()
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
@@ -345,8 +310,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	}
 
 	if symbol != nil {
-		p.emitter.Call(emt.Address(symbol.Address), p.declarationDepth-symbol.Depth)
-		return ast.NewCallStatement(symbol, p.collectSourceDescription(from))
+		return ast.NewCallStatement(symbol)
 	}
 
 	return nil
@@ -354,9 +318,8 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
 func (p *parser) ifWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
-	from := p.gatherSourceDescription()
 	p.nextToken()
-	relationalOperator, condition := p.condition(scope, set(anchors, scn.ThenWord, scn.DoWord))
+	condition := p.condition(scope, set(anchors, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
 		p.nextToken()
@@ -364,26 +327,15 @@ func (p *parser) ifWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedThen, p.lastTokenName())
 	}
 
-	// jump over statement if the condition is false and remember the address of the jump instruction
-	ifDecision := p.jumpConditional(relationalOperator, false)
-
-	// parse and emit the statement which is executed if the condition is true
+	// parse the statement which is executed if the condition is true
 	statement := p.statement(scope, anchors)
-
-	// update the conditional jump instruction address to the first instruction after the if statement
-	p.emitter.Update(ifDecision, p.emitter.GetNextAddress(), nil)
-	return ast.NewIfStatement(condition, statement, p.collectSourceDescription(from))
+	return ast.NewIfStatement(condition, statement)
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
 func (p *parser) whileWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
-	from := p.gatherSourceDescription()
 	p.nextToken()
-	whileCondition := p.emitter.GetNextAddress()
-	relationalOperator, condition := p.condition(scope, set(anchors, scn.DoWord))
-
-	// jump over statement if the condition is false and remember the address of the jump instruction
-	whileDecision := p.jumpConditional(relationalOperator, false)
+	condition := p.condition(scope, set(anchors, scn.DoWord))
 
 	if p.lastToken() == scn.DoWord {
 		p.nextToken()
@@ -391,20 +343,13 @@ func (p *parser) whileWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedDo, p.lastTokenName())
 	}
 
-	// parse and emit the statement which is executed as long as the condition is true
+	// parse the statement which is executed as long as the condition is true
 	statement := p.statement(scope, anchors)
-
-	// uncnoditional jump back to the condition evaluation
-	p.emitter.Jump(whileCondition)
-
-	// update the conditional jump instruction address to the first instruction after the while statement
-	p.emitter.Update(whileDecision, p.emitter.GetNextAddress(), nil)
-	return ast.NewWhileStatement(condition, statement, p.collectSourceDescription(from))
+	return ast.NewWhileStatement(condition, statement)
 }
 
 // A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
 func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
-	from := p.gatherSourceDescription()
 	compound := make([]ast.Statement, 0)
 	p.nextToken()
 
@@ -432,7 +377,7 @@ func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 		p.appendError(expectedEnd, p.lastTokenName())
 	}
 
-	return ast.NewCompoundStatement(compound, p.collectSourceDescription(from))
+	return ast.NewCompoundStatement(compound)
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
@@ -480,7 +425,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) {
 }
 
 // A variable identifier is an identifier to be stored in the symbol table.
-func (p *parser) variableIdentifier(scope *ast.Scope, offset *uint64) {
+func (p *parser) variableIdentifier(scope *ast.Scope) {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
@@ -488,12 +433,9 @@ func (p *parser) variableIdentifier(scope *ast.Scope, offset *uint64) {
 			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
 			scope.Insert(&ast.Symbol{
-				Name:   p.lastTokenValue(),
-				Kind:   ast.Variable,
-				Depth:  p.declarationDepth,
-				Offset: *offset})
-
-			*offset++
+				Name:  p.lastTokenValue(),
+				Kind:  ast.Variable,
+				Depth: p.declarationDepth})
 		}
 
 		p.nextToken()
@@ -515,8 +457,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 			scope.Insert(&ast.Symbol{
 				Name:    procedureName,
 				Kind:    ast.Procedure,
-				Depth:   p.declarationDepth,
-				Address: uint64(p.emitter.GetNextAddress())})
+				Depth:   p.declarationDepth})
 		}
 
 		p.nextToken()
@@ -568,61 +509,177 @@ func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 	return statement
 }
 
-// Emit a conditional jump instruction based on the relational operator of a condition.
-func (p *parser) jumpConditional(relationalOperator scn.Token, condition bool) emt.Address {
-	var address emt.Address
+// A condition is either an odd expression or two expressions separated by a relational operator.
+func (p *parser) condition(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+	var operation ast.Expression
 
-	if condition {
-		// jump if the condition is true and remember the address of the jump instruction
-		switch relationalOperator {
-		case scn.OddWord:
-			address = p.emitter.JumpNotEqual(emt.NullAddress)
-
-		case scn.Equal:
-			address = p.emitter.JumpEqual(emt.NullAddress)
-
-		case scn.NotEqual:
-			address = p.emitter.JumpNotEqual(emt.NullAddress)
-
-		case scn.Less:
-			address = p.emitter.JumpLess(emt.NullAddress)
-
-		case scn.LessEqual:
-			address = p.emitter.JumpLessEqual(emt.NullAddress)
-
-		case scn.Greater:
-			address = p.emitter.JumpGreater(emt.NullAddress)
-
-		case scn.GreaterEqual:
-			address = p.emitter.JumpGreaterEqual(emt.NullAddress)
-		}
+	if p.lastToken() == scn.OddWord {
+		p.nextToken()
+		operand := p.expression(scope, anchors)
+		operation = ast.NewUnaryOperation(ast.Odd, operand)
 	} else {
-		// jump if the condition is false and remember the address of the jump instruction
-		switch relationalOperator {
-		case scn.OddWord:
-			address = p.emitter.JumpEqual(emt.NullAddress)
+		// handle left expression of a relational operator
+		left := p.expression(scope, set(anchors, scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual))
 
-		case scn.Equal:
-			address = p.emitter.JumpNotEqual(emt.NullAddress)
+		if !p.lastToken().In(set(scn.Equal, scn.NotEqual, scn.Less, scn.LessEqual, scn.Greater, scn.GreaterEqual)) {
+			p.appendError(expectedRelationalOperator, p.lastTokenName())
+		} else {
+			relationalOperator := p.lastToken()
+			p.nextToken()
 
-		case scn.NotEqual:
-			address = p.emitter.JumpEqual(emt.NullAddress)
+			// handle right expression of a relational operator
+			right := p.expression(scope, anchors)
 
-		case scn.Less:
-			address = p.emitter.JumpGreaterEqual(emt.NullAddress)
+			switch relationalOperator {
+			case scn.Equal:
+				operation = ast.NewConditionalOperation(ast.Equal, left, right)
 
-		case scn.LessEqual:
-			address = p.emitter.JumpGreater(emt.NullAddress)
+			case scn.NotEqual:
+				operation = ast.NewConditionalOperation(ast.NotEqual, left, right)
 
-		case scn.Greater:
-			address = p.emitter.JumpLessEqual(emt.NullAddress)
+			case scn.Less:
+				operation = ast.NewConditionalOperation(ast.Less, left, right)
 
-		case scn.GreaterEqual:
-			address = p.emitter.JumpLess(emt.NullAddress)
+			case scn.LessEqual:
+				operation = ast.NewConditionalOperation(ast.LessEqual, left, right)
+
+			case scn.Greater:
+				operation = ast.NewConditionalOperation(ast.Greater, left, right)
+
+			case scn.GreaterEqual:
+				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right)
+			}
 		}
 	}
 
-	return address
+	return operation
+}
+
+// An expression is a sequence of terms separated by plus or minus.
+func (p *parser) expression(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+	var operation ast.Expression
+
+	// handle left term of a plus or minus operator
+	left := p.term(scope, set(anchors, scn.Plus, scn.Minus))
+
+	for p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
+		plusOrMinus := p.lastToken()
+		p.nextToken()
+
+		// handle right term of a plus or minus operator
+		right := p.term(scope, set(anchors, scn.Plus, scn.Minus))
+
+		if plusOrMinus == scn.Plus {
+			operation = ast.NewBinaryOperation(ast.Plus, left, right)
+		} else {
+			operation = ast.NewBinaryOperation(ast.Minus, left, right)
+		}
+
+		left = operation
+	}
+
+	if operation == nil {
+		operation = left
+	}
+
+	return operation
+}
+
+// A term is a sequence of factors separated by times or divide.
+func (p *parser) term(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+	var operation ast.Expression
+
+	// handle left factor of a times or divide operator
+	left := p.factor(scope, set(anchors, scn.Times, scn.Divide))
+
+	for p.lastToken() == scn.Times || p.lastToken() == scn.Divide {
+		timesOrDevide := p.lastToken()
+		p.nextToken()
+
+		// handle right factor of a times or divide operator
+		right := p.factor(scope, set(anchors, scn.Times, scn.Divide))
+
+		if timesOrDevide == scn.Times {
+			operation = ast.NewBinaryOperation(ast.Times, left, right)
+
+		} else {
+			operation = ast.NewBinaryOperation(ast.Divide, left, right)
+		}
+
+		left = operation
+	}
+
+	if operation == nil {
+		operation = left
+	}
+
+	return operation
+}
+
+// A factor is either an identifier, a number, or an expression surrounded by parentheses.
+func (p *parser) factor(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+	var sign scn.Token
+	var operand ast.Expression
+
+	// handle leading plus or minus sign of a factor
+	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
+		sign = p.lastToken()
+		p.nextToken()
+	}
+
+	// at the beginning of a factor
+	//   the expected tokens are identifiers, numbers, and left parentheses
+	//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
+	p.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, anchors)
+
+	for p.lastToken().In(factors) {
+		if p.lastToken() == scn.Identifier {
+			if symbol := scope.Lookup(p.lastTokenValue()); symbol != nil {
+				switch symbol.Kind {
+				case ast.Constant:
+					operand = ast.NewConstantReference(symbol)
+
+				case ast.Variable:
+					operand = ast.NewVariableReference(symbol)
+
+				default:
+					p.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])
+				}
+			} else {
+				p.appendError(identifierNotFound, p.lastTokenValue())
+			}
+
+			p.nextToken()
+		} else if p.lastToken() == scn.Number {
+			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64)
+			sign = scn.Unknown
+			p.nextToken()
+		} else if p.lastToken() == scn.LeftParenthesis {
+			p.nextToken()
+			operand = p.expression(scope, set(anchors, scn.RightParenthesis))
+
+			if p.lastToken() == scn.RightParenthesis {
+				p.nextToken()
+			} else {
+				p.appendError(expectedRightParenthesis, p.lastTokenName())
+			}
+		}
+
+		// after a factor, the parser expects
+		//   a times or divide operator
+		//   a plus or minus operator
+		//   a relational operator
+		//   a right parenthesis
+		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
+		p.tokenHandler.rebase(unexpectedTokens, anchors, set(scn.LeftParenthesis))
+	}
+
+	// negate the factor if a leading minus sign is present
+	if sign == scn.Minus {
+		operand = ast.NewUnaryOperation(ast.Negate, operand)
+	}
+
+	return operand
 }
 
 // Return the next token description from the token handler.
@@ -645,32 +702,22 @@ func (p *parser) lastTokenValue() string {
 	return p.tokenHandler.lastTokenValue()
 }
 
-// Wrapper to gather source description from the current token index.
-func (p *parser) gatherSourceDescription() int {
-	return p.tokenHandler.gatherSourceDescription()
-}
-
-// Wrapper to collect source description from the given index to the current token index.
-func (p *parser) collectSourceDescription(from int) *ast.SourceDescription {
-	return p.tokenHandler.collectSourceDescription(from)
-}
-
 // Append parser error to the error report of the token handler.
 func (p *parser) appendError(code failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
-// Start the expression parser and parse a condition.
-func (p *parser) condition(scope *ast.Scope, anchors scn.Tokens) (scn.Token, ast.Expression) {
-	return p.expressionParser.condition(scope, p.declarationDepth, anchors)
-}
+// Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
+func (e *parser) numberValue(sign scn.Token, number string) int64 {
+	if sign == scn.Minus {
+		number = "-" + number
+	}
 
-// Start the expression parser and parse an expression.
-func (p *parser) expression(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
-	return p.expressionParser.expression(scope, p.declarationDepth, anchors)
-}
+	value, err := strconv.ParseInt(number, 10, integerBitSize)
 
-// Wrapper to get the number value from the expression parser that automatically appends an error if the number is illegal.
-func (p *parser) numberValue(sign scn.Token, number string) int64 {
-	return p.expressionParser.numberValue(sign, number)
+	if err != nil {
+		e.appendError(illegalInteger, number)
+	}
+
+	return value
 }

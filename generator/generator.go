@@ -31,10 +31,6 @@ func (g *generator) Generate() emt.Emitter {
 func (g *generator) VisitSymbol(symbol *ast.Symbol) {
 }
 
-// Generate code for each source description (not required for code generation).
-func (g *generator) VisitSourceDescription(source *ast.SourceDescription) {
-}
-
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	var varOffset uint64 = emt.VariableOffsetStart // take the first offset for block variables from the emitter

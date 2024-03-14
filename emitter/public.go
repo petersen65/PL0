@@ -5,13 +5,8 @@
 // Package emitter implements the IL/0 emitter that generates intermediate language code targeted for the IL/0 emulator.
 package emitter
 
-const (
-	// Name of the entry point procedure of a program.
-	EntryPointName = "_start"
-
-	// Start offset for variables on top of stack frame descriptor.
-	VariableOffsetStart = 0
-)
+// Start offset for variables on top of stack frame descriptor.
+const VariableOffsetStart = 0
 
 // Operation codes for IL/0.
 const (

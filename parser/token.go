@@ -5,7 +5,6 @@
 package parser
 
 import (
-	ast "github.com/petersen65/PL0/ast"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
@@ -78,45 +77,6 @@ func (t *tokenHandler) nextTokenDescription() bool {
 	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
 	t.tokenStreamIndex++
 	return true
-}
-
-// Gather source description from the current token index.
-func (t *tokenHandler) gatherSourceDescription() int {
-	return t.tokenStreamIndex - 1
-}
-
-// Collect source description from the given index to the current token index.
-func (t *tokenHandler) collectSourceDescription(from int) *ast.SourceDescription {
-	if from < 0 || from >= t.tokenStreamIndex {
-		from = t.gatherSourceDescription()
-	}
-
-	sourceDescription := ast.SourceDescription{
-		From: t.tokenStream[from].Line,
-		To:   t.tokenStream[t.tokenStreamIndex-1].Line,
-		Lines: make([]struct {
-			Line int
-			Code []byte
-		}, 0),
-	}
-
-	previousLine := -1
-
-	for i := from; i < t.tokenStreamIndex; i++ {
-		if t.tokenStream[i].Line != previousLine {
-			previousLine = t.tokenStream[i].Line
-
-			sourceDescription.Lines = append(sourceDescription.Lines, struct {
-				Line int
-				Code []byte
-			}{
-				Line: previousLine,
-				Code: t.tokenStream[i].CurrentLine,
-			})
-		}
-	}
-
-	return &sourceDescription
 }
 
 // Get token from the last token description.
