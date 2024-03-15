@@ -4,14 +4,14 @@
 
 package parser
 
-import "fmt"
+import tok "github.com/petersen65/PL0/token"
 
 // Maximum depth of block nesting.
 const blockNestingMax = 8
 
 // Error codes for the PL/0 parser.
 const (
-	_ = failure(iota + 2000)
+	_ = tok.Failure(iota + 2000)
 	eofReached
 	notFullyParsed
 	parsingError
@@ -41,11 +41,8 @@ const (
 	unexpectedTokens
 )
 
-// Failure is a type for error codes of the PL/0 parser.
-type failure int
-
 // Map error codes to error messages.
-var errorMap = map[failure]string{
+var errorMap = map[tok.Failure]string{
 	eofReached:                              "unexpected end of file",
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	parsingError:                            "a parsing error occurred",
@@ -73,34 +70,4 @@ var errorMap = map[failure]string{
 	expectedIdentifiersNumbersExpressions:   "expected identifiers, numbers or expressions surrounded by parentheses, found %v",
 	expectedConstantsVariables:              "expected constants or variables, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
-}
-
-// Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
-func (t *tokenHandler) appendError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	t.errorReport = append(t.errorReport, Error{
-		Err:         err,
-		Line:        t.lastTokenDescription.Line,
-		Column:      t.lastTokenDescription.Column,
-		CurrentLine: t.lastTokenDescription.CurrentLine,
-	})
-
-	return err
-}
-
-// Create a new error by mapping the error code to its corresponding error message.
-func (t *tokenHandler) error(code failure, value any) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(errorMap[code], value)
-	} else {
-		message = errorMap[code]
-	}
-
-	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
-	return fmt.Errorf("parser error %v [%v,%v]: %v", code, line, column, message)
 }

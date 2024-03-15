@@ -5,22 +5,25 @@
 package parser
 
 import (
+	"fmt"
+
 	scn "github.com/petersen65/PL0/scanner"
+	tok "github.com/petersen65/PL0/token"
 )
 
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
-const eof scn.Token = -1
+const eof tok.Token = -1
 
 var (
 	// Tokens that are used to begin constants, variables, and procedures declarations.
-	declarations = scn.Tokens{
+	declarations = tok.Tokens{
 		scn.ConstWord,
 		scn.VarWord,
 		scn.ProcedureWord,
 	}
 
 	// Tokens that are used to begin statements within a block.
-	statements = scn.Tokens{
+	statements = tok.Tokens{
 		scn.Read,
 		scn.Write,
 		scn.BeginWord,
@@ -30,7 +33,7 @@ var (
 	}
 
 	// Tokens that are used to begin factors in expressions.
-	factors = scn.Tokens{
+	factors = tok.Tokens{
 		scn.Identifier,
 		scn.Number,
 		scn.LeftParenthesis,
@@ -40,29 +43,29 @@ var (
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
 	tokenStreamIndex     int                  // index of the current token in the token stream table
-	tokenStream          scn.TokenStream      // token stream to parse
-	lastTokenDescription scn.TokenDescription // description of the last token that was read
-	errorReport          ErrorReport          // error report that stores all errors that occured during parsing
+	tokenStream          tok.TokenStream      // token stream to parse
+	lastTokenDescription tok.TokenDescription // description of the last token that was read
+	errorReport          tok.ErrorReport      // error report that stores all errors that occured during parsing
 }
 
 // Create a new token handler for the PL/0 parser.
-func newTokenHandler(tokenStream scn.TokenStream) *tokenHandler {
+func newTokenHandler(tokenStream tok.TokenStream) *tokenHandler {
 	return &tokenHandler{
 		tokenStream: tokenStream,
-		errorReport: make(ErrorReport, 0),
+		errorReport: make(tok.ErrorReport, 0),
 	}
 }
 
 // Set wrapper returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
-func set(tss ...scn.TokenSet) scn.Tokens {
-	return scn.Set(tss...)
+func set(tss ...tok.TokenSet) tok.Tokens {
+	return tok.Set(tss...)
 }
 
 // Set next token description in the token stream or an eof description.
 func (t *tokenHandler) nextTokenDescription() bool {
 	if t.tokenStreamIndex >= len(t.tokenStream) {
 		if t.lastTokenDescription.Token != eof {
-			t.lastTokenDescription = scn.TokenDescription{
+			t.lastTokenDescription = tok.TokenDescription{
 				Token:       eof,
 				TokenName:   "eof",
 				Line:        t.lastTokenDescription.Line,
@@ -80,7 +83,7 @@ func (t *tokenHandler) nextTokenDescription() bool {
 }
 
 // Get token from the last token description.
-func (t *tokenHandler) lastToken() scn.Token {
+func (t *tokenHandler) lastToken() tok.Token {
 	return t.lastTokenDescription.Token
 }
 
@@ -95,7 +98,7 @@ func (t *tokenHandler) lastTokenValue() string {
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
-func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) bool {
+func (t *tokenHandler) rebase(code tok.Failure, expected, fallback tok.Tokens) bool {
 	var hasError bool
 
 	if !t.lastToken().In(expected) {
@@ -124,6 +127,34 @@ func (t *tokenHandler) setFullyParsed() {
 }
 
 // Expose error report to the parser.
-func (t *tokenHandler) getErrorReport() ErrorReport {
+func (t *tokenHandler) getErrorReport() tok.ErrorReport {
 	return t.errorReport
+}
+
+// Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
+func (t *tokenHandler) appendError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	t.errorReport = append(t.errorReport, tok.Error{
+		Err:              err,
+		TokenStreamIndex: t.tokenStreamIndex,
+	})
+
+	return err
+}
+
+// Create a new error by mapping the error code to its corresponding error message.
+func (t *tokenHandler) error(code tok.Failure, value any) error {
+	var message string
+
+	if value != nil {
+		message = fmt.Sprintf(errorMap[code], value)
+	} else {
+		message = errorMap[code]
+	}
+
+	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
+	return fmt.Errorf("parser error %v [%v,%v]: %v", code, line, column, message)
 }

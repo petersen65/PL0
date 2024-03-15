@@ -16,6 +16,7 @@ import (
 	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
+	tok "github.com/petersen65/PL0/token"
 	scn "github.com/petersen65/PL0/scanner"
 )
 
@@ -55,11 +56,11 @@ func CompileFile(source, target string, options Options, print io.Writer) error 
 		}
 
 		if options&PrintTokens != 0 {
-			PrintTokenStream(tokenStream, print, false)
+			scn.PrintTokenStream(tokenStream, print, false)
 		}
 
 		if options&PrintAbstractSyntax != 0 {
-			PrintAbstractSyntaxTree(abstractSyntax, "", true, print)
+			ast.PrintAbstractSyntaxTree(abstractSyntax, "", true, print)
 		}
 	}
 
@@ -98,7 +99,7 @@ func PrintFile(target string, print io.Writer) error {
 
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
 // The token stream and error report are also returned if an error occurs during compilation.
-func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.ErrorReport, error) {
+func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, par.ErrorReport, error) {
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	abstractSyntax, errorReport, parserErr := par.NewParser().Parse(tokenStream)
 	scannerParserErrors := errors.Join(scannerError, parserErr)
@@ -110,54 +111,6 @@ func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.Err
 	}
 
 	return nil, tokenStream, nil, errorReport, scannerParserErrors
-}
-
-// Print the token stream of the scanner to the specified writer.
-func PrintTokenStream(tokenStream scn.TokenStream, print io.Writer, bottom bool) {
-	var start, previousLine int
-	print.Write([]byte("Token Stream:"))
-
-	if len(tokenStream) == 0 {
-		print.Write([]byte("\n"))
-		return
-	}
-
-	if bottom {
-		lastLine := tokenStream[len(tokenStream)-1].Line
-
-		for start = len(tokenStream) - 1; start >= 0 && tokenStream[start].Line == lastLine; start-- {
-		}
-
-		start++
-	} else {
-		start = 0
-	}
-
-	for i := start; i < len(tokenStream); i++ {
-		td := tokenStream[i]
-
-		if td.Line != previousLine {
-			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
-			previousLine = td.Line
-		}
-
-		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
-	}
-}
-
-// Print the abstract syntax tree of the parser to the specified writer.
-func PrintAbstractSyntaxTree(node ast.Node, indent string, last bool, print io.Writer) {
-	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
-
-	if last {
-		indent += "   "
-	} else {
-		indent += "|  "
-	}
-
-	for i, child := range node.Children() {
-		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
-	}
 }
 
 // Print one or several errors to the specified writer.

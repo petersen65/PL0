@@ -2,10 +2,13 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 // Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
-// Package failure provides an error handling mechanism for the PL/0 compiler.
-package failure
+// Package token provides the token type-system and an error handling mechanism for the PL/0 compiler. This combination enables the error handler to connect an error to a location in the token stream.
+package token
 
-import "io"
+import (
+	"io"
+	"slices"
+)
 
 // Packages of the compiler which can generate errors.
 const (
@@ -20,6 +23,29 @@ const (
 )
 
 type (
+	// Token is a type that represents a token in the source code.
+	Token int
+
+	// Tokens represents a set of tokens.
+	Tokens []Token
+
+	// TokenSet is an interface that is used for types that can be converted to the 'Tokens' type.
+	TokenSet interface {
+		ToTokens() Tokens
+	}
+
+	// The token stream table of token descriptions is the result of the lexical analysis of the source code.
+	TokenStream []TokenDescription
+
+	// Describes a token with its kind, name, value, datatype, and position in the source code.
+	TokenDescription struct {
+		Token        Token
+		TokenName    string
+		TokenValue   string
+		Line, Column int
+		CurrentLine  []byte
+	}
+
 	// Failure is a type for error codes that can be mapped to error messages.
 	Failure int
 
@@ -43,22 +69,6 @@ type (
 		PrintError(err error)
 		PrintErrorReport()
 	}
-
-	// Token is a type that represents a token in the source code.
-	Token int
-
-	// The token stream table of token descriptions is the result of the lexical analysis of the source code.
-	// It must be part of error handling because it enables the error handler to connect an error to a location in the token stream.
-	TokenStream []TokenDescription
-
-	// Describes a token with its kind, name, value, datatype, and position in the source code.
-	TokenDescription struct {
-		Token        Token
-		TokenName    string
-		TokenValue   string
-		Line, Column int
-		CurrentLine  []byte
-	}
 )
 
 // Map compiler components to their corresponding names.
@@ -70,6 +80,33 @@ var ComponentMap = map[Component]string{
 	Generator: "generator",
 	Emitter:   "emitter",
 	Emulator:  "emulator",
+}
+
+// Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
+func Set(tss ...TokenSet) Tokens {
+	set := Tokens{}
+
+	for _, ts := range tss {
+		set = append(set, ts.ToTokens()...)
+	}
+
+	slices.Sort(set)
+	return slices.Compact(set)
+}
+
+// In returns true if the token is in the given tokens.
+func (token Token) In(set Tokens) bool {
+	return slices.Contains(set, token)
+}
+
+// Token.ToTokens concerts a token to a token set to satisfy the TokenSet interface.
+func (t Token) ToTokens() Tokens {
+	return Tokens{t}
+}
+
+// Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
+func (t Tokens) ToTokens() Tokens {
+	return t
 }
 
 // Return the public interface to a new error handler.

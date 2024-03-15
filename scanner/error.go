@@ -4,31 +4,15 @@
 
 package scanner
 
-import "fmt"
+import tok "github.com/petersen65/PL0/token"
 
 // Error codes for the PL/0 scanner.
 const (
-	_ = failure(iota + 1000)
+	_ = tok.Failure(iota + 1000)
 	eofComment
 )
 
-// Failure is a type for error codes of the PL/0 scanner.
-type failure int
-
 // Map error codes to error messages.
-var errorMap = map[failure]string{
+var errorMap = map[tok.Failure]string{
 	eofComment: "end of file reached inside comment",
-}
-
-// Create a new error by mapping the error code to its corresponding error message.
-func newError(code failure, value any, line, column int) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(errorMap[code], value)
-	} else {
-		message = errorMap[code]
-	}
-
-	return fmt.Errorf("scanner error %v [%v,%v]: %v", code, line, column, message)
 }

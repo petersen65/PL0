@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Last character of the source code that is read when the end of the file is reached.
@@ -25,7 +27,7 @@ type scanner struct {
 
 var (
 	// Map operator characters to their corresponding tokens.
-	operators = map[string]Token{
+	operators = map[string]tok.Token{
 		"+":  Plus,
 		"-":  Minus,
 		"*":  Times,
@@ -46,13 +48,13 @@ var (
 	}
 
 	// Map statement characters to their corresponding tokens.
-	statements = map[string]Token{
+	statements = map[string]tok.Token{
 		"?": Read,
 		"!": Write,
 	}
 
 	// Map reserved words to their corresponding tokens.
-	words = map[string]Token{
+	words = map[string]tok.Token{
 		"odd":       OddWord,
 		"begin":     BeginWord,
 		"end":       EndWord,
@@ -73,7 +75,7 @@ func newScanner() Scanner {
 }
 
 // Run the PL/0 scanner to map the source code to its corresponding token stream.
-func (s *scanner) Scan(content []byte) (TokenStream, error) {
+func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
 	s.reset(content)
 	return s.scan()
 }
@@ -90,8 +92,8 @@ func (s *scanner) reset(content []byte) {
 }
 
 // Perform a character scan that supports whitespace, comments, identifiers, reserved words, numbers and operators.
-func (s *scanner) scan() (TokenStream, error) {
-	tokenStream := make(TokenStream, 0)
+func (s *scanner) scan() (tok.TokenStream, error) {
+	tokenStream := make(tok.TokenStream, 0)
 
 	for {
 		for s.isWhitespace() || s.isComment() {
@@ -112,7 +114,7 @@ func (s *scanner) scan() (TokenStream, error) {
 
 		token := s.getToken()
 
-		tokenStream = append(tokenStream, TokenDescription{
+		tokenStream = append(tokenStream, tok.TokenDescription{
 			Token:       token,
 			TokenName:   TokenNames[token],
 			TokenValue:  s.lastValue,
@@ -124,7 +126,7 @@ func (s *scanner) scan() (TokenStream, error) {
 }
 
 // Return identifier, reserved word, number, or operator token.
-func (s *scanner) getToken() Token {
+func (s *scanner) getToken() tok.Token {
 	s.lastValue = ""
 
 	switch {
@@ -241,7 +243,7 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return newError(eofComment, nil, s.line, s.column)
+			return tok.NewFailure(tok.Scanner, errorMap, eofComment, nil, s.line, s.column)
 		}
 	} else {
 		s.nextCharacter()
@@ -252,7 +254,7 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return newError(eofComment, nil, s.line, s.column)
+			return tok.NewFailure(tok.Scanner, errorMap, eofComment, nil, s.line, s.column)
 		}
 
 		s.nextCharacter()
@@ -268,7 +270,7 @@ func (s *scanner) isIdentifierOrWord() bool {
 }
 
 // Scan consecutive letters and digits to form an identifier token or a reserved word token.
-func (s *scanner) identifierOrWord() Token {
+func (s *scanner) identifierOrWord() tok.Token {
 	var builder strings.Builder
 
 	for unicode.IsLetter(s.lastCharacter) || unicode.IsDigit(s.lastCharacter) {
@@ -290,7 +292,7 @@ func (s *scanner) isNumber() bool {
 }
 
 // Scan consecutive digits to form an unsigned number token.
-func (s *scanner) number() Token {
+func (s *scanner) number() tok.Token {
 	var builder strings.Builder
 
 	for unicode.IsDigit(s.lastCharacter) {
@@ -303,7 +305,7 @@ func (s *scanner) number() Token {
 }
 
 // Scan operator or statement token and return an Unknown token if last character cannot be mapped to a token.
-func (s *scanner) operatorOrStatement() Token {
+func (s *scanner) operatorOrStatement() tok.Token {
 	if token, ok := operators[string(s.lastCharacter)]; ok {
 		s.nextCharacter()
 

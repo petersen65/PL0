@@ -8,13 +8,14 @@ package scanner
 import (
 	"fmt"
 	"io"
-	"slices"
 	"strings"
+
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Tokens that are supported by the PL/0 scanner.
 const (
-	Unknown = Token(iota)
+	Unknown = tok.Token(iota)
 	Identifier
 	Number
 	Plus
@@ -50,41 +51,18 @@ const (
 )
 
 type (
-	// Token is a type that represents a token in the source code.
-	Token int
-
-	// Tokens represents a set of tokens.
-	Tokens []Token
-
-	// The token stream table of token descriptions is the result of the lexical analysis of the source code. It is consumed by the parser.
-	TokenStream []TokenDescription
-
-	// Describes a token with its kind, name, value, datatype, and position in the source code.
-	TokenDescription struct {
-		Token        Token
-		TokenName    string
-		TokenValue   string
-		Line, Column int
-		CurrentLine  []byte
-	}
-
-	// TokenSet is an interface that is used for types that can be converted to the 'Tokens' type.
-	TokenSet interface {
-		ToTokens() Tokens
-	}
-
 	// Scanner is the public interface of the scanner implementation.
 	Scanner interface {
-		Scan(content []byte) (TokenStream, error)
+		Scan(content []byte) (tok.TokenStream, error)
 	}
 )
 
 var (
 	// Empty is an empty token set.
-	Empty = Tokens{}
+	Empty = tok.Tokens{}
 
 	// TokenNames maps tokens to their string representation.
-	TokenNames = map[Token]string{
+	TokenNames = map[tok.Token]string{
 		Unknown:          "unknown",
 		Identifier:       "identifier",
 		Number:           "number",
@@ -126,35 +104,8 @@ func NewScanner() Scanner {
 	return newScanner()
 }
 
-// Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
-func Set(tss ...TokenSet) Tokens {
-	set := Tokens{}
-
-	for _, ts := range tss {
-		set = append(set, ts.ToTokens()...)
-	}
-
-	slices.Sort(set)
-	return slices.Compact(set)
-}
-
-// In returns true if the token is in the given tokens.
-func (token Token) In(set Tokens) bool {
-	return slices.Contains(set, token)
-}
-
-// Token.ToTokens concerts a token to a token set to satisfy the TokenSet interface.
-func (t Token) ToTokens() Tokens {
-	return Tokens{t}
-}
-
-// Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
-func (t Tokens) ToTokens() Tokens {
-	return t
-}
-
 // Print the token stream of the scanner to the specified writer.
-func PrintTokenStream(tokenStream TokenStream, print io.Writer, bottom bool) {
+func PrintTokenStream(tokenStream tok.TokenStream, print io.Writer, bottom bool) {
 	var start, previousLine int
 	print.Write([]byte("Token Stream:"))
 

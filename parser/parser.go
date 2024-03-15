@@ -9,6 +9,7 @@ import (
 
 	ast "github.com/petersen65/PL0/ast"
 	scn "github.com/petersen65/PL0/scanner"
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Number of bits of a signed integer.
@@ -27,7 +28,7 @@ func newParser() Parser {
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
-func (p *parser) Parse(tokenStream scn.TokenStream) (ast.Block, ErrorReport, error) {
+func (p *parser) Parse(tokenStream tok.TokenStream) (ast.Block, tok.ErrorReport, error) {
 	if err := p.reset(tokenStream); err != nil {
 		return nil, p.tokenHandler.getErrorReport(), err
 	}
@@ -62,7 +63,7 @@ func (p *parser) Parse(tokenStream scn.TokenStream) (ast.Block, ErrorReport, err
 }
 
 // Reset the parser to its initial state so that it can be reused.
-func (p *parser) reset(tokenStream scn.TokenStream) error {
+func (p *parser) reset(tokenStream tok.TokenStream) error {
 	p.declarationDepth = 0
 	p.tokenHandler = newTokenHandler(tokenStream)
 	p.abstractSyntax = nil
@@ -75,7 +76,7 @@ func (p *parser) reset(tokenStream scn.TokenStream) error {
 }
 
 // A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
-func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.Block {
+func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.Block {
 	var scope = ast.NewScope(outer)
 
 	// block of main program with outermost scope that has no further outer scope
@@ -183,7 +184,7 @@ func (p *parser) varWord(scope *ast.Scope) {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(outer *ast.Scope, anchors scn.Tokens) []ast.Block {
+func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Block {
 	procedures := make([]ast.Block, 0)
 
 	for p.lastToken() == scn.ProcedureWord {
@@ -227,7 +228,7 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors scn.Tokens) []ast.Block
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	symbol := scope.Lookup(p.lastTokenValue())
 
 	if symbol == nil {
@@ -288,7 +289,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) write(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	p.nextToken()
 	expression := p.expression(scope, anchors)
 	return ast.NewWriteStatement(expression)
@@ -324,7 +325,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	p.nextToken()
 	condition := p.condition(scope, set(anchors, scn.ThenWord, scn.DoWord))
 
@@ -346,7 +347,7 @@ func (p *parser) ifWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) whileWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	p.nextToken()
 	condition := p.condition(scope, set(anchors, scn.DoWord))
 
@@ -368,7 +369,7 @@ func (p *parser) whileWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) beginWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	compound := make([]ast.Statement, 0)
 	p.nextToken()
 
@@ -420,7 +421,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) {
 		}
 
 		p.nextToken()
-		var sign scn.Token
+		var sign tok.Token
 
 		if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 			sign = p.lastToken()
@@ -499,7 +500,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) (ast.Statement, bool) {
+func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement, bool) {
 	var statement ast.Statement
 
 	switch p.lastToken() {
@@ -547,7 +548,7 @@ func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) (ast.Statement,
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+func (p *parser) condition(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	if p.lastToken() == scn.OddWord {
@@ -602,7 +603,7 @@ func (p *parser) condition(scope *ast.Scope, anchors scn.Tokens) ast.Expression 
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+func (p *parser) expression(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
@@ -633,7 +634,7 @@ func (p *parser) expression(scope *ast.Scope, anchors scn.Tokens) ast.Expression
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
+func (p *parser) term(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
@@ -665,8 +666,8 @@ func (p *parser) term(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
-	var sign scn.Token
+func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
+	var sign tok.Token
 	var operand ast.Expression
 
 	// handle leading plus or minus sign of a factor
@@ -741,7 +742,7 @@ func (p *parser) nextToken() bool {
 }
 
 // Wrapper to get token from the last token description.
-func (p *parser) lastToken() scn.Token {
+func (p *parser) lastToken() tok.Token {
 	return p.tokenHandler.lastToken()
 }
 
@@ -756,12 +757,12 @@ func (p *parser) lastTokenValue() string {
 }
 
 // Append parser error to the error report of the token handler.
-func (p *parser) appendError(code failure, value any) {
+func (p *parser) appendError(code tok.Failure, value any) {
 	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
 }
 
 // Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
-func (e *parser) numberValue(sign scn.Token, number string) int64 {
+func (e *parser) numberValue(sign tok.Token, number string) int64 {
 	if sign == scn.Minus {
 		number = "-" + number
 	}
