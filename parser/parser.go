@@ -357,9 +357,7 @@ func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 	p.nextToken()
 
 	// the first statement of a begin-end block
-	if statement := p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)); statement != nil {
-		compound = append(compound, statement)
-	}
+	compound = append(compound, p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)))
 
 	for p.lastToken().In(set(statements, scn.Semicolon)) {
 		if p.lastToken() == scn.Semicolon {
@@ -369,9 +367,7 @@ func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 		}
 
 		// the next statement of a begin-end block
-		if statement := p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)); statement != nil {
-			compound = append(compound, statement)
-		}
+		compound = append(compound, p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)))
 	}
 
 	if p.lastToken() == scn.EndWord {
