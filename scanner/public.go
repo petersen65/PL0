@@ -5,7 +5,12 @@
 // Package scanner implements the PL/0 scanner that performs a lexical analysis of the source code.
 package scanner
 
-import "slices"
+import (
+	"fmt"
+	"io"
+	"slices"
+	"strings"
+)
 
 // Tokens that are supported by the PL/0 scanner.
 const (
@@ -146,4 +151,37 @@ func (t Token) ToTokens() Tokens {
 // Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
 func (t Tokens) ToTokens() Tokens {
 	return t
+}
+
+// Print the token stream of the scanner to the specified writer.
+func PrintTokenStream(tokenStream TokenStream, print io.Writer, bottom bool) {
+	var start, previousLine int
+	print.Write([]byte("Token Stream:"))
+
+	if len(tokenStream) == 0 {
+		print.Write([]byte("\n"))
+		return
+	}
+
+	if bottom {
+		lastLine := tokenStream[len(tokenStream)-1].Line
+
+		for start = len(tokenStream) - 1; start >= 0 && tokenStream[start].Line == lastLine; start-- {
+		}
+
+		start++
+	} else {
+		start = 0
+	}
+
+	for i := start; i < len(tokenStream); i++ {
+		td := tokenStream[i]
+
+		if td.Line != previousLine {
+			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
+			previousLine = td.Line
+		}
+
+		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
+	}
 }

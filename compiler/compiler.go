@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	ast "github.com/petersen65/PL0/ast"
+	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
 	scn "github.com/petersen65/PL0/scanner"
@@ -73,7 +74,7 @@ func RunFile(target string, print io.Writer) error {
 
 	if sections, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := RunSections(sections); err != nil {
+	} else if err := emu.RunSections(sections); err != nil {
 		return err
 	}
 
@@ -88,7 +89,7 @@ func PrintFile(target string, print io.Writer) error {
 
 	if sections, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := PrintSections(sections, print); err != nil {
+	} else if err := emu.PrintSections(sections, print); err != nil {
 		return err
 	}
 
@@ -109,16 +110,6 @@ func CompileContent(content []byte) ([]byte, scn.TokenStream, ast.Block, par.Err
 	}
 
 	return nil, tokenStream, nil, errorReport, scannerParserErrors
-}
-
-// Run a binary IL/0 program and return an error if the program fails to execute.
-func RunSections(sections []byte) error {
-	return newMachine().runProgram(sections)
-}
-
-// Print a binary IL/0 program to the specified writer and return an error if the program fails to print.
-func PrintSections(sections []byte, print io.Writer) error {
-	return printProgram(sections, print)
 }
 
 // Print the token stream of the scanner to the specified writer.

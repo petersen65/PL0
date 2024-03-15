@@ -5,6 +5,11 @@
 // Package ast implements the abstract syntax tree (AST) for the PL/0 parser.
 package ast
 
+import (
+	"fmt"
+	"io"
+)
+
 // Traverse the abstract syntax tree in specific orders.
 const (
 	_ = TraversalOrder(iota)
@@ -415,4 +420,19 @@ func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
 	}
 
 	return nil
+}
+
+// Print the abstract syntax tree to the specified writer.
+func PrintAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) {
+	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
+
+	if last {
+		indent += "   "
+	} else {
+		indent += "|  "
+	}
+
+	for i, child := range node.Children() {
+		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+	}
 }
