@@ -122,7 +122,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 
 	// parse and emit all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
-	statement := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
+	statement, _ := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
 
 	// after the block ends
 	//   a semicolon is expected to separate the block from the parent block
@@ -242,6 +242,10 @@ func (p *parser) assignment(scope *ast.Scope, anchors scn.Tokens) ast.Statement 
 		p.nextToken()
 	} else {
 		p.appendError(expectedBecomes, p.lastTokenName())
+
+		if p.lastToken() == scn.Equal {
+			p.nextToken()
+		}
 	}
 
 	right := p.expression(scope, anchors)
@@ -331,7 +335,13 @@ func (p *parser) ifWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 	}
 
 	// parse the statement which is executed if the condition is true
-	statement := p.statement(scope, anchors)
+	statement, err := p.statement(scope, anchors)
+
+	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
+	if !err && statement == nil {
+		statement = ast.NewEmptyStatement()
+	}
+
 	return ast.NewIfStatement(condition, statement)
 }
 
@@ -347,17 +357,25 @@ func (p *parser) whileWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 	}
 
 	// parse the statement which is executed as long as the condition is true
-	statement := p.statement(scope, anchors)
+	statement, err := p.statement(scope, anchors)
+
+	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
+	if !err && statement == nil {
+		statement = ast.NewEmptyStatement()
+	}
+
 	return ast.NewWhileStatement(condition, statement)
 }
 
-// A begin-end statement is the begin word followed by a statements with semicolons followed by the end word.
+// A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
 func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 	compound := make([]ast.Statement, 0)
 	p.nextToken()
 
-	// the first statement of a begin-end block
-	compound = append(compound, p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)))
+	// the first statement of a begin-end compound (only if the compound is not empty and there is no parsing error)
+	if statement, err := p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)); !err && statement != nil {
+		compound = append(compound, statement)
+	}
 
 	for p.lastToken().In(set(statements, scn.Semicolon)) {
 		if p.lastToken() == scn.Semicolon {
@@ -366,8 +384,10 @@ func (p *parser) beginWord(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		// the next statement of a begin-end block
-		compound = append(compound, p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)))
+		// the next statement of a begin-end compound (only if a statement is available and there is no parsing error)
+		if statement, err := p.statement(scope, set(anchors, scn.EndWord, scn.Semicolon)); !err && statement != nil {
+			compound = append(compound, statement)
+		}
 	}
 
 	if p.lastToken() == scn.EndWord {
@@ -479,7 +499,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
+func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) (ast.Statement, bool) {
 	var statement ast.Statement
 
 	switch p.lastToken() {
@@ -505,16 +525,25 @@ func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 		statement = p.beginWord(scope, anchors)
 
 	default:
-		p.appendError(expectedStatement, p.lastTokenName())
-		statement = ast.NewEmptyStatement()
+		// intentionally do nothing because the current token is not a statement anymore (not an error)
+		// this is the case when an empty compound statement is parsed or there is no statement anymore in a compound because the last one was already parsed
 	}
 
 	// after a statement, the parser expects
 	//   a semicolon to separate the statement from the next statement
+	//   or the end of the program
 	//   or the end of the parent block
 	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
-	p.tokenHandler.rebase(expectedStatement, anchors, scn.Empty)
-	return statement
+	if p.tokenHandler.rebase(expectedStatement, anchors, scn.Empty) {
+		// in case of a parsing error, return an empty statement
+		if statement == nil {
+			statement = ast.NewEmptyStatement()
+		}
+
+		return statement, true
+	}
+
+	return statement, false
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.

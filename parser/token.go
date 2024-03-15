@@ -95,14 +95,20 @@ func (t *tokenHandler) lastTokenValue() string {
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
-func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) {
+func (t *tokenHandler) rebase(code failure, expected, fallback scn.Tokens) bool {
+	var hasError bool
+
 	if !t.lastToken().In(expected) {
+		hasError = true
 		t.appendError(t.error(code, t.lastTokenName()))
 
 		for next := set(expected, fallback, eof); !t.lastToken().In(next); {
 			t.nextTokenDescription()
 		}
 	}
+
+	// the caller can check whether an error was appended to the error report
+	return hasError
 }
 
 // The token stream is fully parsed if the index of the current token is equal to the length of the token stream table.

@@ -310,19 +310,19 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 	return symbols
 }
 
-// Default empty block in the case of a parser error.
+// An empty block does not generate code.
 func NewEmptyBlock() Block {
 	return NewBlock("", 0, NewScope(nil), make([]Block, 0), NewEmptyStatement())
 }
 
-// Default empty expression in the case of a parser error.
+// An empty expression is a 0 literal and should only occur during a parsing error.
 func NewEmptyExpression() Expression {
-	return NewLiteral(0, Integer64)
+	return NewLiteral(int64(0), Integer64)
 }
 
-// Default empty statement in the case of a parser error.
+// An empty statement does not generate code.
 func NewEmptyStatement() Statement {
-	return NewWriteStatement(NewEmptyExpression())
+	return newCompoundStatement(make([]Statement, 0))
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.
