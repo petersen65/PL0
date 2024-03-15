@@ -100,8 +100,8 @@ type (
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
 		Outer       *Scope       // outer scope or nil if this is the outermost scope
-		Names       []string     // enable deterministic iteration over the symbol table
-		SymbolTable *SymbolTable // symbol table of the scope
+		names       []string     // enable deterministic iteration over the symbol table
+		symbolTable *SymbolTable // symbol table of the scope
 	}
 
 	// A node in the abstract syntax tree.
@@ -261,16 +261,16 @@ var KindNames = map[Entry]string{
 // NewScope creates a new scope with an empty symbol table.
 func NewScope(outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
-	return &Scope{Outer: outer, SymbolTable: &symbolTable}
+	return &Scope{Outer: outer, symbolTable: &symbolTable}
 }
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
 func (s *Scope) Insert(symbol *Symbol) {
 	if s.LookupCurrent(symbol.Name) == nil {
-		s.Names = append(s.Names, symbol.Name)
+		s.names = append(s.names, symbol.Name)
 	}
 
-	(*s.SymbolTable)[symbol.Name] = symbol
+	(*s.symbolTable)[symbol.Name] = symbol
 }
 
 // Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
@@ -288,7 +288,7 @@ func (s *Scope) Lookup(name string) *Symbol {
 
 // Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
 func (s *Scope) LookupCurrent(name string) *Symbol {
-	if symbol, ok := (*s.SymbolTable)[name]; ok {
+	if symbol, ok := (*s.symbolTable)[name]; ok {
 		return symbol
 	}
 
@@ -300,14 +300,29 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 	symbols := make(chan *Symbol)
 
 	go func() {
-		for _, name := range s.Names {
-			symbols <- (*s.SymbolTable)[name]
+		for _, name := range s.names {
+			symbols <- (*s.symbolTable)[name]
 		}
 
 		close(symbols)
 	}()
 
 	return symbols
+}
+
+// Default empty block in the case of a parser error.
+func NewEmptyBlock() Block {
+	return NewBlock("", 0, NewScope(nil), make([]Block, 0), NewEmptyStatement())
+}
+
+// Default empty expression in the case of a parser error.
+func NewEmptyExpression() Expression {
+	return NewLiteral(0, Integer64)
+}
+
+// Default empty statement in the case of a parser error.
+func NewEmptyStatement() Statement {
+	return NewWriteStatement(NewEmptyExpression())
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.

@@ -85,7 +85,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected scn.Tokens) ast.B
 			Name:    name,
 			Kind:    ast.Procedure,
 			Depth:   0,
-			Address: 0,
+			Address: 0, // entrypoint address is set to 0 and will be updated by the code generator
 		})
 	}
 
@@ -247,7 +247,8 @@ func (p *parser) assignment(scope *ast.Scope, anchors scn.Tokens) ast.Statement 
 	right := p.expression(scope, anchors)
 
 	if symbol == nil || symbol.Kind != ast.Variable {
-		return nil
+		// in case of a parsing error, return an empty statement
+		return ast.NewEmptyStatement()
 	}
 
 	return ast.NewAssignmentStatement(symbol, right)
@@ -278,7 +279,8 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 		return ast.NewReadStatement(symbol)
 	}
 
-	return nil
+	// in case of a parsing error, return an empty statement
+	return ast.NewEmptyStatement()
 }
 
 // A write statement is the write operator followed by an expression.
@@ -313,7 +315,8 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 		return ast.NewCallStatement(symbol)
 	}
 
-	return nil
+	// in case of a parsing error, return an empty statement
+	return ast.NewEmptyStatement()
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -415,7 +418,8 @@ func (p *parser) constantIdentifier(scope *ast.Scope) {
 				Name:  constantName,
 				Kind:  ast.Constant,
 				Depth: p.declarationDepth,
-				Value: p.numberValue(sign, p.lastTokenValue())})
+				Value: p.numberValue(sign, p.lastTokenValue()),
+			})
 
 			p.nextToken()
 		}
@@ -433,9 +437,11 @@ func (p *parser) variableIdentifier(scope *ast.Scope) {
 			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
 		} else {
 			scope.Insert(&ast.Symbol{
-				Name:  p.lastTokenValue(),
-				Kind:  ast.Variable,
-				Depth: p.declarationDepth})
+				Name:   p.lastTokenValue(),
+				Kind:   ast.Variable,
+				Depth:  p.declarationDepth,
+				Offset: 0, // variable offset is set to 0 and will be updated by the code generator
+			})
 		}
 
 		p.nextToken()
@@ -458,7 +464,8 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 				Name:    procedureName,
 				Kind:    ast.Procedure,
 				Depth:   p.declarationDepth,
-				Address: 0})
+				Address: 0, // procedure address is set to 0 and will be updated by the code generator
+			})
 		}
 
 		p.nextToken()
@@ -500,6 +507,10 @@ func (p *parser) statement(scope *ast.Scope, anchors scn.Tokens) ast.Statement {
 
 	case scn.BeginWord:
 		statement = p.beginWord(scope, anchors)
+
+	default:
+		p.appendError(expectedStatement, p.lastTokenName())
+		statement = ast.NewEmptyStatement()
 	}
 
 	// after a statement, the parser expects
@@ -549,8 +560,17 @@ func (p *parser) condition(scope *ast.Scope, anchors scn.Tokens) ast.Expression 
 
 			case scn.GreaterEqual:
 				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right)
+
+			default:
+				p.appendError(expectedRelationalOperator, p.lastTokenName())
+				operation = ast.NewEmptyExpression()
 			}
 		}
+	}
+
+	// in case of a parsing error, return an empty expression
+	if operation == nil {
+		operation = ast.NewEmptyExpression()
 	}
 
 	return operation
@@ -579,6 +599,7 @@ func (p *parser) expression(scope *ast.Scope, anchors scn.Tokens) ast.Expression
 		left = operation
 	}
 
+	// expression is the left term if no plus or minus operator is present
 	if operation == nil {
 		operation = left
 	}
@@ -610,6 +631,7 @@ func (p *parser) term(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
 		left = operation
 	}
 
+	// term is the left factor if no times or divide operator is present
 	if operation == nil {
 		operation = left
 	}
@@ -678,6 +700,11 @@ func (p *parser) factor(scope *ast.Scope, anchors scn.Tokens) ast.Expression {
 	// negate the factor if a leading minus sign is present
 	if sign == scn.Minus {
 		operand = ast.NewUnaryOperation(ast.Negate, operand)
+	}
+
+	// in case of a parsing error, return an empty expression
+	if operand == nil {
+		operand = ast.NewEmptyExpression()
 	}
 
 	return operand

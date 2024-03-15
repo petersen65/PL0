@@ -172,7 +172,7 @@ func (b *BlockNode) Parent() Node {
 
 // Children nodes of the block node.
 func (b *BlockNode) Children() []Node {
-	children := make([]Node, 0, len(*b.Scope.SymbolTable)+len(b.Procedures)+1)
+	children := make([]Node, 0, len(*b.Scope.symbolTable)+len(b.Procedures)+1)
 
 	for entry := range b.Scope.IterateCurrent() {
 		children = append(children, entry)
