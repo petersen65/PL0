@@ -2,12 +2,14 @@
 
 This module provides a complete compiler for the programming language PL/0. It provides several packages that can be used independently of its command line interface.
 
-* scanner: lexical analysis of PL/0 syntax, converting input characters in UTF-8 encoding to a token stream table with token descriptions
-* parser: syntax analysis of PL/0 code, ensuring source code adheres to the rules defined in the extended Backus-Naur form for the language
-* ast: semantic analysis of PL/0 code, creating a normalized representation of source code as in-memory abstract syntax tree 
-* emitter: code generation of IL/0 intermediate language code, called by recursive descent parser during syntax analysis of PL/0 code
-* emulator: execution of the IL/0 intermediate language code produced by the emitter, runs process on virtual cpu with stack and registers
-* compiler: compiler driver for scanning, parsing, emitting, printing, and emulating from source code to the resultant IL/0 code
+* scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
+* parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
+* ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree 
+* generator: compiler pass for code generation by traversing the abstract syntax tree to drive the IL/0 emitter
+* emitter: binary output of IL/0 intermediate language, called by code generator during abstract syntax tree traversal
+* emulator: execution of IL/0 intermediate language instructions by running a process on a virtual cpu with stack and registers
+* token: common token type-system and an error-handling mechanism used by all compiler components
+* compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant IL/0 code
 
 The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
@@ -50,7 +52,8 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 |                    | &nbsp;
 | block              | ["const" identifier "=" ["+" \| "-"] number {"," identifier "=" ["+" \| "-"] number} ";"]
 |                    | ["var" identifier {"," identifier} ";"]
-|                    | {"procedure" identifier ";" block ";"} statement ";"
+|                    | {"procedure" identifier ";" block ";"}
+|                    | statement
 |                    | &nbsp;
 | statement          | [identifier ":=" expression
 |				 	 | &nbsp;\| "call" identifier
@@ -58,7 +61,7 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 |                    | &nbsp;\| "?" identifier 
 |                    | &nbsp;\| "begin" statement {";" statement} "end"
 |                    | &nbsp;\| "if" condition "then" statement
-|                    | &nbsp;\| "while" condition "do" statement] ";"
+|                    | &nbsp;\| "while" condition "do" statement]
 |                    | &nbsp;
 | condition          | "odd" expression
 |                    | &nbsp;&nbsp;\| expression ("=" \| "#" \| "<" \| "<=" \| ">" \| ">=") expression
@@ -124,9 +127,9 @@ The programming language PL/0 2024 supports the following features:
 ## Planning
 
 * Q2 2024, Compiler version 2.0.0 2024, make core engine more mature
+	* migration to an abstract syntax tree and code generator as interface between parser and emitter
+	* introduce first semantic analysis compiler pass (e.g. symbol usage check)
 	* finite automaton documentation for scanner
-	* migration to abstract syntax trees as interface between parser and emitter
-	* introduce semantic analysis passes into parser (e.g. type verification, symbol declaration check)
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)

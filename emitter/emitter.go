@@ -7,6 +7,8 @@ package emitter
 import (
 	"bytes"
 	"encoding/binary"
+
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Private implementation of the IL/0 emitter.
@@ -24,7 +26,7 @@ func newEmitter() Emitter {
 // Update the target address and optionally the argument of an instruction in the text section.
 func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
-		return newError(instructionOutOfRange, instruction)
+		return tok.NewFailure(tok.Emitter, errorMap, instructionOutOfRange, instruction, tok.None, tok.None)
 	}
 
 	e.textSection[instruction].Address = target

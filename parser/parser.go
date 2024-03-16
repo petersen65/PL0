@@ -17,10 +17,37 @@ const integerBitSize = 64
 
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
-	declarationDepth int32         // declaration depth of nested blocks
-	tokenHandler     *tokenHandler // token handler that manages the tokens of the token stream
-	abstractSyntax   ast.Block     // abstract syntax tree of the program
+	declarationDepth int32            // declaration depth of nested blocks
+	errorHandler     tok.ErrorHandler // error handler that is used to handle errors that occurred during parsing
+	tokenHandler     tok.TokenHandler // token handler that manages the tokens of the token stream
+	abstractSyntax   ast.Block        // abstract syntax tree of the program
 }
+
+var (
+	// Tokens that are used to begin constants, variables, and procedures declarations.
+	declarations = tok.Tokens{
+		scn.ConstWord,
+		scn.VarWord,
+		scn.ProcedureWord,
+	}
+
+	// Tokens that are used to begin statements within a block.
+	statements = tok.Tokens{
+		scn.Read,
+		scn.Write,
+		scn.BeginWord,
+		scn.CallWord,
+		scn.IfWord,
+		scn.WhileWord,
+	}
+
+	// Tokens that are used to begin factors in expressions.
+	factors = tok.Tokens{
+		scn.Identifier,
+		scn.Number,
+		scn.LeftParenthesis,
+	}
+)
 
 // Return the public interface of the private parser implementation.
 func newParser() Parser {
@@ -28,9 +55,18 @@ func newParser() Parser {
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
-func (p *parser) Parse(tokenStream tok.TokenStream) (ast.Block, tok.ErrorReport, error) {
-	if err := p.reset(tokenStream); err != nil {
-		return nil, p.tokenHandler.getErrorReport(), err
+func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) (ast.Block, error) {
+	// an existing error handler can have errors from other compiler components
+	startErrorCount := errorHandler.Count()
+
+	p.declarationDepth = 0
+	p.errorHandler = errorHandler
+	p.tokenHandler = tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, errorMap)
+	p.abstractSyntax = nil
+
+	// the parser expects a token stream to be available
+	if len(tokenStream) == 0 || !p.nextToken() {
+		return nil, p.tokenHandler.NewError(eofReached, nil)
 	}
 
 	// the main block starts with the
@@ -45,34 +81,22 @@ func (p *parser) Parse(tokenStream tok.TokenStream) (ast.Block, tok.ErrorReport,
 	}
 
 	// the program must comply with the syntax rules of the programming language
-	if !p.tokenHandler.isFullyParsed() {
-		p.tokenHandler.setFullyParsed()
+	if !p.tokenHandler.IsFullyParsed() {
+		p.tokenHandler.SetFullyParsed()
 		p.appendError(notFullyParsed, nil)
 	}
 
-	// collect all errors from the parser and return the error report
-	errorReport := p.tokenHandler.getErrorReport()
+	// number of errors that occurred during parsing
+	parserErrorCount := errorHandler.Count() - startErrorCount
 
-	if len(errorReport) == 1 {
-		return nil, errorReport, p.tokenHandler.error(parsingError, nil)
-	} else if len(errorReport) > 1 {
-		return nil, errorReport, p.tokenHandler.error(parsingErrors, len(errorReport))
+	// return the abstract syntax tree of the program and the error handler
+	if parserErrorCount == 1 {
+		return nil, p.tokenHandler.NewError(parsingError, nil)
+	} else if parserErrorCount > 1 {
+		return nil, p.tokenHandler.NewError(parsingErrors, parserErrorCount)
 	} else {
-		return p.abstractSyntax, errorReport, nil
+		return p.abstractSyntax, nil
 	}
-}
-
-// Reset the parser to its initial state so that it can be reused.
-func (p *parser) reset(tokenStream tok.TokenStream) error {
-	p.declarationDepth = 0
-	p.tokenHandler = newTokenHandler(tokenStream)
-	p.abstractSyntax = nil
-
-	if len(tokenStream) == 0 || !p.nextToken() {
-		return p.tokenHandler.error(eofReached, nil)
-	}
-
-	return nil
 }
 
 // A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
@@ -114,7 +138,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 		// after declarations, the block expects
 		//   a statement which also can be an assignment starting with an identifier
 		//   or the parser would fall back to declarations as anchor in the case of a syntax error
-		p.tokenHandler.rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
+		p.tokenHandler.Rebase(expectedStatementsIdentifiers, set(statements, scn.Identifier), declarations)
 
 		if !p.lastToken().In(declarations) {
 			break
@@ -129,7 +153,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	//   a semicolon is expected to separate the block from the parent block
 	//   or a program-end is expected to end the program
 	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
-	p.tokenHandler.rebase(unexpectedTokens, expected, scn.Empty)
+	p.tokenHandler.Rebase(unexpectedTokens, expected, scn.Empty)
 
 	// return a new block node in the abstract syntax tree
 	return ast.NewBlock(name, p.declarationDepth, scope, procedures, statement)
@@ -215,7 +239,7 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Block
 			//   a statement which also can be an assignment starting with an identifier
 			//   the beginning of a new procedure declaration
 			//   or the parser would fall back to parent tokens as anchors in the case of a syntax error
-			p.tokenHandler.rebase(expectedStatementsIdentifiersProcedures, set(statements, scn.Identifier, scn.ProcedureWord), anchors)
+			p.tokenHandler.Rebase(expectedStatementsIdentifiersProcedures, set(statements, scn.Identifier, scn.ProcedureWord), anchors)
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
@@ -535,7 +559,7 @@ func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement,
 	//   or the end of the program
 	//   or the end of the parent block
 	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
-	if p.tokenHandler.rebase(expectedStatement, anchors, scn.Empty) {
+	if p.tokenHandler.Rebase(expectedStatement, anchors, scn.Empty) {
 		// in case of a parsing error, return an empty statement
 		if statement == nil {
 			statement = ast.NewEmptyStatement()
@@ -679,7 +703,7 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	// at the beginning of a factor
 	//   the expected tokens are identifiers, numbers, and left parentheses
 	//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-	p.tokenHandler.rebase(expectedIdentifiersNumbersExpressions, factors, anchors)
+	p.tokenHandler.Rebase(expectedIdentifiersNumbersExpressions, factors, anchors)
 
 	for p.lastToken().In(factors) {
 		if p.lastToken() == scn.Identifier {
@@ -720,7 +744,7 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 		//   a relational operator
 		//   a right parenthesis
 		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-		p.tokenHandler.rebase(unexpectedTokens, anchors, set(scn.LeftParenthesis))
+		p.tokenHandler.Rebase(unexpectedTokens, anchors, set(scn.LeftParenthesis))
 	}
 
 	// negate the factor if a leading minus sign is present
@@ -738,27 +762,32 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 
 // Return the next token description from the token handler.
 func (p *parser) nextToken() bool {
-	return p.tokenHandler.nextTokenDescription()
+	return p.tokenHandler.NextTokenDescription()
 }
 
 // Wrapper to get token from the last token description.
 func (p *parser) lastToken() tok.Token {
-	return p.tokenHandler.lastToken()
+	return p.tokenHandler.LastToken()
 }
 
 // Wrapper to get the token name from the last token description.
 func (p *parser) lastTokenName() string {
-	return p.tokenHandler.lastTokenName()
+	return p.tokenHandler.LastTokenName()
 }
 
 // Wrapper to get the token value from the last token description.
 func (p *parser) lastTokenValue() string {
-	return p.tokenHandler.lastTokenValue()
+	return p.tokenHandler.LastTokenValue()
 }
 
-// Append parser error to the error report of the token handler.
+// Append parser error to the error handler.
 func (p *parser) appendError(code tok.Failure, value any) {
-	p.tokenHandler.appendError(p.tokenHandler.error(code, value))
+	p.tokenHandler.AppendError(p.tokenHandler.NewError(code, value))
+}
+
+// Wrapper to get joined slice of all tokens within the given TokenSet interfaces.
+func set(tss ...tok.TokenSet) tok.Tokens {
+	return tok.Set(tss...)
 }
 
 // Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).

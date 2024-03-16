@@ -6,9 +6,14 @@
 package token
 
 import (
+	"fmt"
 	"io"
 	"slices"
+	"strings"
 )
+
+// Suppress line number and column number in error messages.
+const None = -1
 
 // Packages of the compiler which can generate errors.
 const (
@@ -55,6 +60,7 @@ type (
 		Rebase(code Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
+		NewError(code Failure, value any) error
 		AppendError(err error) error
 	}
 
@@ -64,35 +70,13 @@ type (
 	// Component describes packages of the compiler which can generate errors.
 	Component int
 
-	// ErrorReport is a list of errors that occurred during the compilation process.
-	ErrorReport []Error
-
-	// Error is a single error that occurred during the compilation process.
-	Error struct {
-		Err              error // The error that occurred.
-		TokenStreamIndex int   // The index of the token in the token stream where the error occurred.
-	}
-
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
-		HasErrors() bool
-		AppendError(err error, index int) Error
-		GetTokenDescription(err *Error) TokenDescription
-		PrintError(err error)
-		PrintErrorReport()
+		Count() int
+		AppendError(err error, index int)
+		PrintErrorReport(print io.Writer)
 	}
 )
-
-// Map compiler components to their corresponding names.
-var ComponentMap = map[Component]string{
-	Scanner:   "scanner",
-	Parser:    "parser",
-	Analyzer:  "analyzer",
-	Optimizer: "optimizer",
-	Generator: "generator",
-	Emitter:   "emitter",
-	Emulator:  "emulator",
-}
 
 // Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
 func Set(tss ...TokenSet) Tokens {
@@ -127,11 +111,20 @@ func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 }
 
 // Return the public interface to a new error handler.
-func NewErrorHandler(tokenStream TokenStream, print io.Writer) ErrorHandler {
-	return newErrorHandler(tokenStream, print)
+func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
+	return newErrorHandler(tokenStream)
 }
 
 // Create a new error by mapping the failure code to its corresponding error message.
 func NewFailure(component Component, errorMap map[Failure]string, code Failure, value any, line, column int) error {
 	return newFailure(component, errorMap, code, value, line, column)
+}
+
+// Print one or several errors as summary to the writer.
+func PrintErrorSummary(err error, print io.Writer) {
+	if strings.Contains(err.Error(), "\n") {
+		print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
+	} else {
+		print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
+	}
 }

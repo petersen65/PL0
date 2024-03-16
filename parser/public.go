@@ -16,7 +16,7 @@ const EntryPointName = "_start"
 type (
 	// Parser is the public interface of the parser implementation.
 	Parser interface {
-		Parse(tokenStream tok.TokenStream) (ast.Block, tok.ErrorReport, error)
+		Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) (ast.Block, error)
 	}
 )
 

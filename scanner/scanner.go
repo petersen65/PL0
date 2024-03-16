@@ -76,19 +76,15 @@ func newScanner() Scanner {
 
 // Run the PL/0 scanner to map the source code to its corresponding token stream.
 func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
-	s.reset(content)
-	return s.scan()
-}
-
-// Reset the scanner to its initial state so that it can be reused.
-func (s *scanner) reset(content []byte) {
 	s.sourceIndex = 0
 	s.sourceCode = content
 	s.line = 0
 	s.column = 0
 	s.lastValue = ""
 	s.currentLine = make([]byte, 0)
+	
 	s.nextCharacter()
+	return s.scan()
 }
 
 // Perform a character scan that supports whitespace, comments, identifiers, reserved words, numbers and operators.

@@ -10,14 +10,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	ast "github.com/petersen65/PL0/ast"
 	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
-	tok "github.com/petersen65/PL0/token"
 	scn "github.com/petersen65/PL0/scanner"
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Options for the compiler.
@@ -41,11 +40,11 @@ func CompileFile(source, target string, options Options, print io.Writer) error 
 		return err
 	} else {
 		defer program.Close()
-		sections, tokenStream, abstractSyntax, errorReport, err := CompileContent(content)
+		sections, tokenStream, abstractSyntax, errorHandler, err := CompileContent(content)
 
 		if err != nil {
-			if len(errorReport) != 0 {
-				PrintErrorReport(errorReport, print)
+			if errorHandler.Count() != 0 {
+				errorHandler.PrintErrorReport(print)
 			}
 
 			return err
@@ -98,45 +97,22 @@ func PrintFile(target string, print io.Writer) error {
 }
 
 // Compile PL/0 UTF-8 encoded source content into a binary IL/0 program and return the program as a byte slice.
-// The token stream and error report are also returned if an error occurs during compilation.
-func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, par.ErrorReport, error) {
+func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, tok.ErrorHandler, error) {
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	abstractSyntax, errorReport, parserErr := par.NewParser().Parse(tokenStream)
+	errorHandler := tok.NewErrorHandler(tokenStream)
+	abstractSyntax, parserErr := par.NewParser().Parse(tokenStream, errorHandler)
 	scannerParserErrors := errors.Join(scannerError, parserErr)
 
 	if scannerParserErrors == nil {
 		emitter := gen.NewGenerator(abstractSyntax).Generate()
 		sections, emitterError := emitter.Export()
-		return sections, tokenStream, abstractSyntax, errorReport, emitterError
+		return sections, tokenStream, abstractSyntax, errorHandler, emitterError
 	}
 
-	return nil, tokenStream, nil, errorReport, scannerParserErrors
+	return nil, tokenStream, nil, errorHandler, scannerParserErrors
 }
 
-// Print one or several errors to the specified writer.
-func PrintError(err error, print io.Writer) {
-	if strings.Contains(err.Error(), "\n") {
-		print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
-	} else {
-		print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
-	}
-}
-
-// Print the error report of the parser to the specified writer.
-func PrintErrorReport(errorReport par.ErrorReport, print io.Writer) {
-	print.Write([]byte("Error Report:"))
-
-	if len(errorReport) == 0 {
-		print.Write([]byte("\n"))
-		return
-	}
-
-	for _, e := range errorReport {
-		linePrefix := fmt.Sprintf("%5v: ", e.Line)
-		trimmedLine := strings.TrimSpace(string(e.CurrentLine))
-		trimmedSpaces := len(string(e.CurrentLine)) - len(trimmedLine)
-
-		print.Write([]byte(fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)))
-		print.Write([]byte(fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", e.Column+len(linePrefix)-trimmedSpaces-1), e.Err)))
-	}
+// Print one or several errors as summary to the specified writer.
+func PrintErrorSummary(err error, print io.Writer) {
+	tok.PrintErrorSummary(err, print)
 }

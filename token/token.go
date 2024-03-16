@@ -92,6 +92,12 @@ func (t *tokenHandler) SetFullyParsed() {
 	t.tokenStreamIndex++
 }
 
+// Create a new error by mapping the error code to its corresponding error message.
+func (t *tokenHandler) NewError(code Failure, value any) error {
+	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
+	return NewFailure(t.component, t.errorMap, code, value, line, column)
+}
+
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) AppendError(err error) error {
 	if err != nil {
@@ -99,10 +105,4 @@ func (t *tokenHandler) AppendError(err error) error {
 	}
 
 	return err
-}
-
-// Create a new error by mapping the error code to its corresponding error message.
-func (t *tokenHandler) NewError(code Failure, value any) error {
-	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
-	return NewFailure(t.component, t.errorMap, code, value, line, column)
 }

@@ -48,7 +48,7 @@ func main() {
 	case len(os.Args) > 3 && os.Args[1] == "-ci" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
 		if compile(os.Args[2], os.Args[3], 0) == nil {
 			print(os.Args[3])
-		}	
+		}
 
 	default:
 		usage()
@@ -60,7 +60,7 @@ func compile(pl0, il0 string, options compiler.Options) error {
 	err := compiler.CompileFile(pl0, il0, options, os.Stdout)
 
 	if err != nil {
-		compiler.PrintError(err, os.Stdout)
+		compiler.PrintErrorSummary(err, os.Stdout)
 	} else {
 		fmt.Println("Compilation successful")
 	}
@@ -73,7 +73,7 @@ func run(il0 string) error {
 	err := compiler.RunFile(il0, os.Stdout)
 
 	if err != nil {
-		compiler.PrintError(err, os.Stdout)
+		compiler.PrintErrorSummary(err, os.Stdout)
 	} else {
 		fmt.Println("Run successful")
 	}
@@ -86,7 +86,7 @@ func print(il0 string) error {
 	err := compiler.PrintFile(il0, os.Stdout)
 
 	if err != nil {
-		compiler.PrintError(err, os.Stdout)
+		compiler.PrintErrorSummary(err, os.Stdout)
 	} else {
 		fmt.Println("Print successful")
 	}
