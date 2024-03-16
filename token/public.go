@@ -46,6 +46,18 @@ type (
 		CurrentLine  []byte
 	}
 
+	// TokenHandler is an interface that provides methods for handling tokens in the token stream.
+	TokenHandler interface {
+		NextTokenDescription() bool
+		LastToken() Token
+		LastTokenName() string
+		LastTokenValue() string
+		Rebase(code Failure, expected, fallback Tokens) bool
+		IsFullyParsed() bool
+		SetFullyParsed()
+		AppendError(err error) error
+	}
+
 	// Failure is a type for error codes that can be mapped to error messages.
 	Failure int
 
@@ -107,6 +119,11 @@ func (t Token) ToTokens() Tokens {
 // Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
 func (t Tokens) ToTokens() Tokens {
 	return t
+}
+
+// Return the public interface to a new token handler.
+func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, errorMap map[Failure]string) TokenHandler {
+	return newTokenHandler(tokenStream, errorHandler, component, errorMap)
 }
 
 // Return the public interface to a new error handler.

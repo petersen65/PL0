@@ -4,79 +4,105 @@
 
 package token
 
-import (
-	"fmt"
-	"io"
-	"strings"
-)
+// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
+const eof Token = -1
 
-// Private implementation of the error handler.
-type errorHandler struct {
-	errorReport ErrorReport
-	tokenStream TokenStream
-	print       io.Writer
+// Token handler manages the current and next token in the token stream.
+type tokenHandler struct {
+	tokenStreamIndex     int                // index of the current token in the token stream table
+	tokenStream          TokenStream        // token stream to parse
+	lastTokenDescription TokenDescription   // description of the last token that was read
+	component            Component          // component of the compiler that is using the token handler
+	errorMap             map[Failure]string // map of error codes to error messages
+	errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
 }
 
-// Create a new error handler and initialize it with an empty error report.
-func newErrorHandler(tokenStream TokenStream, print io.Writer) ErrorHandler {
-	return &errorHandler{errorReport: make(ErrorReport, 0), tokenStream: tokenStream, print: print}
-}
-
-// Create a new error by mapping the failure code to its corresponding error message.
-func newFailure(component Component, errorMap map[Failure]string, code Failure, value any, line, column int) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(errorMap[code], value)
-	} else {
-		message = errorMap[code]
-	}
-
-	return fmt.Errorf("%v error %v [%v,%v]: %v", ComponentMap[component], code, line, column, message)
-}
-
-// Check if the error handler has errors in its error report.
-func (e *errorHandler) HasErrors() bool {
-	return len(e.errorReport) > 0
-}
-
-// Append a new error to the error report of the error handler.
-func (e *errorHandler) AppendError(err error, index int) Error {
-	e.errorReport = append(e.errorReport, Error{Err: err, TokenStreamIndex: index})
-	return e.errorReport[len(e.errorReport)-1]
-}
-
-// Get the token description of an error in the error report.
-func (e *errorHandler) GetTokenDescription(err *Error) TokenDescription {
-	return e.tokenStream[err.TokenStreamIndex]
-}
-
-// Print one or several errors to the writer of the error handler.
-func (e *errorHandler) PrintError(err error) {
-	if strings.Contains(err.Error(), "\n") {
-		e.print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
-	} else {
-		e.print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
+// Create a new token handler for the PL/0 parser.
+func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, errorMap map[Failure]string) TokenHandler {
+	return &tokenHandler{
+		tokenStream:  tokenStream,
+		component:    component,
+		errorMap:     errorMap,
+		errorHandler: errorHandler,
 	}
 }
 
-// Print the error report to the writer of the error handler.
-func (e *errorHandler) PrintErrorReport() {
-	e.print.Write([]byte("Error Report:"))
+// Set next token description in the token stream or an eof description.
+func (t *tokenHandler) NextTokenDescription() bool {
+	if t.tokenStreamIndex >= len(t.tokenStream) {
+		if t.lastTokenDescription.Token != eof {
+			t.lastTokenDescription = TokenDescription{
+				Token:       eof,
+				TokenName:   "eof",
+				Line:        t.lastTokenDescription.Line,
+				Column:      t.lastTokenDescription.Column,
+				CurrentLine: t.lastTokenDescription.CurrentLine,
+			}
+		}
 
-	if len(e.errorReport) == 0 {
-		e.print.Write([]byte("\n"))
-		return
+		return false
 	}
 
-	for _, err := range e.errorReport {
-		td := e.GetTokenDescription(&err)
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
+	return true
+}
 
-		linePrefix := fmt.Sprintf("%5v: ", td.Line)
-		trimmedLine := strings.TrimSpace(string(td.CurrentLine))
-		trimmedSpaces := len(string(td.CurrentLine)) - len(trimmedLine)
+// Get token from the last token description.
+func (t *tokenHandler) LastToken() Token {
+	return t.lastTokenDescription.Token
+}
 
-		e.print.Write([]byte(fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)))
-		e.print.Write([]byte(fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", td.Column+len(linePrefix)-trimmedSpaces-1), err.Err)))
+// Get token name from the last token description.
+func (t *tokenHandler) LastTokenName() string {
+	return t.lastTokenDescription.TokenName
+}
+
+// Get token value from the last token description.
+func (t *tokenHandler) LastTokenValue() string {
+	return t.lastTokenDescription.TokenValue
+}
+
+// Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
+func (t *tokenHandler) Rebase(code Failure, expected, fallback Tokens) bool {
+	var hasError bool
+
+	if !t.LastToken().In(expected) {
+		hasError = true
+		t.AppendError(t.NewError(code, t.LastTokenName()))
+
+		for next := Set(expected, fallback, eof); !t.LastToken().In(next); {
+			t.NextTokenDescription()
+		}
 	}
+
+	// the caller can check whether an error was appended to the error report
+	return hasError
+}
+
+// The token stream is fully parsed if the index of the current token is equal to the length of the token stream table.
+func (t *tokenHandler) IsFullyParsed() bool {
+	return t.tokenStreamIndex == len(t.tokenStream)
+}
+
+// Set index of the current token to the last entry of the token stream table and update next token description.
+func (t *tokenHandler) SetFullyParsed() {
+	t.tokenStreamIndex = len(t.tokenStream) - 1
+	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
+	t.tokenStreamIndex++
+}
+
+// Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
+func (t *tokenHandler) AppendError(err error) error {
+	if err != nil {
+		t.errorHandler.AppendError(err, t.tokenStreamIndex)
+	}
+
+	return err
+}
+
+// Create a new error by mapping the error code to its corresponding error message.
+func (t *tokenHandler) NewError(code Failure, value any) error {
+	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
+	return NewFailure(t.component, t.errorMap, code, value, line, column)
 }
