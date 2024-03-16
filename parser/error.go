@@ -29,7 +29,6 @@ const (
 	expectedBecomes
 	expectedNumber
 	expectedSemicolon
-	expectedStatement
 	expectedThen
 	expectedDo
 	expectedEnd
@@ -38,6 +37,7 @@ const (
 	expectedStatementsIdentifiersProcedures
 	expectedIdentifiersNumbersExpressions
 	expectedConstantsVariables
+	unexpectedTokensAfterStatement
 	unexpectedTokens
 )
 
@@ -60,14 +60,14 @@ var errorMap = map[tok.Failure]string{
 	expectedBecomes:                         "expected becomes, found %v",
 	expectedNumber:                          "expected number, found %v",
 	expectedSemicolon:                       "expected semicolon, found %v",
-	expectedStatement:                       "expected statement keywords or identifier, found %v",
+	expectedStatementsIdentifiers:           "expected statement keywords or identifier, found %v",
 	expectedThen:                            "expected then keyword, found %v",
 	expectedDo:                              "expected do keyword, found %v",
 	expectedEnd:                             "expected end keyword, found %v",
 	expectedRightParenthesis:                "expected right parenthesis, found %v",
-	expectedStatementsIdentifiers:           "expected statements or identifiers, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
 	expectedIdentifiersNumbersExpressions:   "expected identifiers, numbers or expressions surrounded by parentheses, found %v",
 	expectedConstantsVariables:              "expected constants or variables, found %v",
+	unexpectedTokensAfterStatement:          "unexpected set of tokens after statement, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",
 }

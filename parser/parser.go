@@ -145,9 +145,14 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 		}
 	}
 
-	// parse and emit all statement instructions which are defining the code logic of the block
+	// parse all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
-	statement, _ := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
+	statement, err := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
+
+	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
+	if !err && statement == nil {		
+		statement = ast.NewEmptyStatement()
+	}
 
 	// after the block ends
 	//   a semicolon is expected to separate the block from the parent block
@@ -363,7 +368,7 @@ func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	statement, err := p.statement(scope, anchors)
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
-	if !err && statement == nil {
+	if !err && statement == nil {		
 		statement = ast.NewEmptyStatement()
 	}
 
@@ -422,6 +427,62 @@ func (p *parser) beginWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	}
 
 	return ast.NewCompoundStatement(compound)
+}
+
+// A statement is either
+//
+//	an assignment statement,
+//	a read statement,
+//	a write statement,
+//	a procedure call,
+//	an if statement,
+//	a while statement,
+//	or a sequence of statements surrounded by begin and end.
+func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement, bool) {
+	var statement ast.Statement
+
+	switch p.lastToken() {
+	case scn.Identifier:
+		statement = p.assignment(scope, anchors)
+
+	case scn.Read:
+		statement = p.read(scope)
+
+	case scn.Write:
+		statement = p.write(scope, anchors)
+
+	case scn.CallWord:
+		statement = p.callWord(scope)
+
+	case scn.IfWord:
+		statement = p.ifWord(scope, anchors)
+
+	case scn.WhileWord:
+		statement = p.whileWord(scope, anchors)
+
+	case scn.BeginWord:
+		statement = p.beginWord(scope, anchors)
+
+	default:
+		// intentionally do nothing because the current token is not a statement anymore (not necessarily an error)
+		// this is also the case when an empty compound statement is parsed or there is no statement anymore in a compound because the last one was already parsed
+	}
+
+	// after a statement, the parser expects
+	//   a semicolon to separate the statement from the next statement
+	//   or the end of the program
+	//   or the end of the parent block
+	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
+	if p.tokenHandler.Rebase(unexpectedTokensAfterStatement, anchors, scn.Empty) {
+		// in case of a parsing error, return an empty statement
+		if statement == nil {
+			statement = ast.NewEmptyStatement()
+		}
+
+		return statement, true
+	}
+
+	return statement, false
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
@@ -513,62 +574,6 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 	}
 
 	return procedureName
-}
-
-// A statement is either
-//
-//	an assignment statement,
-//	a read statement,
-//	a write statement,
-//	a procedure call,
-//	an if statement,
-//	a while statement,
-//	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement, bool) {
-	var statement ast.Statement
-
-	switch p.lastToken() {
-	case scn.Identifier:
-		statement = p.assignment(scope, anchors)
-
-	case scn.Read:
-		statement = p.read(scope)
-
-	case scn.Write:
-		statement = p.write(scope, anchors)
-
-	case scn.CallWord:
-		statement = p.callWord(scope)
-
-	case scn.IfWord:
-		statement = p.ifWord(scope, anchors)
-
-	case scn.WhileWord:
-		statement = p.whileWord(scope, anchors)
-
-	case scn.BeginWord:
-		statement = p.beginWord(scope, anchors)
-
-	default:
-		// intentionally do nothing because the current token is not a statement anymore (not an error)
-		// this is the case when an empty compound statement is parsed or there is no statement anymore in a compound because the last one was already parsed
-	}
-
-	// after a statement, the parser expects
-	//   a semicolon to separate the statement from the next statement
-	//   or the end of the program
-	//   or the end of the parent block
-	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
-	if p.tokenHandler.Rebase(expectedStatement, anchors, scn.Empty) {
-		// in case of a parsing error, return an empty statement
-		if statement == nil {
-			statement = ast.NewEmptyStatement()
-		}
-
-		return statement, true
-	}
-
-	return statement, false
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
