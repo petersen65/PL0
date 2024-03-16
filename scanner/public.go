@@ -129,7 +129,7 @@ func PrintTokenStream(tokenStream tok.TokenStream, print io.Writer, bottom bool)
 		td := tokenStream[i]
 
 		if td.Line != previousLine {
-			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimSpace(string(td.CurrentLine)))))
+			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r"))))
 			previousLine = td.Line
 		}
 

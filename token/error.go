@@ -83,7 +83,7 @@ func (e *errorHandler) PrintErrorReport(print io.Writer) {
 		td := e.tokenStream[err.tokenStreamIndex]
 
 		linePrefix := fmt.Sprintf("%5v: ", td.Line)
-		trimmedLine := strings.TrimSpace(string(td.CurrentLine))
+		trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
 		trimmedSpaces := len(string(td.CurrentLine)) - len(trimmedLine)
 
 		print.Write([]byte(fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)))

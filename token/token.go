@@ -101,7 +101,7 @@ func (t *tokenHandler) NewError(code Failure, value any) error {
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) AppendError(err error) error {
 	if err != nil {
-		t.errorHandler.AppendError(err, t.tokenStreamIndex)
+		t.errorHandler.AppendError(err, t.tokenStreamIndex-1)
 	}
 
 	return err
