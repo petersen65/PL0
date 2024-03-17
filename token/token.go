@@ -94,7 +94,7 @@ func (t *tokenHandler) SetFullyParsed() {
 
 // Create a new error by mapping the error code to its corresponding error message.
 func (t *tokenHandler) NewError(code Failure, value any) error {
-	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, t.tokenStreamIndex)
+	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, t.tokenStreamIndex-1)
 }
 
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.

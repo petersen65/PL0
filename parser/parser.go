@@ -66,7 +66,7 @@ func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandle
 
 	// the parser expects a token stream to be available
 	if len(tokenStream) == 0 || !p.nextToken() {
-		return nil, p.tokenHandler.NewError(eofReached, nil)
+		return nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, eofReached, nil)
 	}
 
 	// the main block starts with the
@@ -91,9 +91,9 @@ func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandle
 
 	// return the abstract syntax tree of the program and the error handler
 	if parserErrorCount == 1 {
-		return nil, p.tokenHandler.NewError(parsingError, nil)
+		return nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingError, nil)
 	} else if parserErrorCount > 1 {
-		return nil, p.tokenHandler.NewError(parsingErrors, parserErrorCount)
+		return nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingErrors, parserErrorCount)
 	} else {
 		return p.abstractSyntax, nil
 	}
