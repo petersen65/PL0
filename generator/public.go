@@ -1,7 +1,7 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Generator is the compiler pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
+// Package generator implements compiler passes for code generation. Code generators traverse the abstract syntax tree and generate code by driving an emitter.
 package generator
 
 import (
@@ -9,12 +9,10 @@ import (
 	emt "github.com/petersen65/PL0/emitter"
 )
 
-type (
-	// Generator is the public interface of the generator implementation.
-	Generator interface {
-		Generate() emt.Emitter
-	}
-)
+// Generator is the public interface of the generator implementation.
+type Generator interface {
+	Generate() emt.Emitter
+}
 
 // Return the public interface of the private generator implementation.
 func NewGenerator(abstractSyntax ast.Block) Generator {
