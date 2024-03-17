@@ -1,6 +1,5 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
-// Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
 // Package token provides the token type-system and an error handling mechanism for the PL/0 compiler. This combination enables the error handler to connect an error to a location in the token stream.
 package token
