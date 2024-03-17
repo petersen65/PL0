@@ -12,9 +12,6 @@ import (
 	"strings"
 )
 
-// Suppress line number and column number in error messages.
-const None = -1
-
 // Packages of the compiler which can generate errors.
 const (
 	_ = Component(iota)
@@ -25,6 +22,13 @@ const (
 	Generator
 	Emitter
 	Emulator
+)
+
+// Severity is an enumeration of different error levels.
+const (
+	Information Severity = iota
+	Warning
+	Error
 )
 
 type (
@@ -44,11 +48,11 @@ type (
 
 	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
-		Token        Token
-		TokenName    string
-		TokenValue   string
-		Line, Column int
-		CurrentLine  []byte
+		Token        Token  // token kind
+		TokenName    string // token name
+		TokenValue   string // token value
+		Line, Column int    // position in the source code
+		CurrentLine  []byte // source code line
 	}
 
 	// TokenHandler is an interface that provides methods for handling tokens in the token stream.
@@ -64,8 +68,11 @@ type (
 		AppendError(err error) error
 	}
 
-	// Failure is a type for error codes that can be mapped to error messages.
+	// Failure is a type for codes that can be mapped to messages.
 	Failure int
+
+	// Error levels that are used to categorize errors.
+	Severity int
 
 	// Component describes packages of the compiler which can generate errors.
 	Component int
@@ -73,7 +80,7 @@ type (
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
 		Count() int
-		AppendError(err error, index int)
+		AppendError(err error)
 		PrintErrorReport(print io.Writer)
 	}
 )
@@ -106,8 +113,8 @@ func (t Tokens) ToTokens() Tokens {
 }
 
 // Return the public interface to a new token handler.
-func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, errorMap map[Failure]string) TokenHandler {
-	return newTokenHandler(tokenStream, errorHandler, component, errorMap)
+func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
+	return newTokenHandler(tokenStream, errorHandler, component, failureMap)
 }
 
 // Return the public interface to a new error handler.
@@ -115,9 +122,24 @@ func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
 	return newErrorHandler(tokenStream)
 }
 
-// Create a new error by mapping the failure code to its corresponding error message.
-func NewFailure(component Component, errorMap map[Failure]string, code Failure, value any, line, column int) error {
-	return newFailure(component, errorMap, code, value, line, column)
+// Create a new general error with a severity level.
+func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any) error {
+	return newGeneralError(component, failureMap, severity, code, value)
+}
+
+// Create a new line-column error with a severity level and a line and column number.
+func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
+	return newLineColumnError(component, failureMap, severity, code, value, line, column)
+}
+
+// Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
+func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
+	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
+}
+
+// Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
+func NewTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
+	return newTokenError(component, failureMap, severity, code, value, tokenStream, index)
 }
 
 // Print one or several errors as summary to the writer.

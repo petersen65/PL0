@@ -6,13 +6,13 @@ package emitter
 
 import tok "github.com/petersen65/PL0/token"
 
-// Error codes for the IL/0 emitter.
+// Failure codes for the IL/0 emitter.
 const (
 	_ = tok.Failure(iota + 3000)
 	instructionOutOfRange
 )
 
-// Map error codes to error messages.
-var errorMap = map[tok.Failure]string{
+// Map failure codes to error messages.
+var failureMap = map[tok.Failure]string{
 	instructionOutOfRange: "instruction is out of range: %v",
 }

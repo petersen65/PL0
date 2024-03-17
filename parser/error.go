@@ -9,7 +9,7 @@ import tok "github.com/petersen65/PL0/token"
 // Maximum depth of block nesting.
 const blockNestingMax = 8
 
-// Error codes for the PL/0 parser.
+// Failure codes for the PL/0 parser.
 const (
 	_ = tok.Failure(iota + 2000)
 	eofReached
@@ -41,8 +41,8 @@ const (
 	unexpectedTokens
 )
 
-// Map error codes to error messages.
-var errorMap = map[tok.Failure]string{
+// Map failure codes to error messages.
+var failureMap = map[tok.Failure]string{
 	eofReached:                              "unexpected end of file",
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	parsingError:                            "a parsing error occurred",

@@ -26,7 +26,7 @@ func newEmitter() Emitter {
 // Update the target address and optionally the argument of an instruction in the text section.
 func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
-		return tok.NewFailure(tok.Emitter, errorMap, instructionOutOfRange, instruction, tok.None, tok.None)
+		return tok.NewGeneralError(tok.Emitter, failureMap, tok.Error, instructionOutOfRange, instruction)
 	}
 
 	e.textSection[instruction].Address = target

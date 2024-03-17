@@ -61,7 +61,7 @@ func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandle
 
 	p.declarationDepth = 0
 	p.errorHandler = errorHandler
-	p.tokenHandler = tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, errorMap)
+	p.tokenHandler = tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, failureMap)
 	p.abstractSyntax = nil
 
 	// the parser expects a token stream to be available
@@ -150,7 +150,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	statement, err := p.statement(scope, set(expected, scn.Semicolon, scn.EndWord))
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
-	if !err && statement == nil {		
+	if !err && statement == nil {
 		statement = ast.NewEmptyStatement()
 	}
 
@@ -368,7 +368,7 @@ func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	statement, err := p.statement(scope, anchors)
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
-	if !err && statement == nil {		
+	if !err && statement == nil {
 		statement = ast.NewEmptyStatement()
 	}
 

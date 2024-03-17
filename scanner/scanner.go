@@ -82,7 +82,7 @@ func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
 	s.column = 0
 	s.lastValue = ""
 	s.currentLine = make([]byte, 0)
-	
+
 	s.nextCharacter()
 	return s.scan()
 }
@@ -239,7 +239,7 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return tok.NewFailure(tok.Scanner, errorMap, eofComment, nil, s.line, s.column)
+			return tok.NewLineColumnError(tok.Scanner, failureMap, tok.Error, eofComment, nil, s.line, s.column)
 		}
 	} else {
 		s.nextCharacter()
@@ -250,7 +250,7 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return tok.NewFailure(tok.Scanner, errorMap, eofComment, nil, s.line, s.column)
+			return tok.NewLineColumnError(tok.Scanner, failureMap, tok.Error, eofComment, nil, s.line, s.column)
 		}
 
 		s.nextCharacter()

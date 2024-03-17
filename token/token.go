@@ -13,16 +13,16 @@ type tokenHandler struct {
 	tokenStream          TokenStream        // token stream to parse
 	lastTokenDescription TokenDescription   // description of the last token that was read
 	component            Component          // component of the compiler that is using the token handler
-	errorMap             map[Failure]string // map of error codes to error messages
+	failureMap           map[Failure]string // map failure codes to error messages
 	errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
 }
 
 // Create a new token handler for the PL/0 parser.
-func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, errorMap map[Failure]string) TokenHandler {
+func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
 	return &tokenHandler{
 		tokenStream:  tokenStream,
 		component:    component,
-		errorMap:     errorMap,
+		failureMap:   failureMap,
 		errorHandler: errorHandler,
 	}
 }
@@ -94,14 +94,13 @@ func (t *tokenHandler) SetFullyParsed() {
 
 // Create a new error by mapping the error code to its corresponding error message.
 func (t *tokenHandler) NewError(code Failure, value any) error {
-	line, column := t.lastTokenDescription.Line, t.lastTokenDescription.Column
-	return NewFailure(t.component, t.errorMap, code, value, line, column)
+	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, t.tokenStreamIndex)
 }
 
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) AppendError(err error) error {
 	if err != nil {
-		t.errorHandler.AppendError(err, t.tokenStreamIndex-1)
+		t.errorHandler.AppendError(err)
 	}
 
 	return err
