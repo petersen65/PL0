@@ -20,6 +20,21 @@ func newBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 	return block
 }
 
+// Create a new constant declaration node in the abstract syntax tree.
+func newConstantDeclaration(name string, value any, dataType DataType) Declaration {
+	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType}
+}
+
+// Create a new variable declaration node in the abstract syntax tree.
+func newVariableDeclaration(name string, dataType DataType) Declaration {
+	return &VariableDeclarationNode{Name: name, DataType: dataType}
+}
+
+// Create a new procedure declaration node in the abstract syntax tree.
+func newProcedureDeclaration(name string, block Block) Declaration {
+	return &ProcedureDeclarationNode{Name: name, Block: block}
+}
+
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, dataType DataType) Expression {
 	return &LiteralNode{Value: value, DataType: dataType}
@@ -134,9 +149,10 @@ func (s *Symbol) String() string {
 
 	case Procedure:
 		return fmt.Sprintf("symbol(%v,%v:%v:%v)", KindNames[s.Kind], s.Name, s.Depth, s.Address)
-	}
 
-	return fmt.Sprintf("symbol(%v,%v:%v)", KindNames[s.Kind], s.Name, s.Depth)
+	default:
+		panic("abstract syntax tree error: unknown symbol kind")
+	}
 }
 
 // Parent node of the symbol entry node.
@@ -194,6 +210,108 @@ func (b *BlockNode) Accept(visitor Visitor) {
 	visitor.VisitBlock(b)
 }
 
+// Set the parent Node of the constant declaration node.
+func (d *ConstantDeclarationNode) SetParent(parent Node) {
+	d.ParentNode = parent
+}
+
+// String of the constant declaration node.
+func (d *ConstantDeclarationNode) String() string {
+	switch d.DataType {
+	case Integer64:
+		return fmt.Sprintf("declaration(%v,%v=%v:i64)", KindNames[Constant], d.Name, d.Value)
+
+	default:
+		panic("abstract syntax tree error: unknown constant data type")
+	}
+}
+
+// Parent node of the constant declaration node.
+func (d *ConstantDeclarationNode) Parent() Node {
+	return d.ParentNode
+}
+
+// Children nodes of the constant declaration node.
+func (d *ConstantDeclarationNode) Children() []Node {
+	return make([]Node, 0)
+}
+
+// DeclarationString returns the string representation of the constant declaration.
+func (d *ConstantDeclarationNode) DeclarationString() string {
+	return d.String()
+}
+
+// Accept the visitor for the constant declaration node.
+func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
+	visitor.VisitConstantDeclaration(d)
+}
+
+// Set the parent Node of the variable declaration node.
+func (d *VariableDeclarationNode) SetParent(parent Node) {
+	d.ParentNode = parent
+}
+
+// String of the variable declaration node.
+func (d *VariableDeclarationNode) String() string {
+	switch d.DataType {
+	case Integer64:
+		return fmt.Sprintf("declaration(%v,%v:i64)", KindNames[Variable], d.Name)
+
+	default:
+		panic("abstract syntax tree error: unknown variable data type")
+	}
+}
+
+// Parent node of the variable declaration node.
+func (d *VariableDeclarationNode) Parent() Node {
+	return d.ParentNode
+}
+
+// Children nodes of the variable declaration node.
+func (d *VariableDeclarationNode) Children() []Node {
+	return make([]Node, 0)
+}
+
+// DeclarationString returns the string representation of the variable declaration.
+func (d *VariableDeclarationNode) DeclarationString() string {
+	return d.String()
+}
+
+// Accept the visitor for the variable declaration node.
+func (d *VariableDeclarationNode) Accept(visitor Visitor) {
+	visitor.VisitVariableDeclaration(d)
+}
+
+// Set the parent Node of the procedure declaration node.
+func (d *ProcedureDeclarationNode) SetParent(parent Node) {
+	d.ParentNode = parent
+}
+
+// String of the procedure declaration node.
+func (d *ProcedureDeclarationNode) String() string {
+	return fmt.Sprintf("declaration(%v,%v)", KindNames[Procedure], d.Name)
+}
+
+// Parent node of the procedure declaration node.
+func (d *ProcedureDeclarationNode) Parent() Node {
+	return d.ParentNode
+}
+
+// Children nodes of the procedure declaration node.
+func (d *ProcedureDeclarationNode) Children() []Node {
+	return []Node{d.Block}
+}
+
+// DeclarationString returns the string representation of the procedure declaration.
+func (d *ProcedureDeclarationNode) DeclarationString() string {
+	return d.String()
+}
+
+// Accept the visitor for the procedure declaration node.
+func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
+	visitor.VisitProcedureDeclaration(d)
+}
+
 // Set the parent Node of the literal node.
 func (e *LiteralNode) SetParent(parent Node) {
 	e.ParentNode = parent
@@ -206,7 +324,7 @@ func (e *LiteralNode) String() string {
 		return fmt.Sprintf("literal(%v:i64)", e.Value)
 
 	default:
-		return fmt.Sprintf("literal(%v)", e.Value)
+		panic("abstract syntax tree error: unknown literal data type")
 	}
 }
 
@@ -230,22 +348,22 @@ func (e *LiteralNode) Accept(visitor Visitor) {
 	visitor.VisitLiteral(e)
 }
 
-// Set the parent Node of the constant node.
+// Set the parent Node of the constant reference node.
 func (e *ConstantReferenceNode) SetParent(parent Node) {
 	e.ParentNode = parent
 }
 
-// String of the constant.
+// String of the constant reference node.
 func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind],e.Symbol.Name)
+	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind], e.Symbol.Name)
 }
 
-// Parent node of the constant node.
+// Parent node of the constant reference node.
 func (e *ConstantReferenceNode) Parent() Node {
 	return e.ParentNode
 }
 
-// Children nodes of the constant node.
+// Children nodes of the constant reference node.
 func (e *ConstantReferenceNode) Children() []Node {
 	return []Node{e.Symbol}
 }
@@ -255,27 +373,27 @@ func (e *ConstantReferenceNode) ExpressionString() string {
 	return e.String()
 }
 
-// Accept the visitor for the constant node.
+// Accept the visitor for the constant reference node.
 func (e *ConstantReferenceNode) Accept(visitor Visitor) {
 	visitor.VisitConstantReference(e)
 }
 
-// Set the parent Node of the variable node.
+// Set the parent Node of the variable reference node.
 func (e *VariableReferenceNode) SetParent(parent Node) {
 	e.ParentNode = parent
 }
 
-// String of the variable node.
+// String of the variable reference node.
 func (e *VariableReferenceNode) String() string {
 	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind], e.Symbol.Name)
 }
 
-// Parent node of the variable node.
+// Parent node of the variable reference node.
 func (e *VariableReferenceNode) Parent() Node {
 	return e.ParentNode
 }
 
-// Children nodes of the variable node.
+// Children nodes of the variable reference node.
 func (e *VariableReferenceNode) Children() []Node {
 	return []Node{e.Symbol}
 }
@@ -285,7 +403,7 @@ func (e *VariableReferenceNode) ExpressionString() string {
 	return e.String()
 }
 
-// Accept the visitor for the variable node.
+// Accept the visitor for the variable reference node.
 func (e *VariableReferenceNode) Accept(visitor Visitor) {
 	visitor.VisitVariableReference(e)
 }
@@ -303,9 +421,10 @@ func (e *UnaryOperationNode) String() string {
 
 	case Negate:
 		return "negate"
-	}
 
-	return "unknown"
+	default:
+		panic("abstract syntax tree error: unknown unary operation")
+	}
 }
 
 // Parent node of the unary operation node.
@@ -347,9 +466,10 @@ func (e *BinaryOperationNode) String() string {
 
 	case Divide:
 		return "division"
-	}
 
-	return "unknown"
+	default:
+		panic("abstract syntax tree error: unknown binary operation")
+	}
 }
 
 // Parent node of the binary operation node.
@@ -397,9 +517,10 @@ func (e *ConditionalOperationNode) String() string {
 
 	case GreaterEqual:
 		return "greater equal"
-	}
 
-	return "unknown"
+	default:
+		panic("abstract syntax tree error: unknown conditional operation")
+	}
 }
 
 // Parent node of the conditional operation node.

@@ -10,13 +10,13 @@ import (
 
 // Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
 type generator struct {
-	emitter        emt.Emitter // emitter that emits the code
 	abstractSyntax ast.Block   // abstract syntax tree to generate code for
+	emitter        emt.Emitter // emitter that emits the code
 }
 
 // Create new code generator with the given abstract syntax tree.
 func newGenerator(abstractSyntax ast.Block) Generator {
-	return &generator{emitter: emt.NewEmitter(), abstractSyntax: abstractSyntax}
+	return &generator{abstractSyntax: abstractSyntax, emitter: emt.NewEmitter()}
 }
 
 // Generate code for the given abstract syntax tree and return the emitter with the generated code.
@@ -26,8 +26,9 @@ func (g *generator) Generate() emt.Emitter {
 	return g.emitter
 }
 
-// Generate code for each symbol (not required for code generation).
+// Generate code for each symbol.
 func (g *generator) VisitSymbol(symbol *ast.Symbol) {
+	// not required for code generation
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.
@@ -73,6 +74,21 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// emit a return instruction to return from the block
 	g.emitter.Return()
+}
+
+// Generate code for a constant declaration.
+func (g *generator) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
+	// not required for code generation
+}
+
+// Generate code for a variable declaration.
+func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+	// not required for code generation
+}
+
+// Generate code for a procedure declaration.
+func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+	// not required for code generation
 }
 
 // Generate code for a literal.
@@ -179,7 +195,7 @@ func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 // Generate code for an if-then statement.
 func (g *generator) VisitIfStatement(is *ast.IfStatementNode) {
 	is.Condition.Accept(g)
-	ifDecision := g.jumpConditional(is.Condition, false)	
+	ifDecision := g.jumpConditional(is.Condition, false)
 	is.Statement.Accept(g)
 	g.emitter.Update(ifDecision, g.emitter.GetNextAddress(), nil)
 }
@@ -262,8 +278,8 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 			}
 		}
 
-		default:
-			panic("generator error: invalid conditional operation")
+	default:
+		panic("generator error: invalid conditional operation")
 	}
 
 	return address

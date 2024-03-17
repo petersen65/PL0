@@ -4,14 +4,17 @@
 // Package analyzer implements semantic analysis compiler passes by traversing the abstract syntax tree.
 package analyzer
 
-import ast "github.com/petersen65/PL0/ast"
+import (
+	ast "github.com/petersen65/PL0/ast"
+	tok "github.com/petersen65/PL0/token"
+)
 
-// NameAnalysis is the public interface of the name analyzer implementation.
-type NameAnalysis interface {
+// DeclarationAnalysis is the public interface of the declaration analyzer implementation.
+type DeclarationAnalysis interface {
 	Analyze()
 }
 
-// Return the public interface of the private name analyzer implementation.
-func NewNameAnalysis(abstractSyntax ast.Block) NameAnalysis {
-	return newNameAnalysis(abstractSyntax)
+// Return the public interface of the private declaration analyzer implementation.
+func NewDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+	return newDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler)
 }

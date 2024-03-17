@@ -52,7 +52,7 @@ const (
 	GreaterEqual
 )
 
-// Data types of symbols.
+// Data types of literals and symbols.
 const (
 	_ = DataType(iota)
 	Integer64
@@ -123,6 +123,12 @@ type (
 		BlockString() string
 	}
 
+	// A declaration represented as an abstract syntax tree.
+	Declaration interface {
+		Node
+		DeclarationString() string
+	}
+
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		Node
@@ -143,6 +149,28 @@ type (
 		Scope      *Scope    // scope with symbol table of the block that has its own outer scope chain
 		Procedures []Block   // nested procedures of the block
 		Statement  Statement // statement of the block
+	}
+
+	// ConstantDeclaration node represents a constant declaration in the AST.
+	ConstantDeclarationNode struct {
+		ParentNode Node     // parent node of the constant declaration
+		Name       string   // name of the constant
+		Value      any      // value of constant
+		DataType   DataType // data type of the constant
+	}
+
+	// VariableDeclaration node represents a variable declaration in the AST.
+	VariableDeclarationNode struct {
+		ParentNode Node     // parent node of the variable declaration
+		Name       string   // name of the variable
+		DataType   DataType // data type of the variable
+	}
+
+	// ProcedureDeclaration node represents a procedure declaration in the AST.
+	ProcedureDeclarationNode struct {
+		ParentNode Node   // parent node of the procedure declaration
+		Name       string // name of the procedure
+		Block      Block  // block of the procedure
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
@@ -239,6 +267,9 @@ type (
 	Visitor interface {
 		VisitSymbol(symbol *Symbol)
 		VisitBlock(block *BlockNode)
+		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
+		VisitVariableDeclaration(declaration *VariableDeclarationNode)
+		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)
 		VisitLiteral(literal *LiteralNode)
 		VisitConstantReference(constant *ConstantReferenceNode)
 		VisitVariableReference(variable *VariableReferenceNode)
@@ -319,6 +350,11 @@ func NewEmptyBlock() Block {
 	return NewBlock("", 0, NewScope(nil), make([]Block, 0), NewEmptyStatement())
 }
 
+// An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
+func NewEmptyDeclaration() Declaration {
+	return NewConstantDeclaration("", int64(0), Integer64)
+}
+
 // An empty expression is a 0 literal and should only occur during a parsing error.
 func NewEmptyExpression() Expression {
 	return NewLiteral(int64(0), Integer64)
@@ -332,6 +368,21 @@ func NewEmptyStatement() Statement {
 // NewBlock creates a new block node in the abstract syntax tree.
 func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement) Block {
 	return newBlock(name, depth, scope, procedures, statement)
+}
+
+// NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
+func NewConstantDeclaration(name string, value any, dataType DataType) Declaration {
+	return newConstantDeclaration(name, value, dataType)
+}
+
+// NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
+func NewVariableDeclaration(name string, dataType DataType) Declaration {
+	return newVariableDeclaration(name, dataType)
+}
+
+// NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
+func NewProcedureDeclaration(name string, block Block) Declaration {
+	return newProcedureDeclaration(name, block)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
