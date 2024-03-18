@@ -62,6 +62,11 @@ func (t *tokenHandler) LastTokenValue() string {
 	return t.lastTokenDescription.TokenValue
 }
 
+// Get index of the last token in the token stream.
+func (t *tokenHandler) LastTokenIndex() int {
+	return t.tokenStreamIndex - 1
+}
+
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
 func (t *tokenHandler) Rebase(code Failure, expected, fallback Tokens) bool {
 	var hasError bool
@@ -96,6 +101,11 @@ func (t *tokenHandler) NewError(code Failure, value any) error {
 	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, t.tokenStreamIndex-1)
 }
 
+// Create a new error by mapping the error code to its corresponding error message and provide a token stream index for the error location.
+func (t *tokenHandler) NewErrorOnIndex(code Failure, value any, index int) error {
+	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, index)
+}
+
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) AppendError(err error) error {
 	if err != nil {
@@ -103,4 +113,10 @@ func (t *tokenHandler) AppendError(err error) error {
 	}
 
 	return err
+}
+
+// Replace the component and the failure map with new values to enable a chain of components that can append errors.
+func (t *tokenHandler) ReplaceComponent(component Component, failureMap map[Failure]string) {
+	t.component = component
+	t.failureMap = failureMap
 }

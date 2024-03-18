@@ -161,9 +161,43 @@ func (e *tokenError) Error() string {
 	return sourceLine + errorLine
 }
 
-// Return the number of errors in the error report of the error handler.
+// Return the number of all errors entries in the error report of the error handler.
 func (e *errorHandler) Count() int {
 	return len(e.errorReport)
+}
+
+// Return the number of errors in the error report of the error handler by severity level.
+func (e *errorHandler) CountBySeverity(severity Severity) int {
+	var count int
+
+	for _, err := range e.errorReport {
+		switch err := err.(type) {
+		case *generalError:
+			if err.severity == severity {
+				count++
+			}
+
+		case *lineColumnError:
+			if err.severity == severity {
+				count++
+			}
+
+		case *sourceError:
+			if err.severity == severity {
+				count++
+			}
+
+		case *tokenError:
+			if err.severity == severity {
+				count++
+			}
+
+		default:
+			count++
+		}
+	}
+
+	return count
 }
 
 // Append a new error to the error report of the error handler.

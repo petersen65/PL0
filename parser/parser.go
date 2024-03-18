@@ -784,6 +784,11 @@ func (p *parser) lastTokenValue() string {
 	return p.tokenHandler.LastTokenValue()
 }
 
+// Wrapper to get the index of the last token in the token stream from the token handler.
+func (p *parser) lastTokenIndex() int {
+	return p.tokenHandler.LastTokenIndex()
+}
+
 // Append parser error to the error handler.
 func (p *parser) appendError(code tok.Failure, value any) {
 	p.tokenHandler.AppendError(p.tokenHandler.NewError(code, value))

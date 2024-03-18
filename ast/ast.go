@@ -21,18 +21,18 @@ func newBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType) Declaration {
-	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType}
+func newConstantDeclaration(name string, value any, dataType DataType, index int) Declaration {
+	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType, TokenStreamIndex: index}
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType) Declaration {
-	return &VariableDeclarationNode{Name: name, DataType: dataType}
+func newVariableDeclaration(name string, dataType DataType, index int) Declaration {
+	return &VariableDeclarationNode{Name: name, DataType: dataType, TokenStreamIndex: index}
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block) Declaration {
-	return &ProcedureDeclarationNode{Name: name, Block: block}
+func newProcedureDeclaration(name string, block Block, index int) Declaration {
+	return &ProcedureDeclarationNode{Name: name, Block: block, TokenStreamIndex: index}
 }
 
 // Create a new literal node in the abstract syntax tree.

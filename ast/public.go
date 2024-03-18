@@ -153,24 +153,27 @@ type (
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
 	ConstantDeclarationNode struct {
-		ParentNode Node     // parent node of the constant declaration
-		Name       string   // name of the constant
-		Value      any      // value of constant
-		DataType   DataType // data type of the constant
+		ParentNode       Node     // parent node of the constant declaration
+		Name             string   // name of the constant
+		Value            any      // value of constant
+		DataType         DataType // data type of the constant
+		TokenStreamIndex int      // index of the token in the token stream
 	}
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
-		ParentNode Node     // parent node of the variable declaration
-		Name       string   // name of the variable
-		DataType   DataType // data type of the variable
+		ParentNode       Node     // parent node of the variable declaration
+		Name             string   // name of the variable
+		DataType         DataType // data type of the variable
+		TokenStreamIndex int      // index of the token in the token stream
 	}
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
-		ParentNode Node   // parent node of the procedure declaration
-		Name       string // name of the procedure
-		Block      Block  // block of the procedure
+		ParentNode       Node   // parent node of the procedure declaration
+		Name             string // name of the procedure
+		Block            Block  // block of the procedure
+		TokenStreamIndex int    // index of the token in the token stream
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
@@ -352,7 +355,7 @@ func NewEmptyBlock() Block {
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
 func NewEmptyDeclaration() Declaration {
-	return NewConstantDeclaration("", int64(0), Integer64)
+	return NewConstantDeclaration("", int64(0), Integer64, 0)
 }
 
 // An empty expression is a 0 literal and should only occur during a parsing error.
@@ -371,18 +374,18 @@ func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statem
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType DataType) Declaration {
-	return newConstantDeclaration(name, value, dataType)
+func NewConstantDeclaration(name string, value any, dataType DataType, index int) Declaration {
+	return newConstantDeclaration(name, value, dataType, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name string, dataType DataType) Declaration {
-	return newVariableDeclaration(name, dataType)
+func NewVariableDeclaration(name string, dataType DataType, index int) Declaration {
+	return newVariableDeclaration(name, dataType, index)
 }
 
 // NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block) Declaration {
-	return newProcedureDeclaration(name, block)
+func NewProcedureDeclaration(name string, block Block, index int) Declaration {
+	return newProcedureDeclaration(name, block, index)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.

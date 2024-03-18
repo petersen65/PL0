@@ -60,11 +60,14 @@ type (
 		LastToken() Token
 		LastTokenName() string
 		LastTokenValue() string
+		LastTokenIndex() int
 		Rebase(code Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
 		NewError(code Failure, value any) error
+		NewErrorOnIndex(code Failure, value any, index int) error
 		AppendError(err error) error
+		ReplaceComponent(component Component, failureMap map[Failure]string)
 	}
 
 	// Failure is a type for codes that can be mapped to messages.
@@ -79,6 +82,7 @@ type (
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
 		Count() int
+		CountBySeverity(severity Severity) int
 		AppendError(err error)
 		PrintErrorReport(print io.Writer)
 	}
