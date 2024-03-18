@@ -99,8 +99,8 @@ func PrintFile(target string, print io.Writer) error {
 func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, tok.ErrorHandler, error) {
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := tok.NewErrorHandler(tokenStream)
-	abstractSyntax, parserErr := par.NewParser().Parse(tokenStream, errorHandler)
-	scannerParserErrors := errors.Join(scannerError, parserErr)
+	abstractSyntax, _, parserError := par.NewParser().Parse(tokenStream, errorHandler)
+	scannerParserErrors := errors.Join(scannerError, parserError)
 
 	if scannerParserErrors == nil {
 		emitter := gen.NewGenerator(abstractSyntax).Generate()
