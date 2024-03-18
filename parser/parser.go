@@ -485,13 +485,17 @@ func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement,
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
-func (p *parser) constantIdentifier(scope *ast.Scope) {
+func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
+	// in case of a parsing error, return an empty declaration
+	declaration := ast.NewEmptyDeclaration()
+
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
-		return
+		return declaration
 	}
 
 	constantName := p.lastTokenValue()
+	tokenIndex := p.lastTokenIndex()
 
 	if scope.Lookup(constantName) != nil {
 		p.appendError(identifierAlreadyDeclared, constantName)
@@ -522,15 +526,21 @@ func (p *parser) constantIdentifier(scope *ast.Scope) {
 				Value: p.numberValue(sign, p.lastTokenValue()),
 			})
 
+			declaration = ast.NewConstantDeclaration(constantName, p.numberValue(sign, p.lastTokenValue()), ast.Integer64, tokenIndex)
 			p.nextToken()
 		}
 	} else {
 		p.appendError(expectedEqual, p.lastTokenName())
 	}
+
+	return declaration
 }
 
 // A variable identifier is an identifier to be stored in the symbol table.
-func (p *parser) variableIdentifier(scope *ast.Scope) {
+func (p *parser) variableIdentifier(scope *ast.Scope) ast.Declaration {
+	// in case of a parsing error, return an empty declaration
+	declaration := ast.NewEmptyDeclaration()
+
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
@@ -543,15 +553,22 @@ func (p *parser) variableIdentifier(scope *ast.Scope) {
 				Depth:  p.declarationDepth,
 				Offset: 0, // variable offset is set to 0 and will be updated by the code generator
 			})
+
+			declaration = ast.NewVariableDeclaration(p.lastTokenValue(), ast.Integer64, p.lastTokenIndex())
 		}
 
 		p.nextToken()
 	}
+
+	return declaration
 }
 
 // A procedure identifier is an identifier to be stored in the symbol table.
-func (p *parser) procedureIdentifier(scope *ast.Scope) string {
+func (p *parser) procedureIdentifier(scope *ast.Scope) (string, ast.Declaration) {
 	var procedureName string
+
+	// in case of a parsing error, return an empty declaration
+	declaration := ast.NewEmptyDeclaration()
 
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
@@ -567,12 +584,14 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) string {
 				Depth:   p.declarationDepth,
 				Address: 0, // procedure address is set to 0 and will be updated by the code generator
 			})
+
+			declaration = ast.NewProcedureDeclaration(procedureName, nil, p.lastTokenIndex())
 		}
 
 		p.nextToken()
 	}
 
-	return procedureName
+	return procedureName, declaration
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
