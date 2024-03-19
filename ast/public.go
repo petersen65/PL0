@@ -143,12 +143,12 @@ type (
 
 	// Block node represents a block in the AST.
 	BlockNode struct {
-		ParentNode Node      // parent node of the block
-		Name       string    // name of the block that can be used for lookup in the symbol table
-		Depth      int32     // declaration nesting depth
-		Scope      *Scope    // scope with symbol table of the block that has its own outer scope chain
-		Procedures []Block   // nested procedures of the block
-		Statement  Statement // statement of the block
+		ParentNode   Node          // parent node of the block
+		Name         string        // name of the block that can be used for lookup in the symbol table
+		Depth        int32         // declaration nesting depth
+		Scope        *Scope        // scope with symbol table of the block that has its own outer scope chain
+		Declarations []Declaration // all declarations of the block
+		Statement    Statement     // statement of the block
 	}
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
@@ -350,7 +350,7 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 
 // An empty block does not generate code.
 func NewEmptyBlock() Block {
-	return NewBlock("", 0, NewScope(nil), make([]Block, 0), NewEmptyStatement())
+	return NewBlock("", 0, NewScope(nil), make([]Declaration, 0), NewEmptyStatement())
 }
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
@@ -369,8 +369,8 @@ func NewEmptyStatement() Statement {
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement) Block {
-	return newBlock(name, depth, scope, procedures, statement)
+func NewBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+	return newBlock(name, depth, scope, declarations, statement)
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.

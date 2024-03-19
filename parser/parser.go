@@ -113,8 +113,11 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 		})
 	}
 
-	// a block can contain a sequence of procedures, so the list of procedures is initialized
-	procedures := make([]ast.Block, 0)
+	// a block can contain a sequence of declarations, so lists for all declarations are initialized
+	constants := make([]ast.Declaration, 0)
+	variables := make([]ast.Declaration, 0)
+	procedures := make([]ast.Declaration, 0)
+	all := make([]ast.Declaration, 0)
 
 	if p.declarationDepth > blockNestingMax {
 		p.appendError(maxBlockDepth, p.declarationDepth)
@@ -123,11 +126,11 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	// declare all constants, variables and procedures of the block to fill up the symbol table
 	for {
 		if p.lastToken() == scn.ConstWord {
-			p.constWord(scope)
+			constants = p.constWord(scope)
 		}
 
 		if p.lastToken() == scn.VarWord {
-			p.varWord(scope)
+			variables = p.varWord(scope)
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
@@ -160,15 +163,17 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	p.tokenHandler.Rebase(unexpectedTokens, expected, scn.Empty)
 
 	// return a new block node in the abstract syntax tree
-	return ast.NewBlock(name, p.declarationDepth, scope, procedures, statement)
+	all = append(append(append(all, constants...), variables...), procedures...)
+	return ast.NewBlock(name, p.declarationDepth, scope, all, statement)
 }
 
 // Sequence of constants declarations.
-func (p *parser) constWord(scope *ast.Scope) {
+func (p *parser) constWord(scope *ast.Scope) []ast.Declaration {
+	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
 	for {
-		p.constantIdentifier(scope)
+		declarations = append(declarations, p.constantIdentifier(scope))
 
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
@@ -185,14 +190,17 @@ func (p *parser) constWord(scope *ast.Scope) {
 			break
 		}
 	}
+
+	return declarations
 }
 
 // Sequence of variable declarations.
-func (p *parser) varWord(scope *ast.Scope) {
+func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
+	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
 	for {
-		p.variableIdentifier(scope)
+		declarations = append(declarations, p.variableIdentifier(scope))
 
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
@@ -209,15 +217,17 @@ func (p *parser) varWord(scope *ast.Scope) {
 			break
 		}
 	}
+
+	return declarations
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Block {
-	procedures := make([]ast.Block, 0)
+func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Declaration {
+	declarations := make([]ast.Declaration, 0)
 
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextToken()
-		procedureName := p.procedureIdentifier(outer)
+		procedureName, declaration := p.procedureIdentifier(outer)
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
@@ -248,11 +258,12 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Block
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		// add the procedure block node to the list of procedures for the parent block node
-		procedures = append(procedures, block)
+		// add the procedure declaration to the list of declarations for the parent block node
+		declaration.(*ast.ProcedureDeclarationNode).Block = block
+		declarations = append(declarations, declaration)
 	}
 
-	return procedures
+	return declarations
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
@@ -495,7 +506,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	}
 
 	constantName := p.lastTokenValue()
-	tokenIndex := p.lastTokenIndex()
+	constantNameIndex := p.lastTokenIndex()
 
 	if scope.Lookup(constantName) != nil {
 		p.appendError(identifierAlreadyDeclared, constantName)
@@ -526,7 +537,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 				Value: p.numberValue(sign, p.lastTokenValue()),
 			})
 
-			declaration = ast.NewConstantDeclaration(constantName, p.numberValue(sign, p.lastTokenValue()), ast.Integer64, tokenIndex)
+			declaration = ast.NewConstantDeclaration(constantName, p.numberValue(sign, p.lastTokenValue()), ast.Integer64, constantNameIndex)
 			p.nextToken()
 		}
 	} else {
@@ -596,7 +607,8 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) (string, ast.Declaration)
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
 func (p *parser) condition(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
-	var operation ast.Expression
+	// in case of a parsing error, return an empty declaration
+	operation := ast.NewEmptyExpression()
 
 	if p.lastToken() == scn.OddWord {
 		p.nextToken()
@@ -639,11 +651,6 @@ func (p *parser) condition(scope *ast.Scope, anchors tok.Tokens) ast.Expression 
 				operation = ast.NewEmptyExpression()
 			}
 		}
-	}
-
-	// in case of a parsing error, return an empty expression
-	if operation == nil {
-		operation = ast.NewEmptyExpression()
 	}
 
 	return operation
@@ -715,7 +722,9 @@ func (p *parser) term(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
 func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	var sign tok.Token
-	var operand ast.Expression
+
+	// in case of a parsing error, return an empty declaration
+	operand := ast.NewEmptyExpression()
 
 	// handle leading plus or minus sign of a factor
 	if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -773,11 +782,6 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	// negate the factor if a leading minus sign is present
 	if sign == scn.Minus {
 		operand = ast.NewUnaryOperation(ast.Negate, operand)
-	}
-
-	// in case of a parsing error, return an empty expression
-	if operand == nil {
-		operand = ast.NewEmptyExpression()
 	}
 
 	return operand

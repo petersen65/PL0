@@ -53,10 +53,19 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	firstInstruction := g.emitter.Jump(emt.NullAddress)
 
 	// emit all blocks of nested procedures which calls the generator recursively
-	for _, procedure := range bn.Procedures {
-		// update the address of the block's procedure symbol to the next instruction of its block
-		bn.Scope.Lookup(procedure.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
-		procedure.Accept(g)
+	for _, declaration := range bn.Declarations {
+		switch declaration := declaration.(type) {
+		case *ast.ConstantDeclarationNode:
+			declaration.Accept(g)
+
+		case *ast.VariableDeclarationNode:
+			declaration.Accept(g)
+
+		case *ast.ProcedureDeclarationNode:
+			// update the address of the block's procedure symbol to the next instruction of its block
+			bn.Scope.Lookup(declaration.Block.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
+			declaration.Accept(g)
+		}
 	}
 
 	// update the jump instruction address to the first instruction of the block
@@ -88,7 +97,13 @@ func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 
 // Generate code for a procedure declaration.
 func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
-	// not required for code generation
+	block := ast.SearchBlock(ast.CurrentBlock, pd)
+
+	// update the address of the block's procedure symbol to the next instruction of its block
+	block.Scope.Lookup(pd.Block.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
+
+	// generate code for the block of the procedure
+	pd.Block.Accept(g)
 }
 
 // Generate code for a literal.

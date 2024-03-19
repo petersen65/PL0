@@ -9,11 +9,11 @@ import (
 )
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(name string, depth int32, scope *Scope, procedures []Block, statement Statement) Block {
-	block := &BlockNode{Name: name, Depth: depth, Scope: scope, Procedures: procedures, Statement: statement}
+func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+	block := &BlockNode{Name: name, Depth: depth, Scope: scope, Declarations: declarations, Statement: statement}
 
-	for _, procedure := range block.Procedures {
-		procedure.SetParent(block)
+	for _, declaration := range block.Declarations {
+		declaration.SetParent(block)
 	}
 
 	statement.SetParent(block)
@@ -187,13 +187,13 @@ func (b *BlockNode) Parent() Node {
 
 // Children nodes of the block node.
 func (b *BlockNode) Children() []Node {
-	children := make([]Node, 0, len(*b.Scope.symbolTable)+len(b.Procedures)+1)
+	children := make([]Node, 0, len(*b.Scope.symbolTable)+len(b.Declarations)+1)
 
 	for entry := range b.Scope.IterateCurrent() {
 		children = append(children, entry)
 	}
 
-	for _, procedure := range b.Procedures {
+	for _, procedure := range b.Declarations {
 		children = append(children, procedure)
 	}
 
