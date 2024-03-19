@@ -181,7 +181,7 @@ func (p *parser) constWord(scope *ast.Scope) []ast.Declaration {
 
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
-			p.constantIdentifier(scope)
+			declarations = append(declarations, p.constantIdentifier(scope))
 		}
 
 		if p.lastToken() == scn.Semicolon {
@@ -208,7 +208,7 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
-			p.variableIdentifier(scope)
+			declarations = append(declarations, p.variableIdentifier(scope))
 		}
 
 		if p.lastToken() == scn.Semicolon {
