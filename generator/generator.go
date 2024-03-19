@@ -26,23 +26,10 @@ func (g *generator) Generate() emt.Emitter {
 	return g.emitter
 }
 
-// Generate code for each symbol.
-func (g *generator) VisitSymbol(symbol *ast.Symbol) {
-	// not required for code generation
-}
-
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (g *generator) VisitBlock(bn *ast.BlockNode) {
-	var varOffset uint64 = emt.VariableOffsetStart // take the first offset for block variables from the emitter
-
-	// calculate the offset of the block's variables on the stack
-	for symbol := range bn.Scope.IterateCurrent() {
-		// only variables are allocated on the stack
-		if symbol.Kind == ast.Variable {
-			symbol.Offset = varOffset
-			varOffset++
-		}
-	}
+	// take the first offset for block variables from the emitter
+	bn.Offset = emt.VariableOffsetStart
 
 	// emit a jump to the first instruction of the block whose address is not yet known
 	// the address of the jump instruction itself was already stored in the symbol table as part of the block's procedure symbol
@@ -52,20 +39,9 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	//   1 and above: jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
 	firstInstruction := g.emitter.Jump(emt.NullAddress)
 
-	// emit all blocks of nested procedures which calls the generator recursively
+	// emit all declarations and with that all blocks of nested procedures (calls generator recursively)
 	for _, declaration := range bn.Declarations {
-		switch declaration := declaration.(type) {
-		case *ast.ConstantDeclarationNode:
-			declaration.Accept(g)
-
-		case *ast.VariableDeclarationNode:
-			declaration.Accept(g)
-
-		case *ast.ProcedureDeclarationNode:
-			// update the address of the block's procedure symbol to the next instruction of its block
-			bn.Scope.Lookup(declaration.Block.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
-			declaration.Accept(g)
-		}
+		declaration.Accept(g)
 	}
 
 	// update the jump instruction address to the first instruction of the block
@@ -76,7 +52,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	procedureSymbol.Address = uint64(g.emitter.GetNextAddress())
 
 	// allocating stack space for block variables is the first code instruction of the block
-	g.emitter.AllocateStackSpace(emt.Offset(varOffset))
+	g.emitter.AllocateStackSpace(emt.Offset(bn.Offset))
 
 	// emit all statement instructions which are defining the code logic of the block
 	bn.Statement.Accept(g)
@@ -92,15 +68,16 @@ func (g *generator) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
 
 // Generate code for a variable declaration.
 func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	// not required for code generation
+	// calculate storage location for the variable on the block stack frame
+	block := ast.SearchBlock(ast.CurrentBlock, vd)
+	vd.Offset = block.Offset
+	block.Offset++
 }
 
 // Generate code for a procedure declaration.
 func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
-	block := ast.SearchBlock(ast.CurrentBlock, pd)
-
-	// update the address of the block's procedure symbol to the next instruction of its block
-	block.Scope.Lookup(pd.Block.(*ast.BlockNode).Name).Address = uint64(g.emitter.GetNextAddress())
+	// calculate the absolute address of the procedure block in the text section
+	pd.Address = uint64(g.emitter.GetNextAddress())
 
 	// generate code for the block of the procedure
 	pd.Block.Accept(g)
@@ -113,13 +90,20 @@ func (g *generator) VisitLiteral(l *ast.LiteralNode) {
 
 // Generate code for a constant reference.
 func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
-	g.emitter.Constant(cr.Symbol.Value)
+	g.emitter.Constant(cr.Declaration.(*ast.ConstantDeclarationNode).Value)
 }
 
 // Generate code for a variable reference.
 func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
-	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
-	g.emitter.LoadVariable(emt.Offset(vr.Symbol.Offset), referenceDeclarationDepth-vr.Symbol.Depth)
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, vr.Declaration).Depth
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
+	offset := emt.Offset(vr.Declaration.(*ast.VariableDeclarationNode).Offset)
+	g.emitter.LoadVariable(offset, referenceDepth-declarationDepth)
+}
+
+// Generate code for a procedure reference.
+func (g *generator) VisitProcedureReference(pr *ast.ProcedureReferenceNode) {
+	// not required for code generation
 }
 
 // Generate code for a unary operation.
@@ -183,16 +167,22 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 // Generate code for an assignment statement.
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+	variableDeclaration := as.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+	offset := emt.Offset(variableDeclaration.Offset)
 	as.Expression.Accept(g)
-	g.emitter.StoreVariable(emt.Offset(as.Symbol.Offset), referenceDeclarationDepth-as.Symbol.Depth)
+	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
 }
 
 // Generate code for a read statement.
 func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
-	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
+	variableDeclaration := rs.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
+	offset := emt.Offset(variableDeclaration.Offset)
 	g.emitter.System(emt.Read)
-	g.emitter.StoreVariable(emt.Offset(rs.Symbol.Offset), referenceDeclarationDepth-rs.Symbol.Depth)
+	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
 }
 
 // Generate code for a write statement.
@@ -203,8 +193,11 @@ func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
 
 // Generate code for a call statement.
 func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
-	referenceDeclarationDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
-	g.emitter.Call(emt.Address(cs.Symbol.Address), referenceDeclarationDepth-cs.Symbol.Depth)
+	procedureDeclaration := cs.Procedure.(*ast.ProcedureReferenceNode).Declaration.(*ast.ProcedureDeclarationNode)
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
+	address := emt.Address(procedureDeclaration.Address)
+	g.emitter.Call(address, referenceDepth-declarationDepth)
 }
 
 // Generate code for an if-then statement.

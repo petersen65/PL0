@@ -89,13 +89,13 @@ type (
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
-		ParentNode Node   // parent node in the abstract syntax tree
-		Name       string // name of constant, variable, or procedure
-		Kind       Entry  // constant, variable, or procedure
-		Depth      int32  // declaration nesting depth of constant, variable, or procedure
-		Value      int64  // value of constant
-		Offset     uint64 // offset of variable in its runtime procedure stack frame
-		Address    uint64 // absolute address of procedure in text section
+		Name        string      // name of the symbol
+		Kind        Entry       // kind of the symbol
+		Declaration Declaration // declaration node of the symbol
+		Depth       int32       // declaration nesting depth of symbol
+		Value       int64       // value of constant
+		Offset      uint64      // offset of variable in its block procedure stack frame
+		Address     uint64      // absolute address of procedure in text section
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
@@ -146,6 +146,7 @@ type (
 		ParentNode   Node          // parent node of the block
 		Name         string        // name of the block that can be used for lookup in the symbol table
 		Depth        int32         // declaration nesting depth
+		Offset       uint64        // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration // all declarations of the block
 		Statement    Statement     // statement of the block
@@ -157,6 +158,7 @@ type (
 		Name             string   // name of the constant
 		Value            any      // value of constant
 		DataType         DataType // data type of the constant
+		Scope            *Scope   // scope of the constant declaration
 		TokenStreamIndex int      // index of the token in the token stream
 	}
 
@@ -165,6 +167,8 @@ type (
 		ParentNode       Node     // parent node of the variable declaration
 		Name             string   // name of the variable
 		DataType         DataType // data type of the variable
+		Scope            *Scope   // scope of the variable declaration
+		Offset           uint64   // offset of the variable in its block procedure stack frame
 		TokenStreamIndex int      // index of the token in the token stream
 	}
 
@@ -173,6 +177,8 @@ type (
 		ParentNode       Node   // parent node of the procedure declaration
 		Name             string // name of the procedure
 		Block            Block  // block of the procedure
+		Scope            *Scope // scope of the procedure declaration
+		Address          uint64 // absolute address of the procedure in a text section
 		TokenStreamIndex int    // index of the token in the token stream
 	}
 
@@ -185,14 +191,20 @@ type (
 
 	// ConstantReferenceNode represents the usage of a constant in the AST.
 	ConstantReferenceNode struct {
-		ParentNode Node    // parent node of the constant reference
-		Symbol     *Symbol // constant symbol entry
+		ParentNode  Node        // parent node of the constant reference
+		Declaration Declaration // constant declaration of the constant reference
 	}
 
 	// VariableReferenceNode represents the usage of a variable in the AST.
 	VariableReferenceNode struct {
-		ParentNode Node    // parent node of the variable reference
-		Symbol     *Symbol // variable symbol entry
+		ParentNode  Node        // parent node of the variable reference
+		Declaration Declaration // variable declaration of the variable reference
+	}
+
+	// ProcedureReferenceNode represents the usage of a procedure in the AST.
+	ProcedureReferenceNode struct {
+		ParentNode  Node        // parent node of the procedure reference
+		Declaration Declaration // procedure declaration of the procedure reference
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -221,14 +233,14 @@ type (
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
 		ParentNode Node       // parent node of the assignment statement
-		Symbol     *Symbol    // variable symbol entry on the left side of the assignment statement
+		Variable   Expression // variable reference on the left side of the assignment statement
 		Expression Expression // expression on the right side of the assignment statement
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
-		ParentNode Node    // parent node of the read statement
-		Symbol     *Symbol // variable symbol entry of the read statement
+		ParentNode Node       // parent node of the read statement
+		Variable   Expression // variable reference of the read statement
 	}
 
 	// WriteStatement node represents a write statement in the AST.
@@ -239,8 +251,8 @@ type (
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
-		ParentNode Node    // parent node of the call statement
-		Symbol     *Symbol // procedure symbol entry of the call statement
+		ParentNode Node      // parent node of the call statement
+		Procedure  Statement // procedure reference of the call statement
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
@@ -268,7 +280,6 @@ type (
 	//   the dynamic type of the object (the AST node) determines the method to be called, and
 	//   the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
-		VisitSymbol(symbol *Symbol)
 		VisitBlock(block *BlockNode)
 		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
 		VisitVariableDeclaration(declaration *VariableDeclarationNode)
@@ -276,6 +287,7 @@ type (
 		VisitLiteral(literal *LiteralNode)
 		VisitConstantReference(constant *ConstantReferenceNode)
 		VisitVariableReference(variable *VariableReferenceNode)
+		VisitProcedureReference(procedure *ProcedureReferenceNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)
 		VisitBinaryOperation(operation *BinaryOperationNode)
 		VisitConditionalOperation(operation *ConditionalOperationNode)
@@ -355,7 +367,7 @@ func NewEmptyBlock() Block {
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
 func NewEmptyDeclaration() Declaration {
-	return NewConstantDeclaration("", int64(0), Integer64, 0)
+	return NewConstantDeclaration("", int64(0), Integer64, new(Scope), 0)
 }
 
 // An empty expression is a 0 literal and should only occur during a parsing error.
@@ -374,18 +386,18 @@ func NewBlock(name string, depth int32, scope *Scope, declarations []Declaration
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType DataType, index int) Declaration {
-	return newConstantDeclaration(name, value, dataType, index)
+func NewConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
+	return newConstantDeclaration(name, value, dataType, scope, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name string, dataType DataType, index int) Declaration {
-	return newVariableDeclaration(name, dataType, index)
+func NewVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
+	return newVariableDeclaration(name, dataType, scope, index)
 }
 
 // NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block, index int) Declaration {
-	return newProcedureDeclaration(name, block, index)
+func NewProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
+	return newProcedureDeclaration(name, block, scope, index)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
@@ -394,13 +406,18 @@ func NewLiteral(value any, dataType DataType) Expression {
 }
 
 // NewConstantReference creates a new constant-reference node in the abstract syntax tree.
-func NewConstantReference(entry *Symbol) Expression {
-	return newConstantReference(entry)
+func NewConstantReference(declaration Declaration) Expression {
+	return newConstantReference(declaration)
 }
 
 // NewVariableReference creates a new variable-reference node in the abstract syntax tree.
-func NewVariableReference(entry *Symbol) Expression {
-	return newVariableReference(entry)
+func NewVariableReference(declaration Declaration) Expression {
+	return newVariableReference(declaration)
+}
+
+// NewProcedureReference creates a new procedure-reference node in the abstract syntax tree.
+func NewProcedureReference(declaration Declaration) Statement {
+	return newProcedureReference(declaration)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
@@ -419,13 +436,13 @@ func NewConditionalOperation(operation RelationalOperator, left, right Expressio
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
-func NewAssignmentStatement(entry *Symbol, expression Expression) Statement {
-	return newAssignmentStatement(entry, expression)
+func NewAssignmentStatement(variable, expression Expression) Statement {
+	return newAssignmentStatement(variable, expression)
 }
 
 // NewReadStatement creates a new read statement node in the abstract syntax tree.
-func NewReadStatement(entry *Symbol) Statement {
-	return newReadStatement(entry)
+func NewReadStatement(variable Expression) Statement {
+	return newReadStatement(variable)
 }
 
 // NewWriteStatement creates a new write statement node in the abstract syntax tree.
@@ -434,8 +451,8 @@ func NewWriteStatement(expression Expression) Statement {
 }
 
 // NewCallStatement creates a new call statement node in the abstract syntax tree.
-func NewCallStatement(entry *Symbol) Statement {
-	return newCallStatement(entry)
+func NewCallStatement(procedure Statement) Statement {
+	return newCallStatement(procedure)
 }
 
 // NewIfStatement creates a new if-then statement node in the abstract syntax tree.

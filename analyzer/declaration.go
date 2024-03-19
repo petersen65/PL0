@@ -27,10 +27,6 @@ func (a *declarationAnalysis) VisitBlock(block *ast.BlockNode) {
 	panic("unimplemented")
 }
 
-func (a *declarationAnalysis) VisitSymbol(symbol *ast.Symbol) {
-	panic("unimplemented")
-}
-
 func (a *declarationAnalysis) VisitConstantDeclaration(constant *ast.ConstantDeclarationNode) {
 	panic("unimplemented")
 }
@@ -52,6 +48,10 @@ func (a *declarationAnalysis) VisitConstantReference(constant *ast.ConstantRefer
 }
 
 func (a *declarationAnalysis) VisitVariableReference(variable *ast.VariableReferenceNode) {
+	panic("unimplemented")
+}
+
+func (a *declarationAnalysis) VisitProcedureReference(procedure *ast.ProcedureReferenceNode) {
 	panic("unimplemented")
 }
 

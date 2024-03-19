@@ -21,18 +21,18 @@ func newBlock(name string, depth int32, scope *Scope, declarations []Declaration
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType, index int) Declaration {
-	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType, TokenStreamIndex: index}
+func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
+	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType, index int) Declaration {
-	return &VariableDeclarationNode{Name: name, DataType: dataType, TokenStreamIndex: index}
+func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
+	return &VariableDeclarationNode{Name: name, DataType: dataType, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, index int) Declaration {
-	return &ProcedureDeclarationNode{Name: name, Block: block, TokenStreamIndex: index}
+func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
+	return &ProcedureDeclarationNode{Name: name, Block: block, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new literal node in the abstract syntax tree.
@@ -41,17 +41,18 @@ func newLiteral(value any, dataType DataType) Expression {
 }
 
 // Create a new constant-reference node in the abstract syntax tree.
-func newConstantReference(entry *Symbol) Expression {
-	constant := &ConstantReferenceNode{Symbol: entry}
-	entry.SetParent(constant)
-	return constant
+func newConstantReference(declaration Declaration) Expression {
+	return &ConstantReferenceNode{Declaration: declaration}
 }
 
 // Create a new variable-reference node in the abstract syntax tree.
-func newVariableReference(entry *Symbol) Expression {
-	variable := &VariableReferenceNode{Symbol: entry}
-	entry.SetParent(variable)
-	return variable
+func newVariableReference(declaration Declaration) Expression {
+	return &VariableReferenceNode{Declaration: declaration}
+}
+
+// Create a new procedure-reference node in the abstract syntax tree.
+func newProcedureReference(declaration Declaration) Statement {
+	return &ProcedureReferenceNode{Declaration: declaration}
 }
 
 // Create a new unary operation node in the abstract syntax tree.
@@ -78,17 +79,17 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(entry *Symbol, expression Expression) Statement {
-	assignment := &AssignmentStatementNode{Symbol: entry, Expression: expression}
-	entry.SetParent(assignment)
+func newAssignmentStatement(variable, expression Expression) Statement {
+	assignment := &AssignmentStatementNode{Variable: variable, Expression: expression}
+	variable.SetParent(assignment)
 	expression.SetParent(assignment)
 	return assignment
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(entry *Symbol) Statement {
-	read := &ReadStatementNode{Symbol: entry}
-	entry.SetParent(read)
+func newReadStatement(variable Expression) Statement {
+	read := &ReadStatementNode{Variable: variable}
+	variable.SetParent(read)
 	return read
 }
 
@@ -100,9 +101,9 @@ func newWriteStatement(expression Expression) Statement {
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(entry *Symbol) Statement {
-	call := &CallStatementNode{Symbol: entry}
-	entry.SetParent(call)
+func newCallStatement(procedure Statement) Statement {
+	call := &CallStatementNode{Procedure: procedure}
+	procedure.SetParent(call)
 	return call
 }
 
@@ -133,43 +134,6 @@ func newCompoundStatement(statements []Statement) Statement {
 	return compound
 }
 
-// Set the parent Node of the symbol entry node.
-func (s *Symbol) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the symbol entry node.
-func (s *Symbol) String() string {
-	switch s.Kind {
-	case Constant:
-		return fmt.Sprintf("symbol(%v,%v=%v:%v)", KindNames[s.Kind], s.Name, s.Value, s.Depth)
-
-	case Variable:
-		return fmt.Sprintf("symbol(%v,%v:%v:%v)", KindNames[s.Kind], s.Name, s.Depth, s.Offset)
-
-	case Procedure:
-		return fmt.Sprintf("symbol(%v,%v:%v:%v)", KindNames[s.Kind], s.Name, s.Depth, s.Address)
-
-	default:
-		panic("abstract syntax tree error: unknown symbol kind")
-	}
-}
-
-// Parent node of the symbol entry node.
-func (s *Symbol) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the symbol entry node.
-func (s *Symbol) Children() []Node {
-	return make([]Node, 0)
-}
-
-// Accept the visitor for the symbol entry node.
-func (s *Symbol) Accept(visitor Visitor) {
-	visitor.VisitSymbol(s)
-}
-
 // Set the parent Node of the block node.
 func (b *BlockNode) SetParent(parent Node) {
 	b.ParentNode = parent
@@ -187,14 +151,10 @@ func (b *BlockNode) Parent() Node {
 
 // Children nodes of the block node.
 func (b *BlockNode) Children() []Node {
-	children := make([]Node, 0, len(*b.Scope.symbolTable)+len(b.Declarations)+1)
+	children := make([]Node, 0, len(b.Declarations)+1)
 
-	for entry := range b.Scope.IterateCurrent() {
-		children = append(children, entry)
-	}
-
-	for _, procedure := range b.Declarations {
-		children = append(children, procedure)
+	for _, declaration := range b.Declarations {
+		children = append(children, declaration)
 	}
 
 	return append(children, b.Statement)
@@ -355,7 +315,7 @@ func (e *ConstantReferenceNode) SetParent(parent Node) {
 
 // String of the constant reference node.
 func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind], e.Symbol.Name)
+	return fmt.Sprintf("reference(%v,%v)", KindNames[Constant], e.Declaration.(*ConstantDeclarationNode).Name)
 }
 
 // Parent node of the constant reference node.
@@ -365,7 +325,7 @@ func (e *ConstantReferenceNode) Parent() Node {
 
 // Children nodes of the constant reference node.
 func (e *ConstantReferenceNode) Children() []Node {
-	return []Node{e.Symbol}
+	return make([]Node, 0)
 }
 
 // ExpressionString returns the string representation of the constant expression.
@@ -385,7 +345,7 @@ func (e *VariableReferenceNode) SetParent(parent Node) {
 
 // String of the variable reference node.
 func (e *VariableReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[e.Symbol.Kind], e.Symbol.Name)
+	return fmt.Sprintf("reference(%v,%v)", KindNames[Variable], e.Declaration.(*VariableDeclarationNode).Name)
 }
 
 // Parent node of the variable reference node.
@@ -395,7 +355,7 @@ func (e *VariableReferenceNode) Parent() Node {
 
 // Children nodes of the variable reference node.
 func (e *VariableReferenceNode) Children() []Node {
-	return []Node{e.Symbol}
+	return make([]Node, 0)
 }
 
 // ExpressionString returns the string representation of the variable expression.
@@ -406,6 +366,36 @@ func (e *VariableReferenceNode) ExpressionString() string {
 // Accept the visitor for the variable reference node.
 func (e *VariableReferenceNode) Accept(visitor Visitor) {
 	visitor.VisitVariableReference(e)
+}
+
+// Set the parent Node of the procedure reference node.
+func (e *ProcedureReferenceNode) SetParent(parent Node) {
+	e.ParentNode = parent
+}
+
+// String of the procedure reference node.
+func (e *ProcedureReferenceNode) String() string {
+	return fmt.Sprintf("reference(%v,%v)", KindNames[Procedure], e.Declaration.(*ProcedureDeclarationNode).Name)
+}
+
+// Parent node of the procedure reference node.
+func (e *ProcedureReferenceNode) Parent() Node {
+	return e.ParentNode
+}
+
+// Children nodes of the procedure reference node.
+func (e *ProcedureReferenceNode) Children() []Node {
+	return make([]Node, 0)
+}
+
+// StatementString returns the string representation of the call statement.
+func (e *ProcedureReferenceNode) StatementString() string {
+	return e.String()
+}
+
+// Accept the visitor for the procedure reference node.
+func (e *ProcedureReferenceNode) Accept(visitor Visitor) {
+	visitor.VisitProcedureReference(e)
 }
 
 // Set the parent Node of the unary operation node.
@@ -560,7 +550,7 @@ func (s *AssignmentStatementNode) Parent() Node {
 
 // Children nodes of the assignment statement node.
 func (s *AssignmentStatementNode) Children() []Node {
-	return []Node{s.Symbol, s.Expression}
+	return []Node{s.Variable, s.Expression}
 }
 
 // StatementString returns the string representation of the assignment statement.
@@ -590,7 +580,7 @@ func (s *ReadStatementNode) Parent() Node {
 
 // Children nodes of the read statement node.
 func (s *ReadStatementNode) Children() []Node {
-	return []Node{s.Symbol}
+	return []Node{s.Variable}
 }
 
 // StatementString returns the string representation of the read statement.
@@ -650,7 +640,7 @@ func (s *CallStatementNode) Parent() Node {
 
 // Children nodes of the call statement node.
 func (s *CallStatementNode) Children() []Node {
-	return []Node{s.Symbol}
+	return []Node{s.Procedure}
 }
 
 // StatementString returns the string representation of the call statement.
