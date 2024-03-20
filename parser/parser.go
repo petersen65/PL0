@@ -259,8 +259,13 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Decla
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		// add the procedure declaration to the list of declarations for the parent block node
+		// the parent of a block needs to reference its procedure declaration
+		block.SetParent(declaration)
+
+		// set the block of the procedure declaration because it was not known before the block was parsed
 		declaration.(*ast.ProcedureDeclarationNode).Block = block
+		
+		// add the procedure declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)
 	}
 
