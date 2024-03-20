@@ -502,7 +502,10 @@ func PrintAbstractSyntaxTree(node Node, indent string, last bool, print io.Write
 		indent += "|  "
 	}
 
-	for i, child := range node.Children() {
-		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+	// Do not print children of procedure references to avoid infinite recursion for recursive procedures.
+	if _, ok := node.(*ProcedureReferenceNode); !ok {
+		for i, child := range node.Children() {
+			PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+		}
 	}
 }

@@ -143,7 +143,7 @@ func (b *BlockNode) SetParent(parent Node) {
 
 // String of the block node.
 func (b *BlockNode) String() string {
-	return fmt.Sprintf("block %v,dd=%v", b.Name, b.Depth)
+	return fmt.Sprintf("block n=%v,d=%v", b.Name, b.Depth)
 }
 
 // Parent node of the block node.
@@ -181,7 +181,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 func (d *ConstantDeclarationNode) String() string {
 	switch d.DataType {
 	case Integer64:
-		return fmt.Sprintf("declaration(%v,%v=%v:i64)", KindNames[Constant], d.Name, d.Value)
+		return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=i64)", KindNames[Constant], d.Name, d.Value)
 
 	default:
 		panic("abstract syntax tree error: unknown constant data type")
@@ -217,7 +217,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 func (d *VariableDeclarationNode) String() string {
 	switch d.DataType {
 	case Integer64:
-		return fmt.Sprintf("declaration(%v,%v,os=%v:i64)", KindNames[Variable], d.Name, d.Offset)
+		return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=i64)", KindNames[Variable], d.Name, d.Offset)
 
 	default:
 		panic("abstract syntax tree error: unknown variable data type")
@@ -251,7 +251,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,%v,ad=%v)", KindNames[Procedure], d.Name, d.Address)
+	return fmt.Sprintf("declaration(%v,n=%v,a=%v)", KindNames[Procedure], d.Name, d.Address)
 }
 
 // Parent node of the procedure declaration node.
@@ -283,7 +283,7 @@ func (e *LiteralNode) SetParent(parent Node) {
 func (e *LiteralNode) String() string {
 	switch e.DataType {
 	case Integer64:
-		return fmt.Sprintf("literal(%v:i64)", e.Value)
+		return fmt.Sprintf("literal(v=%v,t=i64)", e.Value)
 
 	default:
 		panic("abstract syntax tree error: unknown literal data type")
@@ -317,7 +317,7 @@ func (e *ConstantReferenceNode) SetParent(parent Node) {
 
 // String of the constant reference node.
 func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[Constant], e.Declaration.(*ConstantDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Constant], e.Declaration.(*ConstantDeclarationNode).Name)
 }
 
 // Parent node of the constant reference node.
@@ -347,7 +347,7 @@ func (e *VariableReferenceNode) SetParent(parent Node) {
 
 // String of the variable reference node.
 func (e *VariableReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[Variable], e.Declaration.(*VariableDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Variable], e.Declaration.(*VariableDeclarationNode).Name)
 }
 
 // Parent node of the variable reference node.
@@ -377,7 +377,7 @@ func (e *ProcedureReferenceNode) SetParent(parent Node) {
 
 // String of the procedure reference node.
 func (e *ProcedureReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,%v)", KindNames[Procedure], e.Declaration.(*ProcedureDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Procedure], e.Declaration.(*ProcedureDeclarationNode).Name)
 }
 
 // Parent node of the procedure reference node.

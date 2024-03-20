@@ -260,7 +260,7 @@ func (c *cpu) neg() error {
 	c.set_of_neg(ax)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow for negation at address '%v'", c.registers[ip]-1)
+		return fmt.Errorf("halt - arithmetic overflow of a negation at address '%v'", c.registers[ip]-1)
 	}
 
 	c.registers[ax] = uint64(-int64(c.registers[ax]))
@@ -290,7 +290,7 @@ func (c *cpu) add() error {
 	c.set_of_add(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow for addition at address '%v'", c.registers[ip]-1)
+		return fmt.Errorf("halt - arithmetic overflow of an addition at address '%v'", c.registers[ip]-1)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
@@ -308,7 +308,7 @@ func (c *cpu) sub() error {
 	c.set_of_sub(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow for subtraction at address '%v'", c.registers[ip]-1)
+		return fmt.Errorf("halt - arithmetic overflow of a subtraction at address '%v'", c.registers[ip]-1)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
@@ -326,7 +326,7 @@ func (c *cpu) mul() error {
 	c.set_of_mul(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow for multiplication at address '%v'", c.registers[ip]-1)
+		return fmt.Errorf("halt - arithmetic overflow of a multiplication at address '%v'", c.registers[ip]-1)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
@@ -348,7 +348,7 @@ func (c *cpu) div() error {
 	}
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow for division at address '%v'", c.registers[ip]-1)
+		return fmt.Errorf("halt - arithmetic overflow of a division at address '%v'", c.registers[ip]-1)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))
@@ -553,7 +553,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		return err
 	}
 
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "dep", "adr", "ai")))
+	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg")))
 
 	for text, instr := range p.text {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
