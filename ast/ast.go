@@ -259,7 +259,7 @@ func (d *ProcedureDeclarationNode) Parent() Node {
 
 // Children nodes of the procedure declaration node.
 func (d *ProcedureDeclarationNode) Children() []Node {
-	return make([]Node, 0)
+	return []Node{d.Block}
 }
 
 // DeclarationString returns the string representation of the procedure declaration.

@@ -119,9 +119,6 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	procedures := make([]ast.Declaration, 0)
 	all := make([]ast.Declaration, 0)
 
-	// it is essential that the block procedure declaration is the first entry in the list of its nested procedures
-	procedures = append(procedures, ast.NewProcedureDeclaration(name, ast.NewEmptyBlock(), scope, p.lastTokenIndex()))
-
 	// the parser does not support more than 'blockNestingMax' nested blocks
 	if p.declarationDepth > blockNestingMax {
 		p.appendError(maxBlockDepth, p.declarationDepth)
@@ -168,11 +165,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
-	block := ast.NewBlock(name, p.declarationDepth, scope, all, statement)
-	
-	// set the block of the procedure declaration to the block node
-	procedures[0].(*ast.ProcedureDeclarationNode).Block = block
-	return block
+	return ast.NewBlock(name, p.declarationDepth, scope, all, statement)
 }
 
 // Sequence of constants declarations.
