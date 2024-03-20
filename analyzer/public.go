@@ -15,6 +15,6 @@ type DeclarationAnalysis interface {
 }
 
 // Return the public interface of the private declaration analyzer implementation.
-func NewDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
-	return newDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler)
+func NewDeclarationAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+	return newDeclarationAnalysis(abstractSyntax, tokenHandler)
 }

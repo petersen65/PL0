@@ -10,13 +10,12 @@ import (
 
 type declarationAnalysis struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run declaration analysis on
-	errorHandler   tok.ErrorHandler // error handler that is used to handle errors that occurred during declaration analysis
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
 // Create new declaration analyzer with the given abstract syntax tree, error handler, and token handler.
-func newDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
-	return &declarationAnalysis{abstractSyntax: abstractSyntax, errorHandler: errorHandler, tokenHandler: tokenHandler}
+func newDeclarationAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+	return &declarationAnalysis{abstractSyntax: abstractSyntax, tokenHandler: tokenHandler}
 }
 
 func (a *declarationAnalysis) Analyze() {
