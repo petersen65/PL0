@@ -32,7 +32,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	bn.Offset = emt.VariableOffsetStart
 
 	// emit a jump to the first instruction of the block whose address is not yet known
-	// the address of the jump instruction itself was already stored in the symbol table as part of the block's procedure symbol
+	// the address of the jump instruction itself was already stored in the procedure declaration as part of the block's procedure declaration visit function execution
 	//
 	// for block declaration depth
 	// 	 0: jump is always used to start the program
@@ -47,9 +47,10 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	// update the jump instruction address to the first instruction of the block
 	g.emitter.Update(firstInstruction, g.emitter.GetNextAddress(), nil)
 
-	// update the code address of the block's procedure symbol to the first instruction of the block
-	procedureSymbol := bn.Scope.Lookup(bn.Name)
-	procedureSymbol.Address = uint64(g.emitter.GetNextAddress())
+	// update the code address of the block's procedure declaration to the first instruction of the block
+	if bn.ParentNode != nil {
+		bn.ParentNode.(*ast.ProcedureDeclarationNode).Address = uint64(g.emitter.GetNextAddress())
+	}
 
 	// allocating stack space for block variables is the first code instruction of the block
 	g.emitter.AllocateStackSpace(emt.Offset(bn.Offset))
