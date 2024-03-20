@@ -141,7 +141,7 @@ func (b *BlockNode) SetParent(parent Node) {
 
 // String of the block node.
 func (b *BlockNode) String() string {
-	return fmt.Sprintf("block %v:%v", b.Name, b.Depth)
+	return fmt.Sprintf("block %v,dd=%v", b.Name, b.Depth)
 }
 
 // Parent node of the block node.
@@ -215,7 +215,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 func (d *VariableDeclarationNode) String() string {
 	switch d.DataType {
 	case Integer64:
-		return fmt.Sprintf("declaration(%v,%v:i64)", KindNames[Variable], d.Name)
+		return fmt.Sprintf("declaration(%v,%v,os=%v:i64)", KindNames[Variable], d.Name, d.Offset)
 
 	default:
 		panic("abstract syntax tree error: unknown variable data type")
@@ -249,7 +249,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,%v)", KindNames[Procedure], d.Name)
+	return fmt.Sprintf("declaration(%v,%v,ad=%v)", KindNames[Procedure], d.Name, d.Address)
 }
 
 // Parent node of the procedure declaration node.
@@ -259,7 +259,7 @@ func (d *ProcedureDeclarationNode) Parent() Node {
 
 // Children nodes of the procedure declaration node.
 func (d *ProcedureDeclarationNode) Children() []Node {
-	return []Node{d.Block}
+	return make([]Node, 0)
 }
 
 // DeclarationString returns the string representation of the procedure declaration.
@@ -325,7 +325,7 @@ func (e *ConstantReferenceNode) Parent() Node {
 
 // Children nodes of the constant reference node.
 func (e *ConstantReferenceNode) Children() []Node {
-	return make([]Node, 0)
+	return []Node{e.Declaration}
 }
 
 // ExpressionString returns the string representation of the constant expression.
@@ -355,7 +355,7 @@ func (e *VariableReferenceNode) Parent() Node {
 
 // Children nodes of the variable reference node.
 func (e *VariableReferenceNode) Children() []Node {
-	return make([]Node, 0)
+	return []Node{e.Declaration}
 }
 
 // ExpressionString returns the string representation of the variable expression.
@@ -385,7 +385,7 @@ func (e *ProcedureReferenceNode) Parent() Node {
 
 // Children nodes of the procedure reference node.
 func (e *ProcedureReferenceNode) Children() []Node {
-	return make([]Node, 0)
+	return []Node{e.Declaration}
 }
 
 // StatementString returns the string representation of the call statement.

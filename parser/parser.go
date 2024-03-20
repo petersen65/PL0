@@ -168,7 +168,11 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
-	return ast.NewBlock(name, p.declarationDepth, scope, all, statement)
+	block := ast.NewBlock(name, p.declarationDepth, scope, all, statement)
+	
+	// set the block of the procedure declaration to the block node
+	procedures[0].(*ast.ProcedureDeclarationNode).Block = block
+	return block
 }
 
 // Sequence of constants declarations.
