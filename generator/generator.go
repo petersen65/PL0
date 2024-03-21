@@ -84,21 +84,28 @@ func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) 
 	pd.Block.Accept(g)
 }
 
-// Generate code for a literal.
+// Generate code for a literal (load a constant value).
 func (g *generator) VisitLiteral(l *ast.LiteralNode) {
 	g.emitter.Constant(l.Value)
 }
 
-// Generate code for a constant reference.
+// Generate code for a constant reference (load a constant value).
 func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
 	g.emitter.Constant(cr.Declaration.(*ast.ConstantDeclarationNode).Value)
 }
 
-// Generate code for a variable reference.
+// Generate code for a variable reference (load content of a variable).
 func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
+	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, vr.Declaration).Depth
+
+	// determine the declaration depth of the variable reference from inside an expression or statement
 	referenceDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
+
+	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(vr.Declaration.(*ast.VariableDeclarationNode).Offset)
+
+	// load the content of the variable
 	g.emitter.LoadVariable(offset, referenceDepth-declarationDepth)
 }
 
@@ -109,22 +116,31 @@ func (g *generator) VisitProcedureReference(pr *ast.ProcedureReferenceNode) {
 
 // Generate code for a unary operation.
 func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+	// load the operand value from the result of the expression
 	uo.Operand.Accept(g)
 
+	// perform the unary operation on the operand value
 	switch uo.Operation {
 	case ast.Odd:
 		g.emitter.Odd()
 
 	case ast.Negate:
 		g.emitter.Negate()
+
+	default:
+		panic("generator error: invalid unary operation")
 	}
 }
 
 // Generate code for a binary operation.
 func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+	// load the left-hand-side value from the result of the left expression
 	bo.Left.Accept(g)
+	
+	// load the right-hand-side value from the result of the right expression
 	bo.Right.Accept(g)
 
+	// perform the binary operation on the left and right-hand-side values
 	switch bo.Operation {
 	case ast.Plus:
 		g.emitter.Add()
@@ -137,14 +153,21 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 	case ast.Divide:
 		g.emitter.Divide()
+
+	default:
+		panic("generator error: invalid binary operation")
 	}
 }
 
 // Generate code for a conditional operation.
 func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+	// load the left-hand-side value from the result of the left expression
 	co.Left.Accept(g)
+
+	// load the right-hand-side value from the result of the right expression
 	co.Right.Accept(g)
 
+	// perform the conditional operation on the left and right-hand-side values
 	switch co.Operation {
 	case ast.Equal:
 		g.emitter.Equal()
@@ -163,64 +186,120 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 	case ast.GreaterEqual:
 		g.emitter.GreaterEqual()
+
+	default:
+		panic("generator error: invalid conditional operation")
 	}
 }
 
 // Generate code for an assignment statement.
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	variableDeclaration := as.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
-	offset := emt.Offset(variableDeclaration.Offset)
+	// load the value from the result of the right-hand-side expression of the assignment
 	as.Expression.Accept(g)
+	
+	// get the variable declaration on the left-hand-side of the assignment
+	variableDeclaration := as.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+
+	// determine the declaration depth of the variable
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	
+	// determine the declaration depth of the assignment statement where the variable is used
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+
+	// calculate the offset of the variable on the block stack frame
+	offset := emt.Offset(variableDeclaration.Offset)
+	
+	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
 }
 
 // Generate code for a read statement.
 func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
+	// get the variable declaration of the variable to read into
 	variableDeclaration := rs.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+
+	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+	// determine the declaration depth of the read statement where the variable is used
 	referenceDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
+
+	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
+
+	// read the value from the input by calling the system-call read function
 	g.emitter.System(emt.Read)
+
+	// store the read value in the variable on the right-hand-side of the read statement
 	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
 }
 
 // Generate code for a write statement.
 func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
+	// load the value from the result of the expression on the right-hand-side of the write statement
 	ws.Expression.Accept(g)
+
+	// write the value to the output by calling the system-call write function
 	g.emitter.System(emt.Write)
 }
 
 // Generate code for a call statement.
 func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
+	// get the declaration of the procedure to call
 	procedureDeclaration := cs.Procedure.(*ast.ProcedureReferenceNode).Declaration.(*ast.ProcedureDeclarationNode)
+	
+	// determine the declaration depth of the procedure
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
+
+	// determine the declaration depth of the call statement where the procedure is called
 	referenceDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
+
+	// calculate the address of the procedure to call
 	address := emt.Address(procedureDeclaration.Address)
+
+	// call the procedure on the given address
 	g.emitter.Call(address, referenceDepth-declarationDepth)
 }
 
 // Generate code for an if-then statement.
 func (g *generator) VisitIfStatement(is *ast.IfStatementNode) {
+	// calculate the result of the condition expression
 	is.Condition.Accept(g)
+
+	// jump behind the statement if the condition is false
 	ifDecision := g.jumpConditional(is.Condition, false)
+
+	// execute statement if the condition is true
 	is.Statement.Accept(g)
+
+	// update the jump instruction address to the next instruction after the statement
 	g.emitter.Update(ifDecision, g.emitter.GetNextAddress(), nil)
 }
 
 // Generate code for a while-do statement.
 func (g *generator) VisitWhileStatement(ws *ast.WhileStatementNode) {
+	// get the address at the beginning of the condition expression instructions
 	conditionAddress := g.emitter.GetNextAddress()
+
+	// calculate the result of the condition expression
 	ws.Condition.Accept(g)
+
+	// jump behind the statement if the condition is false
 	whileDecision := g.jumpConditional(ws.Condition, false)
+
+	// execute statement if the condition is true
 	ws.Statement.Accept(g)
+
+	// jump back to the condition expression instructions
 	g.emitter.Jump(conditionAddress)
+
+	// update the jump instruction address to the next instruction after the statement
 	g.emitter.Update(whileDecision, g.emitter.GetNextAddress(), nil)
 }
 
 // Generate code for a compound begin-end statement.
 func (g *generator) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+	// generate code for all statements in the compound statement
 	for _, statement := range cs.Statements {
 		statement.Accept(g)
 	}
@@ -230,7 +309,9 @@ func (g *generator) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool) emt.Address {
 	var address emt.Address
 
+	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {
+	// unary operation node with the odd operation
 	case *ast.UnaryOperationNode:
 		if condition.Operation == ast.Odd {
 			if jumpIfCondition {
@@ -242,6 +323,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 			panic("generator error: invalid unary operation")
 		}
 
+	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
 	case *ast.ConditionalOperationNode:
 		if jumpIfCondition {
 			// jump if the condition is true and remember the address of the jump instruction
@@ -263,6 +345,9 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 
 			case ast.GreaterEqual:
 				address = g.emitter.JumpGreaterEqual(emt.NullAddress)
+
+			default:
+				panic("generator error: invalid conditional operation")
 			}
 		} else {
 			// jump if the condition is false and remember the address of the jump instruction
@@ -284,6 +369,9 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 
 			case ast.GreaterEqual:
 				address = g.emitter.JumpLess(emt.NullAddress)
+
+			default:
+				panic("generator error: invalid conditional operation")
 			}
 		}
 
