@@ -16,10 +16,9 @@ const integerBitSize = 64
 
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
-	declarationDepth int32            // declaration depth of nested blocks
-	errorHandler     tok.ErrorHandler // error handler that is used to handle errors that occurred during parsing
-	tokenHandler     tok.TokenHandler // token handler that manages the tokens of the token stream
-	abstractSyntax   ast.Block        // abstract syntax tree of the program
+	errorHandler   tok.ErrorHandler // error handler that is used to handle errors that occurred during parsing
+	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
+	abstractSyntax ast.Block        // abstract syntax tree of the program
 }
 
 var (
@@ -59,7 +58,7 @@ func newParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parse
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
 func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 	// check if the parser is in a valid state to start parsing
-	if p.declarationDepth != 0 || p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
+	if p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
 		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, invalidParserState, nil)
 	}
 
@@ -75,7 +74,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 	//   declaration of constants, variables and procedures
 	//   followed by a statement
 	//   and ends with the program-end
-	p.abstractSyntax = p.block(EntryPointName, nil, set(declarations, statements, scn.ProgramEnd))
+	p.abstractSyntax = p.block(EntryPointName, 0, nil, set(declarations, statements, scn.ProgramEnd))
 
 	// the program must end with a specific token
 	if p.lastToken() != scn.ProgramEnd {
@@ -101,20 +100,9 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 	}
 }
 
-// A block is a sequence of declarations followed by a statement. The statement runs within its own stack frame.
-func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.Block {
-	var scope = ast.NewScope(outer)
-
-	// block of main program with outermost scope that has no further outer scope
-	if outer == nil {
-		// a program starts with a block of declaration depth 0 and an entrypoint address 0
-		scope.Insert(&ast.Symbol{
-			Name:    name,
-			Kind:    ast.Procedure,
-			Depth:   0,
-			Address: 0, // entrypoint address is set to 0 and will be updated by the code generator
-		})
-	}
+// A block is a sequence of declarations followed by a statement.
+func (p *parser) block(name string, declarationDepth int32, outer *ast.Scope, expected tok.Tokens) ast.Block {
+	var scope = ast.NewScope(outer) // a block has its own scope to manage its symbols
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
 	constants := make([]ast.Declaration, 0)
@@ -123,8 +111,8 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 	all := make([]ast.Declaration, 0)
 
 	// the parser does not support more than 'blockNestingMax' nested blocks
-	if p.declarationDepth > blockNestingMax {
-		p.appendError(maxBlockDepth, p.declarationDepth)
+	if declarationDepth > blockNestingMax {
+		p.appendError(maxBlockDepth, declarationDepth)
 	}
 
 	// declare all constants, variables and procedures of the block
@@ -138,7 +126,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
-			procedures = append(procedures, p.procedureWord(scope, expected)...)
+			procedures = append(procedures, p.procedureWord(declarationDepth, scope, expected)...)
 		}
 
 		// after declarations, the block expects
@@ -168,7 +156,7 @@ func (p *parser) block(name string, outer *ast.Scope, expected tok.Tokens) ast.B
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
-	return ast.NewBlock(name, p.declarationDepth, scope, all, statement)
+	return ast.NewBlock(name, declarationDepth, scope, all, statement)
 }
 
 // Sequence of constants declarations.
@@ -226,12 +214,12 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(declarationDepth int32, scope *ast.Scope, anchors tok.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextToken()
-		procedureName, declaration := p.procedureIdentifier(outer)
+		declaration := p.procedureIdentifier(scope)
 
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
@@ -243,9 +231,7 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Decla
 		//   declaration of constants, variables and procedures
 		//   followed by a statement
 		//   and ends with a semicolon
-		p.declarationDepth++
-		block := p.block(procedureName, outer, set(anchors, scn.Semicolon))
-		p.declarationDepth--
+		block := p.block(declaration.(*ast.ProcedureDeclarationNode).Name, declarationDepth+1, scope, set(anchors, scn.Semicolon))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
@@ -279,13 +265,6 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Decla
 func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	name := p.lastTokenValue()
 	nameIndex := p.lastTokenIndex()
-	symbol := scope.Lookup(p.lastTokenValue())
-
-	if symbol == nil {
-		p.appendError(identifierNotFound, p.lastTokenValue())
-	} else if symbol.Kind != ast.Variable {
-		p.appendError(expectedVariableIdentifier, ast.KindNames[symbol.Kind])
-	}
 
 	p.nextToken()
 
@@ -300,13 +279,8 @@ func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement 
 	}
 
 	right := p.expression(scope, anchors)
-
-	if symbol == nil || symbol.Kind != ast.Variable {
-		// in case of a parsing error, return an empty statement
-		return ast.NewEmptyStatement()
-	}
-
 	left := ast.NewVariableReference(name, scope, nameIndex)
+
 	return ast.NewAssignmentStatement(left, right)
 }
 
@@ -314,34 +288,23 @@ func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement 
 func (p *parser) read(scope *ast.Scope) ast.Statement {
 	var name string
 	var nameIndex int
-	var symbol *ast.Symbol
 
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if entry := scope.Lookup(p.lastTokenValue()); entry != nil {
-			if entry.Kind == ast.Variable {
-				name = p.lastTokenValue()
-				nameIndex = p.lastTokenIndex()
-				symbol = entry
-			} else {
-				p.appendError(expectedVariableIdentifier, ast.KindNames[entry.Kind])
-			}
-		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue())
-		}
+		name = p.lastTokenValue()
+		nameIndex = p.lastTokenIndex()
 	}
 
 	p.nextToken()
 
-	if symbol != nil {
-		return ast.NewReadStatement(ast.NewVariableReference(name, scope, nameIndex))
+	if len(name) == 0 {
+		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
-	// in case of a parsing error, return an empty statement
-	return ast.NewEmptyStatement()
+	return ast.NewReadStatement(ast.NewVariableReference(name, scope, nameIndex))
 }
 
 // A write statement is the write operator followed by an expression.
@@ -355,33 +318,22 @@ func (p *parser) write(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	var name string
 	var nameIndex int
-	var symbol *ast.Symbol
+
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
-		if entry := scope.Lookup(p.lastTokenValue()); entry != nil {
-			if entry.Kind == ast.Procedure {
-				name = p.lastTokenValue()
-				nameIndex = p.lastTokenIndex()
-				symbol = entry
-			} else {
-				p.appendError(expectedProcedureIdentifier, ast.KindNames[entry.Kind])
-			}
-		} else {
-			p.appendError(identifierNotFound, p.lastTokenValue())
-		}
-
+		name = p.lastTokenValue()
+		nameIndex = p.lastTokenIndex()
 		p.nextToken()
 	}
 
-	if symbol != nil {
-		return ast.NewCallStatement(ast.NewProcedureReference(name, scope, nameIndex))
+	if len(name) == 0 {
+		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
-	// in case of a parsing error, return an empty statement
-	return ast.NewEmptyStatement()
+	return ast.NewCallStatement(ast.NewProcedureReference(name, scope, nameIndex))
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -516,7 +468,7 @@ func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement,
 	return statement, false
 }
 
-// A constant identifier is an identifier followed by an equal sign followed by a number to be stored in the symbol table.
+// A constant identifier is an identifier followed by an equal sign followed by a number and is stored in a constant declaration of the abstract syntax tree
 func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	// in case of a parsing error, return an empty declaration
 	declaration := ast.NewEmptyDeclaration()
@@ -528,11 +480,6 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 
 	constantName := p.lastTokenValue()
 	constantNameIndex := p.lastTokenIndex()
-
-	if scope.Lookup(constantName) != nil {
-		p.appendError(identifierAlreadyDeclared, constantName)
-	}
-
 	p.nextToken()
 
 	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
@@ -558,14 +505,6 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 				scope,
 				constantNameIndex)
 
-			scope.Insert(&ast.Symbol{
-				Name:        constantName,
-				Kind:        ast.Constant,
-				Declaration: declaration,
-				Depth:       p.declarationDepth,
-				Value:       p.numberValue(sign, p.lastTokenValue()),
-			})
-
 			p.nextToken()
 		}
 	} else {
@@ -575,65 +514,31 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	return declaration
 }
 
-// A variable identifier is an identifier to be stored in the symbol table.
+// A variable identifier is stored in a variable declaration of the abstract syntax tree
 func (p *parser) variableIdentifier(scope *ast.Scope) ast.Declaration {
-	// in case of a parsing error, return an empty declaration
-	declaration := ast.NewEmptyDeclaration()
-
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
-	} else {
-		if scope.Lookup(p.lastTokenValue()) != nil {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
-		} else {
-			declaration = ast.NewVariableDeclaration(p.lastTokenValue(), ast.Integer64, scope, p.lastTokenIndex())
-
-			scope.Insert(&ast.Symbol{
-				Name:        p.lastTokenValue(),
-				Kind:        ast.Variable,
-				Declaration: declaration,
-				Depth:       p.declarationDepth,
-				Offset:      0, // variable offset is set to 0 and will be updated by the code generator
-			})
-		}
-
-		p.nextToken()
+		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
 
+	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ast.Integer64, scope, p.lastTokenIndex())
+
+	p.nextToken()
 	return declaration
 }
 
-// A procedure identifier is an identifier to be stored in the symbol table.
-func (p *parser) procedureIdentifier(scope *ast.Scope) (string, ast.Declaration) {
-	var procedureName string
-
-	// in case of a parsing error, return an empty declaration
-	declaration := ast.NewEmptyDeclaration()
-
+// A procedure identifier is stored in a procedure declaration of the abstract syntax tree
+func (p *parser) procedureIdentifier(scope *ast.Scope) ast.Declaration {
 	if p.lastToken() != scn.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
-	} else {
-		if scope.Lookup(p.lastTokenValue()) != nil {
-			p.appendError(identifierAlreadyDeclared, p.lastTokenValue())
-		} else {
-			procedureName = p.lastTokenValue()
-
-			// the procedure block is not yet known and will be set after the block is parsed
-			declaration = ast.NewProcedureDeclaration(procedureName, ast.NewEmptyBlock(), scope, p.lastTokenIndex())
-
-			scope.Insert(&ast.Symbol{
-				Name:        procedureName,
-				Kind:        ast.Procedure,
-				Declaration: declaration,
-				Depth:       p.declarationDepth,
-				Address:     0, // procedure address is set to 0 and will be updated by the code generator
-			})
-		}
-
-		p.nextToken()
+		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
 
-	return procedureName, declaration
+	// the procedure block is not yet known and will be set after the block is parsed
+	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), ast.NewEmptyBlock(), scope, p.lastTokenIndex())
+
+	p.nextToken()
+	return declaration
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
@@ -770,22 +675,15 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 
 	for p.lastToken().In(factors) {
 		if p.lastToken() == scn.Identifier {
-			if symbol := scope.Lookup(p.lastTokenValue()); symbol != nil {
-				name := p.lastTokenValue()
-				nameIndex := p.lastTokenIndex()
+			name := p.lastTokenValue()
+			nameIndex := p.lastTokenIndex()
 
-				switch symbol.Kind {
-				case ast.Constant:
-					operand = ast.NewConstantReference(name, scope, nameIndex)
+			switch symbol.Kind {
+			case ast.Constant:
+				operand = ast.NewConstantReference(name, scope, nameIndex)
 
-				case ast.Variable:
-					operand = ast.NewVariableReference(name, scope, nameIndex)
-
-				default:
-					p.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])
-				}
-			} else {
-				p.appendError(identifierNotFound, p.lastTokenValue())
+			case ast.Variable:
+				operand = ast.NewVariableReference(name, scope, nameIndex)
 			}
 
 			p.nextToken()
