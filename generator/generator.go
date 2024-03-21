@@ -119,34 +119,6 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	}
 }
 
-// Generate code for a constant reference (load a constant value).
-func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
-	g.emitter.Constant(cr.Scope.Lookup(cr.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
-}
-
-// Generate code for a variable reference (load content of a variable).
-func (g *generator) VisitVariableReference(iu *ast.VariableReferenceNode) {
-	// get variable declaration of the variable to load
-	variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
-
-	// determine the declaration depth of the variable
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
-
-	// determine the declaration depth of the variable reference from inside an expression or statement
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
-
-	// calculate the offset of the variable on the block stack frame
-	offset := emt.Offset(variableDeclaration.Offset)
-
-	// load the content of the variable
-	g.emitter.LoadVariable(offset, referenceDepth-declarationDepth)
-}
-
-// Generate code for a procedure reference.
-func (g *generator) VisitProcedureReference(pr *ast.ProcedureReferenceNode) {
-	// not required for code generation
-}
-
 // Generate code for a unary operation.
 func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	// load the operand value from the result of the expression
@@ -231,33 +203,33 @@ func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	as.Expression.Accept(g)
 
 	// get the variable declaration on the left-hand-side of the assignment
-	variableReference := as.Variable.(*ast.VariableReferenceNode)
-	variableDeclaration := variableReference.Scope.Lookup(variableReference.Name).Declaration.(*ast.VariableDeclarationNode)
+	variableUse := as.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
 	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 	// determine the declaration depth of the assignment statement where the variable is used
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
 
 	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
+	g.emitter.StoreVariable(offset, assignmentDepth-declarationDepth)
 }
 
 // Generate code for a read statement.
 func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// get the variable declaration of the variable to read into
-	variableReference := rs.Variable.(*ast.VariableReferenceNode)
-	variableDeclaration := variableReference.Scope.Lookup(variableReference.Name).Declaration.(*ast.VariableDeclarationNode)
+	variableUse := rs.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
 	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 	// determine the declaration depth of the read statement where the variable is used
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
+	readDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
 
 	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
@@ -266,7 +238,7 @@ func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 	g.emitter.System(emt.Read)
 
 	// store the read value in the variable on the right-hand-side of the read statement
-	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
+	g.emitter.StoreVariable(offset, readDepth-declarationDepth)
 }
 
 // Generate code for a write statement.
@@ -288,13 +260,13 @@ func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
 
 	// determine the declaration depth of the call statement where the procedure is called
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
+	callDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
 
 	// calculate the address of the procedure to call
 	address := emt.Address(procedureDeclaration.Address)
 
 	// call the procedure on the given address
-	g.emitter.Call(address, referenceDepth-declarationDepth)
+	g.emitter.Call(address, callDepth-declarationDepth)
 }
 
 // Generate code for an if-then statement.

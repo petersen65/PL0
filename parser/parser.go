@@ -248,7 +248,7 @@ func (p *parser) procedureWord(declarationDepth int32, scope *ast.Scope, anchors
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		// the parent of a block needs to reference its procedure declaration
+		// the parent of a block needs to point to its procedure declaration
 		block.SetParent(declaration)
 
 		// set the block of the procedure declaration because it was not known before the block was parsed

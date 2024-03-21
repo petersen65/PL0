@@ -194,30 +194,6 @@ type (
 		TokenStreamIndex int    // index of the token in the token stream
 	}
 
-	// ConstantReferenceNode represents the usage of a constant in the AST.
-	ConstantReferenceNode struct {
-		ParentNode       Node   // parent node of the constant reference
-		Name             string // name of the constant
-		Scope            *Scope // scope of the constant reference
-		TokenStreamIndex int    // index of the token in the token stream
-	}
-
-	// VariableReferenceNode represents the usage of a variable in the AST.
-	VariableReferenceNode struct {
-		ParentNode       Node   // parent node of the variable reference
-		Name             string // name of the variable
-		Scope            *Scope // scope of the variable reference
-		TokenStreamIndex int    // index of the token in the token stream
-	}
-
-	// ProcedureReferenceNode represents the usage of a procedure in the AST.
-	ProcedureReferenceNode struct {
-		ParentNode       Node   // parent node of the procedure reference
-		Name             string // name of the procedure
-		Scope            *Scope // scope of the procedure reference
-		TokenStreamIndex int    // index of the token in the token stream
-	}
-
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
 		ParentNode Node          // parent node of the unary operation
@@ -297,9 +273,6 @@ type (
 		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)
 		VisitLiteral(literal *LiteralNode)
 		VisitIdentifierUse(use *IdentifierUseNode)
-		VisitConstantReference(constant *ConstantReferenceNode)
-		VisitVariableReference(variable *VariableReferenceNode)
-		VisitProcedureReference(procedure *ProcedureReferenceNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)
 		VisitBinaryOperation(operation *BinaryOperationNode)
 		VisitConditionalOperation(operation *ConditionalOperationNode)
@@ -420,21 +393,6 @@ func NewLiteral(value any, dataType DataType) Expression {
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
 func NewIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
 	return newIdentifierUse(name, scope, context, index)
-}
-
-// NewConstantReference creates a new constant-reference node in the abstract syntax tree.
-func NewConstantReference(name string, scope *Scope, index int) Expression {
-	return newConstantReference(name, scope, index)
-}
-
-// NewVariableReference creates a new variable-reference node in the abstract syntax tree.
-func NewVariableReference(name string, scope *Scope, index int) Expression {
-	return newVariableReference(name, scope, index)
-}
-
-// NewProcedureReference creates a new procedure-reference node in the abstract syntax tree.
-func NewProcedureReference(name string, scope *Scope, index int) Statement {
-	return newProcedureReference(name, scope, index)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.

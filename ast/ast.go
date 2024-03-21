@@ -47,21 +47,6 @@ func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expre
 	return &IdentifierUseNode{Name: name, Scope: scope, Context: context, TokenStreamIndex: index}
 }
 
-// Create a new constant-reference node in the abstract syntax tree.
-func newConstantReference(name string, scope *Scope, index int) Expression {
-	return &ConstantReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
-}
-
-// Create a new variable-reference node in the abstract syntax tree.
-func newVariableReference(name string, scope *Scope, index int) Expression {
-	return &VariableReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
-}
-
-// Create a new procedure-reference node in the abstract syntax tree.
-func newProcedureReference(name string, scope *Scope, index int) Statement {
-	return &ProcedureReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
-}
-
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression) Expression {
 	unary := &UnaryOperationNode{Operation: operation, Operand: operand}
@@ -343,96 +328,6 @@ func (u *IdentifierUseNode) ExpressionString() string {
 // Accept the visitor for the identifier-use node.
 func (u *IdentifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(u)
-}
-
-// Set the parent Node of the constant reference node.
-func (e *ConstantReferenceNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the constant reference node.
-func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Constant], e.Name)
-}
-
-// Parent node of the constant reference node.
-func (e *ConstantReferenceNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the constant reference node.
-func (e *ConstantReferenceNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// ExpressionString returns the string representation of the constant expression.
-func (e *ConstantReferenceNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the constant reference node.
-func (e *ConstantReferenceNode) Accept(visitor Visitor) {
-	visitor.VisitConstantReference(e)
-}
-
-// Set the parent Node of the variable reference node.
-func (e *VariableReferenceNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the variable reference node.
-func (e *VariableReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Variable], e.Name)
-}
-
-// Parent node of the variable reference node.
-func (e *VariableReferenceNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the variable reference node.
-func (e *VariableReferenceNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// ExpressionString returns the string representation of the variable expression.
-func (e *VariableReferenceNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the variable reference node.
-func (e *VariableReferenceNode) Accept(visitor Visitor) {
-	visitor.VisitVariableReference(e)
-}
-
-// Set the parent Node of the procedure reference node.
-func (e *ProcedureReferenceNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the procedure reference node.
-func (e *ProcedureReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Procedure], e.Name)
-}
-
-// Parent node of the procedure reference node.
-func (e *ProcedureReferenceNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the procedure reference node.
-func (e *ProcedureReferenceNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// StatementString returns the string representation of the call statement.
-func (e *ProcedureReferenceNode) StatementString() string {
-	return e.String()
-}
-
-// Accept the visitor for the procedure reference node.
-func (e *ProcedureReferenceNode) Accept(visitor Visitor) {
-	visitor.VisitProcedureReference(e)
 }
 
 // Set the parent Node of the unary operation node.

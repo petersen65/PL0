@@ -24,7 +24,7 @@ func newDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHand
 	}
 }
 
-// Analyze the abstract syntax tree for declaration and reference errors and fill in the symbol table.
+// Analyze the abstract syntax tree for declaration and use errors and fill in the symbol table.
 // Declaration analysis itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (a *declarationAnalysis) Analyze() error {
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
@@ -125,30 +125,6 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		default:
 			panic("declaration analysis error: unknown symbol kind")
 		}
-	}
-}
-
-func (a *declarationAnalysis) VisitConstantReference(cr *ast.ConstantReferenceNode) {
-	if symbol := cr.Scope.Lookup(cr.Name); symbol == nil {
-		a.appendError(identifierNotFound, cr.Name, cr.TokenStreamIndex)
-	} else if symbol.Kind != ast.Constant {
-		a.appendError(expectedConstantIdentifier, cr.Name, cr.TokenStreamIndex)
-	}
-}
-
-func (a *declarationAnalysis) VisitVariableReference(vr *ast.VariableReferenceNode) {
-	if symbol := vr.Scope.Lookup(vr.Name); symbol == nil {
-		a.appendError(identifierNotFound, vr.Name, vr.TokenStreamIndex)
-	} else if symbol.Kind != ast.Variable {
-		a.appendError(expectedVariableIdentifier, vr.Name, vr.TokenStreamIndex)
-	}
-}
-
-func (a *declarationAnalysis) VisitProcedureReference(pr *ast.ProcedureReferenceNode) {
-	if symbol := pr.Scope.Lookup(pr.Name); symbol == nil {
-		a.appendError(identifierNotFound, pr.Name, pr.TokenStreamIndex)
-	} else if symbol.Kind != ast.Procedure {
-		a.appendError(expectedProcedureIdentifier, pr.Name, pr.TokenStreamIndex)
 	}
 }
 
