@@ -92,10 +92,6 @@ type (
 		Name        string      // name of the symbol
 		Kind        Entry       // kind of the symbol
 		Declaration Declaration // declaration node of the symbol
-		Depth       int32       // declaration nesting depth of symbol
-		Value       int64       // value of constant
-		Offset      uint64      // offset of variable in its block procedure stack frame
-		Address     uint64      // absolute address of procedure in text section
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.

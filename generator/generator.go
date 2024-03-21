@@ -91,7 +91,7 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 
 // Generate code for a constant reference (load a constant value).
 func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
-	g.emitter.Constant(cr.Scope.Lookup(cr.Name).Value)
+	g.emitter.Constant(cr.Scope.Lookup(cr.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
 }
 
 // Generate code for a variable reference (load content of a variable).
