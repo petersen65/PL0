@@ -16,5 +16,6 @@ type DeclarationAnalysis interface {
 
 // Return the public interface of the private declaration analyzer implementation.
 func NewDeclarationAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+	tokenHandler.ReplaceComponent(tok.Analyzer, nil)
 	return newDeclarationAnalysis(abstractSyntax, tokenHandler)
 }

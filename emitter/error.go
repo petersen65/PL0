@@ -7,7 +7,7 @@ import tok "github.com/petersen65/PL0/token"
 
 // Failure codes for the IL/0 emitter.
 const (
-	_ = tok.Failure(iota + 3000)
+	_ = tok.Failure(iota + 9000)
 	instructionOutOfRange
 )
 

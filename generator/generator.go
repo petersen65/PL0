@@ -85,8 +85,8 @@ func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) 
 }
 
 // Generate code for a literal (load a constant value).
-func (g *generator) VisitLiteral(l *ast.LiteralNode) {
-	g.emitter.Constant(l.Value)
+func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
+	g.emitter.Constant(ln.Value)
 }
 
 // Generate code for a constant reference (load a constant value).

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	ana "github.com/petersen65/PL0/analyzer"
 	ast "github.com/petersen65/PL0/ast"
 	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
@@ -99,10 +100,12 @@ func PrintFile(target string, print io.Writer) error {
 func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, tok.ErrorHandler, error) {
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := tok.NewErrorHandler(tokenStream)
-	abstractSyntax, _, parserError := par.NewParser().Parse(tokenStream, errorHandler)
+	abstractSyntax, tokenHandler, parserError := par.NewParser().Parse(tokenStream, errorHandler)
 	scannerParserErrors := errors.Join(scannerError, parserError)
 
 	if scannerParserErrors == nil {
+		declarationAnalysis := ana.NewDeclarationAnalysis(abstractSyntax, tokenHandler)
+		declarationAnalysis.Analyze()
 		emitter := gen.NewGenerator(abstractSyntax).Generate()
 		sections, emitterError := emitter.Export()
 		return sections, tokenStream, abstractSyntax, errorHandler, emitterError
