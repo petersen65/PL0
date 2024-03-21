@@ -829,7 +829,7 @@ func (p *parser) lastTokenIndex() int {
 	return p.tokenHandler.LastTokenIndex()
 }
 
-// Append parser error to the error handler.
+// Append parser error to the token handler.
 func (p *parser) appendError(code tok.Failure, value any) {
 	p.tokenHandler.AppendError(p.tokenHandler.NewError(code, value))
 }

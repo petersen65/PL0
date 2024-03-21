@@ -21,13 +21,31 @@ func newDeclarationAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHand
 // Analyze the abstract syntax tree for declaration and reference errors and fill in the symbol table.
 // Declaration analysis itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (a *declarationAnalysis) Analyze() {
+	// an existing error handler can have errors from other compiler components
+	startErrorCount := errorHandler.Count()
+
+
 	a.abstractSyntax.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
+	for _, declaration := range bn.Declarations {
+		declaration.Accept(a)
+	}
+
+	bn.Statement.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
+	if cd.Scope.Lookup(cd.Name) != nil {
+		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
+	} else {
+		cd.Scope.Insert(&ast.Symbol{
+			Name:        cd.Name,
+			Kind:        ast.Constant,
+			Declaration: cd,
+		})
+	}
 }
 
 func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
@@ -67,13 +85,18 @@ func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
 }
 
 func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
-}	
+}
 
 func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
-}	
+}
 
 func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
 }
 
 func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
-}	
+}
+
+// Append analyzer error to the token handler.
+func (a *declarationAnalysis) appendError(code tok.Failure, value any, index int) {
+	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(code, value, index))
+}

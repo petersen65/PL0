@@ -5,13 +5,15 @@ package analyzer
 
 import tok "github.com/petersen65/PL0/token"
 
-// Failure codes for the PL/0 analyzer.
+// Failure codes for the PL/0 semantic analyzer.
 const (
 	_ = tok.Failure(iota + 3000)
-	x
+	identifierNotFound
+	identifierAlreadyDeclared
 )
 
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
-	x: "-",
+	identifierNotFound:        "identifier not found: %v",
+	identifierAlreadyDeclared: "identifier already declared: %v",
 }
