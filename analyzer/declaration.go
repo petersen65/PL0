@@ -96,6 +96,38 @@ func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclara
 func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
 }
 
+func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+	if symbol := iu.Scope.Lookup(iu.Name); symbol == nil {
+		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
+	} else {
+		switch symbol.Kind {
+		case ast.Constant:
+			if iu.Context&ast.Constant != 0 {
+				iu.Context = ast.Constant
+			} else {
+				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
+			}
+
+		case ast.Variable:
+			if iu.Context&ast.Variable != 0 {
+				iu.Context = ast.Variable
+			} else {
+				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
+			}
+
+		case ast.Procedure:
+			if iu.Context&ast.Procedure != 0 {
+				iu.Context = ast.Procedure
+			} else {
+				a.appendError(expectedProcedureIdentifier, iu.Name, iu.TokenStreamIndex)
+			}
+
+		default:
+			panic("declaration analysis error: unknown symbol kind")
+		}
+	}
+}
+
 func (a *declarationAnalysis) VisitConstantReference(cr *ast.ConstantReferenceNode) {
 	if symbol := cr.Scope.Lookup(cr.Name); symbol == nil {
 		a.appendError(identifierNotFound, cr.Name, cr.TokenStreamIndex)

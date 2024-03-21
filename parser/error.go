@@ -18,13 +18,9 @@ const (
 	notFullyParsed
 	maxBlockDepth
 	illegalInteger
-	identifierNotFound
-	identifierAlreadyDeclared
 	expectedRelationalOperator
 	expectedPeriod
 	expectedIdentifier
-	expectedProcedureIdentifier
-	expectedVariableIdentifier
 	expectedEqual
 	expectedBecomes
 	expectedNumber
@@ -50,13 +46,9 @@ var failureMap = map[tok.Failure]string{
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",
 	illegalInteger:                          "cannot parse number %s into integer value",
-	identifierNotFound:                      "identifier not found: %v",
-	identifierAlreadyDeclared:               "identifier already declared: %v",
 	expectedRelationalOperator:              "expected one of =, #, <, <=, >, >= operator, found %v",
 	expectedPeriod:                          "expected period at end of the program, found %v",
 	expectedIdentifier:                      "expected identifier, found %v",
-	expectedProcedureIdentifier:             "expected procedure identifier, found %v",
-	expectedVariableIdentifier:              "expected variable identifier, found %v",
 	expectedEqual:                           "expected equal, found %v",
 	expectedBecomes:                         "expected becomes, found %v",
 	expectedNumber:                          "expected number, found %v",

@@ -279,7 +279,7 @@ func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement 
 	}
 
 	right := p.expression(scope, anchors)
-	left := ast.NewVariableReference(name, scope, nameIndex)
+	left := ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex)
 
 	return ast.NewAssignmentStatement(left, right)
 }
@@ -304,7 +304,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
-	return ast.NewReadStatement(ast.NewVariableReference(name, scope, nameIndex))
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex))
 }
 
 // A write statement is the write operator followed by an expression.
@@ -333,7 +333,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
-	return ast.NewCallStatement(ast.NewProcedureReference(name, scope, nameIndex))
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.Procedure, nameIndex))
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -675,17 +675,8 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 
 	for p.lastToken().In(factors) {
 		if p.lastToken() == scn.Identifier {
-			name := p.lastTokenValue()
-			nameIndex := p.lastTokenIndex()
-
-			switch symbol.Kind {
-			case ast.Constant:
-				operand = ast.NewConstantReference(name, scope, nameIndex)
-
-			case ast.Variable:
-				operand = ast.NewVariableReference(name, scope, nameIndex)
-			}
-
+			// the factor can be a constant or a variable
+			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == scn.Number {
 			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64)

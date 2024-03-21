@@ -42,6 +42,11 @@ func newLiteral(value any, dataType DataType) Expression {
 	return &LiteralNode{Value: value, DataType: dataType}
 }
 
+// Create a new identifier-use node in the abstract syntax tree.
+func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
+	return &IdentifierUseNode{Name: name, Scope: scope, Context: context, TokenStreamIndex: index}
+}
+
 // Create a new constant-reference node in the abstract syntax tree.
 func newConstantReference(name string, scope *Scope, index int) Expression {
 	return &ConstantReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
@@ -103,7 +108,7 @@ func newWriteStatement(expression Expression) Statement {
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(procedure Statement) Statement {
+func newCallStatement(procedure Expression) Statement {
 	call := &CallStatementNode{Procedure: procedure}
 	procedure.SetParent(call)
 	return call
@@ -308,6 +313,36 @@ func (e *LiteralNode) ExpressionString() string {
 // Accept the visitor for the literal node.
 func (e *LiteralNode) Accept(visitor Visitor) {
 	visitor.VisitLiteral(e)
+}
+
+// Set the parent Node of the identifier-use node.
+func (u *IdentifierUseNode) SetParent(parent Node) {
+	u.ParentNode = parent
+}
+
+// String of the identifier-use node.
+func (u *IdentifierUseNode) String() string {
+	return fmt.Sprintf("use(n=%v)", u.Name)
+}
+
+// Parent node of the identifier-use node.
+func (u *IdentifierUseNode) Parent() Node {
+	return u.ParentNode
+}
+
+// Children nodes of the identifier-use node.
+func (u *IdentifierUseNode) Children() []Node {
+	return make([]Node, 0)
+}
+
+// ExpressionString returns the string representation of an identifier-use.
+func (u *IdentifierUseNode) ExpressionString() string {
+	return u.String()
+}
+
+// Accept the visitor for the identifier-use node.
+func (u *IdentifierUseNode) Accept(visitor Visitor) {
+	visitor.VisitIdentifierUse(u)
 }
 
 // Set the parent Node of the constant reference node.

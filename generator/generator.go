@@ -89,21 +89,51 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 	g.emitter.Constant(ln.Value)
 }
 
+// Generate code for an identifier use.
+func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+	switch iu.Context {
+	case ast.Constant:
+		g.emitter.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
+
+	case ast.Variable:
+		// get variable declaration of the variable to load
+		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+
+		// determine the declaration depth of the variable
+		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+		// determine the declaration depth of the variable use from inside an expression or statement
+		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+
+		// calculate the offset of the variable on the block stack frame
+		offset := emt.Offset(variableDeclaration.Offset)
+
+		// load the content of the variable
+		g.emitter.LoadVariable(offset, useDepth-declarationDepth)
+
+	case ast.Procedure:
+		// not required for code generation
+
+	default:
+		panic("generator error: invalid identifier use context")
+	}
+}
+
 // Generate code for a constant reference (load a constant value).
 func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
 	g.emitter.Constant(cr.Scope.Lookup(cr.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
 }
 
 // Generate code for a variable reference (load content of a variable).
-func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
+func (g *generator) VisitVariableReference(iu *ast.VariableReferenceNode) {
 	// get variable declaration of the variable to load
-	variableDeclaration := vr.Scope.Lookup(vr.Name).Declaration.(*ast.VariableDeclarationNode)
+	variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
 	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 	// determine the declaration depth of the variable reference from inside an expression or statement
-	referenceDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
+	referenceDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
 	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
@@ -251,8 +281,8 @@ func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
 // Generate code for a call statement.
 func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 	// get the declaration of the procedure to call
-	procedureReference := cs.Procedure.(*ast.ProcedureReferenceNode)
-	procedureDeclaration := procedureReference.Scope.Lookup(procedureReference.Name).Declaration.(*ast.ProcedureDeclarationNode)
+	procedureUse := cs.Procedure.(*ast.IdentifierUseNode)
+	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
 
 	// determine the declaration depth of the procedure
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth

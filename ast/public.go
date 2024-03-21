@@ -58,11 +58,11 @@ const (
 	Integer64
 )
 
-// Kind of supported symbol entry.
+// Kind of supported symbol entry as bit-mask.
 const (
-	Constant = Entry(iota)
-	Variable
-	Procedure
+	Constant  Entry = iota << 1
+	Variable        = iota << 1
+	Procedure       = iota << 1
 )
 
 type (
@@ -185,6 +185,15 @@ type (
 		DataType   DataType // data type of the literal
 	}
 
+	// IdentifierUseNode represents the usage of an identifier in the AST.
+	IdentifierUseNode struct {
+		ParentNode       Node   // parent node of the identifier usage
+		Name             string // name of the identifier
+		Scope            *Scope // scope of the identifier usage
+		Context          Entry  // context of the identifier
+		TokenStreamIndex int    // index of the token in the token stream
+	}
+
 	// ConstantReferenceNode represents the usage of a constant in the AST.
 	ConstantReferenceNode struct {
 		ParentNode       Node   // parent node of the constant reference
@@ -235,14 +244,14 @@ type (
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
 		ParentNode Node       // parent node of the assignment statement
-		Variable   Expression // variable reference on the left side of the assignment statement
+		Variable   Expression // variable use on the left side of the assignment statement
 		Expression Expression // expression on the right side of the assignment statement
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
 		ParentNode Node       // parent node of the read statement
-		Variable   Expression // variable reference of the read statement
+		Variable   Expression // variable use of the read statement
 	}
 
 	// WriteStatement node represents a write statement in the AST.
@@ -253,8 +262,8 @@ type (
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
-		ParentNode Node      // parent node of the call statement
-		Procedure  Statement // procedure reference of the call statement
+		ParentNode Node       // parent node of the call statement
+		Procedure  Expression // procedure use of the call statement
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
@@ -287,6 +296,7 @@ type (
 		VisitVariableDeclaration(declaration *VariableDeclarationNode)
 		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)
 		VisitLiteral(literal *LiteralNode)
+		VisitIdentifierUse(use *IdentifierUseNode)
 		VisitConstantReference(constant *ConstantReferenceNode)
 		VisitVariableReference(variable *VariableReferenceNode)
 		VisitProcedureReference(procedure *ProcedureReferenceNode)
@@ -407,6 +417,11 @@ func NewLiteral(value any, dataType DataType) Expression {
 	return newLiteral(value, dataType)
 }
 
+// NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
+func NewIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
+	return newIdentifierUse(name, scope, context, index)
+}
+
 // NewConstantReference creates a new constant-reference node in the abstract syntax tree.
 func NewConstantReference(name string, scope *Scope, index int) Expression {
 	return newConstantReference(name, scope, index)
@@ -453,7 +468,7 @@ func NewWriteStatement(expression Expression) Statement {
 }
 
 // NewCallStatement creates a new call statement node in the abstract syntax tree.
-func NewCallStatement(procedure Statement) Statement {
+func NewCallStatement(procedure Expression) Statement {
 	return newCallStatement(procedure)
 }
 
