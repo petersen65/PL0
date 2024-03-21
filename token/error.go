@@ -166,29 +166,29 @@ func (e *errorHandler) Count() int {
 	return len(e.errorReport)
 }
 
-// Return the number of errors in the error report of the error handler by severity level.
+// Return the number of errors in the error report of the error handler by severity level bit mask.
 func (e *errorHandler) CountBySeverity(severity Severity) int {
 	var count int
 
 	for _, err := range e.errorReport {
 		switch err := err.(type) {
 		case *generalError:
-			if err.severity == severity {
+			if err.severity & severity != 0 {
 				count++
 			}
 
 		case *lineColumnError:
-			if err.severity == severity {
+			if err.severity & severity != 0 {
 				count++
 			}
 
 		case *sourceError:
-			if err.severity == severity {
+			if err.severity & severity != 0 {
 				count++
 			}
 
 		case *tokenError:
-			if err.severity == severity {
+			if err.severity & severity != 0 {
 				count++
 			}
 

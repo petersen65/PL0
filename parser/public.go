@@ -13,13 +13,13 @@ import (
 const EntryPointName = "_start"
 
 type (
-	// Parser is the public interface of the parser implementation.
+	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
 	Parser interface {
-		Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) (ast.Block, tok.TokenHandler, error)
+		Parse() (ast.Block, tok.TokenHandler, error)
 	}
 )
 
 // Return the public interface of the private parser implementation.
-func NewParser() Parser {
-	return newParser()
+func NewParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parser {
+	return newParser(tokenStream, errorHandler)
 }

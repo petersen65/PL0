@@ -23,11 +23,11 @@ const (
 	Emulator
 )
 
-// Severity is an enumeration of different error levels.
+// Severity is a bit-mask enumeration of different error levels.
 const (
-	Information Severity = iota
-	Warning
-	Error
+	Information Severity = iota << 1
+	Warning              = iota << 1
+	Error                = iota << 1
 )
 
 type (
@@ -74,7 +74,7 @@ type (
 	Failure int
 
 	// Error levels that are used to categorize errors.
-	Severity int
+	Severity uint64
 
 	// Component describes packages of the compiler which can generate errors.
 	Component int

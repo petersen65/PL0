@@ -49,22 +49,25 @@ var (
 )
 
 // Return the public interface of the private parser implementation.
-func newParser() Parser {
-	return &parser{}
+func newParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parser {
+	return &parser{
+		errorHandler: errorHandler,
+		tokenHandler: tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, failureMap),
+	}
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
-func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) (ast.Block, tok.TokenHandler, error) {
-	// an existing error handler can have errors from other compiler components
-	startErrorCount := errorHandler.Count()
+func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
+	// check if the parser is in a valid state to start parsing
+	if p.declarationDepth != 0 || p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
+		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, invalidParserState, nil)
+	}
 
-	p.declarationDepth = 0
-	p.errorHandler = errorHandler
-	p.tokenHandler = tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, failureMap)
-	p.abstractSyntax = nil
+	// an existing error handler can have errors from other compiler components
+	startErrorCount := p.errorHandler.Count()
 
 	// the parser expects a token stream to be available
-	if len(tokenStream) == 0 || !p.nextToken() {
+	if !p.nextToken() {
 		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, eofReached, nil)
 	}
 
@@ -86,9 +89,9 @@ func (p *parser) Parse(tokenStream tok.TokenStream, errorHandler tok.ErrorHandle
 	}
 
 	// number of errors that occurred during parsing
-	parserErrorCount := errorHandler.Count() - startErrorCount
+	parserErrorCount := p.errorHandler.Count() - startErrorCount
 
-	// return the abstract syntax tree of the program and the error handler
+	// return the abstract syntax tree of the program and the token handler
 	if parserErrorCount == 1 {
 		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingError, nil)
 	} else if parserErrorCount > 1 {

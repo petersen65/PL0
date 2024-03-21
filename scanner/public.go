@@ -50,7 +50,7 @@ const (
 )
 
 type (
-	// Scanner is the public interface of the scanner implementation.
+	// The scanner interface provides methods for scanning binary UTF-8 encoded source code into a binary token stream.
 	Scanner interface {
 		Scan(content []byte) (tok.TokenStream, error)
 	}

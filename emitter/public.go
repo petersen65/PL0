@@ -68,7 +68,7 @@ type (
 		ArgInt                     int64     // int64 argument of the operation
 	}
 
-	// Emitter is the public interface of the emitter implementation.
+	// The emitter interface provides an abstract API for emitting IL/0 instructions.
 	Emitter interface {
 		Update(instruction, target Address, value any) error
 		GetNextAddress() Address

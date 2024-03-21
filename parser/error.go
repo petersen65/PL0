@@ -11,10 +11,11 @@ const blockNestingMax = 8
 // Failure codes for the PL/0 parser.
 const (
 	_ = tok.Failure(iota + 2000)
-	eofReached
-	notFullyParsed
+	invalidParserState
 	parsingError
 	parsingErrors
+	eofReached
+	notFullyParsed
 	maxBlockDepth
 	illegalInteger
 	identifierNotFound
@@ -42,10 +43,11 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
-	eofReached:                              "unexpected end of file",
-	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
+	invalidParserState:                      "parser is in an undefined state and cannot continue parsing",
 	parsingError:                            "a parsing error occurred",
 	parsingErrors:                           "%v parsing errors occurred",
+	eofReached:                              "unexpected end of file",
+	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",
 	illegalInteger:                          "cannot parse number %s into integer value",
 	identifierNotFound:                      "identifier not found: %v",

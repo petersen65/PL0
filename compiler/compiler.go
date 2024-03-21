@@ -100,18 +100,19 @@ func PrintFile(target string, print io.Writer) error {
 func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, tok.ErrorHandler, error) {
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := tok.NewErrorHandler(tokenStream)
-	abstractSyntax, tokenHandler, parserError := par.NewParser().Parse(tokenStream, errorHandler)
-	scannerParserErrors := errors.Join(scannerError, parserError)
+	abstractSyntax, tokenHandler, parserError := par.NewParser(tokenStream, errorHandler).Parse()
 
-	if scannerParserErrors == nil {
-		declarationAnalysis := ana.NewDeclarationAnalysis(abstractSyntax, tokenHandler)
-		declarationAnalysis.Analyze()
-		emitter := gen.NewGenerator(abstractSyntax).Generate()
-		sections, emitterError := emitter.Export()
-		return sections, tokenStream, abstractSyntax, errorHandler, emitterError
+	if scannerParserErrors := errors.Join(scannerError, parserError); scannerParserErrors != nil {
+		return nil, nil, nil, errorHandler, scannerParserErrors
 	}
 
-	return nil, tokenStream, nil, errorHandler, scannerParserErrors
+	if declarationAnalysisErrors := ana.NewDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze(); declarationAnalysisErrors != nil {
+		return nil, nil, nil, errorHandler, declarationAnalysisErrors
+	}
+
+	emitter := gen.NewGenerator(abstractSyntax).Generate()
+	sections, emitterError := emitter.Export()
+	return sections, tokenStream, abstractSyntax, errorHandler, emitterError
 }
 
 // Print one or several errors as summary to the specified writer.

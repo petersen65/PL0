@@ -9,7 +9,7 @@ import (
 	emt "github.com/petersen65/PL0/emitter"
 )
 
-// Generator is the public interface of the generator implementation.
+// The generator drives the emitter to generate code from the abstract syntax tree.
 type Generator interface {
 	Generate() emt.Emitter
 }

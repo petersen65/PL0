@@ -8,24 +8,45 @@ import (
 	tok "github.com/petersen65/PL0/token"
 )
 
+// Private implementation of the declaration analysis.
 type declarationAnalysis struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run declaration analysis on
+	errorHandler   tok.ErrorHandler // error handler that is used to handle errors that occurred during semantic analysis
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-// Create new declaration analyzer with the given abstract syntax tree and token handler.
-func newDeclarationAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) DeclarationAnalysis {
-	return &declarationAnalysis{abstractSyntax: abstractSyntax, tokenHandler: tokenHandler}
+// Return the public interface of the private declaration analysis implementation.
+func newDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+	return &declarationAnalysis{
+		abstractSyntax: abstractSyntax,
+		errorHandler:   errorHandler,
+		tokenHandler:   tokenHandler,
+	}
 }
 
 // Analyze the abstract syntax tree for declaration and reference errors and fill in the symbol table.
 // Declaration analysis itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (a *declarationAnalysis) Analyze() {
+func (a *declarationAnalysis) Analyze() error {
+	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
+		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, invalidDeclarationAnalysisState, nil)
+	}
+
 	// an existing error handler can have errors from other compiler components
-	startErrorCount := errorHandler.Count()
+	startErrorCount := a.errorHandler.Count()
 
-
+	// start the declaration analysis by visiting the abstract syntax tree
 	a.abstractSyntax.Accept(a)
+
+	// number of errors that occurred during declaration analysis
+	analyzerErrorCount := a.errorHandler.Count() - startErrorCount
+
+	if analyzerErrorCount == 1 {
+		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisError, nil)
+	} else if analyzerErrorCount > 1 {
+		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisErrors, analyzerErrorCount)
+	}	
+
+	return nil
 }
 
 func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
