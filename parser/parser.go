@@ -267,7 +267,7 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Decla
 
 		// set the block of the procedure declaration because it was not known before the block was parsed
 		declaration.(*ast.ProcedureDeclarationNode).Block = block
-		
+
 		// add the procedure declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)
 	}
@@ -277,6 +277,8 @@ func (p *parser) procedureWord(outer *ast.Scope, anchors tok.Tokens) []ast.Decla
 
 // An assignment is an identifier followed by becomes followed by an expression.
 func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+	name := p.lastTokenValue()
+	nameIndex := p.lastTokenIndex()
 	symbol := scope.Lookup(p.lastTokenValue())
 
 	if symbol == nil {
@@ -304,13 +306,16 @@ func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement 
 		return ast.NewEmptyStatement()
 	}
 
-	left := ast.NewVariableReference(symbol.Declaration)
+	left := ast.NewVariableReference(name, scope, nameIndex)
 	return ast.NewAssignmentStatement(left, right)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
 func (p *parser) read(scope *ast.Scope) ast.Statement {
+	var name string
+	var nameIndex int
 	var symbol *ast.Symbol
+
 	p.nextToken()
 
 	if p.lastToken() != scn.Identifier {
@@ -318,6 +323,8 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	} else {
 		if entry := scope.Lookup(p.lastTokenValue()); entry != nil {
 			if entry.Kind == ast.Variable {
+				name = p.lastTokenValue()
+				nameIndex = p.lastTokenIndex()
 				symbol = entry
 			} else {
 				p.appendError(expectedVariableIdentifier, ast.KindNames[entry.Kind])
@@ -330,7 +337,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	p.nextToken()
 
 	if symbol != nil {
-		return ast.NewReadStatement(ast.NewVariableReference(symbol.Declaration))
+		return ast.NewReadStatement(ast.NewVariableReference(name, scope, nameIndex))
 	}
 
 	// in case of a parsing error, return an empty statement
@@ -346,6 +353,8 @@ func (p *parser) write(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 
 // A call statement is the call word followed by a procedure identifier.
 func (p *parser) callWord(scope *ast.Scope) ast.Statement {
+	var name string
+	var nameIndex int
 	var symbol *ast.Symbol
 	p.nextToken()
 
@@ -354,6 +363,8 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	} else {
 		if entry := scope.Lookup(p.lastTokenValue()); entry != nil {
 			if entry.Kind == ast.Procedure {
+				name = p.lastTokenValue()
+				nameIndex = p.lastTokenIndex()
 				symbol = entry
 			} else {
 				p.appendError(expectedProcedureIdentifier, ast.KindNames[entry.Kind])
@@ -366,7 +377,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	}
 
 	if symbol != nil {
-		return ast.NewCallStatement(ast.NewProcedureReference(symbol.Declaration))
+		return ast.NewCallStatement(ast.NewProcedureReference(name, scope, nameIndex))
 	}
 
 	// in case of a parsing error, return an empty statement
@@ -760,12 +771,15 @@ func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 	for p.lastToken().In(factors) {
 		if p.lastToken() == scn.Identifier {
 			if symbol := scope.Lookup(p.lastTokenValue()); symbol != nil {
+				name := p.lastTokenValue()
+				nameIndex := p.lastTokenIndex()
+
 				switch symbol.Kind {
 				case ast.Constant:
-					operand = ast.NewConstantReference(symbol.Declaration)
+					operand = ast.NewConstantReference(name, scope, nameIndex)
 
 				case ast.Variable:
-					operand = ast.NewVariableReference(symbol.Declaration)
+					operand = ast.NewVariableReference(name, scope, nameIndex)
 
 				default:
 					p.appendError(expectedConstantsVariables, ast.KindNames[symbol.Kind])

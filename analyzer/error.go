@@ -13,6 +13,9 @@ const (
 	declarationAnalysisErrors
 	identifierNotFound
 	identifierAlreadyDeclared
+	expectedConstantIdentifier
+	expectedVariableIdentifier
+	expectedProcedureIdentifier
 )
 
 // Map failure codes to error messages.
@@ -22,4 +25,7 @@ var failureMap = map[tok.Failure]string{
 	declarationAnalysisErrors:       "%v declaration analysis errors occurred",
 	identifierNotFound:              "identifier not found: %v",
 	identifierAlreadyDeclared:       "identifier already declared: %v",
+	expectedConstantIdentifier:      "expected constant identifier, found %v",
+	expectedVariableIdentifier:      "expected variable identifier, found %v",
+	expectedProcedureIdentifier:     "expected procedure identifier, found %v",
 }

@@ -43,18 +43,18 @@ func newLiteral(value any, dataType DataType) Expression {
 }
 
 // Create a new constant-reference node in the abstract syntax tree.
-func newConstantReference(declaration Declaration) Expression {
-	return &ConstantReferenceNode{Declaration: declaration}
+func newConstantReference(name string, scope *Scope, index int) Expression {
+	return &ConstantReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new variable-reference node in the abstract syntax tree.
-func newVariableReference(declaration Declaration) Expression {
-	return &VariableReferenceNode{Declaration: declaration}
+func newVariableReference(name string, scope *Scope, index int) Expression {
+	return &VariableReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new procedure-reference node in the abstract syntax tree.
-func newProcedureReference(declaration Declaration) Statement {
-	return &ProcedureReferenceNode{Declaration: declaration}
+func newProcedureReference(name string, scope *Scope, index int) Statement {
+	return &ProcedureReferenceNode{Name: name, Scope: scope, TokenStreamIndex: index}
 }
 
 // Create a new unary operation node in the abstract syntax tree.
@@ -317,7 +317,7 @@ func (e *ConstantReferenceNode) SetParent(parent Node) {
 
 // String of the constant reference node.
 func (e *ConstantReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Constant], e.Declaration.(*ConstantDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Constant], e.Name)
 }
 
 // Parent node of the constant reference node.
@@ -327,7 +327,7 @@ func (e *ConstantReferenceNode) Parent() Node {
 
 // Children nodes of the constant reference node.
 func (e *ConstantReferenceNode) Children() []Node {
-	return []Node{e.Declaration}
+	return make([]Node, 0)
 }
 
 // ExpressionString returns the string representation of the constant expression.
@@ -347,7 +347,7 @@ func (e *VariableReferenceNode) SetParent(parent Node) {
 
 // String of the variable reference node.
 func (e *VariableReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Variable], e.Declaration.(*VariableDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Variable], e.Name)
 }
 
 // Parent node of the variable reference node.
@@ -357,7 +357,7 @@ func (e *VariableReferenceNode) Parent() Node {
 
 // Children nodes of the variable reference node.
 func (e *VariableReferenceNode) Children() []Node {
-	return []Node{e.Declaration}
+	return make([]Node, 0)
 }
 
 // ExpressionString returns the string representation of the variable expression.
@@ -377,7 +377,7 @@ func (e *ProcedureReferenceNode) SetParent(parent Node) {
 
 // String of the procedure reference node.
 func (e *ProcedureReferenceNode) String() string {
-	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Procedure], e.Declaration.(*ProcedureDeclarationNode).Name)
+	return fmt.Sprintf("reference(%v,n=%v)", KindNames[Procedure], e.Name)
 }
 
 // Parent node of the procedure reference node.
@@ -387,7 +387,7 @@ func (e *ProcedureReferenceNode) Parent() Node {
 
 // Children nodes of the procedure reference node.
 func (e *ProcedureReferenceNode) Children() []Node {
-	return []Node{e.Declaration}
+	return make([]Node, 0)
 }
 
 // StatementString returns the string representation of the call statement.

@@ -91,19 +91,22 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 
 // Generate code for a constant reference (load a constant value).
 func (g *generator) VisitConstantReference(cr *ast.ConstantReferenceNode) {
-	g.emitter.Constant(cr.Declaration.(*ast.ConstantDeclarationNode).Value)
+	g.emitter.Constant(cr.Scope.Lookup(cr.Name).Value)
 }
 
 // Generate code for a variable reference (load content of a variable).
 func (g *generator) VisitVariableReference(vr *ast.VariableReferenceNode) {
+	// get variable declaration of the variable to load
+	variableDeclaration := vr.Scope.Lookup(vr.Name).Declaration.(*ast.VariableDeclarationNode)
+
 	// determine the declaration depth of the variable
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, vr.Declaration).Depth
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 	// determine the declaration depth of the variable reference from inside an expression or statement
 	referenceDepth := ast.SearchBlock(ast.CurrentBlock, vr).Depth
 
 	// calculate the offset of the variable on the block stack frame
-	offset := emt.Offset(vr.Declaration.(*ast.VariableDeclarationNode).Offset)
+	offset := emt.Offset(variableDeclaration.Offset)
 
 	// load the content of the variable
 	g.emitter.LoadVariable(offset, referenceDepth-declarationDepth)
@@ -136,7 +139,7 @@ func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// load the left-hand-side value from the result of the left expression
 	bo.Left.Accept(g)
-	
+
 	// load the right-hand-side value from the result of the right expression
 	bo.Right.Accept(g)
 
@@ -196,19 +199,20 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	// load the value from the result of the right-hand-side expression of the assignment
 	as.Expression.Accept(g)
-	
+
 	// get the variable declaration on the left-hand-side of the assignment
-	variableDeclaration := as.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+	variableReference := as.Variable.(*ast.VariableReferenceNode)
+	variableDeclaration := variableReference.Scope.Lookup(variableReference.Name).Declaration.(*ast.VariableDeclarationNode)
 
 	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
-	
+
 	// determine the declaration depth of the assignment statement where the variable is used
 	referenceDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
 
 	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
-	
+
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	g.emitter.StoreVariable(offset, referenceDepth-declarationDepth)
 }
@@ -216,7 +220,8 @@ func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 // Generate code for a read statement.
 func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// get the variable declaration of the variable to read into
-	variableDeclaration := rs.Variable.(*ast.VariableReferenceNode).Declaration.(*ast.VariableDeclarationNode)
+	variableReference := rs.Variable.(*ast.VariableReferenceNode)
+	variableDeclaration := variableReference.Scope.Lookup(variableReference.Name).Declaration.(*ast.VariableDeclarationNode)
 
 	// determine the declaration depth of the variable
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
@@ -246,8 +251,9 @@ func (g *generator) VisitWriteStatement(ws *ast.WriteStatementNode) {
 // Generate code for a call statement.
 func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 	// get the declaration of the procedure to call
-	procedureDeclaration := cs.Procedure.(*ast.ProcedureReferenceNode).Declaration.(*ast.ProcedureDeclarationNode)
-	
+	procedureReference := cs.Procedure.(*ast.ProcedureReferenceNode)
+	procedureDeclaration := procedureReference.Scope.Lookup(procedureReference.Name).Declaration.(*ast.ProcedureDeclarationNode)
+
 	// determine the declaration depth of the procedure
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
 

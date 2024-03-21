@@ -44,7 +44,7 @@ func (a *declarationAnalysis) Analyze() error {
 		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisError, nil)
 	} else if analyzerErrorCount > 1 {
 		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisErrors, analyzerErrorCount)
-	}	
+	}
 
 	return nil
 }
@@ -70,51 +70,101 @@ func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarati
 }
 
 func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+	if vd.Scope.Lookup(vd.Name) != nil {
+		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
+	} else {
+		vd.Scope.Insert(&ast.Symbol{
+			Name:        vd.Name,
+			Kind:        ast.Variable,
+			Declaration: vd,
+		})
+	}
 }
 
 func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+	if pd.Scope.Lookup(pd.Name) != nil {
+		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
+	} else {
+		pd.Scope.Insert(&ast.Symbol{
+			Name:        pd.Name,
+			Kind:        ast.Procedure,
+			Declaration: pd,
+		})
+	}
 }
 
 func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
 }
 
 func (a *declarationAnalysis) VisitConstantReference(cr *ast.ConstantReferenceNode) {
+	if symbol := cr.Scope.Lookup(cr.Name); symbol == nil {
+		a.appendError(identifierNotFound, cr.Name, cr.TokenStreamIndex)
+	} else if symbol.Kind != ast.Constant {
+		a.appendError(expectedConstantIdentifier, cr.Name, cr.TokenStreamIndex)
+	}
 }
 
 func (a *declarationAnalysis) VisitVariableReference(vr *ast.VariableReferenceNode) {
+	if symbol := vr.Scope.Lookup(vr.Name); symbol == nil {
+		a.appendError(identifierNotFound, vr.Name, vr.TokenStreamIndex)
+	} else if symbol.Kind != ast.Variable {
+		a.appendError(expectedVariableIdentifier, vr.Name, vr.TokenStreamIndex)
+	}
 }
 
 func (a *declarationAnalysis) VisitProcedureReference(pr *ast.ProcedureReferenceNode) {
+	if symbol := pr.Scope.Lookup(pr.Name); symbol == nil {
+		a.appendError(identifierNotFound, pr.Name, pr.TokenStreamIndex)
+	} else if symbol.Kind != ast.Procedure {
+		a.appendError(expectedProcedureIdentifier, pr.Name, pr.TokenStreamIndex)
+	}
 }
 
 func (a *declarationAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+	uo.Operand.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+	bo.Left.Accept(a)
+	bo.Right.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+	co.Left.Accept(a)
+	co.Right.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
+	as.Variable.Accept(a)
+	as.Expression.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
+	rs.Variable.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
+	ws.Expression.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
+	cs.Procedure.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
+	is.Condition.Accept(a)
+	is.Statement.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
+	ws.Condition.Accept(a)
+	ws.Statement.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+	for _, statement := range cs.Statements {
+		statement.Accept(a)
+	}
 }
 
 // Append analyzer error to the token handler.

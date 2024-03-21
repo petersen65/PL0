@@ -191,20 +191,26 @@ type (
 
 	// ConstantReferenceNode represents the usage of a constant in the AST.
 	ConstantReferenceNode struct {
-		ParentNode  Node        // parent node of the constant reference
-		Declaration Declaration // constant declaration of the constant reference
+		ParentNode       Node   // parent node of the constant reference
+		Name             string // name of the constant
+		Scope            *Scope // scope of the constant reference
+		TokenStreamIndex int    // index of the token in the token stream
 	}
 
 	// VariableReferenceNode represents the usage of a variable in the AST.
 	VariableReferenceNode struct {
-		ParentNode  Node        // parent node of the variable reference
-		Declaration Declaration // variable declaration of the variable reference
+		ParentNode       Node   // parent node of the variable reference
+		Name             string // name of the variable
+		Scope            *Scope // scope of the variable reference
+		TokenStreamIndex int    // index of the token in the token stream
 	}
 
 	// ProcedureReferenceNode represents the usage of a procedure in the AST.
 	ProcedureReferenceNode struct {
-		ParentNode  Node        // parent node of the procedure reference
-		Declaration Declaration // procedure declaration of the procedure reference
+		ParentNode       Node   // parent node of the procedure reference
+		Name             string // name of the procedure
+		Scope            *Scope // scope of the procedure reference
+		TokenStreamIndex int    // index of the token in the token stream
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
@@ -406,18 +412,18 @@ func NewLiteral(value any, dataType DataType) Expression {
 }
 
 // NewConstantReference creates a new constant-reference node in the abstract syntax tree.
-func NewConstantReference(declaration Declaration) Expression {
-	return newConstantReference(declaration)
+func NewConstantReference(name string, scope *Scope, index int) Expression {
+	return newConstantReference(name, scope, index)
 }
 
 // NewVariableReference creates a new variable-reference node in the abstract syntax tree.
-func NewVariableReference(declaration Declaration) Expression {
-	return newVariableReference(declaration)
+func NewVariableReference(name string, scope *Scope, index int) Expression {
+	return newVariableReference(name, scope, index)
 }
 
 // NewProcedureReference creates a new procedure-reference node in the abstract syntax tree.
-func NewProcedureReference(declaration Declaration) Statement {
-	return newProcedureReference(declaration)
+func NewProcedureReference(name string, scope *Scope, index int) Statement {
+	return newProcedureReference(name, scope, index)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
@@ -502,10 +508,7 @@ func PrintAbstractSyntaxTree(node Node, indent string, last bool, print io.Write
 		indent += "|  "
 	}
 
-	// Do not print children of procedure references to avoid infinite recursion for recursive procedures.
-	if _, ok := node.(*ProcedureReferenceNode); !ok {
-		for i, child := range node.Children() {
-			PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
-		}
+	for i, child := range node.Children() {
+		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
 	}
 }
