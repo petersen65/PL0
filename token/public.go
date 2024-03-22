@@ -64,8 +64,8 @@ type (
 		Rebase(code Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
-		NewError(code Failure, value any) error
-		NewErrorOnIndex(code Failure, value any, index int) error
+		NewError(severity Severity, code Failure, value any) error
+		NewErrorOnIndex(severity Severity, code Failure, value any, index int) error
 		AppendError(err error) error
 		ReplaceComponent(component Component, failureMap map[Failure]string)
 	}

@@ -772,7 +772,7 @@ func (p *parser) lastTokenIndex() int {
 
 // Append parser error to the token handler.
 func (p *parser) appendError(code tok.Failure, value any) {
-	p.tokenHandler.AppendError(p.tokenHandler.NewError(code, value))
+	p.tokenHandler.AppendError(p.tokenHandler.NewError(tok.Error, code, value))
 }
 
 // Wrapper to get joined slice of all tokens within the given TokenSet interfaces.

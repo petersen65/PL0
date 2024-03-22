@@ -73,7 +73,7 @@ func (t *tokenHandler) Rebase(code Failure, expected, fallback Tokens) bool {
 
 	if !t.LastToken().In(expected) {
 		hasError = true
-		t.AppendError(t.NewError(code, t.LastTokenName()))
+		t.AppendError(t.NewError(Error, code, t.LastTokenName()))
 
 		for next := Set(expected, fallback, eof); !t.LastToken().In(next); {
 			t.NextTokenDescription()
@@ -97,13 +97,13 @@ func (t *tokenHandler) SetFullyParsed() {
 }
 
 // Create a new error by mapping the error code to its corresponding error message.
-func (t *tokenHandler) NewError(code Failure, value any) error {
-	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, t.tokenStreamIndex-1)
+func (t *tokenHandler) NewError(severity Severity, code Failure, value any) error {
+	return NewTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, t.tokenStreamIndex-1)
 }
 
 // Create a new error by mapping the error code to its corresponding error message and provide a token stream index for the error location.
-func (t *tokenHandler) NewErrorOnIndex(code Failure, value any, index int) error {
-	return NewTokenError(t.component, t.failureMap, Error, code, value, t.tokenStream, index)
+func (t *tokenHandler) NewErrorOnIndex(severity Severity, code Failure, value any, index int) error {
+	return NewTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
 }
 
 // Append an error to the error report of the token handler which is used to store all errors that occured during parsing.

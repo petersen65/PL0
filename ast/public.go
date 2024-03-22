@@ -160,32 +160,35 @@ type (
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
 	ConstantDeclarationNode struct {
-		ParentNode       Node     // parent node of the constant declaration
-		Name             string   // name of the constant
-		Value            any      // value of constant
-		DataType         DataType // data type of the constant
-		Scope            *Scope   // scope of the constant declaration
-		TokenStreamIndex int      // index of the token in the token stream
+		ParentNode       Node         // parent node of the constant declaration
+		Name             string       // name of the constant
+		Value            any          // value of constant
+		DataType         DataType     // data type of the constant
+		Scope            *Scope       // scope of the constant declaration
+		Usage            []Expression // all usages of the constant
+		TokenStreamIndex int          // index of the token in the token stream
 	}
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
-		ParentNode       Node     // parent node of the variable declaration
-		Name             string   // name of the variable
-		DataType         DataType // data type of the variable
-		Scope            *Scope   // scope of the variable declaration
-		Offset           uint64   // offset of the variable in its block procedure stack frame
-		TokenStreamIndex int      // index of the token in the token stream
+		ParentNode       Node         // parent node of the variable declaration
+		Name             string       // name of the variable
+		DataType         DataType     // data type of the variable
+		Scope            *Scope       // scope of the variable declaration
+		Offset           uint64       // offset of the variable in its block procedure stack frame
+		Usage            []Expression // all usages of the variable
+		TokenStreamIndex int          // index of the token in the token stream
 	}
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
-		ParentNode       Node   // parent node of the procedure declaration
-		Name             string // name of the procedure
-		Block            Block  // block of the procedure
-		Scope            *Scope // scope of the procedure declaration
-		Address          uint64 // absolute address of the procedure in a text section
-		TokenStreamIndex int    // index of the token in the token stream
+		ParentNode       Node         // parent node of the procedure declaration
+		Name             string       // name of the procedure
+		Block            Block        // block of the procedure
+		Scope            *Scope       // scope of the procedure declaration
+		Address          uint64       // absolute address of the procedure in a text section
+		Usage            []Expression // all usages of the procedure
+		TokenStreamIndex int          // index of the token in the token stream
 	}
 
 	// Literal node represents the usage of a literal value in the AST.

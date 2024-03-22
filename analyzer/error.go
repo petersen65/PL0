@@ -16,6 +16,9 @@ const (
 	expectedConstantIdentifier
 	expectedVariableIdentifier
 	expectedProcedureIdentifier
+	unusedConstantIdentifier
+	unusedVariableIdentifier
+	unusedProcedureIdentifier
 )
 
 // Map failure codes to error messages.
@@ -28,4 +31,7 @@ var failureMap = map[tok.Failure]string{
 	expectedConstantIdentifier:      "expected constant identifier, found %v",
 	expectedVariableIdentifier:      "expected variable identifier, found %v",
 	expectedProcedureIdentifier:     "expected procedure identifier, found %v",
+	unusedConstantIdentifier:        "constant declared but not used: %v",
+	unusedVariableIdentifier:        "variable declared but not used: %v",
+	unusedProcedureIdentifier:       "procedure declared but not used: %v",
 }

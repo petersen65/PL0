@@ -36,6 +36,7 @@ func (a *declarationAnalysis) Analyze() error {
 
 	// start the declaration analysis by visiting the abstract syntax tree in pre-order
 	ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil)
+	ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage)
 
 	// number of errors that occurred during declaration analysis
 	analyzerErrorCount := a.errorHandler.Count() - startErrorCount
@@ -110,6 +111,10 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			// make the identifier a constant because its symbol is a constant and it is used in a constant context
 			if iu.Context&ast.Constant != 0 {
 				iu.Context = ast.Constant
+
+				// add the constant usage to the constant declaration
+				symbol.Declaration.(*ast.ConstantDeclarationNode).Usage =
+					append(symbol.Declaration.(*ast.ConstantDeclarationNode).Usage, iu)
 			} else {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -118,6 +123,10 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			// make the identifier a variable because its symbol is a variable and it is used in a variable context
 			if iu.Context&ast.Variable != 0 {
 				iu.Context = ast.Variable
+
+				// add the variable usage to the variable declaration
+				symbol.Declaration.(*ast.VariableDeclarationNode).Usage =
+					append(symbol.Declaration.(*ast.VariableDeclarationNode).Usage, iu)
 			} else {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -126,6 +135,10 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			// make the identifier a procedure because its symbol is a procedure and it is used in a procedure context
 			if iu.Context&ast.Procedure != 0 {
 				iu.Context = ast.Procedure
+
+				// add the procedure usage to the procedure declaration
+				symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage =
+					append(symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage, iu)
 			} else {
 				a.appendError(expectedProcedureIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -197,6 +210,11 @@ func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNo
 	// nothing to do because of an external pre-order walk
 }
 
+// Append analyzer error to the token handler.
+func (a *declarationAnalysis) appendError(code tok.Failure, value any, index int) {
+	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(tok.Error, code, value, index))
+}
+
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
 func setConstantVariableUsageAsRead(node ast.Node, visitor any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
@@ -208,7 +226,24 @@ func setConstantVariableUsageAsRead(node ast.Node, visitor any) {
 	}
 }
 
-// Append analyzer error to the token handler.
-func (a *declarationAnalysis) appendError(code tok.Failure, value any, index int) {
-	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(code, value, index))
+// Visit identifier declarations and check if they are used. If not, append a warning to the token handler.
+func validateIdentifierUsage(node ast.Node, tokenHandler any) {
+	th := tokenHandler.(tok.TokenHandler)
+
+	switch d := node.(type) {
+	case *ast.ConstantDeclarationNode:
+		if len(d.Usage) == 0 {
+			th.AppendError(th.NewErrorOnIndex(tok.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
+		}
+
+	case *ast.VariableDeclarationNode:
+		if len(d.Usage) == 0 {
+			th.AppendError(th.NewErrorOnIndex(tok.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
+		}
+
+	case *ast.ProcedureDeclarationNode:
+		if len(d.Usage) == 0 {
+			th.AppendError(th.NewErrorOnIndex(tok.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
+		}
+	}
 }

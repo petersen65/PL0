@@ -22,17 +22,37 @@ func newBlock(name string, depth int32, scope *Scope, declarations []Declaration
 
 // Create a new constant declaration node in the abstract syntax tree.
 func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
-	return &ConstantDeclarationNode{Name: name, Value: value, DataType: dataType, Scope: scope, TokenStreamIndex: index}
+	return &ConstantDeclarationNode{
+		Name:             name,
+		Value:            value,
+		DataType:         dataType,
+		Scope:            scope,
+		Usage:            make([]Expression, 0),
+		TokenStreamIndex: index,
+	}
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
 func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
-	return &VariableDeclarationNode{Name: name, DataType: dataType, Scope: scope, TokenStreamIndex: index}
+	return &VariableDeclarationNode{
+		Name: name, 
+		DataType: dataType, 
+		Scope: scope, 
+		Usage: make([]Expression, 0),
+		TokenStreamIndex: index,
+	}
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
 func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
-	declaration := &ProcedureDeclarationNode{Name: name, Block: block, Scope: scope, TokenStreamIndex: index}
+	declaration := &ProcedureDeclarationNode{
+		Name: name, 
+		Block: block, 
+		Scope: scope, 
+		Usage: make([]Expression, 0),
+		TokenStreamIndex: index,
+	}
+
 	block.SetParent(declaration)
 	return declaration
 }
