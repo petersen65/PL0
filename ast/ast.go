@@ -307,6 +307,22 @@ func (u *IdentifierUseNode) SetParent(parent Node) {
 
 // String of the identifier-use node.
 func (u *IdentifierUseNode) String() string {
+	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
+		switch symbol.Kind {
+		case Constant:
+			return fmt.Sprintf("use(n=%v,v=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value)
+
+		case Variable:
+			return fmt.Sprintf("use(n=%v,o=%v)", symbol.Name, symbol.Declaration.(*VariableDeclarationNode).Offset)
+
+		case Procedure:
+			return fmt.Sprintf("use(n=%v,a=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address)
+
+		default:
+			panic("abstract syntax tree error: unknown symbol kind")
+		}
+	}
+
 	return fmt.Sprintf("use(n=%v)", u.Name)
 }
 

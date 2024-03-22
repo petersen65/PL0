@@ -34,8 +34,8 @@ func (a *declarationAnalysis) Analyze() error {
 	// an existing error handler can have errors from other compiler components
 	startErrorCount := a.errorHandler.Count()
 
-	// start the declaration analysis by visiting the abstract syntax tree
-	a.abstractSyntax.Accept(a)
+	// start the declaration analysis by visiting the abstract syntax tree in pre-order
+	ast.Walk(a.abstractSyntax, ast.PreOrder, a)
 
 	// number of errors that occurred during declaration analysis
 	analyzerErrorCount := a.errorHandler.Count() - startErrorCount
@@ -51,11 +51,7 @@ func (a *declarationAnalysis) Analyze() error {
 
 // Walk the block abstract syntax tree.
 func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
-	for _, declaration := range bn.Declarations {
-		declaration.Accept(a)
-	}
-
-	bn.Statement.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Enter constant declaration into the symbol table and check for redeclaration.
@@ -99,8 +95,9 @@ func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclara
 	pd.Block.Accept(a)
 }
 
-// Nothing to do for literals.
+// Walk the literal abstract syntax tree.
 func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
+	// nothing to do
 }
 
 // Check if the used identifier is declared and if it is used in the correct context.
@@ -141,59 +138,52 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Walk the unary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	uo.Operand.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the binary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
-	bo.Left.Accept(a)
-	bo.Right.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the conditional operation abstract syntax tree.
 func (a *declarationAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	co.Left.Accept(a)
-	co.Right.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the assignment statement abstract syntax tree.
 func (a *declarationAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	as.Variable.Accept(a)
-	as.Expression.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the read statement abstract syntax tree.
 func (a *declarationAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
-	rs.Variable.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the write statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
-	ws.Expression.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the call statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
-	cs.Procedure.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the if statement abstract syntax tree.
 func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
-	is.Condition.Accept(a)
-	is.Statement.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the while statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
-	ws.Condition.Accept(a)
-	ws.Statement.Accept(a)
+	// nothing to do because of an external pre-order walk
 }
 
 // Walk the compound statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
-	for _, statement := range cs.Statements {
-		statement.Accept(a)
-	}
+	// nothing to do because of an external pre-order walk
 }
 
 // Append analyzer error to the token handler.
