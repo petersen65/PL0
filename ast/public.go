@@ -9,6 +9,12 @@ import (
 	"io"
 )
 
+// EmptyBlockName allows the detection of empty blocks because of parsing errors. They should be ignored in all compiler passes.
+const EmptyBlockName = "@block"
+
+// EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler passes.
+const EmptyConstantName = "@constant"
+
 // Traverse the abstract syntax tree in specific orders.
 const (
 	_ = TraversalOrder(iota)
@@ -361,12 +367,12 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 
 // An empty block does not generate code.
 func NewEmptyBlock() Block {
-	return NewBlock("", 0, NewScope(nil), make([]Declaration, 0), NewEmptyStatement())
+	return NewBlock(EmptyBlockName, 0, NewScope(nil), make([]Declaration, 0), NewEmptyStatement())
 }
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
 func NewEmptyDeclaration() Declaration {
-	return NewConstantDeclaration("", int64(0), Integer64, NewScope(nil), 0)
+	return NewConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewScope(nil), 0)
 }
 
 // An empty expression is a 0 literal and should only occur during a parsing error.

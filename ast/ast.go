@@ -35,10 +35,10 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope *Sc
 // Create a new variable declaration node in the abstract syntax tree.
 func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
 	return &VariableDeclarationNode{
-		Name: name, 
-		DataType: dataType, 
-		Scope: scope, 
-		Usage: make([]Expression, 0),
+		Name:             name,
+		DataType:         dataType,
+		Scope:            scope,
+		Usage:            make([]Expression, 0),
 		TokenStreamIndex: index,
 	}
 }
@@ -46,10 +46,10 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 // Create a new procedure declaration node in the abstract syntax tree.
 func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
 	declaration := &ProcedureDeclarationNode{
-		Name: name, 
-		Block: block, 
-		Scope: scope, 
-		Usage: make([]Expression, 0),
+		Name:             name,
+		Block:            block,
+		Scope:            scope,
+		Usage:            make([]Expression, 0),
 		TokenStreamIndex: index,
 	}
 
@@ -733,6 +733,16 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 		return errors.New("cannot walk without a visitor or visit function")
 	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
 		return errors.New("walk requires a visitor with a Visitor interface or a visit function")
+	}
+
+	// filter out empty blocks
+	if block, ok := parent.(*BlockNode); ok && block.Name == EmptyBlockName {
+		return nil
+	}
+
+	// filter out empty constants
+	if constant, ok := parent.(*ConstantDeclarationNode); ok && constant.Name == EmptyConstantName {
+		return nil
 	}
 
 	// switch on the order of traversal
