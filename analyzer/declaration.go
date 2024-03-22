@@ -198,7 +198,7 @@ func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNo
 }
 
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
-func setConstantVariableUsageAsRead(node ast.Node, visitor ast.Visitor) {
+func setConstantVariableUsageAsRead(node ast.Node, visitor any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == ast.Constant || symbol.Kind == ast.Variable {

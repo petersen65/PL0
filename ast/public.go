@@ -457,7 +457,7 @@ func NewCompoundStatement(statements []Statement) Statement {
 }
 
 // Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
-func Walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node Node, visitor Visitor)) error {
+func Walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
 	return walk(parent, order, visitor, visit)
 }
 

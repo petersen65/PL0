@@ -705,12 +705,14 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 //	  B   C
 //	 / \   \
 //	D   E   F
-func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node Node, visitor Visitor)) error {
+func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
 	// check preconditions for walking the tree and return an error if any are violated
 	if parent == nil {
 		return errors.New("cannot walk a nil node")
 	} else if visitor == nil && visit == nil {
 		return errors.New("cannot walk without a visitor or visit function")
+	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
+		return errors.New("walk requires a visitor with a Visitor interface or a visit function")
 	}
 
 	// switch on the order of traversal
@@ -727,7 +729,7 @@ func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node No
 		if visit != nil {
 			visit(parent, visitor)
 		} else {
-			parent.Accept(visitor)
+			parent.Accept(visitor.(Visitor))
 		}
 
 		// traverse the childs left to right in pre-order
@@ -756,7 +758,7 @@ func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node No
 		if visit != nil {
 			visit(parent, visitor)
 		} else {
-			parent.Accept(visitor)
+			parent.Accept(visitor.(Visitor))
 		}
 
 		// traverse the right subtree in in-order
@@ -779,7 +781,7 @@ func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node No
 		if visit != nil {
 			visit(parent, visitor)
 		} else {
-			parent.Accept(visitor)
+			parent.Accept(visitor.(Visitor))
 		}
 
 	// Level-order traversal is a method of traversing a tree data structure in which each node is processed level by level.
@@ -804,7 +806,7 @@ func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node No
 			if visit != nil {
 				visit(node, visitor)
 			} else {
-				node.Accept(visitor)
+				node.Accept(visitor.(Visitor))
 			}
 
 			queue = append(queue, node.Children()...) // add the node's children to the end of the queue
