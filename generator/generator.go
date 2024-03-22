@@ -115,7 +115,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// not required for code generation
 
 	default:
-		panic("generator error: invalid identifier use context")
+		panic("generator error: invalid context in identifier use")
 	}
 }
 

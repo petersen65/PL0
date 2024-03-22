@@ -25,9 +25,9 @@ const (
 
 // Severity is a bit-mask enumeration of different error levels.
 const (
-	Information Severity = iota << 1
-	Warning              = iota << 1
-	Error                = iota << 1
+	Information Severity = 1 << iota
+	Warning
+	Error
 )
 
 type (

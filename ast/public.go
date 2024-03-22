@@ -60,9 +60,9 @@ const (
 
 // Kind of supported symbol entry as bit-mask.
 const (
-	Constant  Entry = iota << 1
-	Variable        = iota << 1
-	Procedure       = iota << 1
+	Constant Entry = 1 << iota
+	Variable
+	Procedure
 )
 
 type (

@@ -91,6 +91,8 @@ func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclara
 			Declaration: pd,
 		})
 	}
+
+	pd.Block.Accept(a)
 }
 
 func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
