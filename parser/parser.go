@@ -101,7 +101,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(name string, declarationDepth int32, outer *ast.Scope, expected tok.Tokens) ast.Block {
+func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, expected tok.Tokens) ast.Block {
 	var scope = ast.NewScope(outer) // a block has its own scope to manage its symbols
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
@@ -111,8 +111,8 @@ func (p *parser) block(name string, declarationDepth int32, outer *ast.Scope, ex
 	all := make([]ast.Declaration, 0)
 
 	// the parser does not support more than 'blockNestingMax' nested blocks
-	if declarationDepth > blockNestingMax {
-		p.appendError(maxBlockDepth, declarationDepth)
+	if blockNestingDepth > blockNestingMax {
+		p.appendError(maxBlockDepth, blockNestingDepth)
 	}
 
 	// declare all constants, variables and procedures of the block
@@ -126,7 +126,7 @@ func (p *parser) block(name string, declarationDepth int32, outer *ast.Scope, ex
 		}
 
 		if p.lastToken() == scn.ProcedureWord {
-			procedures = append(procedures, p.procedureWord(declarationDepth, scope, expected)...)
+			procedures = append(procedures, p.procedureWord(blockNestingDepth, scope, expected)...)
 		}
 
 		// after declarations, the block expects
@@ -156,7 +156,7 @@ func (p *parser) block(name string, declarationDepth int32, outer *ast.Scope, ex
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
-	return ast.NewBlock(name, declarationDepth, scope, all, statement)
+	return ast.NewBlock(name, blockNestingDepth, scope, all, statement)
 }
 
 // Sequence of constants declarations.
@@ -164,20 +164,27 @@ func (p *parser) constWord(scope *ast.Scope) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
+	// all constants are declared in a sequence of identifier equal number
 	for {
+		// first constant declaration
 		declarations = append(declarations, p.constantIdentifier(scope))
 
+		// a comma separates constant declarations which are grouped by a semicolon
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
+
+			// next constant declaration
 			declarations = append(declarations, p.constantIdentifier(scope))
 		}
 
+		// a semicolon separates constant declaration groups from each other
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
+		// check for more constant declaration groups
 		if p.lastToken() != scn.Identifier {
 			break
 		}
@@ -191,20 +198,25 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
+	// all variables are declared in a sequence of identifiers
 	for {
+		// first variable declaration
 		declarations = append(declarations, p.variableIdentifier(scope))
 
+		// a comma separates variable declarations which are grouped by a semicolon
 		for p.lastToken() == scn.Comma {
 			p.nextToken()
 			declarations = append(declarations, p.variableIdentifier(scope))
 		}
 
+		// a semicolon separates variable declaration groups from each other
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
+		// check for more variable declaration groups
 		if p.lastToken() != scn.Identifier {
 			break
 		}
@@ -214,13 +226,17 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(declarationDepth int32, scope *ast.Scope, anchors tok.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchors tok.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
+	// all procedures are declared in a sequence of procedure identifiers with each having a block
 	for p.lastToken() == scn.ProcedureWord {
 		p.nextToken()
+
+		// procedure declaration
 		declaration := p.procedureIdentifier(scope)
 
+		// after the procedure identifier, a semicolon is expected to separate the identifier from the block
 		if p.lastToken() == scn.Semicolon {
 			p.nextToken()
 		} else {
@@ -231,7 +247,7 @@ func (p *parser) procedureWord(declarationDepth int32, scope *ast.Scope, anchors
 		//   declaration of constants, variables and procedures
 		//   followed by a statement
 		//   and ends with a semicolon
-		block := p.block(declaration.(*ast.ProcedureDeclarationNode).Name, declarationDepth+1, scope, set(anchors, scn.Semicolon))
+		block := p.block(declaration.(*ast.ProcedureDeclarationNode).Name, blockNestingDepth+1, scope, set(anchors, scn.Semicolon))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
@@ -273,12 +289,16 @@ func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement 
 	} else {
 		p.appendError(expectedBecomes, p.lastTokenName())
 
+		// skip the next token if it is an equal sign to continue parsing
 		if p.lastToken() == scn.Equal {
 			p.nextToken()
 		}
 	}
 
+	// the right side of an assignment is an expression
 	right := p.expression(scope, anchors)
+
+	// the left side of an assignment is an identifier
 	left := ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex)
 
 	return ast.NewAssignmentStatement(left, right)
@@ -304,6 +324,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
+	// a read statement that uses a variable identifier
 	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex))
 }
 
@@ -333,12 +354,15 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 		return ast.NewEmptyStatement() // in case of a parsing error, return an empty statement
 	}
 
+	// a call statement that uses a procedure identifier
 	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.Procedure, nameIndex))
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
 func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	p.nextToken()
+
+	// parse the condition which is evaluated to true or false
 	condition := p.condition(scope, set(anchors, scn.ThenWord, scn.DoWord))
 
 	if p.lastToken() == scn.ThenWord {
@@ -361,6 +385,8 @@ func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
 func (p *parser) whileWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 	p.nextToken()
+
+	// parse the condition which is evaluated to true or false
 	condition := p.condition(scope, set(anchors, scn.DoWord))
 
 	if p.lastToken() == scn.DoWord {
@@ -482,6 +508,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	constantNameIndex := p.lastTokenIndex()
 	p.nextToken()
 
+	// parse the equal token and the number of the constant, accept non-valid becomes token as equal token
 	if p.lastToken().In(set(scn.Equal, scn.Becomes)) {
 		if p.lastToken() == scn.Becomes {
 			p.appendError(expectedEqual, p.lastTokenName())
@@ -490,6 +517,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 		p.nextToken()
 		var sign tok.Token
 
+		// support leading plus or minus sign of a number
 		if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
 			sign = p.lastToken()
 			p.nextToken()
@@ -498,6 +526,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 		if p.lastToken() != scn.Number {
 			p.appendError(expectedNumber, p.lastTokenName())
 		} else {
+			// create a new constant declaration with the identifier name, the number value, and the scope of the block
 			declaration = ast.NewConstantDeclaration(
 				constantName,
 				p.numberValue(sign, p.lastTokenValue()),
@@ -521,6 +550,7 @@ func (p *parser) variableIdentifier(scope *ast.Scope) ast.Declaration {
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
 
+	// create a new variable declaration with the identifier name and the scope of the block
 	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ast.Integer64, scope, p.lastTokenIndex())
 
 	p.nextToken()
