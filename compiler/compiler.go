@@ -101,13 +101,10 @@ func CompileContent(content []byte) ([]byte, tok.TokenStream, ast.Block, tok.Err
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := tok.NewErrorHandler(tokenStream)
 	abstractSyntax, tokenHandler, parserError := par.NewParser(tokenStream, errorHandler).Parse()
+	declarationAnalysisErrors := ana.NewDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
 
-	if scannerParserErrors := errors.Join(scannerError, parserError); scannerParserErrors != nil {
-		return nil, nil, nil, errorHandler, scannerParserErrors
-	}
-
-	if declarationAnalysisErrors := ana.NewDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze(); declarationAnalysisErrors != nil {
-		return nil, nil, nil, errorHandler, declarationAnalysisErrors
+	if allErrors := errors.Join(scannerError, parserError, declarationAnalysisErrors); allErrors != nil {
+		return nil, nil, nil, errorHandler, allErrors
 	}
 
 	emitter := gen.NewGenerator(abstractSyntax).Generate()

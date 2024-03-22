@@ -352,7 +352,7 @@ func NewEmptyBlock() Block {
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
 func NewEmptyDeclaration() Declaration {
-	return NewConstantDeclaration("", int64(0), Integer64, new(Scope), 0)
+	return NewConstantDeclaration("", int64(0), Integer64, NewScope(nil), 0)
 }
 
 // An empty expression is a 0 literal and should only occur during a parsing error.

@@ -92,9 +92,9 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 
 	// return the abstract syntax tree of the program and the token handler
 	if parserErrorCount == 1 {
-		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingError, nil)
+		return p.abstractSyntax, p.tokenHandler, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingError, nil)
 	} else if parserErrorCount > 1 {
-		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingErrors, parserErrorCount)
+		return p.abstractSyntax, p.tokenHandler, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingErrors, parserErrorCount)
 	} else {
 		return p.abstractSyntax, p.tokenHandler, nil
 	}
@@ -525,6 +525,11 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 
 		if p.lastToken() != scn.Number {
 			p.appendError(expectedNumber, p.lastTokenName())
+
+			// skip the next token if it is an identifier to continue parsing
+			if p.lastToken() == scn.Identifier {
+				p.nextToken()
+			}
 		} else {
 			// create a new constant declaration with the identifier name, the number value, and the scope of the block
 			declaration = ast.NewConstantDeclaration(
