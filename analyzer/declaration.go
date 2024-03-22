@@ -35,7 +35,7 @@ func (a *declarationAnalysis) Analyze() error {
 	startErrorCount := a.errorHandler.Count()
 
 	// start the declaration analysis by visiting the abstract syntax tree in pre-order
-	ast.Walk(a.abstractSyntax, ast.PreOrder, a)
+	ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil)
 
 	// number of errors that occurred during declaration analysis
 	analyzerErrorCount := a.errorHandler.Count() - startErrorCount
@@ -138,52 +138,74 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Walk the unary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the expression
+	ast.Walk(uo.Operand, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the binary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the left and right operand
+	ast.Walk(bo.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
+	ast.Walk(bo.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the conditional operation abstract syntax tree.
 func (a *declarationAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the left and right operand
+	ast.Walk(co.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
+	ast.Walk(co.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the assignment statement abstract syntax tree.
 func (a *declarationAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to write for the variable that is assigned to
+	as.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the read statement abstract syntax tree.
 func (a *declarationAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to write for the variable that is read into
+	rs.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the write statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the expression
+	ast.Walk(ws.Expression, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the call statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to execute for the procedure that is called
+	cs.Procedure.(*ast.IdentifierUseNode).Use |= ast.Execute
 }
 
 // Walk the if statement abstract syntax tree.
 func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the condition
+	ast.Walk(is.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the while statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
-	// nothing to do because of an external pre-order walk
+	// set the usage mode bit to read for all constants and variables in the condition
+	ast.Walk(ws.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the compound statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 	// nothing to do because of an external pre-order walk
+}
+
+// For all occurrences of a constant or variable usage, set the usage mode bit to read.
+func setConstantVariableUsageAsRead(node ast.Node, visitor ast.Visitor) {
+	if iu, ok := node.(*ast.IdentifierUseNode); ok {
+		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
+			if symbol.Kind == ast.Constant || symbol.Kind == ast.Variable {
+				iu.Use |= ast.Read
+			}
+		}
+	}
 }
 
 // Append analyzer error to the token handler.

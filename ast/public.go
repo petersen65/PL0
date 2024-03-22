@@ -65,6 +65,13 @@ const (
 	Procedure
 )
 
+// Usage mode of an identifier as bit-mask.
+const (
+	Read Usage = 1 << iota
+	Write
+	Execute
+)
+
 type (
 	// Traversal order for the abstract syntax tree.
 	TraversalOrder int
@@ -85,7 +92,10 @@ type (
 	DataType int
 
 	// Kind of symbol entries.
-	Entry int
+	Entry uint64
+
+	// Usage mode of an identifier.
+	Usage uint64
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
@@ -191,6 +201,7 @@ type (
 		Name             string // name of the identifier
 		Scope            *Scope // scope of the identifier usage
 		Context          Entry  // context of the identifier
+		Use              Usage  // usage mode of the identifier
 		TokenStreamIndex int    // index of the token in the token stream
 	}
 
@@ -445,9 +456,9 @@ func NewCompoundStatement(statements []Statement) Statement {
 	return newCompoundStatement(statements)
 }
 
-// Walk traverses an abstract syntax tree in a specific order and calls the visitor for each node.
-func Walk(parent Node, order TraversalOrder, visitor Visitor) error {
-	return walk(parent, order, visitor)
+// Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
+func Walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node Node, visitor Visitor)) error {
+	return walk(parent, order, visitor, visit)
 }
 
 // SearchBlock searches for a parent block node in the abstract syntax tree based on the search mode.

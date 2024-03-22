@@ -310,20 +310,20 @@ func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
 		switch symbol.Kind {
 		case Constant:
-			return fmt.Sprintf("use(n=%v,v=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value)
+			return fmt.Sprintf("use(k=c,n=%v,v=%v,u=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
 		case Variable:
-			return fmt.Sprintf("use(n=%v,o=%v)", symbol.Name, symbol.Declaration.(*VariableDeclarationNode).Offset)
+			return fmt.Sprintf("use(k=v,n=%v,o=%v,u=%v)", symbol.Name, symbol.Declaration.(*VariableDeclarationNode).Offset, u.Use)
 
 		case Procedure:
-			return fmt.Sprintf("use(n=%v,a=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address)
+			return fmt.Sprintf("use(k=p,n=%v,a=%v,u=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address, u.Use)
 
 		default:
 			panic("abstract syntax tree error: unknown symbol kind")
 		}
 	}
 
-	return fmt.Sprintf("use(n=%v)", u.Name)
+	return fmt.Sprintf("use(n=%v,u=%v)", u.Name, u.Use)
 }
 
 // Parent node of the identifier-use node.
@@ -697,7 +697,7 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCompoundStatement(s)
 }
 
-// Walk traverses a abstract syntax tree in a specific order and calls the visitor for each node.
+// Walk traverses a abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
 // Example tree:
 //
 //	    A
@@ -705,7 +705,15 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 //	  B   C
 //	 / \   \
 //	D   E   F
-func walk(parent Node, order TraversalOrder, visitor Visitor) error {
+func walk(parent Node, order TraversalOrder, visitor Visitor, visit func(node Node, visitor Visitor)) error {
+	// check preconditions for walking the tree and return an error if any are violated
+	if parent == nil {
+		return errors.New("cannot walk a nil node")
+	} else if visitor == nil && visit == nil {
+		return errors.New("cannot walk without a visitor or visit function")
+	}
+
+	// switch on the order of traversal
 	switch order {
 	// Pre-order traversal is a method of traversing a tree data structure in which each node is processed before (pre) its child nodes.
 	// This is commonly used in certain tree-related algorithms, including those for parsing expressions and serializing or deserializing trees.
@@ -715,10 +723,16 @@ func walk(parent Node, order TraversalOrder, visitor Visitor) error {
 	//   2. Traverse the childs left to right in pre-order
 	// A pre-order traversal would visit the nodes in the following order: A, B, D, E, C, F.
 	case PreOrder:
-		parent.Accept(visitor)
+		// call the visit function or visit the parent node
+		if visit != nil {
+			visit(parent, visitor)
+		} else {
+			parent.Accept(visitor)
+		}
 
+		// traverse the childs left to right in pre-order
 		for _, child := range parent.Children() {
-			Walk(child, order, visitor)
+			walk(child, order, visitor, visit)
 		}
 
 	// In-order traversal is a method of traversing a tree data structure in which each node is processed between (in) its child nodes.
@@ -735,9 +749,18 @@ func walk(parent Node, order TraversalOrder, visitor Visitor) error {
 			return errors.New("in-order traversal requires exactly two children")
 		}
 
-		Walk(parent.Children()[0], order, visitor)
-		parent.Accept(visitor)
-		Walk(parent.Children()[1], order, visitor)
+		// traverse the left subtree in in-order
+		walk(parent.Children()[0], order, visitor, visit)
+
+		// call the visit function or visit the parent node
+		if visit != nil {
+			visit(parent, visitor)
+		} else {
+			parent.Accept(visitor)
+		}
+
+		// traverse the right subtree in in-order
+		walk(parent.Children()[1], order, visitor, visit)
 
 	// Post-order traversal is a method of traversing a tree data structure in which each node is processed after (post) its child nodes.
 	// This method is often used when you need to ensure that a node is processed after its descendants, such as when deleting or freeing nodes of a tree.
@@ -747,11 +770,17 @@ func walk(parent Node, order TraversalOrder, visitor Visitor) error {
 	//   2. Visit the parent node
 	// A post-order traversal would visit the nodes in the following order: D, E, B, F, C, A.
 	case PostOrder:
+		// traverse the childs left to right in post-order
 		for _, child := range parent.Children() {
-			Walk(child, order, visitor)
+			walk(child, order, visitor, visit)
 		}
 
-		parent.Accept(visitor)
+		// call the visit function or visit the parent node
+		if visit != nil {
+			visit(parent, visitor)
+		} else {
+			parent.Accept(visitor)
+		}
 
 	// Level-order traversal is a method of traversing a tree data structure in which each node is processed level by level.
 	// This method is often used when you need to process the nodes of a tree in a breadth-first manner.
@@ -768,9 +797,16 @@ func walk(parent Node, order TraversalOrder, visitor Visitor) error {
 		queue = append(queue, parent)
 
 		for len(queue) > 0 {
-			node := queue[0]                          // get the first node in the queue
-			queue = queue[1:]                         // remove the first node from the queue
-			node.Accept(visitor)                      // visit the node
+			node := queue[0]  // get the first node in the queue
+			queue = queue[1:] // remove the first node from the queue
+
+			// call the visit function or visit the node
+			if visit != nil {
+				visit(node, visitor)
+			} else {
+				node.Accept(visitor)
+			}
+
 			queue = append(queue, node.Children()...) // add the node's children to the end of the queue
 		}
 	}
