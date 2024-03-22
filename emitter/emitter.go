@@ -60,13 +60,13 @@ func (e *emitter) Constant(value any) Address {
 
 // Load a variable value onto the stack.
 func (e *emitter) LoadVariable(offset Offset, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Ldv, DeclarationDepthDifference: difference, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Ldv, BlockNestingDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
 // Store a variable value into the stack.
 func (e *emitter) StoreVariable(offset Offset, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Stv, DeclarationDepthDifference: difference, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Stv, BlockNestingDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -192,7 +192,7 @@ func (e *emitter) AllocateStackSpace(varOffset Offset) Address {
 
 // Call a procedure at the target address from a caller.
 func (e *emitter) Call(target Address, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepthDifference: difference})
+	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, BlockNestingDepthDifference: difference})
 	return Address(len(e.textSection) - 1)
 }
 

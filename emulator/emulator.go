@@ -97,7 +97,7 @@ func (m *machine) runProgram(sections []byte) error {
 	// first callee is the entrypoint of the program
 	m.cpu.stack[0] = m.cpu.registers[ip]      // return address (instruction pointer of caller + 1)
 	m.cpu.stack[1] = m.cpu.registers[bp]      // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[2] = m.cpu.parent(0)          // static link points to direct parent block in declaration nesting hierarchy
+	m.cpu.stack[2] = m.cpu.parent(0)          // static link points to direct parent block in block nesting hierarchy
 	m.cpu.registers[bp] = m.cpu.registers[sp] // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
@@ -189,9 +189,9 @@ func (m *machine) runProgram(sections []byte) error {
 
 		case emt.Cal: // caller procedure calls callee procedure
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(m.cpu.registers[ip])                            // return address
-			m.cpu.push(m.cpu.registers[bp])                            // dynamic link
-			m.cpu.push(m.cpu.parent(instr.DeclarationDepthDifference)) // static link
+			m.cpu.push(m.cpu.registers[ip])                             // return address
+			m.cpu.push(m.cpu.registers[bp])                             // dynamic link
+			m.cpu.push(m.cpu.parent(instr.BlockNestingDepthDifference)) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp]
@@ -211,11 +211,11 @@ func (m *machine) runProgram(sections []byte) error {
 			}
 
 		case emt.Ldv: // copy int64 variable loaded from its base plus offset onto the stack
-			variablesBase := m.cpu.parent(instr.DeclarationDepthDifference) + 1 // base pointer + 1
-			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])        // variables base + variable offset
+			variablesBase := m.cpu.parent(instr.BlockNestingDepthDifference) + 1 // base pointer + 1
+			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])         // variables base + variable offset
 
 		case emt.Stv: // copy int64 element from top of stack to a variable stored within its base plus offset
-			variablesBase := m.cpu.parent(instr.DeclarationDepthDifference) + 1    // base pointer + 1
+			variablesBase := m.cpu.parent(instr.BlockNestingDepthDifference) + 1   // base pointer + 1
 			m.cpu.pop(ax)                                                          // int64 element to be stored in variable
 			m.cpu.stack[variablesBase+uint64(instr.Address)] = m.cpu.registers[ax] // variables base + variable offset
 
@@ -228,7 +228,7 @@ func (m *machine) runProgram(sections []byte) error {
 	}
 }
 
-// Follow static link to parent blocks in compile-time declaration nesting hierarchy.
+// Follow static link to parent blocks in compile-time block nesting hierarchy.
 func (c *cpu) parent(difference int32) uint64 {
 	basePointer := c.registers[bp]
 
@@ -559,7 +559,7 @@ func (p *process) dump(sections []byte, print io.Writer) error {
 		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
 			text,
 			emt.OperationNames[instr.Operation],
-			instr.DeclarationDepthDifference,
+			instr.BlockNestingDepthDifference,
 			instr.Address,
 			instr.ArgInt)))
 	}

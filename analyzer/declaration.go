@@ -49,6 +49,7 @@ func (a *declarationAnalysis) Analyze() error {
 	return nil
 }
 
+// Walk the block abstract syntax tree.
 func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
 	for _, declaration := range bn.Declarations {
 		declaration.Accept(a)
@@ -57,6 +58,7 @@ func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
 	bn.Statement.Accept(a)
 }
 
+// Enter constant declaration into the symbol table and check for redeclaration.
 func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
@@ -69,6 +71,7 @@ func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarati
 	}
 }
 
+// Enter variable declaration into the symbol table and check for redeclaration.
 func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
@@ -81,6 +84,7 @@ func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarati
 	}
 }
 
+// Enter procedure declaration into the symbol table and check for redeclaration.
 func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
@@ -95,15 +99,18 @@ func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclara
 	pd.Block.Accept(a)
 }
 
+// Nothing to do for literals.
 func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
 }
 
+// Check if the used identifier is declared and if it is used in the correct context.
 func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	if symbol := iu.Scope.Lookup(iu.Name); symbol == nil {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
 		switch symbol.Kind {
 		case ast.Constant:
+			// make the identifier a constant because its symbol is a constant and it is used in a constant context
 			if iu.Context&ast.Constant != 0 {
 				iu.Context = ast.Constant
 			} else {
@@ -111,6 +118,7 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			}
 
 		case ast.Variable:
+			// make the identifier a variable because its symbol is a variable and it is used in a variable context
 			if iu.Context&ast.Variable != 0 {
 				iu.Context = ast.Variable
 			} else {
@@ -118,6 +126,7 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			}
 
 		case ast.Procedure:
+			// make the identifier a procedure because its symbol is a procedure and it is used in a procedure context
 			if iu.Context&ast.Procedure != 0 {
 				iu.Context = ast.Procedure
 			} else {
@@ -130,47 +139,57 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	}
 }
 
+// Walk the unary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	uo.Operand.Accept(a)
 }
 
+// Walk the binary operation abstract syntax tree.
 func (a *declarationAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	bo.Left.Accept(a)
 	bo.Right.Accept(a)
 }
 
+// Walk the conditional operation abstract syntax tree.
 func (a *declarationAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
 	co.Left.Accept(a)
 	co.Right.Accept(a)
 }
 
+// Walk the assignment statement abstract syntax tree.
 func (a *declarationAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	as.Variable.Accept(a)
 	as.Expression.Accept(a)
 }
 
+// Walk the read statement abstract syntax tree.
 func (a *declarationAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
 	rs.Variable.Accept(a)
 }
 
+// Walk the write statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
 	ws.Expression.Accept(a)
 }
 
+// Walk the call statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
 	cs.Procedure.Accept(a)
 }
 
+// Walk the if statement abstract syntax tree.
 func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
 	is.Condition.Accept(a)
 	is.Statement.Accept(a)
 }
 
+// Walk the while statement abstract syntax tree.
 func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
 	ws.Condition.Accept(a)
 	ws.Statement.Accept(a)
 }
 
+// Walk the compound statement abstract syntax tree.
 func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 	for _, statement := range cs.Statements {
 		statement.Accept(a)

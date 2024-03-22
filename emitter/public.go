@@ -62,10 +62,10 @@ type (
 
 	// Instruction is the internal representation of an IL/0 instruction.
 	Instruction struct {
-		Operation                  Operation // operation code of the instruction
-		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
-		Address                    Address   // target address or offset of a variable of the operation
-		ArgInt                     int64     // int64 argument of the operation
+		Operation                   Operation // operation code of the instruction
+		BlockNestingDepthDifference int32     // block nesting depth difference between procedure block and to be accessed variables
+		Address                     Address   // target address or offset of a variable of the operation
+		ArgInt                      int64     // int64 argument of the operation
 	}
 
 	// The emitter interface provides an abstract API for emitting IL/0 instructions.

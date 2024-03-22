@@ -141,7 +141,7 @@ type (
 	BlockNode struct {
 		ParentNode   Node          // parent node of the block
 		Name         string        // name of the block that can be used for lookup in the symbol table
-		Depth        int32         // declaration nesting depth
+		Depth        int32         // block nesting depth
 		Offset       uint64        // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration // all declarations of the block

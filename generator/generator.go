@@ -34,9 +34,9 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	// emit a jump to the first instruction of the block whose address is not yet known
 	// the address of the jump instruction itself was already stored in the procedure declaration as part of the block's procedure declaration visit function execution
 	//
-	// for block declaration depth
+	// for block nesting depth
 	// 	 0: jump is always used to start the program
-	//   1 and above: jump is only used for forward calls to procedures with a lower declaration depth (block not emitted yet)
+	//   1 and above: jump is only used for forward calls to procedures with a lower block nesting depth (block not emitted yet)
 	firstInstruction := g.emitter.Jump(emt.NullAddress)
 
 	// emit all declarations and with that all blocks of nested procedures (calls generator recursively)
@@ -99,17 +99,17 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get variable declaration of the variable to load
 		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
-		// determine the declaration depth of the variable
-		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+		// determine the block nesting depth of the variable declaration
+		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-		// determine the declaration depth of the variable use from inside an expression or statement
+		// determine the block nesting depth of the variable use from inside an expression or statement
 		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
 		// calculate the offset of the variable on the block stack frame
 		offset := emt.Offset(variableDeclaration.Offset)
 
 		// load the content of the variable
-		g.emitter.LoadVariable(offset, useDepth-declarationDepth)
+		g.emitter.LoadVariable(offset, useDepth-blockNestingDepth)
 
 	case ast.Procedure:
 		// not required for code generation
@@ -206,17 +206,17 @@ func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	variableUse := as.Variable.(*ast.IdentifierUseNode)
 	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// determine the declaration depth of the variable
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// determine the block nesting depth of the variable declaration
+	blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// determine the declaration depth of the assignment statement where the variable is used
+	// determine the block nesting depth of the assignment statement where the variable is used
 	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
 
 	// calculate the offset of the variable on the block stack frame
 	offset := emt.Offset(variableDeclaration.Offset)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	g.emitter.StoreVariable(offset, assignmentDepth-declarationDepth)
+	g.emitter.StoreVariable(offset, assignmentDepth-blockNestingDepth)
 }
 
 // Generate code for a read statement.
@@ -225,10 +225,10 @@ func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 	variableUse := rs.Variable.(*ast.IdentifierUseNode)
 	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// determine the declaration depth of the variable
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// determine the block nesting depth of the variable declaration
+	blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// determine the declaration depth of the read statement where the variable is used
+	// determine the block nesting depth of the read statement where the variable is used
 	readDepth := ast.SearchBlock(ast.CurrentBlock, rs).Depth
 
 	// calculate the offset of the variable on the block stack frame
@@ -238,7 +238,7 @@ func (g *generator) VisitReadStatement(rs *ast.ReadStatementNode) {
 	g.emitter.System(emt.Read)
 
 	// store the read value in the variable on the right-hand-side of the read statement
-	g.emitter.StoreVariable(offset, readDepth-declarationDepth)
+	g.emitter.StoreVariable(offset, readDepth-blockNestingDepth)
 }
 
 // Generate code for a write statement.
@@ -256,17 +256,17 @@ func (g *generator) VisitCallStatement(cs *ast.CallStatementNode) {
 	procedureUse := cs.Procedure.(*ast.IdentifierUseNode)
 	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
 
-	// determine the declaration depth of the procedure
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
+	// determine the block nesting depth of the procedure declaration
+	blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
 
-	// determine the declaration depth of the call statement where the procedure is called
+	// determine the block nesting depth of the call statement where the procedure is called
 	callDepth := ast.SearchBlock(ast.CurrentBlock, cs).Depth
 
 	// calculate the address of the procedure to call
 	address := emt.Address(procedureDeclaration.Address)
 
 	// call the procedure on the given address
-	g.emitter.Call(address, callDepth-declarationDepth)
+	g.emitter.Call(address, callDepth-blockNestingDepth)
 }
 
 // Generate code for an if-then statement.
