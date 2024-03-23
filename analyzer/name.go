@@ -31,7 +31,7 @@ func (a *nameAnalysis) Analyze() {
 		panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, invalidNameAnalysisState, nil, nil))
 	}
 
-	// start the name analysis by visiting the abstract syntax tree in pre-order
+	// perform the name analysis by visiting the abstract syntax tree in pre-order
 	ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil)
 	ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage)
 }
@@ -130,8 +130,8 @@ func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			}
 
 		default:
-			panic("name analysis error: unknown symbol kind")
-		}
+			panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, unknownSymbolKind, nil, nil))
+	}
 	}
 }
 

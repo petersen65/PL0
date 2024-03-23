@@ -7,8 +7,9 @@ import tok "github.com/petersen65/PL0/token"
 
 // Failure codes for the PL/0 semantic analyzer.
 const (
-	_ = tok.Failure(iota + 3000)
+	_ = tok.Failure(iota + 4000)
 	invalidNameAnalysisState
+	unknownSymbolKind
 	identifierNotFound
 	identifierAlreadyDeclared
 	expectedConstantIdentifier
@@ -22,6 +23,7 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
 	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
+	unknownSymbolKind:           "unknown symbol kind: %v",
 	identifierNotFound:          "identifier not found: %v",
 	identifierAlreadyDeclared:   "identifier already declared: %v",
 	expectedConstantIdentifier:  "expected constant identifier, found %v",

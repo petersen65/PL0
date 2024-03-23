@@ -70,13 +70,14 @@ var (
 
 	// Map compiler components to their corresponding names.
 	componentMap = map[Component]string{
-		Scanner:   "scanner",
-		Parser:    "parser",
-		Analyzer:  "analyzer",
-		Optimizer: "optimizer",
-		Generator: "generator",
-		Emitter:   "emitter",
-		Emulator:  "emulator",
+		Scanner:            "scanner",
+		Parser:             "parser",
+		AbstractSyntaxTree: "ast",
+		Analyzer:           "analyzer",
+		Optimizer:          "optimizer",
+		Generator:          "generator",
+		Emitter:            "emitter",
+		Emulator:           "emulator",
 	}
 )
 
@@ -179,7 +180,13 @@ func (e *errorHandler) AppendError(err error) error {
 
 // Return the number of all errors entries in the error report of the error handler.
 func (e *errorHandler) Count(severity Severity, component Component) int {
-	return len(e.Iterate(severity, component))
+	var count int
+
+	for range e.Iterate(severity, component) {
+		count++
+	}
+
+	return count
 }
 
 // Iterate over all errors in the error report of the error handler and return a channel of errors that match the severity and component.
@@ -231,22 +238,19 @@ func (e *errorHandler) PrintErrorReport(print io.Writer) {
 	}
 
 	print.Write([]byte("Error Report:\n"))
-	errors := e.Iterate(Fatal|Error, AllComponents)
-	warnings := e.Iterate(Warning, AllComponents)
-	remarks := e.Iterate(Remark, AllComponents)
 
-	if len(errors) > 0 {
+	if e.Count(Fatal|Error, AllComponents) > 0 {
 		print.Write([]byte("Errors:"))
-		e.Print(errors, print)
+		e.Print(e.Iterate(Fatal|Error, AllComponents), print)
 	}
 
-	if len(warnings) > 0 {
+	if e.Count(Warning, AllComponents) > 0 {
 		print.Write([]byte("Warnings:"))
-		e.Print(warnings, print)
+		e.Print(e.Iterate(Warning, AllComponents), print)
 	}
 
-	if len(remarks) > 0 {
+	if e.Count(Remark, AllComponents) > 0 {
 		print.Write([]byte("Remarks:"))
-		e.Print(remarks, print)
+		e.Print(e.Iterate(Remark, AllComponents), print)
 	}
 }

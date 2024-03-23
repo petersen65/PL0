@@ -6,6 +6,8 @@ package ast
 import (
 	"errors"
 	"fmt"
+
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Create a new block node in the abstract syntax tree.
@@ -194,7 +196,7 @@ func (d *ConstantDeclarationNode) String() string {
 		return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=i64)", KindNames[Constant], d.Name, d.Value)
 
 	default:
-		panic("abstract syntax tree error: unknown constant data type")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownConstantDataType, nil, nil))
 	}
 }
 
@@ -230,7 +232,8 @@ func (d *VariableDeclarationNode) String() string {
 		return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=i64)", KindNames[Variable], d.Name, d.Offset)
 
 	default:
-		panic("abstract syntax tree error: unknown variable data type")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownVariableDataType, nil, nil))
+
 	}
 }
 
@@ -296,7 +299,8 @@ func (e *LiteralNode) String() string {
 		return fmt.Sprintf("literal(v=%v,t=i64)", e.Value)
 
 	default:
-		panic("abstract syntax tree error: unknown literal data type")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownLiteralDataType, nil, nil))
+
 	}
 }
 
@@ -339,7 +343,7 @@ func (u *IdentifierUseNode) String() string {
 			return fmt.Sprintf("use(k=p,n=%v,a=%v,u=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address, u.Use)
 
 		default:
-			panic("abstract syntax tree error: unknown symbol kind")
+			panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownSymbolKind, nil, nil))
 		}
 	}
 
@@ -381,7 +385,7 @@ func (e *UnaryOperationNode) String() string {
 		return "negate"
 
 	default:
-		panic("abstract syntax tree error: unknown unary operation")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownUnaryOperation, nil, nil))
 	}
 }
 
@@ -426,7 +430,7 @@ func (e *BinaryOperationNode) String() string {
 		return "division"
 
 	default:
-		panic("abstract syntax tree error: unknown binary operation")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
@@ -477,7 +481,8 @@ func (e *ConditionalOperationNode) String() string {
 		return "greater equal"
 
 	default:
-		panic("abstract syntax tree error: unknown conditional operation")
+		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
+
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 const (
 	Scanner Component = 1 << iota
 	Parser
+	AbstractSyntaxTree
 	Analyzer
 	Optimizer
 	Generator

@@ -6,6 +6,7 @@ package generator
 import (
 	ast "github.com/petersen65/PL0/ast"
 	emt "github.com/petersen65/PL0/emitter"
+	tok "github.com/petersen65/PL0/token"
 )
 
 // Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
@@ -115,7 +116,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// not required for code generation
 
 	default:
-		panic("generator error: invalid context in identifier use")
+		panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, invalidContextInIdentifierUse, nil, nil))
 	}
 }
 
@@ -133,7 +134,8 @@ func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 		g.emitter.Negate()
 
 	default:
-		panic("generator error: invalid unary operation")
+		panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownUnaryOperation, nil, nil))
+
 	}
 }
 
@@ -160,7 +162,8 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 		g.emitter.Divide()
 
 	default:
-		panic("generator error: invalid binary operation")
+		panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownBinaryOperation, nil, nil))
+
 	}
 }
 
@@ -193,7 +196,7 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 		g.emitter.GreaterEqual()
 
 	default:
-		panic("generator error: invalid conditional operation")
+		panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
 	}
 }
 
@@ -328,7 +331,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				address = g.emitter.JumpEqual(emt.NullAddress)
 			}
 		} else {
-			panic("generator error: invalid unary operation")
+			panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownUnaryOperation, nil, nil))
 		}
 
 	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
@@ -355,7 +358,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				address = g.emitter.JumpGreaterEqual(emt.NullAddress)
 
 			default:
-				panic("generator error: invalid conditional operation")
+				panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
 			}
 		} else {
 			// jump if the condition is false and remember the address of the jump instruction
@@ -379,12 +382,12 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				address = g.emitter.JumpLess(emt.NullAddress)
 
 			default:
-				panic("generator error: invalid conditional operation")
+				panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
 			}
 		}
 
 	default:
-		panic("generator error: invalid conditional operation")
+		panic(tok.NewGeneralError(tok.Generator, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
 	}
 
 	return address

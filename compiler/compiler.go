@@ -89,7 +89,11 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 		}
 	}
 
-	print.Write([]byte(fmt.Sprintf("Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n", source, target)))
+	if options&Compile != 0 {
+		print.Write([]byte(fmt.Sprintf("Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n", source, target)))
+	} else {
+		print.Write([]byte(fmt.Sprintf("Compiler Driver with IL0 target '%v' completed\n", target)))
+	}
 }
 
 func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
