@@ -11,6 +11,7 @@ import (
 	"math"
 
 	emt "github.com/petersen65/PL0/emitter"
+	tok "github.com/petersen65/PL0/token"
 )
 
 const (
@@ -103,11 +104,11 @@ func (m *machine) runProgram(sections []byte) error {
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
 		if m.cpu.registers[ip] >= uint64(len(process.text)) {
-			return fmt.Errorf("halt - address '%v' out of range", m.cpu.registers[ip])
+			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, addressOutOfRange, m.cpu.registers[ip], nil)
 		}
 
 		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < (stackDescriptorSize-1) {
-			return fmt.Errorf("halt - stack overflow at address '%v'", m.cpu.registers[ip])
+			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, stackOverflow, m.cpu.registers[sp], nil)
 		}
 
 		instr := process.text[m.cpu.registers[ip]]
@@ -223,7 +224,7 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.sys(emt.SystemCall(instr.Address))
 
 		default:
-			return fmt.Errorf("halt - unknown operation '%v' at address '%v'", instr.Operation, m.cpu.registers[ip]-1)
+			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, unknownOperation, m.cpu.registers[ip]-1, nil)
 		}
 	}
 }
@@ -260,7 +261,7 @@ func (c *cpu) neg() error {
 	c.set_of_neg(ax)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow of a negation at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowNegation, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(-int64(c.registers[ax]))
@@ -290,7 +291,7 @@ func (c *cpu) add() error {
 	c.set_of_add(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow of an addition at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowAddition, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
@@ -308,7 +309,8 @@ func (c *cpu) sub() error {
 	c.set_of_sub(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow of a subtraction at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowSubtraction, c.registers[ip]-1, nil)
+
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) - int64(c.registers[bx]))
@@ -326,7 +328,7 @@ func (c *cpu) mul() error {
 	c.set_of_mul(ax, bx)
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow of a multiplication at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowMultiplication, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
@@ -344,11 +346,11 @@ func (c *cpu) div() error {
 	c.set_of_div(ax, bx)
 
 	if c.registers[bx] == 0 {
-		return fmt.Errorf("halt - division by zero at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, divisionByZero, c.registers[ip]-1, nil)
 	}
 
 	if c.test_of() {
-		return fmt.Errorf("halt - arithmetic overflow of a division at address '%v'", c.registers[ip]-1)
+		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowDivision, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))

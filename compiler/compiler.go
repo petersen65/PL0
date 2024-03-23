@@ -18,6 +18,19 @@ import (
 	tok "github.com/petersen65/PL0/token"
 )
 
+// Text messages for the compilation driver.
+const (
+	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
+	textErrorCompiling     = "Error compiling PL0 source '%v': %v\n"
+	textErrorPersisting    = "Error persisting IL0 target '%v': %v\n"
+	textPrinting           = "Printing IL0 target '%v'\n"
+	textErrorPrinting      = "Error printing IL0 target '%v': %v\n"
+	textEmulating          = "Emulating IL0 target '%v'\n"
+	textErrorEmulating     = "Error emulating IL0 target '%v': %v\n"
+	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n"
+	textDriverTarget       = "Compiler Driver with IL0 target '%v' completed\n"
+)
+
 // Options for the compilation driver as bit-mask.
 const (
 	Compile DriverOptions = 1 << iota
@@ -41,21 +54,23 @@ type (
 	}
 )
 
+// Driver for the compilation process with the given options, source, target, and print writer.
 func Driver(options DriverOptions, source, target string, print io.Writer) {
 	var translationUnit TranslationUnit
 	var err error
 
+	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
 	if options&Compile != 0 {
-		print.Write([]byte(fmt.Sprintf("Compiling PL0 source '%v' to IL0 target '%v'\n", source, target)))
+		print.Write([]byte(fmt.Sprintf(textCompiling, source, target)))
 		translationUnit, err = CompileSourceToTranslationUnit(source)
 
 		if err != nil {
-			print.Write([]byte(fmt.Sprintf("Error compiling PL0 source '%v': %v\n", source, err)))
+			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, err)))
 			return
 		}
 
 		if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
-			print.Write([]byte(fmt.Sprintf("Error persisting IL0 target '%v': %v\n", target, err)))
+			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
 			return
 		}
 
@@ -63,39 +78,45 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 		translationUnit.ErrorHandler.PrintErrorReport(print)
 	}
 
+	// print token stream
 	if options&Compile != 0 && options&PrintTokenStream != 0 {
 		translationUnit.TokenStream.Print(print, false)
 	}
 
+	// print abstract syntax tree
 	if options&Compile != 0 && options&PrintAbstractSyntaxTree != 0 {
 		ast.PrintAbstractSyntaxTree(translationUnit.AbstractSyntax, "", true, print)
 	}
 
+	// print intermediate code
 	if options&PrintIntermediateCode != 0 {
-		print.Write([]byte(fmt.Sprintf("Printing IL0 target '%v'\n", target)))
+		print.Write([]byte(fmt.Sprintf(textPrinting, target)))
 
 		if err = PrintTarget(target, print); err != nil {
-			print.Write([]byte(fmt.Sprintf("Error printing IL0 target '%v': %v\n", target, err)))
+			print.Write([]byte(fmt.Sprintf(textErrorPrinting, target, err)))
 			return
 		}
 	}
 
+	// emulate IL/0 target
 	if options&Emulate != 0 {
-		print.Write([]byte(fmt.Sprintf("Emulating IL0 target '%v'\n", target)))
+		print.Write([]byte(fmt.Sprintf(textEmulating, target)))
 
 		if err = EmulateTarget(target); err != nil {
-			print.Write([]byte(fmt.Sprintf("Error emulating IL0 target '%v': %v\n", target, err)))
+			print.Write([]byte(fmt.Sprintf(textErrorEmulating, target, err)))
 			return
 		}
 	}
 
+	// print driver completion message
 	if options&Compile != 0 {
-		print.Write([]byte(fmt.Sprintf("Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n", source, target)))
+		print.Write([]byte(fmt.Sprintf(textDriverSourceTarget, source, target)))
 	} else {
-		print.Write([]byte(fmt.Sprintf("Compiler Driver with IL0 target '%v' completed\n", target)))
+		print.Write([]byte(fmt.Sprintf(textDriverTarget, target)))
 	}
 }
 
+// Compile PL/0 source and return translation unit with all intermediate results and error handler.
 func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	if content, err := os.ReadFile(source); err != nil {
 		return TranslationUnit{}, err
@@ -104,6 +125,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
+// Persist IL/0 sections to the given target.
 func PersistSectionsToTarget(sections []byte, target string) error {
 	if program, err := os.Create(target); err != nil {
 		return err
@@ -140,9 +162,9 @@ func EmulateTarget(target string) error {
 	return nil
 }
 
-// Compile PL/0 UTF-8 encoded source content and return translation unit with all intermediate results and error handler.
+// Compile PL/0 UTF-8 encoded content and return translation unit with all intermediate results and error handler.
 func CompileContent(content []byte) TranslationUnit {
-	// lexical analysis of PL/0 source content
+	// lexical analysis of PL/0 content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := tok.NewErrorHandler(tokenStream)
 	errorHandler.AppendError(scannerError) // nil errors are ignored
@@ -169,71 +191,3 @@ func CompileContent(content []byte) TranslationUnit {
 	// return translation unit with all intermediate results and error handler
 	return TranslationUnit{content, tokenStream, abstractSyntax, sections, errorHandler}
 }
-
-/*
-
-
-
-
-// Compile a PL/0 source file into an IL/0 program file and drive the compilation process with the given options.
-func CompileFile(source, target string, options DriverOptions, print io.Writer) {
-	print.Write([]byte(fmt.Sprintf("Compiling PL0 source file '%v' to IL0 program '%v'\n", source, target)))
-
-	if content, err := os.ReadFile(source); err != nil {
-		print.Write([]byte(fmt.Sprintf("Error reading PL0 source file '%v': %v\n", source, err)))
-		return
-	} else if program, err := os.Create(target); err != nil {
-		print.Write([]byte(fmt.Sprintf("Error creating IL0 program file '%v': %v\n", target, err)))
-		return
-	} else {
-		// source and target were successfully opened/created, so close them before returning from this function
-		defer program.Close()
-
-		// compile PL/0 source content into IL/0 program content
-		tokenStream, abstractSyntax, sections, errorHandler := CompileContent(content)
-
-		// print error report if errors with any severity occurred during compilation process
-		errorHandler.PrintErrorReport(print)
-
-		// write IL/0 program content to target file
-		if sections != nil {
-			if _, err := program.Write(sections); err != nil {
-				print.Write([]byte(fmt.Sprintf("Error writing IL0 program file '%v': %v\n", target, err)))
-				return
-			}
-		}
-
-		// print token stream if requested by the caller
-		if options&PrintTokenStream != 0 {
-			scn.PrintTokenStream(tokenStream, print, false)
-		}
-
-		// print abstract syntax tree if requested by the caller
-		if options&PrintAbstractSyntaxTree != 0 {
-			ast.PrintAbstractSyntaxTree(abstractSyntax, "", true, print)
-		}
-
-		// print intermediate code if requested by the caller
-		if sections != nil && options&PrintIntermediateCode != 0 {
-			program.Close() // close the program file before printing it
-
-			if err := PrintTarget(target, print); err != nil {
-				print.Write([]byte(fmt.Sprintf("Error printing IL0 program file '%v': %v\n", target, err)))
-				return
-			}
-		}
-
-		// run the IL/0 program if requested by the caller
-		if sections != nil && options&EmulateProgram != 0 {
-			program.Close() // close the program file before running it
-
-			if err := EmulateTarget(target, print); err != nil {
-				print.Write([]byte(fmt.Sprintf("Error running IL0 program file '%v': %v\n", target, err)))
-				return
-			}
-		}
-
-		print.Write([]byte(fmt.Sprintf("Compilation of PL0 source file '%v' to IL0 program '%v' completed\n", source, target)))
-	}
-}
-*/

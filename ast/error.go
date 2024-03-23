@@ -15,15 +15,23 @@ const (
 	unknownUnaryOperation
 	unknownBinaryOperation
 	unknownConditionalOperation
+	cannotWalkOnNilNode
+	walkRequiresVisitorOrFunction
+	walkRequiresInterfaceOrFunction
+	inOrderRequiresTwoChildren
 )
 
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
-	unknownConstantDataType:     "unknown constant data type",
-	unknownVariableDataType:     "unknown variable data type",
-	unknownLiteralDataType:      "unknown literal data type",
-	unknownSymbolKind:           "unknown symbol kind",
-	unknownUnaryOperation:       "unknown unary operation",
-	unknownBinaryOperation:      "unknown binary operation",
-	unknownConditionalOperation: "unknown conditional operation",
+	unknownConstantDataType:         "unknown constant data type",
+	unknownVariableDataType:         "unknown variable data type",
+	unknownLiteralDataType:          "unknown literal data type",
+	unknownSymbolKind:               "unknown symbol kind",
+	unknownUnaryOperation:           "unknown unary operation",
+	unknownBinaryOperation:          "unknown binary operation",
+	unknownConditionalOperation:     "unknown conditional operation",
+	cannotWalkOnNilNode:             "cannot walk on nil node",
+	walkRequiresVisitorOrFunction:   "cannot walk without a visitor or visit function",
+	walkRequiresInterfaceOrFunction: "walk requires a visitor with a Visitor interface or a visit function",
+	inOrderRequiresTwoChildren:      "in-order traversal requires exactly two children",
 }

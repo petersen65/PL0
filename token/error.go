@@ -60,6 +60,12 @@ type (
 )
 
 var (
+	// Text messages for printing an error report.
+	textErrorReport = []byte("Error Report:\n")
+	textErrors      = []byte("Errors:")
+	textWarnings    = []byte("Warnings:")
+	textRemarks     = []byte("Remarks:")
+
 	// Map severity levels to their corresponding names.
 	severityMap = map[Severity]string{
 		Remark:  "remark",
@@ -237,20 +243,20 @@ func (e *errorHandler) PrintErrorReport(print io.Writer) {
 		return
 	}
 
-	print.Write([]byte("Error Report:\n"))
+	print.Write(textErrorReport)
 
 	if e.Count(Fatal|Error, AllComponents) > 0 {
-		print.Write([]byte("Errors:"))
+		print.Write(textErrors)
 		e.Print(e.Iterate(Fatal|Error, AllComponents), print)
 	}
 
 	if e.Count(Warning, AllComponents) > 0 {
-		print.Write([]byte("Warnings:"))
+		print.Write(textWarnings)
 		e.Print(e.Iterate(Warning, AllComponents), print)
 	}
 
 	if e.Count(Remark, AllComponents) > 0 {
-		print.Write([]byte("Remarks:"))
+		print.Write(textRemarks)
 		e.Print(e.Iterate(Remark, AllComponents), print)
 	}
 }

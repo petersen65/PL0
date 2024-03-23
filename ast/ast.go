@@ -4,7 +4,6 @@
 package ast
 
 import (
-	"errors"
 	"fmt"
 
 	tok "github.com/petersen65/PL0/token"
@@ -733,11 +732,11 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
 	// check preconditions for walking the tree and return an error if any are violated
 	if parent == nil {
-		return errors.New("cannot walk a nil node")
+		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, cannotWalkOnNilNode, nil, nil)
 	} else if visitor == nil && visit == nil {
-		return errors.New("cannot walk without a visitor or visit function")
+		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, walkRequiresVisitorOrFunction, nil, nil)
 	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
-		return errors.New("walk requires a visitor with a Visitor interface or a visit function")
+		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, walkRequiresInterfaceOrFunction, nil, nil)
 	}
 
 	// filter out empty blocks
@@ -783,7 +782,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	// An in-order traversal would visit the nodes in the following order: D, B, E, A, C, F.
 	case InOrder:
 		if len(parent.Children()) != 2 {
-			return errors.New("in-order traversal requires exactly two children")
+			return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, inOrderRequiresTwoChildren, nil, nil)
 		}
 
 		// traverse the left subtree in in-order
