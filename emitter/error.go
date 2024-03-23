@@ -9,9 +9,11 @@ import tok "github.com/petersen65/PL0/token"
 const (
 	_ = tok.Failure(iota + 9000)
 	instructionOutOfRange
+	binaryTextSectionExportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
 	instructionOutOfRange: "instruction is out of range: %v",
+	binaryTextSectionExportFailed: "failed to export the text section as binary data",
 }

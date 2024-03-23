@@ -12,8 +12,6 @@ const blockNestingMax = 8
 const (
 	_ = tok.Failure(iota + 2000)
 	invalidParserState
-	parsingError
-	parsingErrors
 	eofReached
 	notFullyParsed
 	maxBlockDepth
@@ -40,8 +38,6 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
 	invalidParserState:                      "parser is in an undefined state and cannot continue parsing",
-	parsingError:                            "a parsing error occurred",
-	parsingErrors:                           "%v parsing errors occurred",
 	eofReached:                              "unexpected end of file",
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",

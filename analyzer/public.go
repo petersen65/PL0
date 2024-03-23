@@ -9,13 +9,13 @@ import (
 	tok "github.com/petersen65/PL0/token"
 )
 
-// Declaration analysis is a compiler pass that validates the correctness of identifier declarations and their usage. It fills in the symbol table with declared identifiers and their types. It also checks for duplicate declarations and undeclared identifiers. 
-type DeclarationAnalysis interface {
-	Analyze() error
+// Name analysis is a compiler pass that validates the correctness of identifier declarations and their usage. It fills in the symbol table with declared identifiers and their types. It also checks for duplicate declarations and undeclared identifiers.
+type NameAnalysis interface {
+	Analyze()
 }
 
-// Return the public interface of the private declaration analysis implementation.
-func NewDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
+// Return the public interface of the private name analysis implementation.
+func NewNameAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) NameAnalysis {
 	tokenHandler.ReplaceComponent(tok.Analyzer, failureMap)
-	return newDeclarationAnalysis(abstractSyntax, errorHandler, tokenHandler)
+	return newNameAnalysis(abstractSyntax, errorHandler, tokenHandler)
 }

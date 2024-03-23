@@ -489,6 +489,10 @@ func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
 
 // Print the abstract syntax tree to the specified writer.
 func PrintAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) {
+	if indent == "" {
+		print.Write([]byte("Abstract Syntax Tree:\n"))
+	}
+
 	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
 
 	if last {

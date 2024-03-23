@@ -15,7 +15,7 @@ const EntryPointName = "@program"
 type (
 	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
 	Parser interface {
-		Parse() (ast.Block, tok.TokenHandler, error)
+		Parse() (ast.Block, tok.TokenHandler)
 	}
 )
 

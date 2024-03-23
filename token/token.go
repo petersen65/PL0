@@ -3,6 +3,12 @@
 
 package token
 
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof Token = -1
 
@@ -23,6 +29,38 @@ func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 		component:    component,
 		failureMap:   failureMap,
 		errorHandler: errorHandler,
+	}
+}
+
+// Print the token stream to the specified writer.
+func (ts TokenStream) Print(print io.Writer, bottom bool) {
+	if len(ts) == 0 {
+		return
+	}
+
+	var start, previousLine int
+	print.Write([]byte("Token Stream:"))
+
+	if bottom {
+		lastLine := ts[len(ts)-1].Line
+
+		for start = len(ts) - 1; start >= 0 && ts[start].Line == lastLine; start-- {
+		}
+
+		start++
+	} else {
+		start = 0
+	}
+
+	for i := start; i < len(ts); i++ {
+		td := ts[i]
+
+		if td.Line != previousLine {
+			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r"))))
+			previousLine = td.Line
+		}
+
+		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
 	}
 }
 
@@ -106,13 +144,10 @@ func (t *tokenHandler) NewErrorOnIndex(severity Severity, code Failure, value an
 	return NewTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
 }
 
-// Append an error to the error report of the token handler which is used to store all errors that occured during parsing.
+// Append an error to the error report of the underlying error handler which is used to store all errors that occured during parsing.
 func (t *tokenHandler) AppendError(err error) error {
-	if err != nil {
-		t.errorHandler.AppendError(err)
-	}
-
-	return err
+	// nil errors are not appended to the error report
+	return t.errorHandler.AppendError(err)
 }
 
 // Replace the component and the failure map with new values to enable a chain of components that can append errors.

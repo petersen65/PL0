@@ -56,18 +56,16 @@ func newParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parse
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
-func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
+func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 	// check if the parser is in a valid state to start parsing
 	if p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
-		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, invalidParserState, nil)
+		panic(tok.NewGeneralError(tok.Parser, failureMap, tok.Fatal, invalidParserState, nil, nil))
 	}
-
-	// an existing error handler can have errors from other compiler components
-	startErrorCount := p.errorHandler.Count()
 
 	// the parser expects a token stream to be available
 	if !p.nextToken() {
-		return nil, nil, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, eofReached, nil)
+		p.errorHandler.AppendError(tok.NewGeneralError(tok.Parser, failureMap, tok.Error, eofReached, nil, nil))
+		return nil, p.tokenHandler
 	}
 
 	// the main block starts with the
@@ -87,17 +85,8 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler, error) {
 		p.appendError(notFullyParsed, nil)
 	}
 
-	// number of errors that occurred during parsing
-	parserErrorCount := p.errorHandler.Count() - startErrorCount
-
 	// return the abstract syntax tree of the program and the token handler
-	if parserErrorCount == 1 {
-		return p.abstractSyntax, p.tokenHandler, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingError, nil)
-	} else if parserErrorCount > 1 {
-		return p.abstractSyntax, p.tokenHandler, tok.NewGeneralError(tok.Parser, failureMap, tok.Error, parsingErrors, parserErrorCount)
-	} else {
-		return p.abstractSyntax, p.tokenHandler, nil
-	}
+	return p.abstractSyntax, p.tokenHandler
 }
 
 // A block is a sequence of declarations followed by a statement.

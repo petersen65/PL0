@@ -25,7 +25,7 @@ func newEmitter() Emitter {
 // Update the target address and optionally the argument of an instruction in the text section.
 func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
-		return tok.NewGeneralError(tok.Emitter, failureMap, tok.Error, instructionOutOfRange, instruction)
+		return tok.NewGeneralError(tok.Emitter, failureMap, tok.Error, instructionOutOfRange, instruction, nil)
 	}
 
 	e.textSection[instruction].Address = target
@@ -46,7 +46,7 @@ func (e *emitter) Export() ([]byte, error) {
 	var buffer bytes.Buffer
 
 	if err := binary.Write(&buffer, binary.LittleEndian, e.textSection); err != nil {
-		return nil, err
+		return nil, tok.NewGeneralError(tok.Emitter, failureMap, tok.Error, binaryTextSectionExportFailed, nil, err)
 	}
 
 	return buffer.Bytes(), nil

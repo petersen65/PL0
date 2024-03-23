@@ -5,29 +5,29 @@
 package token
 
 import (
-	"fmt"
 	"io"
 	"slices"
-	"strings"
 )
 
-// Packages of the compiler which can generate errors.
+// Packages of the compiler which can generate errors as a bit-mask enumeration.
 const (
-	_ = Component(iota)
-	Scanner
+	Scanner Component = 1 << iota
 	Parser
 	Analyzer
 	Optimizer
 	Generator
 	Emitter
 	Emulator
+	AllComponents = Component(^uint64(0))
 )
 
 // Severity is a bit-mask enumeration of different error levels.
 const (
-	Information Severity = 1 << iota
+	Remark Severity = 1 << iota
 	Warning
 	Error
+	Fatal
+	AllSeverities = Severity(^uint64(0))
 )
 
 type (
@@ -77,13 +77,14 @@ type (
 	Severity uint64
 
 	// Component describes packages of the compiler which can generate errors.
-	Component int
+	Component uint64
 
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
-		Count() int
-		CountBySeverity(severity Severity) int
-		AppendError(err error)
+		AppendError(err error) error
+		Count(severity Severity, component Component) int
+		Iterate(severity Severity, component Component) <-chan error
+		Print(errors <-chan error, print io.Writer)
 		PrintErrorReport(print io.Writer)
 	}
 )
@@ -125,9 +126,9 @@ func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
 	return newErrorHandler(tokenStream)
 }
 
-// Create a new general error with a severity level.
-func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any) error {
-	return newGeneralError(component, failureMap, severity, code, value)
+// Create a new general error with a severity level (a general error can wrap any other error).
+func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
+	return newGeneralError(component, failureMap, severity, code, value, inner)
 }
 
 // Create a new line-column error with a severity level and a line and column number.
@@ -143,13 +144,4 @@ func NewSourceError(component Component, failureMap map[Failure]string, severity
 // Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
 func NewTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
 	return newTokenError(component, failureMap, severity, code, value, tokenStream, index)
-}
-
-// Print one or several errors as summary to the writer.
-func PrintErrorSummary(err error, print io.Writer) {
-	if strings.Contains(err.Error(), "\n") {
-		print.Write([]byte(fmt.Sprintf("Errors Summary:\n%v\n", err)))
-	} else {
-		print.Write([]byte(fmt.Sprintf("Error Summary: %v\n", err)))
-	}
 }

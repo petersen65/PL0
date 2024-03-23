@@ -8,16 +8,16 @@ import (
 	tok "github.com/petersen65/PL0/token"
 )
 
-// Private implementation of the declaration analysis.
-type declarationAnalysis struct {
-	abstractSyntax ast.Block        // abstract syntax tree to run declaration analysis on
+// Private implementation of the name analysis.
+type nameAnalysis struct {
+	abstractSyntax ast.Block        // abstract syntax tree to run name analysis on
 	errorHandler   tok.ErrorHandler // error handler that is used to handle errors that occurred during semantic analysis
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-// Return the public interface of the private declaration analysis implementation.
-func newDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) DeclarationAnalysis {
-	return &declarationAnalysis{
+// Return the public interface of the private name analysis implementation.
+func newNameAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) NameAnalysis {
+	return &nameAnalysis{
 		abstractSyntax: abstractSyntax,
 		errorHandler:   errorHandler,
 		tokenHandler:   tokenHandler,
@@ -25,38 +25,24 @@ func newDeclarationAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHand
 }
 
 // Analyze the abstract syntax tree for declaration and use errors and fill in the symbol table.
-// Declaration analysis itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (a *declarationAnalysis) Analyze() error {
+// Name analysis itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
+func (a *nameAnalysis) Analyze() {
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
-		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, invalidDeclarationAnalysisState, nil)
+		panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, invalidNameAnalysisState, nil, nil))
 	}
 
-	// an existing error handler can have errors from other compiler components
-	startErrorCount := a.errorHandler.Count()
-
-	// start the declaration analysis by visiting the abstract syntax tree in pre-order
+	// start the name analysis by visiting the abstract syntax tree in pre-order
 	ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil)
 	ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage)
-
-	// number of errors that occurred during declaration analysis
-	analyzerErrorCount := a.errorHandler.Count() - startErrorCount
-
-	if analyzerErrorCount == 1 {
-		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisError, nil)
-	} else if analyzerErrorCount > 1 {
-		return tok.NewGeneralError(tok.Analyzer, failureMap, tok.Error, declarationAnalysisErrors, analyzerErrorCount)
-	}
-
-	return nil
 }
 
 // Walk the block abstract syntax tree.
-func (a *declarationAnalysis) VisitBlock(bn *ast.BlockNode) {
+func (a *nameAnalysis) VisitBlock(bn *ast.BlockNode) {
 	// nothing to do because of an external pre-order walk
 }
 
 // Enter constant declaration into the symbol table and check for redeclaration.
-func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
+func (a *nameAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
 	} else {
@@ -69,7 +55,7 @@ func (a *declarationAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarati
 }
 
 // Enter variable declaration into the symbol table and check for redeclaration.
-func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+func (a *nameAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
 	} else {
@@ -82,7 +68,7 @@ func (a *declarationAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarati
 }
 
 // Enter procedure declaration into the symbol table and check for redeclaration.
-func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+func (a *nameAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
@@ -97,12 +83,12 @@ func (a *declarationAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclara
 }
 
 // Walk the literal abstract syntax tree.
-func (a *declarationAnalysis) VisitLiteral(ln *ast.LiteralNode) {
+func (a *nameAnalysis) VisitLiteral(ln *ast.LiteralNode) {
 	// nothing to do
 }
 
 // Check if the used identifier is declared and if it is used in the correct context.
-func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	if symbol := iu.Scope.Lookup(iu.Name); symbol == nil {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
@@ -144,74 +130,74 @@ func (a *declarationAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			}
 
 		default:
-			panic("declaration analysis error: unknown symbol kind")
+			panic("name analysis error: unknown symbol kind")
 		}
 	}
 }
 
 // Walk the unary operation abstract syntax tree.
-func (a *declarationAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+func (a *nameAnalysis) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the expression
 	ast.Walk(uo.Operand, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the binary operation abstract syntax tree.
-func (a *declarationAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+func (a *nameAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the left and right operand
 	ast.Walk(bo.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(bo.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the conditional operation abstract syntax tree.
-func (a *declarationAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+func (a *nameAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the left and right operand
 	ast.Walk(co.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(co.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the assignment statement abstract syntax tree.
-func (a *declarationAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
+func (a *nameAnalysis) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	// set the usage mode bit to write for the variable that is assigned to
 	as.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the read statement abstract syntax tree.
-func (a *declarationAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
+func (a *nameAnalysis) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// set the usage mode bit to write for the variable that is read into
 	rs.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the write statement abstract syntax tree.
-func (a *declarationAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
+func (a *nameAnalysis) VisitWriteStatement(ws *ast.WriteStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the expression
 	ast.Walk(ws.Expression, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the call statement abstract syntax tree.
-func (a *declarationAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
+func (a *nameAnalysis) VisitCallStatement(cs *ast.CallStatementNode) {
 	// set the usage mode bit to execute for the procedure that is called
 	cs.Procedure.(*ast.IdentifierUseNode).Use |= ast.Execute
 }
 
 // Walk the if statement abstract syntax tree.
-func (a *declarationAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
+func (a *nameAnalysis) VisitIfStatement(is *ast.IfStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(is.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the while statement abstract syntax tree.
-func (a *declarationAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
+func (a *nameAnalysis) VisitWhileStatement(ws *ast.WhileStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(ws.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the compound statement abstract syntax tree.
-func (a *declarationAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+func (a *nameAnalysis) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 	// nothing to do because of an external pre-order walk
 }
 
 // Append analyzer error to the token handler.
-func (a *declarationAnalysis) appendError(code tok.Failure, value any, index int) {
+func (a *nameAnalysis) appendError(code tok.Failure, value any, index int) {
 	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(tok.Error, code, value, index))
 }
 

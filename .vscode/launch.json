@@ -11,9 +11,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-cr",
-                "examples/playground.pl0",
-                "build/playground.il0"
+                "-ci",
+                "examples/stackframe.pl0",
+                "build/stackframe.il0"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

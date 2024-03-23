@@ -5,10 +5,6 @@
 package scanner
 
 import (
-	"fmt"
-	"io"
-	"strings"
-
 	tok "github.com/petersen65/PL0/token"
 )
 
@@ -101,37 +97,4 @@ var (
 // Return the public interface of the private scanner implementation.
 func NewScanner() Scanner {
 	return newScanner()
-}
-
-// Print the token stream of the scanner to the specified writer.
-func PrintTokenStream(tokenStream tok.TokenStream, print io.Writer, bottom bool) {
-	var start, previousLine int
-	print.Write([]byte("Token Stream:"))
-
-	if len(tokenStream) == 0 {
-		print.Write([]byte("\n"))
-		return
-	}
-
-	if bottom {
-		lastLine := tokenStream[len(tokenStream)-1].Line
-
-		for start = len(tokenStream) - 1; start >= 0 && tokenStream[start].Line == lastLine; start-- {
-		}
-
-		start++
-	} else {
-		start = 0
-	}
-
-	for i := start; i < len(tokenStream); i++ {
-		td := tokenStream[i]
-
-		if td.Line != previousLine {
-			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r"))))
-			previousLine = td.Line
-		}
-
-		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
-	}
 }

@@ -25,72 +25,29 @@ func main() {
 
 	switch {
 	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], 0)
+		compiler.Driver(compiler.Compile, os.Args[2], os.Args[3], os.Stdout)
 
 	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
-		run(os.Args[2])
+		compiler.Driver(compiler.Emulate, "", os.Args[2], os.Stdout)
 
 	case len(os.Args) > 2 && os.Args[1] == "-i" && len(os.Args[2]) > 0:
-		print(os.Args[2])
+		compiler.Driver(compiler.PrintIntermediateCode, "", os.Args[2], os.Stdout)
 
 	case len(os.Args) > 3 && os.Args[1] == "-cr" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3], 0) == nil {
-			run(os.Args[3])
-		}
+		compiler.Driver(compiler.Compile|compiler.Emulate, os.Args[2], os.Args[3], os.Stdout)
 
 	case len(os.Args) > 3 && os.Args[1] == "-ct" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], compiler.PrintTokens)
+		compiler.Driver(compiler.Compile|compiler.PrintTokenStream, os.Args[2], os.Args[3], os.Stdout)
 
 	case len(os.Args) > 3 && os.Args[1] == "-ca" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], compiler.PrintAbstractSyntax)
+		compiler.Driver(compiler.Compile|compiler.PrintAbstractSyntaxTree, os.Args[2], os.Args[3], os.Stdout)
 
 	case len(os.Args) > 3 && os.Args[1] == "-ci" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3], 0) == nil {
-			print(os.Args[3])
-		}
+		compiler.Driver(compiler.Compile|compiler.PrintIntermediateCode, os.Args[2], os.Args[3], os.Stdout)
 
 	default:
 		usage()
 	}
-}
-
-// Function compile compiles the PL/0 source file pl0 and writes the IL/0 code to the target file il0.
-func compile(pl0, il0 string, options compiler.Options) error {
-	err := compiler.CompileFile(pl0, il0, options, os.Stdout)
-
-	if err != nil {
-		compiler.PrintErrorSummary(err, os.Stdout)
-	} else {
-		fmt.Println("Compilation successful")
-	}
-
-	return err
-}
-
-// Function 'run' executes the IL/0 code in the target file il0.
-func run(il0 string) error {
-	err := compiler.RunFile(il0, os.Stdout)
-
-	if err != nil {
-		compiler.PrintErrorSummary(err, os.Stdout)
-	} else {
-		fmt.Println("Run successful")
-	}
-
-	return err
-}
-
-// Function 'print' prints the IL/0 code in the target file il0 to the standard output (console).
-func print(il0 string) error {
-	err := compiler.PrintFile(il0, os.Stdout)
-
-	if err != nil {
-		compiler.PrintErrorSummary(err, os.Stdout)
-	} else {
-		fmt.Println("Print successful")
-	}
-
-	return err
 }
 
 // Function 'usage' prints the command line usage information to the standard output (console).

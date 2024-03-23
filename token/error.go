@@ -14,12 +14,13 @@ type (
 	// ErrorReport is a list of errors that occurred during the compilation process.
 	errorReport []error
 
-	// A general error with a severity level.
+	// A general error with a severity level and an optional inner error.
 	generalError struct {
 		err       error     // error message
 		code      Failure   // failure code of the error
 		component Component // component that generated the error
 		severity  Severity  // severity of the error
+		inner     error     // inner error wrapped by the general error
 	}
 
 	// An error with a severity level and a line and column number.
@@ -61,9 +62,10 @@ type (
 var (
 	// Map severity levels to their corresponding names.
 	severityMap = map[Severity]string{
-		Information: "information",
-		Warning:     "warning",
-		Error:       "error",
+		Remark:  "remark",
+		Warning: "warning",
+		Error:   "error",
+		Fatal:   "fatal",
 	}
 
 	// Map compiler components to their corresponding names.
@@ -97,9 +99,9 @@ func newGoError(failureMap map[Failure]string, code Failure, value any) error {
 }
 
 // Create a new general error with a severity level.
-func newGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any) error {
+func newGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
 	err := newGoError(failureMap, code, value)
-	return &generalError{err: err, code: code, component: component, severity: severity}
+	return &generalError{err: err, code: code, component: component, severity: severity, inner: inner}
 }
 
 // Create a new line-column error with a severity level and a line and column number.
@@ -124,6 +126,11 @@ func newTokenError(component Component, failureMap map[Failure]string, severity 
 func (e *generalError) Error() string {
 	message := e.err.Error()
 	return fmt.Sprintf("%v %v %v: %v", componentMap[e.component], severityMap[e.severity], e.code, message)
+}
+
+// Implement the Unwrap method for the general error so that it can be used to unwrap the inner error.
+func (e *generalError) Unwrap() error {
+	return e.inner
 }
 
 // Implement the error interface for the line-column error so that it can be used like a native Go error.
@@ -161,60 +168,85 @@ func (e *tokenError) Error() string {
 	return sourceLine + errorLine
 }
 
-// Return the number of all errors entries in the error report of the error handler.
-func (e *errorHandler) Count() int {
-	return len(e.errorReport)
-}
-
-// Return the number of errors in the error report of the error handler by severity level bit mask.
-func (e *errorHandler) CountBySeverity(severity Severity) int {
-	var count int
-
-	for _, err := range e.errorReport {
-		switch err := err.(type) {
-		case *generalError:
-			if err.severity & severity != 0 {
-				count++
-			}
-
-		case *lineColumnError:
-			if err.severity & severity != 0 {
-				count++
-			}
-
-		case *sourceError:
-			if err.severity & severity != 0 {
-				count++
-			}
-
-		case *tokenError:
-			if err.severity & severity != 0 {
-				count++
-			}
-
-		default:
-			count++
-		}
+// Append a new error to the error report of the error handler only if the error is not nil.
+func (e *errorHandler) AppendError(err error) error {
+	if err != nil {
+		e.errorReport = append(e.errorReport, err)
 	}
 
-	return count
+	return err
 }
 
-// Append a new error to the error report of the error handler.
-func (e *errorHandler) AppendError(err error) {
-	e.errorReport = append(e.errorReport, err)
+// Return the number of all errors entries in the error report of the error handler.
+func (e *errorHandler) Count(severity Severity, component Component) int {
+	return len(e.Iterate(severity, component))
+}
+
+// Iterate over all errors in the error report of the error handler and return a channel of errors that match the severity and component.
+func (e *errorHandler) Iterate(severity Severity, component Component) <-chan error {
+	errors := make(chan error)
+
+	go func() {
+		for _, err := range e.errorReport {
+			switch err := err.(type) {
+			case *generalError:
+				if err.severity&severity != 0 && err.component&component != 0 {
+					errors <- err
+				}
+
+			case *lineColumnError:
+				if err.severity&severity != 0 && err.component&component != 0 {
+					errors <- err
+				}
+
+			case *sourceError:
+				if err.severity&severity != 0 && err.component&component != 0 {
+					errors <- err
+				}
+
+			case *tokenError:
+				if err.severity&severity != 0 && err.component&component != 0 {
+					errors <- err
+				}
+			}
+		}
+
+		close(errors)
+	}()
+
+	return errors
+}
+
+// Print all errors in the errors channel to the given writer.
+func (e *errorHandler) Print(errors <-chan error, print io.Writer) {
+	for err := range errors {
+		print.Write([]byte(err.Error()))
+	}
 }
 
 // Print the error report to the writer of the error handler.
 func (e *errorHandler) PrintErrorReport(print io.Writer) {
-	print.Write([]byte("Error Report:"))
-
 	if len(e.errorReport) == 0 {
-		print.Write([]byte("\n"))
 		return
 	}
 
-	for _, err := range e.errorReport {
-		print.Write([]byte(err.Error()))
+	print.Write([]byte("Error Report:\n"))
+	errors := e.Iterate(Fatal|Error, AllComponents)
+	warnings := e.Iterate(Warning, AllComponents)
+	remarks := e.Iterate(Remark, AllComponents)
+
+	if len(errors) > 0 {
+		print.Write([]byte("Errors:"))
+		e.Print(errors, print)
+	}
+
+	if len(warnings) > 0 {
+		print.Write([]byte("Warnings:"))
+		e.Print(warnings, print)
+	}
+
+	if len(remarks) > 0 {
+		print.Write([]byte("Remarks:"))
+		e.Print(remarks, print)
 	}
 }
