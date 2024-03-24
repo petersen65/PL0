@@ -4,10 +4,7 @@
 // Package ast implements the abstract syntax tree (AST) for the PL/0 parser.
 package ast
 
-import (
-	"fmt"
-	"io"
-)
+import "io"
 
 // EmptyBlockName allows the detection of empty blocks because of parsing errors. They should be ignored in all compiler passes.
 const EmptyBlockName = "@block"
@@ -365,6 +362,12 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 	return symbols
 }
 
+// Print the abstract syntax tree to the specified writer.
+func (node *BlockNode) Print(print io.Writer) {
+	print.Write(textAbstractSyntaxTree)
+	printAbstractSyntaxTree(node, "", true, print)
+}
+
 // An empty block does not generate code.
 func NewEmptyBlock() Block {
 	return NewBlock(EmptyBlockName, 0, NewScope(nil), make([]Declaration, 0), NewEmptyStatement())
@@ -485,23 +488,4 @@ func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
 	}
 
 	return nil
-}
-
-// Print the abstract syntax tree to the specified writer.
-func PrintAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) {
-	if indent == "" {
-		print.Write([]byte("Abstract Syntax Tree:\n"))
-	}
-
-	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
-
-	if last {
-		indent += "   "
-	} else {
-		indent += "|  "
-	}
-
-	for i, child := range node.Children() {
-		PrintAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
-	}
 }

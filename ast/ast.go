@@ -5,9 +5,13 @@ package ast
 
 import (
 	"fmt"
+	"io"
 
 	tok "github.com/petersen65/PL0/token"
 )
+
+// Text messages for printing an abstract syntax tree.
+var textAbstractSyntaxTree = []byte("Abstract Syntax Tree:\n")
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
@@ -848,4 +852,19 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	}
 
 	return nil
+}
+
+// Print the abstract syntax tree to the specified writer by recursively traversing the tree in pre-order.
+func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) {
+	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
+
+	if last {
+		indent += "   "
+	} else {
+		indent += "|  "
+	}
+
+	for i, child := range node.Children() {
+		printAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+	}
 }

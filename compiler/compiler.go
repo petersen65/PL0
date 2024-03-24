@@ -85,7 +85,7 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 
 	// print abstract syntax tree
 	if options&Compile != 0 && options&PrintAbstractSyntaxTree != 0 {
-		ast.PrintAbstractSyntaxTree(translationUnit.AbstractSyntax, "", true, print)
+		translationUnit.AbstractSyntax.(*ast.BlockNode).Print(print)
 	}
 
 	// print intermediate code
