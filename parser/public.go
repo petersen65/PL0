@@ -6,7 +6,7 @@ package parser
 
 import (
 	ast "github.com/petersen65/PL0/ast"
-	tok "github.com/petersen65/PL0/core"
+	cor "github.com/petersen65/PL0/core"
 )
 
 // Name of the entry point procedure of a program.
@@ -15,11 +15,11 @@ const EntryPointName = "@program"
 type (
 	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
 	Parser interface {
-		Parse() (ast.Block, tok.TokenHandler)
+		Parse() (ast.Block, cor.TokenHandler)
 	}
 )
 
 // Return the public interface of the private parser implementation.
-func NewParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parser {
+func NewParser(tokenStream cor.TokenStream, errorHandler cor.ErrorHandler) Parser {
 	return newParser(tokenStream, errorHandler)
 }

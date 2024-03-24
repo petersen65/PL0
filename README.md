@@ -8,7 +8,7 @@ This module provides a complete compiler for the programming language PL/0. It p
 * generator: compiler pass for code generation by traversing the abstract syntax tree to drive the IL/0 emitter
 * emitter: binary output of IL/0 intermediate language, called by code generator during abstract syntax tree traversal
 * emulator: execution of IL/0 intermediate language instructions by running a process on a virtual cpu with stack and registers
-* token: common token type-system and an error-handling mechanism used by all compiler components
+* core: core features, token type-system, and error-handling mechanism used by all compiler components
 * compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant IL/0 code
 
 The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
@@ -131,7 +131,7 @@ The programming language PL/0 2024 supports the following features:
 	* introduce first semantic analysis compiler pass (symbol declaration check, symbol usage check)
 	* integrate error handling accross all compiler components and enable error messages with source code markers
 	* draft introduction of a translation unit for 1 PL/0 source file
-	* migrate compiler package to controle the new 4-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
+	* migrate compiler package to control the new 4-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
