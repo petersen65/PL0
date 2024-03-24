@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	ast "github.com/petersen65/PL0/ast"
+	cor "github.com/petersen65/PL0/core"
 	scn "github.com/petersen65/PL0/scanner"
-	tok "github.com/petersen65/PL0/token"
 )
 
 // Number of bits of a signed integer.
@@ -16,21 +16,21 @@ const integerBitSize = 64
 
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
-	errorHandler   tok.ErrorHandler // error handler that is used to handle errors that occurred during parsing
-	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
+	errorHandler   cor.ErrorHandler // error handler that is used to handle errors that occurred during parsing
+	tokenHandler   cor.TokenHandler // token handler that manages the tokens of the token stream
 	abstractSyntax ast.Block        // abstract syntax tree of the program
 }
 
 var (
 	// Tokens that are used to begin constants, variables, and procedures declarations.
-	declarations = tok.Tokens{
+	declarations = cor.Tokens{
 		scn.ConstWord,
 		scn.VarWord,
 		scn.ProcedureWord,
 	}
 
 	// Tokens that are used to begin statements within a block.
-	statements = tok.Tokens{
+	statements = cor.Tokens{
 		scn.Read,
 		scn.Write,
 		scn.BeginWord,
@@ -40,7 +40,7 @@ var (
 	}
 
 	// Tokens that are used to begin factors in expressions.
-	factors = tok.Tokens{
+	factors = cor.Tokens{
 		scn.Identifier,
 		scn.Number,
 		scn.LeftParenthesis,
@@ -48,23 +48,23 @@ var (
 )
 
 // Return the public interface of the private parser implementation.
-func newParser(tokenStream tok.TokenStream, errorHandler tok.ErrorHandler) Parser {
+func newParser(tokenStream cor.TokenStream, errorHandler cor.ErrorHandler) Parser {
 	return &parser{
 		errorHandler: errorHandler,
-		tokenHandler: tok.NewTokenHandler(tokenStream, errorHandler, tok.Parser, failureMap),
+		tokenHandler: cor.NewTokenHandler(tokenStream, errorHandler, cor.Parser, failureMap),
 	}
 }
 
 // Run the recursive descent parser to map the token stream to its corresponding abstract syntax tree.
-func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
+func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 	// check if the parser is in a valid state to start parsing
 	if p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
-		panic(tok.NewGeneralError(tok.Parser, failureMap, tok.Fatal, invalidParserState, nil, nil))
+		panic(cor.NewGeneralError(cor.Parser, failureMap, cor.Fatal, invalidParserState, nil, nil))
 	}
 
 	// the parser expects a token stream to be available
 	if !p.nextToken() {
-		p.errorHandler.AppendError(tok.NewGeneralError(tok.Parser, failureMap, tok.Error, eofReached, nil, nil))
+		p.errorHandler.AppendError(cor.NewGeneralError(cor.Parser, failureMap, cor.Error, eofReached, nil, nil))
 		return nil, p.tokenHandler
 	}
 
@@ -90,7 +90,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, expected tok.Tokens) ast.Block {
+func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, expected cor.Tokens) ast.Block {
 	var scope = ast.NewScope(outer) // a block has its own scope to manage its symbols
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
@@ -215,7 +215,7 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchors tok.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchors cor.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
 	// all procedures are declared in a sequence of procedure identifiers with each having a block
@@ -267,7 +267,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	name := p.lastTokenValue()
 	nameIndex := p.lastTokenIndex()
 
@@ -318,7 +318,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) write(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 	expression := p.expression(scope, anchors)
 	return ast.NewWriteStatement(expression)
@@ -348,7 +348,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) ifWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
@@ -372,7 +372,7 @@ func (p *parser) ifWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
@@ -396,7 +396,7 @@ func (p *parser) whileWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) beginWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	compound := make([]ast.Statement, 0)
 	p.nextToken()
 
@@ -436,7 +436,7 @@ func (p *parser) beginWord(scope *ast.Scope, anchors tok.Tokens) ast.Statement {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope *ast.Scope, anchors tok.Tokens) (ast.Statement, bool) {
+func (p *parser) statement(scope *ast.Scope, anchors cor.Tokens) (ast.Statement, bool) {
 	var statement ast.Statement
 
 	switch p.lastToken() {
@@ -504,7 +504,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 		}
 
 		p.nextToken()
-		var sign tok.Token
+		var sign cor.Token
 
 		// support leading plus or minus sign of a number
 		if p.lastToken() == scn.Plus || p.lastToken() == scn.Minus {
@@ -566,7 +566,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) ast.Declaration {
 }
 
 // A condition is either an odd expression or two expressions separated by a relational operator.
-func (p *parser) condition(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	// in case of a parsing error, return an empty declaration
 	operation := ast.NewEmptyExpression()
 
@@ -617,7 +617,7 @@ func (p *parser) condition(scope *ast.Scope, anchors tok.Tokens) ast.Expression 
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) expression(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
@@ -648,7 +648,7 @@ func (p *parser) expression(scope *ast.Scope, anchors tok.Tokens) ast.Expression
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) term(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
@@ -680,8 +680,8 @@ func (p *parser) term(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(scope *ast.Scope, anchors tok.Tokens) ast.Expression {
-	var sign tok.Token
+func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
+	var sign cor.Token
 
 	// in case of a parsing error, return an empty declaration
 	operand := ast.NewEmptyExpression()
@@ -740,7 +740,7 @@ func (p *parser) nextToken() bool {
 }
 
 // Wrapper to get token from the last token description.
-func (p *parser) lastToken() tok.Token {
+func (p *parser) lastToken() cor.Token {
 	return p.tokenHandler.LastToken()
 }
 
@@ -760,17 +760,17 @@ func (p *parser) lastTokenIndex() int {
 }
 
 // Append parser error to the token handler.
-func (p *parser) appendError(code tok.Failure, value any) {
-	p.tokenHandler.AppendError(p.tokenHandler.NewError(tok.Error, code, value))
+func (p *parser) appendError(code cor.Failure, value any) {
+	p.tokenHandler.AppendError(p.tokenHandler.NewError(cor.Error, code, value))
 }
 
 // Wrapper to get joined slice of all tokens within the given TokenSet interfaces.
-func set(tss ...tok.TokenSet) tok.Tokens {
-	return tok.Set(tss...)
+func set(tss ...cor.TokenSet) cor.Tokens {
+	return cor.Set(tss...)
 }
 
 // Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
-func (e *parser) numberValue(sign tok.Token, number string) int64 {
+func (e *parser) numberValue(sign cor.Token, number string) int64 {
 	if sign == scn.Minus {
 		number = "-" + number
 	}

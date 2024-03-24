@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	tok "github.com/petersen65/PL0/token"
+	cor "github.com/petersen65/PL0/core"
 )
 
 // Text messages for printing an abstract syntax tree.
@@ -199,7 +199,7 @@ func (d *ConstantDeclarationNode) String() string {
 		return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=i64)", KindNames[Constant], d.Name, d.Value)
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownConstantDataType, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownConstantDataType, nil, nil))
 	}
 }
 
@@ -235,7 +235,7 @@ func (d *VariableDeclarationNode) String() string {
 		return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=i64)", KindNames[Variable], d.Name, d.Offset)
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownVariableDataType, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownVariableDataType, nil, nil))
 
 	}
 }
@@ -302,7 +302,7 @@ func (e *LiteralNode) String() string {
 		return fmt.Sprintf("literal(v=%v,t=i64)", e.Value)
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownLiteralDataType, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownLiteralDataType, nil, nil))
 
 	}
 }
@@ -346,7 +346,7 @@ func (u *IdentifierUseNode) String() string {
 			return fmt.Sprintf("use(k=p,n=%v,a=%v,u=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address, u.Use)
 
 		default:
-			panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownSymbolKind, nil, nil))
+			panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))
 		}
 	}
 
@@ -388,7 +388,7 @@ func (e *UnaryOperationNode) String() string {
 		return "negate"
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownUnaryOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
 	}
 }
 
@@ -433,7 +433,7 @@ func (e *BinaryOperationNode) String() string {
 		return "division"
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownBinaryOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
@@ -484,7 +484,7 @@ func (e *ConditionalOperationNode) String() string {
 		return "greater equal"
 
 	default:
-		panic(tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 
 	}
 }
@@ -736,11 +736,11 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
 	// check preconditions for walking the tree and return an error if any are violated
 	if parent == nil {
-		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, cannotWalkOnNilNode, nil, nil)
+		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, cannotWalkOnNilNode, nil, nil)
 	} else if visitor == nil && visit == nil {
-		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, walkRequiresVisitorOrFunction, nil, nil)
+		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresVisitorOrFunction, nil, nil)
 	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
-		return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, walkRequiresInterfaceOrFunction, nil, nil)
+		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresInterfaceOrFunction, nil, nil)
 	}
 
 	// filter out empty blocks
@@ -786,7 +786,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	// An in-order traversal would visit the nodes in the following order: D, B, E, A, C, F.
 	case InOrder:
 		if len(parent.Children()) != 2 {
-			return tok.NewGeneralError(tok.AbstractSyntaxTree, failureMap, tok.Error, inOrderRequiresTwoChildren, nil, nil)
+			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, inOrderRequiresTwoChildren, nil, nil)
 		}
 
 		// traverse the left subtree in in-order

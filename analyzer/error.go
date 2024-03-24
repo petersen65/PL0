@@ -3,11 +3,11 @@
 
 package analyzer
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Failure codes for the PL/0 semantic analyzer.
 const (
-	_ = tok.Failure(iota + 4000)
+	_ = cor.Failure(iota + 4000)
 	invalidNameAnalysisState
 	declarationValidationFailed
 	usageValidationFailed
@@ -23,7 +23,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
+var failureMap = map[cor.Failure]string{
 	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
 	declarationValidationFailed: "identifier declaration validation failed",
 	usageValidationFailed:       "identifier usage validation failed",

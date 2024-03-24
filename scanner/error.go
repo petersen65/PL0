@@ -3,15 +3,15 @@
 
 package scanner
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Failure codes for the PL/0 scanner.
 const (
-	_ = tok.Failure(iota + 1000)
+	_ = cor.Failure(iota + 1000)
 	eofComment
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
+var failureMap = map[cor.Failure]string{
 	eofComment: "end of file reached inside comment",
 }

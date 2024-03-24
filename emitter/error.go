@@ -3,17 +3,17 @@
 
 package emitter
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Failure codes for the IL/0 emitter.
 const (
-	_ = tok.Failure(iota + 9000)
+	_ = cor.Failure(iota + 9000)
 	instructionOutOfRange
 	binaryTextSectionExportFailed
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
-	instructionOutOfRange: "instruction is out of range: %v",
+var failureMap = map[cor.Failure]string{
+	instructionOutOfRange:         "instruction is out of range: %v",
 	binaryTextSectionExportFailed: "failed to export the text section as binary data",
 }

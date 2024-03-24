@@ -3,11 +3,11 @@
 
 package emulator
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Failure codes for the IL/0 emulator.
 const (
-	_ = tok.Failure(iota + 10000)
+	_ = cor.Failure(iota + 10000)
 	addressOutOfRange
 	stackOverflow
 	unknownOperation
@@ -20,7 +20,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
+var failureMap = map[cor.Failure]string{
 	addressOutOfRange:                "halt - address '%v' out of range",
 	stackOverflow:                    "halt - stack overflow at address '%v'",
 	unknownOperation:                 "halt - unknown operation at address '%v'",

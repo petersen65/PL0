@@ -3,14 +3,14 @@
 
 package parser
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Maximum depth of block nesting.
 const blockNestingMax = 8
 
 // Failure codes for the PL/0 parser.
 const (
-	_ = tok.Failure(iota + 2000)
+	_ = cor.Failure(iota + 2000)
 	invalidParserState
 	eofReached
 	notFullyParsed
@@ -36,7 +36,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
+var failureMap = map[cor.Failure]string{
 	invalidParserState:                      "parser is in an undefined state and cannot continue parsing",
 	eofReached:                              "unexpected end of file",
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",

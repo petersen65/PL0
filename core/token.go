@@ -1,9 +1,10 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package token
+package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -22,6 +23,9 @@ type tokenHandler struct {
 	errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
 }
 
+// Text messages for printing the token stream.
+var textTokenStream = []byte("Token Stream:")
+
 // Create a new token handler for the PL/0 parser.
 func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
 	return &tokenHandler{
@@ -32,15 +36,29 @@ func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 	}
 }
 
-// Print the token stream to the specified writer.
-func (ts TokenStream) Print(print io.Writer, bottom bool) {
+// Print the token stream to a writer and print from the bottom of the token stream if the bottom flag is set.
+func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	if len(ts) == 0 {
-		return
+		return nil
 	}
 
+	// calculate the start index of the token stream depending on the bottom flag
+	var bottom bool
 	var start, previousLine int
-	print.Write([]byte("Token Stream:"))
 
+	// print the title text message for the token stream
+	if _, err := print.Write(textTokenStream); err != nil {
+		return err
+	}
+
+	// check if the bottom flag is set
+	if len(args) == 1 {
+		if b, ok := args[0].(bool); ok {
+			bottom = b
+		}
+	}
+
+	// print from the bottom of the token stream if the bottom flag is set
 	if bottom {
 		lastLine := ts[len(ts)-1].Line
 
@@ -48,19 +66,41 @@ func (ts TokenStream) Print(print io.Writer, bottom bool) {
 		}
 
 		start++
-	} else {
-		start = 0
 	}
 
+	// print from the start of the token stream depending on the bottom flag and the start index
 	for i := start; i < len(ts); i++ {
 		td := ts[i]
 
+		// print line number and line content if the line number is a new line
 		if td.Line != previousLine {
-			print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r"))))
+			if _, err := print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")))); err != nil {
+				return err
+			}
+
 			previousLine = td.Line
 		}
 
-		print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue)))
+		// print token description below the line number and line content
+		if _, err := print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue))); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Export the token stream to a writer in the specified format.
+func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
+	switch format {
+	case Json:
+		return json.NewEncoder(print).Encode(ts)
+
+	case String:
+		return ts.Print(print, false)
+
+	default:
+		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
 	}
 }
 

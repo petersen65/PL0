@@ -6,7 +6,7 @@ package analyzer
 
 import (
 	ast "github.com/petersen65/PL0/ast"
-	tok "github.com/petersen65/PL0/token"
+	cor "github.com/petersen65/PL0/core"
 )
 
 // Name analysis is a compiler pass that validates the correctness of identifier declarations and their usage. It fills in the symbol table with declared identifiers and their types. It also checks for duplicate declarations and undeclared identifiers.
@@ -15,7 +15,7 @@ type NameAnalysis interface {
 }
 
 // Return the public interface of the private name analysis implementation.
-func NewNameAnalysis(abstractSyntax ast.Block, errorHandler tok.ErrorHandler, tokenHandler tok.TokenHandler) NameAnalysis {
-	tokenHandler.ReplaceComponent(tok.Analyzer, failureMap)
+func NewNameAnalysis(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) NameAnalysis {
+	tokenHandler.ReplaceComponent(cor.Analyzer, failureMap)
 	return newNameAnalysis(abstractSyntax, errorHandler, tokenHandler)
 }

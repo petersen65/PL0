@@ -1,7 +1,7 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package token
+package core
 
 import (
 	"errors"
@@ -9,6 +9,17 @@ import (
 	"io"
 	"strings"
 )
+
+// Failure codes for core components of the PL/0 compiler.
+const (
+	_ = Failure(iota + 100)
+	unknownExportFormat
+)
+
+// Map failure codes to error messages.
+var failureMap = map[Failure]string{
+	unknownExportFormat: "unknown export format: %v",
+}
 
 type (
 	// ErrorReport is a list of errors that occurred during the compilation process.
@@ -76,6 +87,7 @@ var (
 
 	// Map compiler components to their corresponding names.
 	componentMap = map[Component]string{
+		Core:               "core",
 		Scanner:            "scanner",
 		Parser:             "parser",
 		AbstractSyntaxTree: "ast",

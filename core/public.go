@@ -1,17 +1,24 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package token provides the token type-system and an error handling mechanism for the PL/0 compiler. This combination enables the error handler to connect an error to a location in the token stream.
-package token
+// Package core provides foundation features, the token type-system, and the error handling mechanism for the PL/0 compiler. This combination enables the error handler to connect an error to a location in the token stream. Package core is required to depend on Go standard library packages only.
+package core
 
 import (
 	"io"
 	"slices"
 )
 
+// Export formats for the compiler which can be used to export intermediate results.
+const (
+	String = ExportFormat(iota)
+	Json
+)
+
 // Packages of the compiler which can generate errors as a bit-mask enumeration.
 const (
-	Scanner Component = 1 << iota
+	Core Component = 1 << iota
+	Scanner
 	Parser
 	AbstractSyntaxTree
 	Analyzer
@@ -32,6 +39,15 @@ const (
 )
 
 type (
+	// Export formats for the compiler.
+	ExportFormat int
+
+	// Exporter is an interface that provides methods for exporting intermediate results.
+	Exporter interface {
+		Print(print io.Writer, args ...any) error
+		Export(format ExportFormat, print io.Writer) error
+	}
+
 	// Token is a type that represents a token in the source code.
 	Token int
 
@@ -48,11 +64,12 @@ type (
 
 	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
-		Token        Token  // token kind
-		TokenName    string // token name
-		TokenValue   string // token value
-		Line, Column int    // position in the source code
-		CurrentLine  []byte // source code line
+		Token       Token  `json:"token,omitempty"`        // token kind
+		TokenName   string `json:"token_name,omitempty"`   // token name
+		TokenValue  string `json:"token_value,omitempty"`  // token value
+		Line        int    `json:"line,omitempty"`         // line position in the source code
+		Column      int    `json:"column,omitempty"`       // column position in the source code
+		CurrentLine []byte `json:"current_line,omitempty"` // source code line
 	}
 
 	// TokenHandler is an interface that provides methods for handling tokens in the token stream.

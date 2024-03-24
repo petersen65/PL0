@@ -10,8 +10,8 @@ import (
 	"io"
 	"math"
 
+	cor "github.com/petersen65/PL0/core"
 	emt "github.com/petersen65/PL0/emitter"
-	tok "github.com/petersen65/PL0/token"
 )
 
 const (
@@ -104,11 +104,11 @@ func (m *machine) runProgram(sections []byte) error {
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
 		if m.cpu.registers[ip] >= uint64(len(process.text)) {
-			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, addressOutOfRange, m.cpu.registers[ip], nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[ip], nil)
 		}
 
 		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < (stackDescriptorSize-1) {
-			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, stackOverflow, m.cpu.registers[sp], nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[sp], nil)
 		}
 
 		instr := process.text[m.cpu.registers[ip]]
@@ -224,7 +224,7 @@ func (m *machine) runProgram(sections []byte) error {
 			m.cpu.sys(emt.SystemCall(instr.Address))
 
 		default:
-			return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, unknownOperation, m.cpu.registers[ip]-1, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[ip]-1, nil)
 		}
 	}
 }
@@ -261,7 +261,7 @@ func (c *cpu) neg() error {
 	c.set_of_neg(ax)
 
 	if c.test_of() {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowNegation, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowNegation, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(-int64(c.registers[ax]))
@@ -291,7 +291,7 @@ func (c *cpu) add() error {
 	c.set_of_add(ax, bx)
 
 	if c.test_of() {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowAddition, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowAddition, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) + int64(c.registers[bx]))
@@ -309,7 +309,7 @@ func (c *cpu) sub() error {
 	c.set_of_sub(ax, bx)
 
 	if c.test_of() {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowSubtraction, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowSubtraction, c.registers[ip]-1, nil)
 
 	}
 
@@ -328,7 +328,7 @@ func (c *cpu) mul() error {
 	c.set_of_mul(ax, bx)
 
 	if c.test_of() {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowMultiplication, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowMultiplication, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) * int64(c.registers[bx]))
@@ -346,11 +346,11 @@ func (c *cpu) div() error {
 	c.set_of_div(ax, bx)
 
 	if c.registers[bx] == 0 {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, divisionByZero, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, divisionByZero, c.registers[ip]-1, nil)
 	}
 
 	if c.test_of() {
-		return tok.NewGeneralError(tok.Emulator, failureMap, tok.Error, arithmeticOverflowDivision, c.registers[ip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowDivision, c.registers[ip]-1, nil)
 	}
 
 	c.registers[ax] = uint64(int64(c.registers[ax]) / int64(c.registers[bx]))

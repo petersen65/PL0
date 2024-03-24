@@ -3,11 +3,11 @@
 
 package ast
 
-import tok "github.com/petersen65/PL0/token"
+import cor "github.com/petersen65/PL0/core"
 
 // Failure codes for the PL/0 abstract syntax tree.
 const (
-	_ = tok.Failure(iota + 3000)
+	_ = cor.Failure(iota + 3000)
 	unknownConstantDataType
 	unknownVariableDataType
 	unknownLiteralDataType
@@ -22,7 +22,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[tok.Failure]string{
+var failureMap = map[cor.Failure]string{
 	unknownConstantDataType:         "unknown constant data type",
 	unknownVariableDataType:         "unknown variable data type",
 	unknownLiteralDataType:          "unknown literal data type",

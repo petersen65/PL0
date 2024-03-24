@@ -11,11 +11,11 @@ import (
 
 	ana "github.com/petersen65/PL0/analyzer"
 	ast "github.com/petersen65/PL0/ast"
+	cor "github.com/petersen65/PL0/core"
 	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
 	scn "github.com/petersen65/PL0/scanner"
-	tok "github.com/petersen65/PL0/token"
 )
 
 // Text messages for the compilation driver.
@@ -47,10 +47,10 @@ type (
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
 		SourceContent  []byte           // PL/0 utf-8 source content
-		TokenStream    tok.TokenStream  // token stream of the PL/0 source content
+		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
 		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
 		Sections       []byte           // IL/0 intermediate language code
-		ErrorHandler   tok.ErrorHandler // error handler of the compilation process
+		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
 	}
 )
 
@@ -166,7 +166,7 @@ func EmulateTarget(target string) error {
 func CompileContent(content []byte) TranslationUnit {
 	// lexical analysis of PL/0 content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	errorHandler := tok.NewErrorHandler(tokenStream)
+	errorHandler := cor.NewErrorHandler(tokenStream)
 	errorHandler.AppendError(scannerError) // nil errors are ignored
 
 	// syntax analysis and semantic analysis of PL/0 token stream
@@ -174,7 +174,7 @@ func CompileContent(content []byte) TranslationUnit {
 	ana.NewNameAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
-	if errorHandler.Count(tok.Fatal|tok.Error, tok.AllComponents) > 0 {
+	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
 		return TranslationUnit{content, nil, nil, nil, errorHandler}
 	}
 
@@ -184,7 +184,7 @@ func CompileContent(content []byte) TranslationUnit {
 	errorHandler.AppendError(emitterError) // nil errors are ignored
 
 	// return if any fatal or error errors occurred during code generation and emission
-	if errorHandler.Count(tok.Fatal|tok.Error, tok.AllComponents) > 0 {
+	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
 		return TranslationUnit{content, nil, nil, nil, errorHandler}
 	}
 

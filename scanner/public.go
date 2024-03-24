@@ -4,13 +4,11 @@
 // Package scanner implements the PL/0 scanner that performs a lexical analysis of the source code.
 package scanner
 
-import (
-	tok "github.com/petersen65/PL0/token"
-)
+import cor "github.com/petersen65/PL0/core"
 
 // Tokens that are supported by the PL/0 scanner.
 const (
-	Unknown = tok.Token(iota)
+	Unknown = cor.Token(iota)
 	Identifier
 	Number
 	Plus
@@ -48,16 +46,16 @@ const (
 type (
 	// The scanner interface provides methods for scanning binary UTF-8 encoded source code into a binary token stream.
 	Scanner interface {
-		Scan(content []byte) (tok.TokenStream, error)
+		Scan(content []byte) (cor.TokenStream, error)
 	}
 )
 
 var (
 	// Empty is an empty token set.
-	Empty = tok.Tokens{}
+	Empty = cor.Tokens{}
 
 	// TokenNames maps tokens to their string representation.
-	TokenNames = map[tok.Token]string{
+	TokenNames = map[cor.Token]string{
 		Unknown:          "unknown",
 		Identifier:       "identifier",
 		Number:           "number",

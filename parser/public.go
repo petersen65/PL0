@@ -6,7 +6,7 @@ package parser
 
 import (
 	ast "github.com/petersen65/PL0/ast"
-	tok "github.com/petersen65/PL0/token"
+	tok "github.com/petersen65/PL0/core"
 )
 
 // Name of the entry point procedure of a program.
