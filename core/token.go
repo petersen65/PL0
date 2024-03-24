@@ -90,11 +90,28 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
+// Marshal the token description to a JSON object.
+func (td *TokenDescription) MarshalJSON() ([]byte, error) {
+	type Embedded TokenDescription
+
+	tdj := &struct {
+		Embedded
+		CurrentLine string `json:"current_line"`
+	}{
+		Embedded:    (Embedded)(*td),
+		CurrentLine: strings.Trim(string(td.CurrentLine), " \t\n\r"),
+	}
+
+	return json.Marshal(tdj)
+}
+
 // Export the token stream to a writer in the specified format.
 func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
-		return json.NewEncoder(print).Encode(ts)
+		return json.NewEncoder(print).Encode(struct {
+			Stream TokenStream `json:"token_stream"`
+		}{Stream: ts})
 
 	case String:
 		return ts.Print(print, false)

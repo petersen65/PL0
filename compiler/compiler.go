@@ -80,7 +80,8 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 
 	// print token stream
 	if options&Compile != 0 && options&PrintTokenStream != 0 {
-		translationUnit.TokenStream.Print(print, false)
+		translationUnit.TokenStream.Export(cor.Json, print)
+		//translationUnit.TokenStream.Print(print, false)
 	}
 
 	// print abstract syntax tree

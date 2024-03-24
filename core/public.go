@@ -64,12 +64,12 @@ type (
 
 	// Describes a token with its kind, name, value, datatype, and position in the source code.
 	TokenDescription struct {
-		Token       Token  `json:"token,omitempty"`        // token kind
-		TokenName   string `json:"token_name,omitempty"`   // token name
-		TokenValue  string `json:"token_value,omitempty"`  // token value
-		Line        int    `json:"line,omitempty"`         // line position in the source code
-		Column      int    `json:"column,omitempty"`       // column position in the source code
-		CurrentLine []byte `json:"current_line,omitempty"` // source code line
+		Token       Token  `json:"token"`       // token kind
+		TokenName   string `json:"token_name"`  // token name
+		TokenValue  string `json:"token_value"` // token value
+		Line        int    `json:"line"`        // line position in the source code
+		Column      int    `json:"column"`      // column position in the source code
+		CurrentLine []byte `json:"-"`           // source code line
 	}
 
 	// TokenHandler is an interface that provides methods for handling tokens in the token stream.
