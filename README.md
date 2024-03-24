@@ -128,8 +128,10 @@ The programming language PL/0 2024 supports the following features:
 
 * Q2 2024, Compiler version 2.0.0 2024, make core engine more mature
 	* migration to an abstract syntax tree and code generator as interface between parser and emitter
-	* introduce first semantic analysis compiler pass (e.g. symbol usage check)
-	* finite automaton documentation for scanner
+	* introduce first semantic analysis compiler pass (symbol declaration check, symbol usage check)
+	* integrate error handling accross all compiler components and enable error messages with source code markers
+	* draft introduction of a translation unit for 1 PL/0 source file
+	* migrate compiler package to controle the new 4-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
