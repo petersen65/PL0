@@ -9,6 +9,8 @@ import tok "github.com/petersen65/PL0/token"
 const (
 	_ = tok.Failure(iota + 4000)
 	invalidNameAnalysisState
+	declarationValidationFailed
+	usageValidationFailed
 	unknownSymbolKind
 	identifierNotFound
 	identifierAlreadyDeclared
@@ -23,6 +25,8 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[tok.Failure]string{
 	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
+	declarationValidationFailed: "identifier declaration validation failed",
+	usageValidationFailed:       "identifier usage validation failed",
 	unknownSymbolKind:           "unknown symbol kind: %v",
 	identifierNotFound:          "identifier not found: %v",
 	identifierAlreadyDeclared:   "identifier already declared: %v",

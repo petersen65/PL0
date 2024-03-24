@@ -31,9 +31,15 @@ func (a *nameAnalysis) Analyze() {
 		panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, invalidNameAnalysisState, nil, nil))
 	}
 
-	// perform the name analysis by visiting the abstract syntax tree in pre-order
-	ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil)
-	ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage)
+	// validate the declaration of all identifiers
+	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil); err != nil {
+		panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, declarationValidationFailed, nil, err))
+	}
+
+	// validate the usage of all identifiers
+	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage); err != nil {
+		panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, usageValidationFailed, nil, err))
+	}
 }
 
 // Walk the block abstract syntax tree.
@@ -131,7 +137,7 @@ func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 		default:
 			panic(tok.NewGeneralError(tok.Analyzer, failureMap, tok.Fatal, unknownSymbolKind, nil, nil))
-	}
+		}
 	}
 }
 
