@@ -27,7 +27,7 @@ const (
 
 // Function main is the entry point for the PL/0 compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
-	var options com.DriverOptions
+	var options com.DriverOption
 	var compile, run, export bool
 	var source, target string
 
