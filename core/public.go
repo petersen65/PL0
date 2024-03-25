@@ -139,8 +139,8 @@ type (
 	ErrorHandler interface {
 		AppendError(err error) error
 		Count(severity Severity, component Component) int
-		Print(print io.Writer, args ...any) error
 		Export(format ExportFormat, print io.Writer) error
+		Print(print io.Writer, args ...any) error
 	}
 )
 

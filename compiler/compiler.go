@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	ana "github.com/petersen65/PL0/analyzer"
 	ast "github.com/petersen65/PL0/ast"
@@ -24,8 +26,8 @@ const (
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
 	textErrorCompiling     = "Error compiling PL0 source '%v': %v\n"
 	textErrorPersisting    = "Error persisting IL0 target '%v': %v\n"
-	textPrinting           = "Printing IL0 target '%v'\n"
-	textErrorPrinting      = "Error printing IL0 target '%v': %v\n"
+	textExporting          = "Exporting intermediate representations '%v'\n"
+	textErrorExporting     = "Error exporting intermediate representations '%v': %v\n"
 	textEmulating          = "Emulating IL0 target '%v'\n"
 	textErrorEmulating     = "Error emulating IL0 target '%v': %v\n"
 	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n"
@@ -34,7 +36,7 @@ const (
 
 // Options for the compilation driver as bit-mask.
 const (
-	Compile DriverOptions = 1 << iota
+	Compile DriverOption = 1 << iota
 	Emulate
 	Export
 	PrintTokenStream
@@ -42,9 +44,25 @@ const (
 	PrintIntermediateCode
 )
 
+// File extensions for all generated files.
+const (
+	PL0 Extension = iota
+	IL0
+	Token
+	Tree
+	Error
+	Intermediate
+	Json
+	Text
+	Binary
+)
+
 type (
-	// DriverOptions for the compilation process.
-	DriverOptions uint64
+	// Driver options for the compilation process.
+	DriverOption uint64
+
+	// File extensions for files used during compilation.
+	Extension int
 
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
@@ -56,8 +74,21 @@ type (
 	}
 )
 
+// ExtensionMap maps file extensions to their string representation.
+var ExtensionMap = map[Extension]string{
+	PL0:          ".pl0",
+	IL0:          ".il0",
+	Token:        ".tok",
+	Tree:         ".ast",
+	Error:        ".err",
+	Intermediate: ".int",
+	Json:         ".json",
+	Text:         ".txt",
+	Binary:       ".bin",
+}
+
 // Driver for the compilation process with the given options, source, target, and print writer.
-func Driver(options DriverOptions, source, target string, print io.Writer) {
+func Driver(options DriverOption, source, target string, print io.Writer) {
 	var translationUnit TranslationUnit
 	var err error
 
@@ -66,12 +97,20 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 		print.Write([]byte(fmt.Sprintf(textCompiling, source, target)))
 		translationUnit, err = CompileSourceToTranslationUnit(source)
 
+		// print compilation error message if an error occurred during compilation process
 		if err != nil {
 			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, err)))
 			return
 		}
 
-		if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
+		// ensure target path exists and print persistence error message if an error occurred
+		if target, err = EnsureTargetPath(target, IL0); err != nil {
+			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+			return
+		}
+
+		// persist IL/0 sections to target and print persistence error message if an error occurred
+		if err = PersistSectionsToTarget(translationUnit.Sections, target+ExtensionMap[IL0]); err != nil {
 			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
 			return
 		}
@@ -80,22 +119,10 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 		translationUnit.ErrorHandler.Print(print)
 	}
 
-	// print token stream
-	if options&Compile != 0 && options&PrintTokenStream != 0 {
-		translationUnit.TokenStream.Print(print)
-	}
-
-	// print abstract syntax tree
-	if options&Compile != 0 && options&PrintAbstractSyntaxTree != 0 {
-		translationUnit.AbstractSyntax.(*ast.BlockNode).Print(print)
-	}
-
-	// print intermediate code
-	if options&PrintIntermediateCode != 0 {
-		print.Write([]byte(fmt.Sprintf(textPrinting, target)))
-
-		if err = PrintTarget(target, print); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorPrinting, target, err)))
+	// export intermediate representations to the target path
+	if options&Export != 0 {
+		if err = ExportIntermediateRepresentationsToTarget(translationUnit.TokenStream, translationUnit.AbstractSyntax, translationUnit.Sections, target); err != nil {
+			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
 			return
 		}
 	}
@@ -127,6 +154,35 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
+// Ensure target path exists and create and remove empty target file to proof write access.
+func EnsureTargetPath(target string, extension Extension) (string, error) {
+	targetDir := filepath.Dir(target)
+
+	if targetDir != "." && targetDir != "" {
+		// 0755 means that the owner can read, write, and execute the file, and others can read and execute it
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			return "", err
+		}
+	}
+
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		return "", err
+	}
+
+	target = strings.TrimSuffix(target, filepath.Ext(target))
+
+	if targetFile, err := os.Create(target + ExtensionMap[extension]); err != nil {
+		return "", err
+	} else {
+		defer func(target string, program *os.File) {
+			program.Close()
+			os.Remove(target)
+		}(target+ExtensionMap[extension], targetFile)
+	}
+
+	return target, nil
+}
+
 // Persist IL/0 sections to the given target.
 func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 	if program, err := os.Create(target); err != nil {
@@ -138,6 +194,32 @@ func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+// Export all intermediate representations to the target path.
+func ExportIntermediateRepresentationsToTarget(tokenStream cor.TokenStream, abstractSyntax ast.Block, sections emt.TextSection, target string) error {
+	tsjf, tsjfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Json])
+	scjf, scjfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Json])
+
+	tstf, tstfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Text])
+	sctf, sctfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Text])
+
+	tsbf, tsbfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Binary])
+	scbf, scbfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Binary])
+
+	if tsjfErr != nil || scjfErr != nil || tstfErr != nil || sctfErr != nil || tsbfErr != nil || scbfErr != nil {
+		return fmt.Errorf("error creating export files: %v, %v, %v, %v, %v, %v", tsjfErr, scjfErr, tstfErr, sctfErr, tsbfErr, scbfErr)
+	}
+
+	tokenStream.Export(cor.Json, tsjf)
+	tokenStream.Export(cor.String, tstf)
+	tokenStream.Export(cor.Binary, tsbf)
+
+	sections.Export(cor.Json, scjf)
+	sections.Export(cor.String, sctf)
+	sections.Export(cor.Binary, scbf)
 
 	return nil
 }
