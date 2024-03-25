@@ -94,6 +94,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 	type Embedded TokenDescription
 
+	// replace the current line byte slice with a trimmed string of the current line
 	tdj := &struct {
 		Embedded
 		CurrentLine string `json:"current_line"`
@@ -105,13 +106,46 @@ func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tdj)
 }
 
+// Unmarshal the token description from a JSON object.
+func (td *TokenDescription) UnmarshalJSON(bytes []byte) error {
+	type Embedded TokenDescription
+
+	// target struct to unmarshal the JSON object to
+	tdj := &struct {
+		Embedded
+		CurrentLine string `json:"current_line"`
+	}{
+		Embedded: (Embedded)(*td),
+	}
+
+	if err := json.Unmarshal(bytes, tdj); err != nil {
+		return err
+	}
+
+	// replace the string of the current line with a byte slice
+	td.Token = tdj.Token
+	td.TokenName = tdj.TokenName
+	td.TokenValue = tdj.TokenValue
+	td.Line = tdj.Line
+	td.Column = tdj.Column
+	td.CurrentLine = []byte(tdj.CurrentLine)
+
+	return nil
+}
+
 // Export the token stream to a writer in the specified format.
 func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
-		return json.NewEncoder(print).Encode(struct {
+		// export the token stream as a JSON object and wrap it in a struct to provide a field name for the token stream
+		if bytes, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
-		}{Stream: ts})
+		}{Stream: ts}, "", "  "); err != nil {
+			return err
+		} else {
+			_, err = print.Write(bytes)
+			return err
+		}
 
 	case String:
 		return ts.Print(print, false)
