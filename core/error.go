@@ -16,13 +16,15 @@ const (
 	_ = Failure(iota + 100)
 	errorKindNotSupported
 	unknownExportFormat
+	errorReportExportFailed
 	tokenStreamExportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[Failure]string{
-	errorKindNotSupported: "error kind not supported: %v",
-	unknownExportFormat:   "unknown export format: %v",
+	errorKindNotSupported:   "error kind not supported: %v",
+	unknownExportFormat:     "unknown export format: %v",
+	errorReportExportFailed: "failed to export the error report",
 	tokenStreamExportFailed: "failed to export the token stream",
 }
 
@@ -64,7 +66,7 @@ type (
 		code             Failure     // failure code of the error
 		component        Component   // component that generated the error
 		severity         Severity    // severity of the error
-		tokenStreamIndex int         // index of the token in the token stream where the error occurred
+		tokenStreamIndex int64       // index of the token in the token stream where the error occurred
 		tokenStream      TokenStream // token stream that is used to connect errors to a location in the source code
 	}
 
@@ -143,7 +145,7 @@ func newSourceError(component Component, failureMap map[Failure]string, severity
 // Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
 func newTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
 	err := newGoError(failureMap, code, value)
-	return &tokenError{err: err, code: code, component: component, severity: severity, tokenStreamIndex: index, tokenStream: tokenStream}
+	return &tokenError{err: err, code: code, component: component, severity: severity, tokenStreamIndex: int64(index), tokenStream: tokenStream}
 }
 
 // Implement the error interface for the general error so that it can be used like a native Go error.
@@ -205,15 +207,80 @@ func (e *errorHandler) AppendError(err error) error {
 func (e *errorHandler) Count(severity Severity, component Component) int {
 	var count int
 
-	for range e.Iterate(severity, component) {
+	for range e.iterate(severity, component) {
 		count++
 	}
 
 	return count
 }
 
+// Print the error report to the writer of the error handler.
+func (e *errorHandler) Print(print io.Writer, args ...any) error {
+	if len(e.errorReport) == 0 {
+		return nil
+	}
+
+	// print the title text message for the error report
+	if _, err := print.Write(textErrorReport); err != nil {
+		return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+	}
+
+	// print errors in the error report
+	if e.Count(Fatal|Error, AllComponents) > 0 {
+		if _, err := print.Write(textErrors); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+
+		if err := printErrors(e.iterate(Fatal|Error, AllComponents), print); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+	}
+
+	// print warnings in the error report
+	if e.Count(Warning, AllComponents) > 0 {
+		if _, err := print.Write(textWarnings); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+
+		if err := printErrors(e.iterate(Warning, AllComponents), print); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+	}
+
+	// print remarks in the error report
+	if e.Count(Remark, AllComponents) > 0 {
+		if _, err := print.Write(textRemarks); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+
+		if err := printErrors(e.iterate(Remark, AllComponents), print); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+	}
+
+	return nil
+}
+
+// Export the error report to the writer of the error handler.
+func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
+	switch format {
+	case Json:
+
+	case String:
+		// print is a convenience function to export the error report as a string to the print writer
+		return e.Print(print)
+
+	case Binary:
+
+	default:
+		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
+	}
+
+	return nil
+}
+
 // Iterate over all errors in the error report of the error handler and return a channel of errors that match the severity and component.
-func (e *errorHandler) Iterate(severity Severity, component Component) <-chan error {
+func (e *errorHandler) iterate(severity Severity, component Component) <-chan error {
 	errors := make(chan error)
 
 	go func() {
@@ -251,32 +318,12 @@ func (e *errorHandler) Iterate(severity Severity, component Component) <-chan er
 }
 
 // Print all errors in the errors channel to the given writer.
-func (e *errorHandler) Print(errors <-chan error, print io.Writer) {
-	for err := range errors {
-		print.Write([]byte(err.Error()))
-	}
-}
-
-// Print the error report to the writer of the error handler.
-func (e *errorHandler) PrintErrorReport(print io.Writer) {
-	if len(e.errorReport) == 0 {
-		return
+func printErrors(errors <-chan error, print io.Writer) error {
+	for e := range errors {
+		if _, err := print.Write([]byte(e.Error())); err != nil {
+			return err
+		}
 	}
 
-	print.Write(textErrorReport)
-
-	if e.Count(Fatal|Error, AllComponents) > 0 {
-		print.Write(textErrors)
-		e.Print(e.Iterate(Fatal|Error, AllComponents), print)
-	}
-
-	if e.Count(Warning, AllComponents) > 0 {
-		print.Write(textWarnings)
-		e.Print(e.Iterate(Warning, AllComponents), print)
-	}
-
-	if e.Count(Remark, AllComponents) > 0 {
-		print.Write(textRemarks)
-		e.Print(e.Iterate(Remark, AllComponents), print)
-	}
+	return nil
 }

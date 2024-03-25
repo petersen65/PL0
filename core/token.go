@@ -163,7 +163,7 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 		var buffer bytes.Buffer
 
 		// write the raw bytes of the token stream into a binary buffer
-		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {
+		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {x
 			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 

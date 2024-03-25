@@ -139,9 +139,8 @@ type (
 	ErrorHandler interface {
 		AppendError(err error) error
 		Count(severity Severity, component Component) int
-		Iterate(severity Severity, component Component) <-chan error
-		Print(errors <-chan error, print io.Writer)
-		PrintErrorReport(print io.Writer)
+		Print(print io.Writer, args ...any) error
+		Export(format ExportFormat, print io.Writer) error
 	}
 )
 
