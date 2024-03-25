@@ -4,14 +4,7 @@
 // Package emulator provides an emulation engine for IL/0.
 package emulator
 
-import "io"
-
-// Run a binary IL/0 program and return an error if the program fails to execute.
-func RunSections(sections []byte) error {
-	return newMachine().runProgram(sections)
-}
-
-// Print a binary IL/0 program to the specified writer and return an error if the program fails to print.
-func PrintSections(sections []byte, print io.Writer) error {
-	return printProgram(sections, print)
+// Run a binary IL/0 target and return an error if the target fails to execute.
+func Run(bytes []byte) error {
+	return newMachine().runProgram(bytes)
 }

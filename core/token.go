@@ -4,6 +4,8 @@
 package core
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +17,7 @@ const eof Token = -1
 
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
-	tokenStreamIndex     int                // index of the current token in the token stream table
+	tokenStreamIndex     int              // index of the current token in the token stream table
 	tokenStream          TokenStream        // token stream to parse
 	lastTokenDescription TokenDescription   // description of the last token that was read
 	component            Component          // component of the compiler that is using the token handler
@@ -44,11 +46,12 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 	// calculate the start index of the token stream depending on the bottom flag
 	var bottom bool
-	var start, previousLine int
+	var start int
+	var previousLine int32
 
 	// print the title text message for the token stream
 	if _, err := print.Write(textTokenStream); err != nil {
-		return err
+		return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 	}
 
 	// check if the bottom flag is set
@@ -75,7 +78,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 		// print line number and line content if the line number is a new line
 		if td.Line != previousLine {
 			if _, err := print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")))); err != nil {
-				return err
+				return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 			}
 
 			previousLine = td.Line
@@ -83,7 +86,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print token description below the line number and line content
 		if _, err := print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue))); err != nil {
-			return err
+			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 	}
 
@@ -141,18 +144,39 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 		if bytes, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
 		}{Stream: ts}, "", "  "); err != nil {
-			return err
+			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		} else {
 			_, err = print.Write(bytes)
+
+			if err != nil {
+				err = newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			}
+
 			return err
 		}
 
 	case String:
-		return ts.Print(print, false)
+		// print is a convenience function to export the token stream as a string to the print writer
+		return ts.Print(print)
+
+	case Binary:
+		var buffer bytes.Buffer
+
+		// write the raw bytes of the token stream into a binary buffer
+		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {
+			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+		}
+
+		// transfer the binary buffer to the print writer
+		if _, err := buffer.WriteTo(print); err != nil {
+			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+		}
 
 	default:
 		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
 	}
+
+	return nil
 }
 
 // Set next token description in the token stream or an eof description.

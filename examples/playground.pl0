@@ -11,6 +11,7 @@ begin
     ! x;
     ! y;
     ! z;
+    ! a;
 
     if odd z then
         ! 42;

@@ -9,10 +9,48 @@ import (
 	"slices"
 )
 
+// Tokens of the PL/0 programming language
+const (
+	Unknown = Token(iota)
+	Identifier
+	Number
+	Plus
+	Minus
+	Times
+	Divide
+	Equal
+	NotEqual
+	Less
+	LessEqual
+	Greater
+	GreaterEqual
+	LeftParenthesis
+	RightParenthesis
+	Comma
+	Colon
+	Semicolon
+	ProgramEnd
+	Becomes
+	Read
+	Write
+	OddWord
+	BeginWord
+	EndWord
+	IfWord
+	ThenWord
+	WhileWord
+	DoWord
+	CallWord
+	ConstWord
+	VarWord
+	ProcedureWord
+)
+
 // Export formats for the compiler which can be used to export intermediate results.
 const (
-	String = ExportFormat(iota)
-	Json
+	Json = ExportFormat(iota)
+	String
+	Binary
 )
 
 // Packages of the compiler which can generate errors as a bit-mask enumeration.
@@ -49,7 +87,7 @@ type (
 	}
 
 	// Token is a type that represents a token in the source code.
-	Token int
+	Token int32
 
 	// Tokens represents a set of tokens.
 	Tokens []Token
@@ -67,8 +105,8 @@ type (
 		Token       Token  `json:"token"`       // token kind
 		TokenName   string `json:"token_name"`  // token name
 		TokenValue  string `json:"token_value"` // token value
-		Line        int    `json:"line"`        // line position in the source code
-		Column      int    `json:"column"`      // column position in the source code
+		Line        int32  `json:"line"`        // line position in the source code
+		Column      int32  `json:"column"`      // column position in the source code
 		CurrentLine []byte `json:"-"`           // source code line
 	}
 
@@ -89,7 +127,7 @@ type (
 	}
 
 	// Failure is a type for codes that can be mapped to messages.
-	Failure int
+	Failure int32
 
 	// Error levels that are used to categorize errors.
 	Severity uint64
@@ -104,6 +142,48 @@ type (
 		Iterate(severity Severity, component Component) <-chan error
 		Print(errors <-chan error, print io.Writer)
 		PrintErrorReport(print io.Writer)
+	}
+)
+
+var (
+	// Empty is an empty token set.
+	Empty = Tokens{}
+
+	// TokenNames maps tokens to their string representation.
+	TokenNames = map[Token]string{
+		Unknown:          "unknown",
+		Identifier:       "identifier",
+		Number:           "number",
+		Plus:             "plus",
+		Minus:            "minus",
+		Times:            "times",
+		Divide:           "divide",
+		Equal:            "equal",
+		NotEqual:         "notEqual",
+		Less:             "less",
+		LessEqual:        "lessEqual",
+		Greater:          "greater",
+		GreaterEqual:     "greaterEqual",
+		LeftParenthesis:  "leftParenthesis",
+		RightParenthesis: "rightParenthesis",
+		Comma:            "comma",
+		Colon:            "colon",
+		Semicolon:        "semicolon",
+		ProgramEnd:       "programEnd",
+		Becomes:          "becomes",
+		Read:             "read",
+		Write:            "write",
+		OddWord:          "odd",
+		BeginWord:        "begin",
+		EndWord:          "end",
+		IfWord:           "if",
+		ThenWord:         "then",
+		WhileWord:        "while",
+		DoWord:           "do",
+		CallWord:         "call",
+		ConstWord:        "const",
+		VarWord:          "var",
+		ProcedureWord:    "procedure",
 	}
 )
 
@@ -150,12 +230,12 @@ func NewGeneralError(component Component, failureMap map[Failure]string, severit
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
+func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
 	return newLineColumnError(component, failureMap, severity, code, value, line, column)
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
+func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
 	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
 }
 

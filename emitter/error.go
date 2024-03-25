@@ -9,11 +9,15 @@ import cor "github.com/petersen65/PL0/core"
 const (
 	_ = cor.Failure(iota + 9000)
 	instructionOutOfRange
-	binaryTextSectionExportFailed
+	unknownExportFormat
+	textSectionExportFailed
+	textSectionImportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	instructionOutOfRange:         "instruction is out of range: %v",
-	binaryTextSectionExportFailed: "failed to export the text section as binary data",
+	instructionOutOfRange:   "instruction is out of range: %v",
+	unknownExportFormat:     "unknown export format: %v",
+	textSectionExportFailed: "failed to export the text section",
+	textSectionImportFailed: "failed to import the text section",
 }

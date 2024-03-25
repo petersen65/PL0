@@ -4,10 +4,7 @@
 package emulator
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 
 	cor "github.com/petersen65/PL0/core"
@@ -67,17 +64,13 @@ func newMachine() *machine {
 	}
 }
 
-// Load a program and print it to a writer.
-func printProgram(sections []byte, print io.Writer) error {
-	return (&process{}).dump(sections, print)
-}
-
 // Run a program and return an error if the program fails.
-func (m *machine) runProgram(sections []byte) error {
+func (m *machine) runProgram(raw []byte) error {
 	var process process
+	var err error
 
 	// load program into memory (text section)
-	if err := process.load(sections); err != nil {
+	if process.text, err = emt.Import(raw); err != nil {
 		return err
 	}
 
@@ -533,38 +526,4 @@ func (c *cpu) sys(code emt.SystemCall) {
 		c.pop(ax)
 		fmt.Printf("%v\n", int64(c.registers[ax]))
 	}
-}
-
-// Load sections from a byte slice into the text section of a process.
-func (p *process) load(sections []byte) error {
-	p.text = make(emt.TextSection, len(sections)/binary.Size(emt.Instruction{}))
-
-	var buffer bytes.Buffer
-	buffer.Write(sections)
-
-	if err := binary.Read(&buffer, binary.LittleEndian, p.text); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Dump sections loaded by a process to a writer.
-func (p *process) dump(sections []byte, print io.Writer) error {
-	if err := p.load(sections); err != nil {
-		return err
-	}
-
-	print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg")))
-
-	for text, instr := range p.text {
-		print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
-			text,
-			emt.OperationNames[instr.Operation],
-			instr.BlockNestingDepthDifference,
-			instr.Address,
-			instr.ArgInt)))
-	}
-
-	return nil
 }

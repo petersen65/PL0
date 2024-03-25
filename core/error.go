@@ -7,18 +7,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 )
 
 // Failure codes for core components of the PL/0 compiler.
 const (
 	_ = Failure(iota + 100)
+	errorKindNotSupported
 	unknownExportFormat
+	tokenStreamExportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[Failure]string{
-	unknownExportFormat: "unknown export format: %v",
+	errorKindNotSupported: "error kind not supported: %v",
+	unknownExportFormat:   "unknown export format: %v",
+	tokenStreamExportFailed: "failed to export the token stream",
 }
 
 type (
@@ -40,7 +45,7 @@ type (
 		code         Failure   // failure code of the error
 		component    Component // component that generated the error
 		severity     Severity  // severity of the error
-		line, column int       // line and column where the error occurred
+		line, column int32     // line and column where the error occurred
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
@@ -49,7 +54,7 @@ type (
 		code         Failure   // failure code of the error
 		component    Component // component that generated the error
 		severity     Severity  // severity of the error
-		line, column int       // line and column where the error occurred
+		line, column int32     // line and column where the error occurred
 		sourceCode   []byte    // source code where the error occurred
 	}
 
@@ -124,13 +129,13 @@ func newGeneralError(component Component, failureMap map[Failure]string, severit
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
+func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
 	err := newGoError(failureMap, code, value)
 	return &lineColumnError{err: err, code: code, component: component, severity: severity, line: line, column: column}
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
+func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
 	err := newGoError(failureMap, code, value)
 	return &sourceError{err: err, code: code, component: component, severity: severity, line: line, column: column, sourceCode: sourceCode}
 }
@@ -167,7 +172,7 @@ func (e *sourceError) Error() string {
 	trimmedLine := strings.TrimLeft(string(e.sourceCode), " \t\n\r")
 	trimmedLen := len(string(e.sourceCode)) - len(trimmedLine)
 	sourceLine := fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)
-	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", e.column+len(linePrefix)-trimmedLen-1), message)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
 }
@@ -182,7 +187,7 @@ func (e *tokenError) Error() string {
 	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
 	trimmedLen := len(string(td.CurrentLine)) - len(trimmedLine)
 	sourceLine := fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)
-	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", td.Column+len(linePrefix)-trimmedLen-1), message)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(td.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
 }
@@ -233,6 +238,9 @@ func (e *errorHandler) Iterate(severity Severity, component Component) <-chan er
 				if err.severity&severity != 0 && err.component&component != 0 {
 					errors <- err
 				}
+
+			default:
+				panic(newGeneralError(Core, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
 			}
 		}
 

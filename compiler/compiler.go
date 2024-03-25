@@ -12,6 +12,7 @@ import (
 	ana "github.com/petersen65/PL0/analyzer"
 	ast "github.com/petersen65/PL0/ast"
 	cor "github.com/petersen65/PL0/core"
+	emt "github.com/petersen65/PL0/emitter"
 	emu "github.com/petersen65/PL0/emulator"
 	gen "github.com/petersen65/PL0/generator"
 	par "github.com/petersen65/PL0/parser"
@@ -49,7 +50,7 @@ type (
 		SourceContent  []byte           // PL/0 utf-8 source content
 		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
 		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
-		Sections       []byte           // IL/0 intermediate language code
+		Sections       emt.TextSection  // IL/0 intermediate language target
 		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
 	}
 )
@@ -126,13 +127,13 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 }
 
 // Persist IL/0 sections to the given target.
-func PersistSectionsToTarget(sections []byte, target string) error {
+func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 	if program, err := os.Create(target); err != nil {
 		return err
 	} else {
 		defer program.Close()
 
-		if _, err := program.Write(sections); err != nil {
+		if err := sections.Export(cor.Binary, program); err != nil {
 			return err
 		}
 	}
@@ -142,9 +143,11 @@ func PersistSectionsToTarget(sections []byte, target string) error {
 
 // Print IL/0 target to the given writer.
 func PrintTarget(target string, print io.Writer) error {
-	if sections, err := os.ReadFile(target); err != nil {
+	if raw, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := emu.PrintSections(sections, print); err != nil {
+	} else if ts, err := emt.Import(raw); err != nil {
+		return err
+	} else if err := ts.Print(print); err != nil {
 		return err
 	}
 
@@ -153,9 +156,9 @@ func PrintTarget(target string, print io.Writer) error {
 
 // Run IL/0 target with the emulator.
 func EmulateTarget(target string) error {
-	if sections, err := os.ReadFile(target); err != nil {
+	if bytes, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := emu.RunSections(sections); err != nil {
+	} else if err := emu.Run(bytes); err != nil {
 		return err
 	}
 
@@ -179,9 +182,7 @@ func CompileContent(content []byte) TranslationUnit {
 	}
 
 	// code generation and emission of IL/0 intermediate language code based on abstract syntax tree
-	emitter := gen.NewGenerator(abstractSyntax).Generate()
-	sections, emitterError := emitter.Export()
-	errorHandler.AppendError(emitterError) // nil errors are ignored
+	sections := gen.NewGenerator(abstractSyntax).Generate().GetSections()
 
 	// return if any fatal or error errors occurred during code generation and emission
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {

@@ -6,6 +6,9 @@ package emitter
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
 
 	cor "github.com/petersen65/PL0/core"
 )
@@ -22,6 +25,97 @@ func newEmitter() Emitter {
 	}
 }
 
+// Import a raw byte slice into a text section.
+func Import(raw []byte) (TextSection, error) {
+	textSection := make(TextSection, len(raw)/binary.Size(Instruction{}))
+
+	var buffer bytes.Buffer
+	buffer.Write(raw)
+
+	if err := binary.Read(&buffer, binary.LittleEndian, textSection); err != nil {
+		return nil, cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionImportFailed, nil, err)
+	}
+
+	return textSection, nil
+}
+
+// Print the text section to a writer.
+func (ts TextSection) Print(print io.Writer, args ...any) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg"))); err != nil {
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+	}
+
+	for text, instr := range ts {
+		_, err := print.Write(
+			[]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
+				text,
+				OperationNames[instr.Operation],
+				instr.BlockNestingDepthDifference,
+				instr.Address,
+				instr.ArgInt,
+			)))
+
+		if err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+	}
+
+	return nil
+}
+
+// Export the text section to a writer in the specified format.
+func (ts TextSection) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Json:
+		// export the text section as a JSON object and wrap it in a struct to provide a field name for the text section
+		if bytes, err := json.MarshalIndent(struct {
+			Text TextSection `json:"text_section"`
+		}{Text: ts}, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		} else {
+			_, err = print.Write(bytes)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+			}
+
+			return err
+		}
+
+	case cor.String:
+		// print is a convenience function to export the text section as a string to the print writer
+		return ts.Print(print)
+
+	case cor.Binary:
+		var buffer bytes.Buffer
+
+		// write the raw bytes of the text section into a binary buffer
+		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
+		// transfer the binary buffer to the print writer
+		if _, err := buffer.WriteTo(print); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
+	default:
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+
+	return nil
+}
+
+// Expose sections of the emitted IL/0 program.
+func (e *emitter) GetSections() TextSection {
+	return e.textSection
+}
+
+// Get the next free address in the text section.
+func (e *emitter) GetNextAddress() Address {
+	return Address(len(e.textSection))
+}
+
 // Update the target address and optionally the argument of an instruction in the text section.
 func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
@@ -34,22 +128,6 @@ func (e *emitter) Update(instruction, target Address, value any) error {
 		e.textSection[instruction].ArgInt = value.(int64)
 	}
 	return nil
-}
-
-// Get the next free address in the text section.
-func (e *emitter) GetNextAddress() Address {
-	return Address(len(e.textSection))
-}
-
-// Save text section as a byte slice.
-func (e *emitter) Export() ([]byte, error) {
-	var buffer bytes.Buffer
-
-	if err := binary.Write(&buffer, binary.LittleEndian, e.textSection); err != nil {
-		return nil, cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, binaryTextSectionExportFailed, nil, err)
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // Load a constant value onto the stack.
