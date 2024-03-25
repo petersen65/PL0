@@ -5,54 +5,82 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/petersen65/PL0/compiler"
+	com "github.com/petersen65/PL0/compiler"
 )
 
-// Function main is the entry point for the PL/0 compiler command line interface.
-// It parses the command line arguments and calls the appropriate functions.
-//
-// The command line arguments are:
-//
-//	-c[r|t|a|i] <source file> <target file>
-//	-r <target file>
-//	-p <target file>
+// Text messages for the compiler command line interface.
+const (
+	textTitle        = "PL/0 Compiler"
+	textVersion      = "Version 2.0.0 2024"
+	textCopyright    = "Copyright (c) 2024, Michael Petersen. All rights reserved."
+	textCompilerUse  = "Usage of PL/0 compiler"
+	textCompileUsage = "compile PL/0 source file to IL/0 target file"
+	textRunUsage     = "run IL/0 target file"
+	textExportUsage  = "export intermediate representations to TOK/AST/COD target files"
+	textSourceUsage  = "PL/0 source file"
+	textTargetUsage  = "IL/0 target file"
+)
+
+// Function main is the entry point for the PL/0 compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
-	fmt.Println("PL/0 Compiler Version 2.0.0 2024")
-	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
+	var options com.DriverOptions
+	var compile, run, export bool
+	var source, target string
 
-	switch {
-	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compiler.Driver(compiler.Compile, os.Args[2], os.Args[3], os.Stdout)
+	flag.BoolVar(&compile, "c", false, textCompileUsage)
+	flag.BoolVar(&compile, "compile", false, textCompileUsage)
+	flag.BoolVar(&run, "r", false, textRunUsage)
+	flag.BoolVar(&run, "run", false, textRunUsage)
+	flag.BoolVar(&export, "e", false, textExportUsage)
+	flag.BoolVar(&export, "export", false, textExportUsage)
+	flag.StringVar(&source, "s", "", textSourceUsage)
+	flag.StringVar(&source, "source", "", textSourceUsage)
+	flag.StringVar(&target, "t", "", textTargetUsage)
+	flag.StringVar(&target, "target", "", textTargetUsage)
 
-	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
-		compiler.Driver(compiler.Emulate, "", os.Args[2], os.Stdout)
-
-	case len(os.Args) > 2 && os.Args[1] == "-i" && len(os.Args[2]) > 0:
-		compiler.Driver(compiler.PrintIntermediateCode, "", os.Args[2], os.Stdout)
-
-	case len(os.Args) > 3 && os.Args[1] == "-cr" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compiler.Driver(compiler.Compile|compiler.Emulate, os.Args[2], os.Args[3], os.Stdout)
-
-	case len(os.Args) > 3 && os.Args[1] == "-ct" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compiler.Driver(compiler.Compile|compiler.PrintTokenStream, os.Args[2], os.Args[3], os.Stdout)
-
-	case len(os.Args) > 3 && os.Args[1] == "-ca" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compiler.Driver(compiler.Compile|compiler.PrintAbstractSyntaxTree, os.Args[2], os.Args[3], os.Stdout)
-
-	case len(os.Args) > 3 && os.Args[1] == "-ci" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compiler.Driver(compiler.Compile|compiler.PrintIntermediateCode, os.Args[2], os.Args[3], os.Stdout)
-
-	default:
-		usage()
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUse)
+		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
+		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
+		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
+		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
 	}
-}
 
-// Function 'usage' prints the command line usage information to the standard output (console).
-func usage() {
-	fmt.Println("Usage: pl0 -c[r|t|a|i] <source file> <target file>")
-	fmt.Println("       pl0 -r <target file>")
-	fmt.Println("       pl0 -p <target file>")
+	flag.Parse()
+	fmt.Fprintf(os.Stdout, "%v %v\n", textTitle, textVersion)
+	fmt.Fprintf(os.Stdout, "%v\n", textCopyright)
+
+	if compile {
+		options |= com.Compile
+
+		if source == "" || target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	if run {
+		options |= com.Emulate
+
+		if target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	if export {
+		options |= com.Export
+
+		if options&com.Compile == 0 || source == "" || target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	com.Driver(options, source, target, os.Stdout)
 }

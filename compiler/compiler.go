@@ -35,10 +35,11 @@ const (
 // Options for the compilation driver as bit-mask.
 const (
 	Compile DriverOptions = 1 << iota
+	Emulate
+	Export
 	PrintTokenStream
 	PrintAbstractSyntaxTree
 	PrintIntermediateCode
-	Emulate
 )
 
 type (
