@@ -76,7 +76,7 @@ func Driver(options DriverOptions, source, target string, print io.Writer) {
 		}
 
 		// print error report if errors with any severity occurred during compilation process
-		translationUnit.ErrorHandler.PrintErrorReport(print)
+		translationUnit.ErrorHandler.Print(print)
 	}
 
 	// print token stream

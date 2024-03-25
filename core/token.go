@@ -5,7 +5,7 @@ package core
 
 import (
 	"bytes"
-	"encoding/binary"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,7 +17,7 @@ const eof Token = -1
 
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
-	tokenStreamIndex     int              // index of the current token in the token stream table
+	tokenStreamIndex     int                // index of the current token in the token stream table
 	tokenStream          TokenStream        // token stream to parse
 	lastTokenDescription TokenDescription   // description of the last token that was read
 	component            Component          // component of the compiler that is using the token handler
@@ -162,8 +162,8 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 	case Binary:
 		var buffer bytes.Buffer
 
-		// write the raw bytes of the token stream into a binary buffer
-		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {x
+		// encode the raw bytes of the token stream into a binary buffer
+		if err := gob.NewEncoder(&buffer).Encode(ts); err != nil {
 			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 

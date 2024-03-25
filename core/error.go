@@ -4,6 +4,9 @@
 package core
 
 import (
+	"bytes"
+	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,40 +37,42 @@ type (
 
 	// A general error with a severity level and an optional inner error.
 	generalError struct {
-		err       error     // error message
-		code      Failure   // failure code of the error
-		component Component // component that generated the error
-		severity  Severity  // severity of the error
-		inner     error     // inner error wrapped by the general error
+		Err       error     `json:"err"`       // error message
+		Code      Failure   `json:"code"`      // failure code of the error
+		Component Component `json:"component"` // component that generated the error
+		Severity  Severity  `json:"severity"`  // severity of the error
+		Inner     error     `json:"inner"`     // inner error wrapped by the general error
 	}
 
 	// An error with a severity level and a line and column number.
 	lineColumnError struct {
-		err          error     // error message
-		code         Failure   // failure code of the error
-		component    Component // component that generated the error
-		severity     Severity  // severity of the error
-		line, column int32     // line and column where the error occurred
+		Err       error     `json:"err"`       // error message
+		Code      Failure   `json:"code"`      // failure code of the error
+		Component Component `json:"component"` // component that generated the error
+		Severity  Severity  `json:"severity"`  // severity of the error
+		Line      int32     `json:"line"`      // line where the error occurred
+		Column    int32     `json:"column"`    // column where the error occurred
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
 	sourceError struct {
-		err          error     // error message
-		code         Failure   // failure code of the error
-		component    Component // component that generated the error
-		severity     Severity  // severity of the error
-		line, column int32     // line and column where the error occurred
-		sourceCode   []byte    // source code where the error occurred
+		Err        error     `json:"err"`         // error message
+		Code       Failure   `json:"code"`        // failure code of the error
+		Component  Component `json:"component"`   // component that generated the error
+		Severity   Severity  `json:"severity"`    // severity of the error
+		Line       int32     `json:"line"`        // line where the error occurred
+		Column     int32     `json:"column"`      // column where the error occurred
+		SourceCode []byte    `json:"source_code"` // source code where the error occurred
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
 	tokenError struct {
-		err              error       // error message
-		code             Failure     // failure code of the error
-		component        Component   // component that generated the error
-		severity         Severity    // severity of the error
-		tokenStreamIndex int64       // index of the token in the token stream where the error occurred
-		tokenStream      TokenStream // token stream that is used to connect errors to a location in the source code
+		Err              error       `json:"err"`                // error message
+		Code             Failure     `json:"code"`               // failure code of the error
+		Component        Component   `json:"component"`          // component that generated the error
+		Severity         Severity    `json:"severity"`           // severity of the error
+		TokenStreamIndex int64       `json:"token_stream_index"` // index of the token in the token stream where the error occurred
+		TokenStream      TokenStream `json:"token_stream"`       // token stream that is used to connect errors to a location in the source code
 	}
 
 	// Private implementation of the error handler.
@@ -127,63 +132,63 @@ func newGoError(failureMap map[Failure]string, code Failure, value any) error {
 // Create a new general error with a severity level.
 func newGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
 	err := newGoError(failureMap, code, value)
-	return &generalError{err: err, code: code, component: component, severity: severity, inner: inner}
+	return &generalError{Err: err, Code: code, Component: component, Severity: severity, Inner: inner}
 }
 
 // Create a new line-column error with a severity level and a line and column number.
 func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
 	err := newGoError(failureMap, code, value)
-	return &lineColumnError{err: err, code: code, component: component, severity: severity, line: line, column: column}
+	return &lineColumnError{Err: err, Code: code, Component: component, Severity: severity, Line: line, Column: column}
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
 func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
 	err := newGoError(failureMap, code, value)
-	return &sourceError{err: err, code: code, component: component, severity: severity, line: line, column: column, sourceCode: sourceCode}
+	return &sourceError{Err: err, Code: code, Component: component, Severity: severity, Line: line, Column: column, SourceCode: sourceCode}
 }
 
 // Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
 func newTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
 	err := newGoError(failureMap, code, value)
-	return &tokenError{err: err, code: code, component: component, severity: severity, tokenStreamIndex: int64(index), tokenStream: tokenStream}
+	return &tokenError{Err: err, Code: code, Component: component, Severity: severity, TokenStreamIndex: int64(index), TokenStream: tokenStream}
 }
 
 // Implement the error interface for the general error so that it can be used like a native Go error.
 func (e *generalError) Error() string {
-	message := e.err.Error()
-	return fmt.Sprintf("%v %v %v: %v", componentMap[e.component], severityMap[e.severity], e.code, message)
+	message := e.Err.Error()
+	return fmt.Sprintf("%v %v %v: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, message)
 }
 
 // Implement the Unwrap method for the general error so that it can be used to unwrap the inner error.
 func (e *generalError) Unwrap() error {
-	return e.inner
+	return e.Inner
 }
 
 // Implement the error interface for the line-column error so that it can be used like a native Go error.
 func (e *lineColumnError) Error() string {
-	message := e.err.Error()
-	return fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.component], severityMap[e.severity], e.code, e.line, e.column, message)
+	message := e.Err.Error()
+	return fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
 }
 
 // Implement the error interface for the source error so that it can be used like a native Go error.
 func (e *sourceError) Error() string {
-	message := e.err.Error()
-	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.component], severityMap[e.severity], e.code, e.line, e.column, message)
+	message := e.Err.Error()
+	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
 
-	linePrefix := fmt.Sprintf("%5v: ", e.line)
-	trimmedLine := strings.TrimLeft(string(e.sourceCode), " \t\n\r")
-	trimmedLen := len(string(e.sourceCode)) - len(trimmedLine)
+	linePrefix := fmt.Sprintf("%5v: ", e.Line)
+	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \t\n\r")
+	trimmedLen := len(string(e.SourceCode)) - len(trimmedLine)
 	sourceLine := fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)
-	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.column)+len(linePrefix)-trimmedLen-1), message)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
 }
 
 // Implement the error interface for the token error so that it can be used like a native Go error.
 func (e *tokenError) Error() string {
-	td := e.tokenStream[e.tokenStreamIndex]
-	message := e.err.Error()
-	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.component], severityMap[e.severity], e.code, td.Line, td.Column, message)
+	td := e.TokenStream[e.TokenStreamIndex]
+	message := e.Err.Error()
+	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, td.Line, td.Column, message)
 
 	linePrefix := fmt.Sprintf("%5v: ", td.Line)
 	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
@@ -265,12 +270,37 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
+		// export the error report as a JSON object and wrap it in a struct to provide a field name for the error report
+		if bytes, err := json.MarshalIndent(struct {
+			Report errorReport `json:"error_report"`
+		}{Report: e.errorReport}, "", "  "); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		} else {
+			_, err = print.Write(bytes)
+
+			if err != nil {
+				err = newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			}
+
+			return err
+		}
 
 	case String:
 		// print is a convenience function to export the error report as a string to the print writer
 		return e.Print(print)
 
 	case Binary:
+		var buffer bytes.Buffer
+
+		// encode the raw bytes of the error report into a binary buffer
+		if err := gob.NewEncoder(&buffer).Encode(e.errorReport); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
+
+		// transfer the binary buffer to the print writer
+		if _, err := buffer.WriteTo(print); err != nil {
+			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		}
 
 	default:
 		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
@@ -287,22 +317,22 @@ func (e *errorHandler) iterate(severity Severity, component Component) <-chan er
 		for _, err := range e.errorReport {
 			switch err := err.(type) {
 			case *generalError:
-				if err.severity&severity != 0 && err.component&component != 0 {
+				if err.Severity&severity != 0 && err.Component&component != 0 {
 					errors <- err
 				}
 
 			case *lineColumnError:
-				if err.severity&severity != 0 && err.component&component != 0 {
+				if err.Severity&severity != 0 && err.Component&component != 0 {
 					errors <- err
 				}
 
 			case *sourceError:
-				if err.severity&severity != 0 && err.component&component != 0 {
+				if err.Severity&severity != 0 && err.Component&component != 0 {
 					errors <- err
 				}
 
 			case *tokenError:
-				if err.severity&severity != 0 && err.component&component != 0 {
+				if err.Severity&severity != 0 && err.Component&component != 0 {
 					errors <- err
 				}
 
