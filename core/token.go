@@ -110,7 +110,7 @@ func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 }
 
 // Unmarshal the token description from a JSON object.
-func (td *TokenDescription) UnmarshalJSON(bytes []byte) error {
+func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
 	type Embedded TokenDescription
 
 	// target struct to unmarshal the JSON object to
@@ -121,7 +121,7 @@ func (td *TokenDescription) UnmarshalJSON(bytes []byte) error {
 		Embedded: (Embedded)(*td),
 	}
 
-	if err := json.Unmarshal(bytes, tdj); err != nil {
+	if err := json.Unmarshal(raw, tdj); err != nil {
 		return err
 	}
 

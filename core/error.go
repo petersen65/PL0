@@ -37,17 +37,17 @@ type (
 
 	// A general error with a severity level and an optional inner error.
 	generalError struct {
-		Err       error     `json:"err"`       // error message
+		Err       error     `json:"-"`         // error message
 		Code      Failure   `json:"code"`      // failure code of the error
 		Component Component `json:"component"` // component that generated the error
 		Severity  Severity  `json:"severity"`  // severity of the error
-		Inner     error     `json:"inner"`     // inner error wrapped by the general error
-		Indent    int32     `json:"indent"`    // indentation level of the error message
+		Inner     error     `json:"-"`         // inner error wrapped by the general error
+		Indent    int32     `json:"-"`         // indentation level of the error message
 	}
 
 	// An error with a severity level and a line and column number.
 	lineColumnError struct {
-		Err       error     `json:"err"`       // error message
+		Err       error     `json:"-"`         // error message
 		Code      Failure   `json:"code"`      // failure code of the error
 		Component Component `json:"component"` // component that generated the error
 		Severity  Severity  `json:"severity"`  // severity of the error
@@ -57,23 +57,23 @@ type (
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
 	sourceError struct {
-		Err        error     `json:"err"`         // error message
-		Code       Failure   `json:"code"`        // failure code of the error
-		Component  Component `json:"component"`   // component that generated the error
-		Severity   Severity  `json:"severity"`    // severity of the error
-		Line       int32     `json:"line"`        // line where the error occurred
-		Column     int32     `json:"column"`      // column where the error occurred
-		SourceCode []byte    `json:"source_code"` // source code where the error occurred
+		Err        error     `json:"-"`         // error message
+		Code       Failure   `json:"code"`      // failure code of the error
+		Component  Component `json:"component"` // component that generated the error
+		Severity   Severity  `json:"severity"`  // severity of the error
+		Line       int32     `json:"line"`      // line where the error occurred
+		Column     int32     `json:"column"`    // column where the error occurred
+		SourceCode []byte    `json:"-"`         // source code where the error occurred
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
 	tokenError struct {
-		Err              error       `json:"err"`                // error message
+		Err              error       `json:"-"`                  // error message
 		Code             Failure     `json:"code"`               // failure code of the error
 		Component        Component   `json:"component"`          // component that generated the error
 		Severity         Severity    `json:"severity"`           // severity of the error
 		TokenStreamIndex int64       `json:"token_stream_index"` // index of the token in the token stream where the error occurred
-		TokenStream      TokenStream `json:"token_stream"`       // token stream that is used to connect errors to a location in the source code
+		TokenStream      TokenStream `json:"-"`                  // token stream that is used to connect errors to a location in the source code
 	}
 
 	// Private implementation of the error handler.
@@ -165,10 +165,98 @@ func (e *generalError) Unwrap() error {
 	return e.Inner
 }
 
+// Marshal the general error to a JSON object.
+func (e *generalError) MarshalJSON() ([]byte, error) {
+	type Embedded generalError
+
+	// replace the error interfaces with error message strings
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		InnerMessage string `json:"inner_error"`
+	}{
+		ErrorMessage: e.Err.Error(),
+		Embedded:     (Embedded)(*e),
+		InnerMessage: e.Inner.Error(),
+	}
+
+	return json.Marshal(sej)
+}
+
+// Unmarshal the general error from a JSON object.
+func (e *generalError) UnmarshalJSON(raw []byte) error {
+	type Embedded generalError
+
+	// target struct to unmarshal the JSON object to
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		InnerMessage string `json:"inner_error"`
+	}{
+		Embedded: (Embedded)(*e),
+	}
+
+	if err := json.Unmarshal(raw, sej); err != nil {
+		return err
+	}
+
+	// replace the error message strings with error interfaces
+	e.Err = errors.New(sej.ErrorMessage)
+	e.Code = sej.Code
+	e.Component = sej.Component
+	e.Severity = sej.Severity
+	e.Inner = errors.New(sej.InnerMessage)
+
+	return nil
+}
+
 // Implement the error interface for the line-column error so that it can be used like a native Go error.
 func (e *lineColumnError) Error() string {
 	message := e.Err.Error()
 	return fmt.Sprintf("%5v: %v %v %v [%v,%v]: %v\n", e.Line, componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
+}
+
+// Marshal the line column error to a JSON object.
+func (e *lineColumnError) MarshalJSON() ([]byte, error) {
+	type Embedded lineColumnError
+
+	// replace the error interface with an error message string
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+	}{
+		ErrorMessage: e.Err.Error(),
+		Embedded:     (Embedded)(*e),
+	}
+
+	return json.Marshal(sej)
+}
+
+// Unmarshal the line column error from a JSON object.
+func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
+	type Embedded lineColumnError
+
+	// target struct to unmarshal the JSON object to
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+	}{
+		Embedded: (Embedded)(*e),
+	}
+
+	if err := json.Unmarshal(raw, sej); err != nil {
+		return err
+	}
+
+	// replace the error message string with an error interface
+	e.Err = errors.New(sej.ErrorMessage)
+	e.Code = sej.Code
+	e.Component = sej.Component
+	e.Severity = sej.Severity
+	e.Line = sej.Line
+	e.Column = sej.Column
+
+	return nil
 }
 
 // Implement the error interface for the source error so that it can be used like a native Go error.
@@ -183,6 +271,53 @@ func (e *sourceError) Error() string {
 	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
+}
+
+// Marshal the source error to a JSON object.
+func (e *sourceError) MarshalJSON() ([]byte, error) {
+	type Embedded sourceError
+
+	// replace the error interface with an error message string and the source code byte slice with a trimmed string of the source code
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		SourceCode string `json:"source_code"`
+	}{
+		ErrorMessage: e.Err.Error(),
+		Embedded:     (Embedded)(*e),
+		SourceCode:   strings.Trim(string(e.SourceCode), " \t\n\r"),
+	}
+
+	return json.Marshal(sej)
+}
+
+// Unmarshal the source error from a JSON object.
+func (e *sourceError) UnmarshalJSON(raw []byte) error {
+	type Embedded sourceError
+
+	// target struct to unmarshal the JSON object to
+	sej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		SourceCode string `json:"source_code"`
+	}{
+		Embedded: (Embedded)(*e),
+	}
+
+	if err := json.Unmarshal(raw, sej); err != nil {
+		return err
+	}
+
+	// replace the error message string with an error interface and the string of the source code with a byte slice
+	e.Err = errors.New(sej.ErrorMessage)
+	e.Code = sej.Code
+	e.Component = sej.Component
+	e.Severity = sej.Severity
+	e.Line = sej.Line
+	e.Column = sej.Column
+	e.SourceCode = []byte(sej.SourceCode)
+
+	return nil
 }
 
 // Implement the error interface for the token error so that it can be used like a native Go error.
