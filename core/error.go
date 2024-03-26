@@ -285,7 +285,7 @@ func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case String:
+	case Text:
 		// print is a convenience function to export the error report as a string to the print writer
 		return e.Print(print)
 

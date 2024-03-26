@@ -82,7 +82,7 @@ func (ts TextSection) Export(format cor.ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case cor.String:
+	case cor.Text:
 		// print is a convenience function to export the text section as a string to the print writer
 		return ts.Print(print)
 

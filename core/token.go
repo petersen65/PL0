@@ -155,7 +155,7 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case String:
+	case Text:
 		// print is a convenience function to export the token stream as a string to the print writer
 		return ts.Print(print)
 

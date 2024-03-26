@@ -20,7 +20,7 @@ const (
 	textCompilerUse  = "Usage of PL/0 compiler"
 	textCompileUsage = "compile PL/0 source file to IL/0 target file"
 	textRunUsage     = "run IL/0 target file"
-	textExportUsage  = "export intermediate representations to TOK/AST/COD target files"
+	textExportUsage  = "export intermediate representations to {.tok .ast .int .err} target files"
 	textSourceUsage  = "PL/0 source file"
 	textTargetUsage  = "IL/0 target file"
 )

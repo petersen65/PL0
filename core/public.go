@@ -49,7 +49,7 @@ const (
 // Export formats for the compiler which can be used to export intermediate results.
 const (
 	Json = ExportFormat(iota)
-	String
+	Text
 	Binary
 )
 

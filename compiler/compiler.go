@@ -5,6 +5,7 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,12 +22,21 @@ import (
 	scn "github.com/petersen65/PL0/scanner"
 )
 
+// Default target filename for the compilation driver.
+const defaultTarget = "out"
+
+// Default build directory for target files.
+const defaultBuildDirectory = "build"
+
+// Directory for exported intermediate representations.
+const intermediateDirectory = "obj"
+
 // Text messages for the compilation driver.
 const (
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
 	textErrorCompiling     = "Error compiling PL0 source '%v': %v\n"
 	textErrorPersisting    = "Error persisting IL0 target '%v': %v\n"
-	textExporting          = "Exporting intermediate representations '%v'\n"
+	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v\n"
 	textEmulating          = "Emulating IL0 target '%v'\n"
 	textErrorEmulating     = "Error emulating IL0 target '%v': %v\n"
@@ -46,7 +56,8 @@ const (
 
 // File extensions for all generated files.
 const (
-	PL0 Extension = iota
+	_ Extension = iota
+	PL0
 	IL0
 	Token
 	Tree
@@ -55,6 +66,7 @@ const (
 	Json
 	Text
 	Binary
+	Ensure
 )
 
 type (
@@ -85,12 +97,23 @@ var ExtensionMap = map[Extension]string{
 	Json:         ".json",
 	Text:         ".txt",
 	Binary:       ".bin",
+	Ensure:       ".ensure",
 }
 
 // Driver for the compilation process with the given options, source, target, and print writer.
 func Driver(options DriverOption, source, target string, print io.Writer) {
 	var translationUnit TranslationUnit
+	var targetDirectory, baseFileName string
 	var err error
+
+	// ensure target path exists and print persistence error message if an error occurred
+	if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
+		print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+		return
+	}
+
+	// cleaned and validated target path
+	target = GetFullPath(targetDirectory, baseFileName, IL0)
 
 	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
 	if options&Compile != 0 {
@@ -103,14 +126,8 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			return
 		}
 
-		// ensure target path exists and print persistence error message if an error occurred
-		if target, err = EnsureTargetPath(target, IL0); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
-			return
-		}
-
 		// persist IL/0 sections to target and print persistence error message if an error occurred
-		if err = PersistSectionsToTarget(translationUnit.Sections, target+ExtensionMap[IL0]); err != nil {
+		if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
 			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
 			return
 		}
@@ -121,8 +138,10 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// export intermediate representations to the target path
 	if options&Export != 0 {
-		if err = ExportIntermediateRepresentationsToTarget(translationUnit.TokenStream, translationUnit.AbstractSyntax, translationUnit.Sections, target); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+		print.Write([]byte(fmt.Sprintf(textExporting, filepath.Join(targetDirectory, intermediateDirectory))))
+
+		if err = ExportIntermediateRepresentationsToTarget(translationUnit, targetDirectory, baseFileName); err != nil {
+			print.Write([]byte(fmt.Sprintf(textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)))
 			return
 		}
 	}
@@ -145,6 +164,62 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 }
 
+// Ensure target path exists and create and remove empty ensure-file to proof write access.
+func EnsureTargetPath(target string) (string, string, error) {
+	var targetDirectory string
+	target = filepath.Clean(target)
+
+	// enforce default build directory if target is empty, current directory, or root directory
+	if target == "." || target == "" || target == string(os.PathSeparator) {
+		target = defaultBuildDirectory
+	}
+
+	// if target has no extension, it is assumed to be the target directory
+	if filepath.Ext(target) == "" {
+		targetDirectory = target
+	} else {
+		targetDirectory = filepath.Dir(target)
+	}
+
+	// enforce default build directory if target directory is empty, current directory, or root directory
+	if targetDirectory == "." || targetDirectory == "" || targetDirectory == string(os.PathSeparator) {
+		targetDirectory = defaultBuildDirectory
+	}
+
+	// 0755 is octal and means that the owner can read, write, and execute the file, and others can read and execute it
+	if err := os.MkdirAll(targetDirectory, 0755); err != nil {
+		return "", "", err
+	}
+
+	// return if target directory does not exist after trying to create it
+	if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	// get base file name of target path without extension
+	baseFileName := filepath.Base(strings.TrimSuffix(target, filepath.Ext(target)))
+
+	// enforce default target file name if base file name is empty, current directory, or root directory
+	if baseFileName == "." || baseFileName == "" || baseFileName == string(os.PathSeparator) || baseFileName == target {
+		baseFileName = defaultTarget
+	}
+
+	// full file path of target with extension
+	targetFullPath := filepath.Join(targetDirectory, baseFileName) + ExtensionMap[Ensure]
+
+	// create and remove empty target file to proof write access
+	if targetFile, err := os.Create(targetFullPath); err != nil {
+		return "", "", err
+	} else {
+		defer func() {
+			targetFile.Close()
+			os.Remove(targetFullPath)
+		}()
+	}
+
+	return targetDirectory, baseFileName, nil
+}
+
 // Compile PL/0 source and return translation unit with all intermediate results and error handler.
 func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	if content, err := os.ReadFile(source); err != nil {
@@ -152,35 +227,6 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	} else {
 		return CompileContent(content), nil
 	}
-}
-
-// Ensure target path exists and create and remove empty target file to proof write access.
-func EnsureTargetPath(target string, extension Extension) (string, error) {
-	targetDir := filepath.Dir(target)
-
-	if targetDir != "." && targetDir != "" {
-		// 0755 means that the owner can read, write, and execute the file, and others can read and execute it
-		if err := os.MkdirAll(targetDir, 0755); err != nil {
-			return "", err
-		}
-	}
-
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		return "", err
-	}
-
-	target = strings.TrimSuffix(target, filepath.Ext(target))
-
-	if targetFile, err := os.Create(target + ExtensionMap[extension]); err != nil {
-		return "", err
-	} else {
-		defer func(target string, program *os.File) {
-			program.Close()
-			os.Remove(target)
-		}(target+ExtensionMap[extension], targetFile)
-	}
-
-	return target, nil
 }
 
 // Persist IL/0 sections to the given target.
@@ -198,54 +244,103 @@ func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 	return nil
 }
 
-// Export all intermediate representations to the target path.
-func ExportIntermediateRepresentationsToTarget(tokenStream cor.TokenStream, abstractSyntax ast.Block, sections emt.TextSection, target string) error {
-	tsjf, tsjfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Json])
-	scjf, scjfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Json])
-
-	tstf, tstfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Text])
-	sctf, sctfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Text])
-
-	tsbf, tsbfErr := os.Create(target + ExtensionMap[Token] + ExtensionMap[Binary])
-	scbf, scbfErr := os.Create(target + ExtensionMap[Intermediate] + ExtensionMap[Binary])
-
-	if tsjfErr != nil || scjfErr != nil || tstfErr != nil || sctfErr != nil || tsbfErr != nil || scbfErr != nil {
-		return fmt.Errorf("error creating export files: %v, %v, %v, %v, %v, %v", tsjfErr, scjfErr, tstfErr, sctfErr, tsbfErr, scbfErr)
-	}
-
-	tokenStream.Export(cor.Json, tsjf)
-	tokenStream.Export(cor.String, tstf)
-	tokenStream.Export(cor.Binary, tsbf)
-
-	sections.Export(cor.Json, scjf)
-	sections.Export(cor.String, sctf)
-	sections.Export(cor.Binary, scbf)
-
-	return nil
-}
-
-// Print IL/0 target to the given writer.
-func PrintTarget(target string, print io.Writer) error {
-	if raw, err := os.ReadFile(target); err != nil {
-		return err
-	} else if ts, err := emt.Import(raw); err != nil {
-		return err
-	} else if err := ts.Print(print); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Run IL/0 target with the emulator.
 func EmulateTarget(target string) error {
-	if bytes, err := os.ReadFile(target); err != nil {
+	if raw, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := emu.Run(bytes); err != nil {
+	} else if err := emu.Run(raw); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Export all intermediate representations to the target path.
+func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
+	var anyError error
+
+	// create full intermediate directory path
+	targetDirectory = filepath.Join(targetDirectory, intermediateDirectory)
+
+	// create full directory path and check if an ensure-test file can be created by creating it and removing it afterwards
+	if _, _, err := EnsureTargetPath(targetDirectory); err != nil {
+		return err
+	}
+
+	// create all Json files for intermediate representations
+	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
+	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
+	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
+
+	// create all Text files for intermediate representations
+	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
+	iltFile, sctErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
+
+	// create all Binary files for intermediate representations
+	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
+	ilbFile, scbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
+	erbFile, erbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Binary))
+
+	// check if any error occurred during file creations
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr, erbErr)
+
+	// close all files and remove target directory if any error occurred during file creations
+	defer func() {
+		var closeFile = func(file *os.File) {
+			if file != nil {
+				file.Close()
+			}
+		}
+
+		closeFile(tsjFile)
+		closeFile(iljFile)
+		closeFile(erjFile)
+		closeFile(tstFile)
+		closeFile(iltFile)
+		closeFile(ertFile)
+		closeFile(tsbFile)
+		closeFile(ilbFile)
+		closeFile(erbFile)
+
+		if anyError != nil {
+			os.RemoveAll(targetDirectory)
+		}
+	}()
+
+	if anyError != nil {
+		return anyError
+	}
+
+	// export all intermediate representations as Json
+	tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
+	iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
+	erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
+
+	// export all intermediate representations as Text
+	tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
+	sctErr = translationUnit.Sections.Export(cor.Text, iltFile)
+	ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
+
+	// export all intermediate representations as Binary
+	tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
+	scbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
+	erbErr = translationUnit.ErrorHandler.Export(cor.Binary, erbFile)
+
+	// check if any error occurred during export of intermediate representations
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr, erbErr)
+	return anyError
+}
+
+// Return the full path of the target file with the given base file name and extensions.
+func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) string {
+	targetFullPath := filepath.Join(targetDirectory, baseFileName)
+
+	for _, extension := range extensions {
+		targetFullPath += ExtensionMap[extension]
+	}
+
+	return targetFullPath
 }
 
 // Compile PL/0 UTF-8 encoded content and return translation unit with all intermediate results and error handler.

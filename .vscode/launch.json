@@ -12,11 +12,12 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "--compile",
+                "--export",
                 "--run",
                 "--source",
                 "examples/playground.pl0",
                 "--target",
-                "build/playground.il0"
+                "build"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false
