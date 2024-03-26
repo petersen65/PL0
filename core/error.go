@@ -42,6 +42,7 @@ type (
 		Component Component `json:"component"` // component that generated the error
 		Severity  Severity  `json:"severity"`  // severity of the error
 		Inner     error     `json:"inner"`     // inner error wrapped by the general error
+		Indent    int32     `json:"indent"`    // indentation level of the error message
 	}
 
 	// An error with a severity level and a line and column number.
@@ -85,9 +86,9 @@ type (
 var (
 	// Text messages for printing an error report.
 	textErrorReport = []byte("Error Report:\n")
-	textErrors      = []byte("Errors:")
-	textWarnings    = []byte("Warnings:")
-	textRemarks     = []byte("Remarks:")
+	textErrors      = []byte("Errors:\n")
+	textWarnings    = []byte("Warnings:\n")
+	textRemarks     = []byte("Remarks:\n")
 
 	// Map severity levels to their corresponding names.
 	severityMap = map[Severity]string{
@@ -156,7 +157,7 @@ func newTokenError(component Component, failureMap map[Failure]string, severity 
 // Implement the error interface for the general error so that it can be used like a native Go error.
 func (e *generalError) Error() string {
 	message := e.Err.Error()
-	return fmt.Sprintf("%v %v %v: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, message)
+	return fmt.Sprintf("%v%v %v %v: %v\n", strings.Repeat(" ", int(e.Indent)), componentMap[e.Component], severityMap[e.Severity], e.Code, message)
 }
 
 // Implement the Unwrap method for the general error so that it can be used to unwrap the inner error.
@@ -167,7 +168,7 @@ func (e *generalError) Unwrap() error {
 // Implement the error interface for the line-column error so that it can be used like a native Go error.
 func (e *lineColumnError) Error() string {
 	message := e.Err.Error()
-	return fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
+	return fmt.Sprintf("%5v: %v %v %v [%v,%v]: %v\n", e.Line, componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
 }
 
 // Implement the error interface for the source error so that it can be used like a native Go error.
@@ -178,7 +179,7 @@ func (e *sourceError) Error() string {
 	linePrefix := fmt.Sprintf("%5v: ", e.Line)
 	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \t\n\r")
 	trimmedLen := len(string(e.SourceCode)) - len(trimmedLine)
-	sourceLine := fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)
+	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
 	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
@@ -193,7 +194,7 @@ func (e *tokenError) Error() string {
 	linePrefix := fmt.Sprintf("%5v: ", td.Line)
 	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
 	trimmedLen := len(string(td.CurrentLine)) - len(trimmedLine)
-	sourceLine := fmt.Sprintf("\n%v%v\n", linePrefix, trimmedLine)
+	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
 	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(td.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
@@ -202,6 +203,11 @@ func (e *tokenError) Error() string {
 // Append a new error to the error report of the error handler only if the error is not nil.
 func (e *errorHandler) AppendError(err error) error {
 	if err != nil {
+		// the general error needs an explicit indentation level to format the error message correctly with other errors in the error report
+		if ge, ok := err.(*generalError); ok {
+			ge.Indent = 7
+		}
+
 		e.errorReport = append(e.errorReport, err)
 	}
 

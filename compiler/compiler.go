@@ -34,12 +34,12 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
-	textErrorCompiling     = "Error compiling PL0 source '%v': %v\n"
-	textErrorPersisting    = "Error persisting IL0 target '%v': %v\n"
+	textErrorCompiling     = "Error compiling PL0 source '%v': %v"
+	textErrorPersisting    = "Error persisting IL0 target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
-	textErrorExporting     = "Error exporting intermediate representations '%v': %v\n"
+	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
 	textEmulating          = "Emulating IL0 target '%v'\n"
-	textErrorEmulating     = "Error emulating IL0 target '%v': %v\n"
+	textErrorEmulating     = "Error emulating IL0 target '%v': %v"
 	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n"
 	textDriverTarget       = "Compiler Driver with IL0 target '%v' completed\n"
 )
@@ -244,17 +244,6 @@ func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 	return nil
 }
 
-// Run IL/0 target with the emulator.
-func EmulateTarget(target string) error {
-	if raw, err := os.ReadFile(target); err != nil {
-		return err
-	} else if err := emu.Run(raw); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Export all intermediate representations to the target path.
 func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
 	var anyError error
@@ -330,6 +319,17 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// check if any error occurred during export of intermediate representations
 	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr, erbErr)
 	return anyError
+}
+
+// Run IL/0 target with the emulator.
+func EmulateTarget(target string) error {
+	if raw, err := os.ReadFile(target); err != nil {
+		return err
+	} else if err := emu.Run(raw); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Return the full path of the target file with the given base file name and extensions.
