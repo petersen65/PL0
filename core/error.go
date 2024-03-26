@@ -4,8 +4,6 @@
 package core
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -170,7 +168,7 @@ func (e *generalError) MarshalJSON() ([]byte, error) {
 	type Embedded generalError
 
 	// replace the error interfaces with error message strings
-	sej := &struct {
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 		InnerMessage string `json:"inner_error"`
@@ -180,7 +178,7 @@ func (e *generalError) MarshalJSON() ([]byte, error) {
 		InnerMessage: e.Inner.Error(),
 	}
 
-	return json.Marshal(sej)
+	return json.Marshal(ej)
 }
 
 // Unmarshal the general error from a JSON object.
@@ -188,7 +186,7 @@ func (e *generalError) UnmarshalJSON(raw []byte) error {
 	type Embedded generalError
 
 	// target struct to unmarshal the JSON object to
-	sej := &struct {
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 		InnerMessage string `json:"inner_error"`
@@ -196,16 +194,16 @@ func (e *generalError) UnmarshalJSON(raw []byte) error {
 		Embedded: (Embedded)(*e),
 	}
 
-	if err := json.Unmarshal(raw, sej); err != nil {
+	if err := json.Unmarshal(raw, ej); err != nil {
 		return err
 	}
 
 	// replace the error message strings with error interfaces
-	e.Err = errors.New(sej.ErrorMessage)
-	e.Code = sej.Code
-	e.Component = sej.Component
-	e.Severity = sej.Severity
-	e.Inner = errors.New(sej.InnerMessage)
+	e.Err = errors.New(ej.ErrorMessage)
+	e.Code = ej.Code
+	e.Component = ej.Component
+	e.Severity = ej.Severity
+	e.Inner = errors.New(ej.InnerMessage)
 
 	return nil
 }
@@ -221,7 +219,7 @@ func (e *lineColumnError) MarshalJSON() ([]byte, error) {
 	type Embedded lineColumnError
 
 	// replace the error interface with an error message string
-	sej := &struct {
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 	}{
@@ -229,7 +227,7 @@ func (e *lineColumnError) MarshalJSON() ([]byte, error) {
 		Embedded:     (Embedded)(*e),
 	}
 
-	return json.Marshal(sej)
+	return json.Marshal(ej)
 }
 
 // Unmarshal the line column error from a JSON object.
@@ -237,24 +235,24 @@ func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
 	type Embedded lineColumnError
 
 	// target struct to unmarshal the JSON object to
-	sej := &struct {
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 	}{
 		Embedded: (Embedded)(*e),
 	}
 
-	if err := json.Unmarshal(raw, sej); err != nil {
+	if err := json.Unmarshal(raw, ej); err != nil {
 		return err
 	}
 
 	// replace the error message string with an error interface
-	e.Err = errors.New(sej.ErrorMessage)
-	e.Code = sej.Code
-	e.Component = sej.Component
-	e.Severity = sej.Severity
-	e.Line = sej.Line
-	e.Column = sej.Column
+	e.Err = errors.New(ej.ErrorMessage)
+	e.Code = ej.Code
+	e.Component = ej.Component
+	e.Severity = ej.Severity
+	e.Line = ej.Line
+	e.Column = ej.Column
 
 	return nil
 }
@@ -277,18 +275,18 @@ func (e *sourceError) Error() string {
 func (e *sourceError) MarshalJSON() ([]byte, error) {
 	type Embedded sourceError
 
-	// replace the error interface with an error message string and the source code byte slice with a trimmed string of the source code
-	sej := &struct {
+	// replace the error interface with an error message string and the source code byte slice with a string of the source code
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 		SourceCode string `json:"source_code"`
 	}{
 		ErrorMessage: e.Err.Error(),
 		Embedded:     (Embedded)(*e),
-		SourceCode:   strings.Trim(string(e.SourceCode), " \t\n\r"),
+		SourceCode:   string(e.SourceCode),
 	}
 
-	return json.Marshal(sej)
+	return json.Marshal(ej)
 }
 
 // Unmarshal the source error from a JSON object.
@@ -296,7 +294,7 @@ func (e *sourceError) UnmarshalJSON(raw []byte) error {
 	type Embedded sourceError
 
 	// target struct to unmarshal the JSON object to
-	sej := &struct {
+	ej := &struct {
 		ErrorMessage string `json:"error"`
 		Embedded
 		SourceCode string `json:"source_code"`
@@ -304,18 +302,18 @@ func (e *sourceError) UnmarshalJSON(raw []byte) error {
 		Embedded: (Embedded)(*e),
 	}
 
-	if err := json.Unmarshal(raw, sej); err != nil {
+	if err := json.Unmarshal(raw, ej); err != nil {
 		return err
 	}
 
 	// replace the error message string with an error interface and the string of the source code with a byte slice
-	e.Err = errors.New(sej.ErrorMessage)
-	e.Code = sej.Code
-	e.Component = sej.Component
-	e.Severity = sej.Severity
-	e.Line = sej.Line
-	e.Column = sej.Column
-	e.SourceCode = []byte(sej.SourceCode)
+	e.Err = errors.New(ej.ErrorMessage)
+	e.Code = ej.Code
+	e.Component = ej.Component
+	e.Severity = ej.Severity
+	e.Line = ej.Line
+	e.Column = ej.Column
+	e.SourceCode = []byte(ej.SourceCode)
 
 	return nil
 }
@@ -333,6 +331,52 @@ func (e *tokenError) Error() string {
 	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(td.Column)+len(linePrefix)-trimmedLen-1), message)
 
 	return sourceLine + errorLine
+}
+
+// Marshal the token error to a JSON object.
+func (e *tokenError) MarshalJSON() ([]byte, error) {
+	type Embedded tokenError
+
+	// replace the error interface with an error message string
+	ej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		TokenDescription TokenDescription `json:"token_description"`
+	}{
+		ErrorMessage:     e.Err.Error(),
+		Embedded:         (Embedded)(*e),
+		TokenDescription: e.TokenStream[e.TokenStreamIndex],
+	}
+
+	return json.Marshal(ej)
+}
+
+// Unmarshal the token error from a JSON object.
+func (e *tokenError) UnmarshalJSON(raw []byte) error {
+	type Embedded tokenError
+
+	// target struct to unmarshal the JSON object to
+	ej := &struct {
+		ErrorMessage string `json:"error"`
+		Embedded
+		TokenDescription TokenDescription `json:"token_description"`
+	}{
+		Embedded: (Embedded)(*e),
+	}
+
+	if err := json.Unmarshal(raw, ej); err != nil {
+		return err
+	}
+
+	// replace the error message string with an error interface
+	e.Err = errors.New(ej.ErrorMessage)
+	e.Code = ej.Code
+	e.Component = ej.Component
+	e.Severity = ej.Severity
+	e.TokenStreamIndex = ej.TokenStreamIndex
+	e.TokenStream = []TokenDescription{ej.TokenDescription}
+
+	return nil
 }
 
 // Append a new error to the error report of the error handler only if the error is not nil.
@@ -407,7 +451,7 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the error report to the writer of the error handler.
+// Export the error report of the error handler (only Json and Text formats are supported).
 func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
@@ -430,24 +474,9 @@ func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 		// print is a convenience function to export the error report as a string to the print writer
 		return e.Print(print)
 
-	case Binary:
-		var buffer bytes.Buffer
-
-		// encode the raw bytes of the error report into a binary buffer
-		if err := gob.NewEncoder(&buffer).Encode(e.errorReport); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
-		}
-
-		// transfer the binary buffer to the print writer
-		if _, err := buffer.WriteTo(print); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
-		}
-
 	default:
 		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
 	}
-
-	return nil
 }
 
 // Iterate over all errors in the error report of the error handler and return a channel of errors that match the severity and component.

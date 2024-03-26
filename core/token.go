@@ -97,13 +97,13 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 	type Embedded TokenDescription
 
-	// replace the current line byte slice with a trimmed string of the current line
+	// replace the current line byte slice with a string of the current line
 	tdj := &struct {
 		Embedded
 		CurrentLine string `json:"current_line"`
 	}{
 		Embedded:    (Embedded)(*td),
-		CurrentLine: strings.Trim(string(td.CurrentLine), " \t\n\r"),
+		CurrentLine: string(td.CurrentLine),
 	}
 
 	return json.Marshal(tdj)

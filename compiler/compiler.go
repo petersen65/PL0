@@ -356,7 +356,7 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, nil, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
 	}
 
 	// code generation and emission of IL/0 intermediate language code based on abstract syntax tree
@@ -364,7 +364,7 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during code generation and emission
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, nil, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
 	}
 
 	// return translation unit with all intermediate results and error handler
