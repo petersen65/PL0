@@ -154,8 +154,15 @@ func newTokenError(component Component, failureMap map[Failure]string, severity 
 
 // Implement the error interface for the general error so that it can be used like a native Go error.
 func (e *generalError) Error() string {
+	var lineFeed string
 	message := e.Err.Error()
-	return fmt.Sprintf("%v%v %v %v: %v\n", strings.Repeat(" ", int(e.Indent)), componentMap[e.Component], severityMap[e.Severity], e.Code, message)
+
+	// if the general error is used as a part of an error report, the error message must have an indentation level and a line feed
+	if e.Indent > 0 {
+		lineFeed = "\n"
+	}
+
+	return fmt.Sprintf("%v%v %v %v: %v%v", strings.Repeat(" ", int(e.Indent)), componentMap[e.Component], severityMap[e.Severity], e.Code, message, lineFeed)
 }
 
 // Implement the Unwrap method for the general error so that it can be used to unwrap the inner error.

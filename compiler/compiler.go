@@ -35,6 +35,7 @@ const intermediateDirectory = "obj"
 const (
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
 	textErrorCompiling     = "Error compiling PL0 source '%v': %v"
+	textAbortCompilation   = "compilation aborted"
 	textErrorPersisting    = "Error persisting IL0 target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
@@ -49,9 +50,7 @@ const (
 	Compile DriverOption = 1 << iota
 	Emulate
 	Export
-	PrintTokenStream
-	PrintAbstractSyntaxTree
-	PrintIntermediateCode
+	Clean
 )
 
 // File extensions for all generated files.
@@ -115,6 +114,20 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	// cleaned and validated target path
 	target = GetFullPath(targetDirectory, baseFileName, IL0)
 
+	// clean target directory and assume that the first ensuring of the target path was successful
+	if options&Clean != 0 {
+		os.RemoveAll(targetDirectory)
+
+		// repeat ensuring of target path after cleaning and print persistence error message if an error occurred this time
+		if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
+			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+			return
+		}
+
+		// cleaned and validated target path after cleaning
+		target = GetFullPath(targetDirectory, baseFileName, IL0)
+	}
+
 	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
 	if options&Compile != 0 {
 		print.Write([]byte(fmt.Sprintf(textCompiling, source, target)))
@@ -126,14 +139,20 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			return
 		}
 
+		// print error report if errors with any severity occurred during compilation process
+		translationUnit.ErrorHandler.Print(print)
+
+		// abandon compilation if any fatal or error errors occurred during compilation process
+		if translationUnit.ErrorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
+			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, errors.New(textAbortCompilation))))
+			return
+		}
+
 		// persist IL/0 sections to target and print persistence error message if an error occurred
 		if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
 			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
 			return
 		}
-
-		// print error report if errors with any severity occurred during compilation process
-		translationUnit.ErrorHandler.Print(print)
 	}
 
 	// export intermediate representations to the target path
@@ -269,10 +288,9 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// create all Binary files for intermediate representations
 	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
 	ilbFile, scbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
-	erbFile, erbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Binary))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr, erbErr)
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -290,7 +308,6 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(ertFile)
 		closeFile(tsbFile)
 		closeFile(ilbFile)
-		closeFile(erbFile)
 
 		if anyError != nil {
 			os.RemoveAll(targetDirectory)
@@ -314,10 +331,9 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// export all intermediate representations as Binary
 	tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
 	scbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
-	erbErr = translationUnit.ErrorHandler.Export(cor.Binary, erbFile)
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr, erbErr)
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr)
 	return anyError
 }
 
