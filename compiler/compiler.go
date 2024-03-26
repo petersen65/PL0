@@ -118,14 +118,17 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	if options&Clean != 0 {
 		os.RemoveAll(targetDirectory)
 
-		// repeat ensuring of target path after cleaning and print persistence error message if an error occurred this time
-		if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
-			return
-		}
+		// repeat ensuring existance of target path only if compile option is set
+		if options&Compile != 0 {
+			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
+			if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
+				print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+				return
+			}
 
-		// cleaned and validated target path after cleaning
-		target = GetFullPath(targetDirectory, baseFileName, IL0)
+			// cleaned and validated target path after cleaning
+			target = GetFullPath(targetDirectory, baseFileName, IL0)
+		}
 	}
 
 	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
