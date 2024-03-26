@@ -22,7 +22,7 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	addressOutOfRange:                "halt - address '%v' out of range",
-	stackOverflow:                    "halt - stack overflow at address '%v'",
+	stackOverflow:                    "halt - stack overflow at stack pointer '%v'",
 	unknownOperation:                 "halt - unknown operation at address '%v'",
 	arithmeticOverflowNegation:       "halt - arithmetic overflow (negation) at address '%v'",
 	arithmeticOverflowAddition:       "halt - arithmetic overflow (addition) at address '%v'",
