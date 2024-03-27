@@ -18,13 +18,13 @@ const (
 	textVersion       = "Version 2.0.0 2024"
 	textCopyright     = "Copyright (c) 2024, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of PL/0 compiler"
-	textHelpUsage     = "print help message"
-	textCompileUsage  = "compile PL/0 source file to IL/0 target file"
-	textRunUsage      = "run IL/0 target file"
-	textExportUsage   = "export intermediate representations to {.tok .ast .int .err} target files"
 	textPurgeUsage    = "purge target directory before compiling"
+	textCompileUsage  = "compile PL/0 source file to IL/0 target file"
+	textExportUsage   = "export intermediate representations to {.tok .ast .int .err} target files"
+	textRunUsage      = "run IL/0 target file"
 	textSourceUsage   = "PL/0 source file"
 	textTargetUsage   = "IL/0 target file"
+	textHelpUsage     = "print help message"
 )
 
 // CommitHash is the git commit hash of the current build and will be set by the external build system.
@@ -37,14 +37,14 @@ func main() {
 	var source, target string
 
 	// define valid command line flags
-	flag.BoolVar(&compile, "c", false, textCompileUsage)
-	flag.BoolVar(&compile, "compile", false, textCompileUsage)
-	flag.BoolVar(&run, "r", false, textRunUsage)
-	flag.BoolVar(&run, "run", false, textRunUsage)
-	flag.BoolVar(&export, "e", false, textExportUsage)
-	flag.BoolVar(&export, "export", false, textExportUsage)
 	flag.BoolVar(&purge, "p", false, textPurgeUsage)
 	flag.BoolVar(&purge, "purge", false, textPurgeUsage)
+	flag.BoolVar(&compile, "c", false, textCompileUsage)
+	flag.BoolVar(&compile, "compile", false, textCompileUsage)
+	flag.BoolVar(&export, "e", false, textExportUsage)
+	flag.BoolVar(&export, "export", false, textExportUsage)
+	flag.BoolVar(&run, "r", false, textRunUsage)
+	flag.BoolVar(&run, "run", false, textRunUsage)
 	flag.StringVar(&source, "s", "", textSourceUsage)
 	flag.StringVar(&source, "source", "", textSourceUsage)
 	flag.StringVar(&target, "t", "", textTargetUsage)
@@ -55,10 +55,10 @@ func main() {
 	// define usage function for command line flags
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
-		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
-		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
-		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
 		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
+		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
+		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
 		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
 		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
 		fmt.Fprintf(os.Stderr, "  -h | --help:    %v\n", textHelpUsage)

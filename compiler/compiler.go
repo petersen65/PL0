@@ -33,6 +33,7 @@ const intermediateDirectory = "obj"
 
 // Text messages for the compilation driver.
 const (
+	textCleaning		   = "Cleaning target directory '%v'\n"
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
 	textErrorCompiling     = "Error compiling PL0 source '%v': %v"
 	textAbortCompilation   = "compilation aborted"
@@ -47,10 +48,10 @@ const (
 
 // Options for the compilation driver as bit-mask.
 const (
-	Compile DriverOption = 1 << iota
-	Emulate
+	Clean DriverOption = 1 << iota
+	Compile
 	Export
-	Clean
+	Emulate
 )
 
 // File extensions for all generated files.
@@ -116,6 +117,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
+		print.Write([]byte(fmt.Sprintf(textCleaning, targetDirectory)))
 		os.RemoveAll(targetDirectory)
 
 		// repeat ensuring existance of target path only if compile option is set

@@ -11,6 +11,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
+                "--purge",
                 "--compile",
                 "--export",
                 "--run",
