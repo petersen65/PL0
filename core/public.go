@@ -82,8 +82,8 @@ type (
 
 	// Exporter is an interface that provides methods for exporting intermediate results.
 	Exporter interface {
-		Export(format ExportFormat, print io.Writer) error
 		Print(print io.Writer, args ...any) error
+		Export(format ExportFormat, print io.Writer) error
 	}
 
 	// Token is a type that represents a token in the source code.
@@ -139,8 +139,8 @@ type (
 	ErrorHandler interface {
 		AppendError(err error) error
 		Count(severity Severity, component Component) int
-		Export(format ExportFormat, print io.Writer) error
 		Print(print io.Writer, args ...any) error
+		Export(format ExportFormat, print io.Writer) error
 	}
 )
 

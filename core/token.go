@@ -38,6 +38,49 @@ func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 	}
 }
 
+// Marshal the token description to a JSON object.
+func (td *TokenDescription) MarshalJSON() ([]byte, error) {
+	type Embedded TokenDescription
+
+	// replace the current line byte slice with a string of the current line
+	tdj := &struct {
+		Embedded
+		CurrentLine string `json:"current_line"`
+	}{
+		Embedded:    (Embedded)(*td),
+		CurrentLine: string(td.CurrentLine),
+	}
+
+	return json.Marshal(tdj)
+}
+
+// Unmarshal the token description from a JSON object.
+func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
+	type Embedded TokenDescription
+
+	// target struct to unmarshal the JSON object to
+	tdj := &struct {
+		Embedded
+		CurrentLine string `json:"current_line"`
+	}{
+		Embedded: (Embedded)(*td),
+	}
+
+	if err := json.Unmarshal(raw, tdj); err != nil {
+		return err
+	}
+
+	// replace the string of the current line with a byte slice
+	td.Token = tdj.Token
+	td.TokenName = tdj.TokenName
+	td.TokenValue = tdj.TokenValue
+	td.Line = tdj.Line
+	td.Column = tdj.Column
+	td.CurrentLine = []byte(tdj.CurrentLine)
+
+	return nil
+}
+
 // Print the token stream to a writer and print from the bottom of the token stream if the bottom flag is set.
 func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	if len(ts) == 0 {
@@ -89,49 +132,6 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 	}
-
-	return nil
-}
-
-// Marshal the token description to a JSON object.
-func (td *TokenDescription) MarshalJSON() ([]byte, error) {
-	type Embedded TokenDescription
-
-	// replace the current line byte slice with a string of the current line
-	tdj := &struct {
-		Embedded
-		CurrentLine string `json:"current_line"`
-	}{
-		Embedded:    (Embedded)(*td),
-		CurrentLine: string(td.CurrentLine),
-	}
-
-	return json.Marshal(tdj)
-}
-
-// Unmarshal the token description from a JSON object.
-func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
-	type Embedded TokenDescription
-
-	// target struct to unmarshal the JSON object to
-	tdj := &struct {
-		Embedded
-		CurrentLine string `json:"current_line"`
-	}{
-		Embedded: (Embedded)(*td),
-	}
-
-	if err := json.Unmarshal(raw, tdj); err != nil {
-		return err
-	}
-
-	// replace the string of the current line with a byte slice
-	td.Token = tdj.Token
-	td.TokenName = tdj.TokenName
-	td.TokenValue = tdj.TokenValue
-	td.Line = tdj.Line
-	td.Column = tdj.Column
-	td.CurrentLine = []byte(tdj.CurrentLine)
 
 	return nil
 }
