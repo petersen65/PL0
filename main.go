@@ -27,6 +27,9 @@ const (
 	textTargetUsage   = "IL/0 target file"
 )
 
+// CommitHash is the git commit hash of the current build and will be set by the external build system.
+var CommitHash string
+
 // Function main is the entry point for the PL/0 compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
 	var options com.DriverOption
@@ -65,7 +68,7 @@ func main() {
 	flag.Parse()
 
 	// print title, version, and copyright
-	fmt.Fprintf(os.Stdout, "%v %v\n", textTitle, textVersion)
+	fmt.Fprintf(os.Stdout, "%v %v %v\n", textTitle, textVersion, CommitHash)
 	fmt.Fprintf(os.Stdout, "%v\n", textCopyright)
 
 	// print help message if requested
