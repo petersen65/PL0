@@ -285,15 +285,16 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// create all Text files for intermediate representations
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
-	iltFile, sctErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
+	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
 	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
-	ilbFile, scbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
+	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr)
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -307,6 +308,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(iljFile)
 		closeFile(erjFile)
 		closeFile(tstFile)
+		closeFile(astFile)
 		closeFile(iltFile)
 		closeFile(ertFile)
 		closeFile(tsbFile)
@@ -328,15 +330,16 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// export all intermediate representations as Text
 	tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
-	sctErr = translationUnit.Sections.Export(cor.Text, iltFile)
+	astErr = translationUnit.AbstractSyntax.Export(cor.Text, astFile)
+	iltErr = translationUnit.Sections.Export(cor.Text, iltFile)
 	ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
 
 	// export all intermediate representations as Binary
 	tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
-	scbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
+	ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, sctErr, ertErr, tsbErr, scbErr)
+	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
 	return anyError
 }
 

@@ -134,8 +134,8 @@ type (
 	Block interface {
 		Node
 		BlockString() string
-		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
+		Print(print io.Writer, args ...any) error
 	}
 
 	// A declaration represented as an abstract syntax tree.

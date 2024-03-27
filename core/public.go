@@ -82,8 +82,8 @@ type (
 
 	// Exporter is an interface that provides methods for exporting intermediate results.
 	Exporter interface {
-		Print(print io.Writer, args ...any) error
 		Export(format ExportFormat, print io.Writer) error
+		Print(print io.Writer, args ...any) error
 	}
 
 	// Token is a type that represents a token in the source code.
