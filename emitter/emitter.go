@@ -68,12 +68,12 @@ func (ts TextSection) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
 		// export the text section as a JSON object and wrap it in a struct to provide a field name for the text section
-		if bytes, err := json.MarshalIndent(struct {
+		if raw, err := json.MarshalIndent(struct {
 			Text TextSection `json:"text_section"`
 		}{Text: ts}, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
 		} else {
-			_, err = print.Write(bytes)
+			_, err = print.Write(raw)
 
 			if err != nil {
 				err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)

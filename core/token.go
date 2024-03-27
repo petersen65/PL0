@@ -141,12 +141,12 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
 		// export the token stream as a JSON object and wrap it in a struct to provide a field name for the token stream
-		if bytes, err := json.MarshalIndent(struct {
+		if raw, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
 		}{Stream: ts}, "", "  "); err != nil {
 			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		} else {
-			_, err = print.Write(bytes)
+			_, err = print.Write(raw)
 
 			if err != nil {
 				err = newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)

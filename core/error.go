@@ -463,12 +463,12 @@ func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
 		// export the error report as a JSON object and wrap it in a struct to provide a field name for the error report
-		if bytes, err := json.MarshalIndent(struct {
+		if raw, err := json.MarshalIndent(struct {
 			Report errorReport `json:"error_report"`
 		}{Report: e.errorReport}, "", "  "); err != nil {
 			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
 		} else {
-			_, err = print.Write(bytes)
+			_, err = print.Write(raw)
 
 			if err != nil {
 				err = newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)

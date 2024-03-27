@@ -282,6 +282,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// create all Json files for intermediate representations
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
+	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
 	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
@@ -296,7 +297,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -307,6 +308,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		}
 
 		closeFile(tsjFile)
+		closeFile(asjFile)
 		closeFile(iljFile)
 		closeFile(erjFile)
 		closeFile(tstFile)
@@ -327,6 +329,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// export all intermediate representations as Json
 	tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
+	asjErr = translationUnit.AbstractSyntax.Export(cor.Json, asjFile)
 	iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
 	erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
 
@@ -341,7 +344,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
 	return anyError
 }
 

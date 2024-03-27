@@ -158,131 +158,131 @@ type (
 
 	// Block node represents a block in the AST.
 	BlockNode struct {
-		ParentNode   Node          // parent node of the block
-		Name         string        // name of the block that can be used for lookup in the symbol table
-		Depth        int32         // block nesting depth
-		Offset       uint64        // offset counter for all variable in the block procedure stack frame
-		Scope        *Scope        // scope with symbol table of the block that has its own outer scope chain
-		Declarations []Declaration // all declarations of the block
-		Statement    Statement     // statement of the block
+		ParentNode   Node          `json:"-"`         // parent node of the block
+		Name         string        `json:"name"`      // name of the block that can be used for lookup in the symbol table
+		Depth        int32         `json:"depth"`     // block nesting depth
+		Offset       uint64        `json:"offset"`    // offset counter for all variable in the block procedure stack frame
+		Scope        *Scope        `json:"-"`         // scope with symbol table of the block that has its own outer scope chain
+		Declarations []Declaration `json:"-"`         // all declarations of the block
+		Statement    Statement     `json:"statement"` // statement of the block
 	}
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
 	ConstantDeclarationNode struct {
-		ParentNode       Node         // parent node of the constant declaration
-		Name             string       // name of the constant
-		Value            any          // value of constant
-		DataType         DataType     // data type of the constant
-		Scope            *Scope       // scope of the constant declaration
-		Usage            []Expression // all usages of the constant
-		TokenStreamIndex int          // index of the token in the token stream
+		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
+		Name             string       `json:"name"`               // name of the constant
+		Value            any          `json:"value"`              // value of constant
+		DataType         DataType     `json:"data_type"`          // data type of the constant
+		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
+		Usage            []Expression `json:"-"`                  // all usages of the constant
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
-		ParentNode       Node         // parent node of the variable declaration
-		Name             string       // name of the variable
-		DataType         DataType     // data type of the variable
-		Scope            *Scope       // scope of the variable declaration
-		Offset           uint64       // offset of the variable in its block procedure stack frame
-		Usage            []Expression // all usages of the variable
-		TokenStreamIndex int          // index of the token in the token stream
+		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
+		Name             string       `json:"name"`               // name of the variable
+		DataType         DataType     `json:"data_type"`          // data type of the variable
+		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
+		Offset           uint64       `json:"offset"`             // offset of the variable in its block procedure stack frame
+		Usage            []Expression `json:"-"`                  // all usages of the variable
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
-		ParentNode       Node         // parent node of the procedure declaration
-		Name             string       // name of the procedure
-		Block            Block        // block of the procedure
-		Scope            *Scope       // scope of the procedure declaration
-		Address          uint64       // absolute address of the procedure in a text section
-		Usage            []Expression // all usages of the procedure
-		TokenStreamIndex int          // index of the token in the token stream
+		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
+		Name             string       `json:"name"`               // name of the procedure
+		Block            Block        `json:"-"`                  // block of the procedure
+		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
+		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section
+		Usage            []Expression `json:"-"`                  // all usages of the procedure
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
 	LiteralNode struct {
-		ParentNode Node     // parent node of the literal
-		Value      any      // literal value
-		DataType   DataType // data type of the literal
+		ParentNode Node     `json:"-"`         // parent node of the literal
+		Value      any      `json:"value"`     // literal value
+		DataType   DataType `json:"data_type"` // data type of the literal
 	}
 
 	// IdentifierUseNode represents the usage of an identifier in the AST.
 	IdentifierUseNode struct {
-		ParentNode       Node   // parent node of the identifier usage
-		Name             string // name of the identifier
-		Scope            *Scope // scope of the identifier usage
-		Context          Entry  // context of the identifier
-		Use              Usage  // usage mode of the identifier
-		TokenStreamIndex int    // index of the token in the token stream
+		ParentNode       Node   `json:"-"`                  // parent node of the identifier usage
+		Name             string `json:"name"`               // name of the identifier
+		Scope            *Scope `json:"scope"`              // scope of the identifier usage
+		Context          Entry  `json:"context"`            // context of the identifier
+		Use              Usage  `json:"use"`                // usage mode of the identifier
+		TokenStreamIndex int    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
-		ParentNode Node          // parent node of the unary operation
-		Operation  UnaryOperator // unary operation
-		Operand    Expression    // operand of the unary operation
+		ParentNode Node          `json:"-"`         // parent node of the unary operation
+		Operation  UnaryOperator `json:"operation"` // unary operation
+		Operand    Expression    `json:"operand"`   // operand of the unary operation
 	}
 
 	// BinaryOperation node represents a binary operation in the AST.
 	BinaryOperationNode struct {
-		ParentNode Node           // parent node of the binary operation
-		Operation  BinaryOperator // binary operation
-		Left       Expression     // left operand of the binary operation
-		Right      Expression     // right operand of the binary operation
+		ParentNode Node           `json:"-"`         // parent node of the binary operation
+		Operation  BinaryOperator `json:"operation"` // binary operation
+		Left       Expression     `json:"left"`      // left operand of the binary operation
+		Right      Expression     `json:"right"`     // right operand of the binary operation
 	}
 
 	// ConditionalOperation node represents a conditional operation in the AST.
 	ConditionalOperationNode struct {
-		ParentNode Node               // parent node of the conditional
-		Operation  RelationalOperator // conditional operation
-		Left       Expression         // left operand of the conditional operation
-		Right      Expression         // right operand of the conditional operation
+		ParentNode Node               `json:"-"`         // parent node of the conditional
+		Operation  RelationalOperator `json:"operation"` // conditional operation
+		Left       Expression         `json:"left"`      // left operand of the conditional operation
+		Right      Expression         `json:"right"`     // right operand of the conditional operation
 	}
 
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
-		ParentNode Node       // parent node of the assignment statement
-		Variable   Expression // variable use on the left side of the assignment statement
-		Expression Expression // expression on the right side of the assignment statement
+		ParentNode Node       `json:"-"`          // parent node of the assignment statement
+		Variable   Expression `json:"variable"`   // variable use on the left side of the assignment statement
+		Expression Expression `json:"expression"` // expression on the right side of the assignment statement
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
-		ParentNode Node       // parent node of the read statement
-		Variable   Expression // variable use of the read statement
+		ParentNode Node       `json:"-"`        // parent node of the read statement
+		Variable   Expression `json:"variable"` // variable use of the read statement
 	}
 
 	// WriteStatement node represents a write statement in the AST.
 	WriteStatementNode struct {
-		ParentNode Node       // parent node of the write statement
-		Expression Expression // expression of the write statement
+		ParentNode Node       `json:"-"`          // parent node of the write statement
+		Expression Expression `json:"expression"` // expression of the write statement
 	}
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
-		ParentNode Node       // parent node of the call statement
-		Procedure  Expression // procedure use of the call statement
+		ParentNode Node       `json:"-"`         // parent node of the call statement
+		Procedure  Expression `json:"procedure"` // procedure use of the call statement
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
 	IfStatementNode struct {
-		ParentNode Node       // parent node of the if-then statement
-		Condition  Expression // if-condition of the if-then statement
-		Statement  Statement  // then-statement of the if-then statement
+		ParentNode Node       `json:"-"`         // parent node of the if-then statement
+		Condition  Expression `json:"condition"` // if-condition of the if-then statement
+		Statement  Statement  `json:"statement"` // then-statement of the if-then statement
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	WhileStatementNode struct {
-		ParentNode Node       // parent node of the while-do statement
-		Condition  Expression // while-condition of the while-do statement
-		Statement  Statement  // do-statement of the while-do statement
+		ParentNode Node       `json:"-"`         // parent node of the while-do statement
+		Condition  Expression `json:"condition"` // while-condition of the while-do statement
+		Statement  Statement  `json:"statement"` // do-statement of the while-do statement
 	}
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	CompoundStatementNode struct {
-		ParentNode Node        // parent node of the begin-end compound statement
-		Statements []Statement // all statements of the begin-end compound statement
+		ParentNode Node        `json:"-"`          // parent node of the begin-end compound statement
+		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
 	}
 
 	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser pass to be grouped in a single visitor struct.

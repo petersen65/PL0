@@ -4,6 +4,7 @@
 package ast
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -205,6 +206,20 @@ func (b *BlockNode) Print(print io.Writer, args ...any) error {
 // Export the abstract syntax tree of the block node (only the Text format is supported).
 func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
+	case cor.Json:
+		// export the error report as a JSON object and wrap it in a struct to provide a field name for the error report
+		if raw, err := json.MarshalIndent(b, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+		} else {
+			_, err = print.Write(raw)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+			}
+
+			return err
+		}
+
 	case cor.Text:
 		// print is a convenience function to export the abstract syntax tree as a string to the print writer
 		return b.Print(print)
