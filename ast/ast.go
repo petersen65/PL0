@@ -187,6 +187,33 @@ func (b *BlockNode) Accept(visitor Visitor) {
 	visitor.VisitBlock(b)
 }
 
+// Print the abstract syntax tree to the specified writer.
+func (b *BlockNode) Print(print io.Writer, args ...any) error {
+	// print the title text message for the abstract syntax tree
+	if _, err := print.Write(textAbstractSyntaxTree); err != nil {
+		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+	}
+
+	// traverse the abstract syntax tree and print each node
+	if err := printAbstractSyntaxTree(b, "", true, print); err != nil {
+		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+	}
+
+	return nil
+}
+
+// Export the abstract syntax tree of the block node (only the Text format is supported).
+func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Text:
+		// print is a convenience function to export the abstract syntax tree as a string to the print writer
+		return b.Print(print)
+
+	default:
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+}
+
 // Set the parent Node of the constant declaration node.
 func (d *ConstantDeclarationNode) SetParent(parent Node) {
 	d.ParentNode = parent
@@ -855,8 +882,10 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 }
 
 // Print the abstract syntax tree to the specified writer by recursively traversing the tree in pre-order.
-func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) {
-	print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node)))
+func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node))); err != nil {
+		return err
+	}
 
 	if last {
 		indent += "   "
@@ -865,6 +894,10 @@ func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Write
 	}
 
 	for i, child := range node.Children() {
-		printAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print)
+		if err := printAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

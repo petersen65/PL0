@@ -5,6 +5,6 @@
 package emulator
 
 // Run a binary IL/0 target and return an error if the target fails to execute.
-func Run(bytes []byte) error {
-	return newMachine().runProgram(bytes)
+func Run(raw []byte) error {
+	return newMachine().runProgram(raw)
 }

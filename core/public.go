@@ -9,7 +9,7 @@ import (
 	"slices"
 )
 
-// Tokens of the PL/0 programming language
+// Tokens of the PL/0 programming language.
 const (
 	Unknown = Token(iota)
 	Identifier

@@ -19,6 +19,8 @@ const (
 	walkRequiresVisitorOrFunction
 	walkRequiresInterfaceOrFunction
 	inOrderRequiresTwoChildren
+	unknownExportFormat
+	abstractSyntaxExportFailed
 )
 
 // Map failure codes to error messages.
@@ -34,4 +36,6 @@ var failureMap = map[cor.Failure]string{
 	walkRequiresVisitorOrFunction:   "cannot walk without a visitor or visit function",
 	walkRequiresInterfaceOrFunction: "walk requires a visitor with a Visitor interface or a visit function",
 	inOrderRequiresTwoChildren:      "in-order traversal requires exactly two children",
+	unknownExportFormat:             "unknown export format: %v",
+	abstractSyntaxExportFailed:      "failed to export abstract syntax tree",
 }
