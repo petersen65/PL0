@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Build PL/0 Compiler on Windows",
+			"label": "Build PL/0 Compiler with PowerShell",
 			"type": "shell",
 			"command": "pwsh",
 			"args": [
@@ -27,9 +27,9 @@
 			},
 		},
 		{
-			"label": "Build PL/0 Compiler on Linux",
+			"label": "Build PL/0 Compiler with Bash",
 			"type": "shell",
-			"command": "pwsh",
+			"command": "bash",
 			"args": [
 				"scripts/build.sh"
 			],
