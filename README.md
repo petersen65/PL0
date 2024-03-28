@@ -138,13 +138,14 @@ The programming language PL/0 2024 supports the following features:
 
 ## Planning
 
-* Q2 2024, Compiler version 2.1.0 2024, introduce PL/0 type system for scalar data types
-	* integer (int64), real (float64), boolean (bool), char (utf-8 rune)
+* Q2 2024, Compiler version 2.1.0 2024, tbd
+	* tbd
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
-	* data types for variables, constants and parameters, start with integer only
-	* parameter for procedures
-	* boolean, real, string datatypes
+	* introduce PL/0 type system for scalar data types: integer (int64), real (float64), boolean (bool), char (utf-8 rune)
+	* parameters for procedures
+	* functions with return types
+	* user defined data types and complex data types (structs, strings)
 	* improved features for stdin and stdout
 	* optimizations like constant folding
