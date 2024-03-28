@@ -16,6 +16,27 @@ const EmptyBlockName = "@block"
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler passes.
 const EmptyConstantName = "@constant"
 
+// Types of nodes in the abstract syntax tree.
+const (
+	_ = NodeType(iota)
+	BlockType
+	ConstantDeclarationType
+	VariableDeclarationType
+	ProcedureDeclarationType
+	LiteralType
+	IdentifierUseType
+	UnaryOperationType
+	BinaryOperationType
+	ConditionalOperationType
+	AssignmentStatementType
+	ReadStatementType
+	WriteStatementType
+	CallStatementType
+	IfStatementType
+	WhileStatementType
+	CompoundStatementType
+)
+
 // Traverse the abstract syntax tree in specific orders.
 const (
 	_ = TraversalOrder(iota)
@@ -79,7 +100,30 @@ const (
 	Execute
 )
 
+// NodeTypeNames maps node types to their string representation.
+var NodeTypeNames = map[NodeType]string{
+	BlockType:                "block",
+	ConstantDeclarationType:  "constant",
+	VariableDeclarationType:  "variable",
+	ProcedureDeclarationType: "procedure",
+	LiteralType:              "literal",
+	IdentifierUseType:        "use",
+	UnaryOperationType:       "unary",
+	BinaryOperationType:      "binary",
+	ConditionalOperationType: "conditional",
+	AssignmentStatementType:  "assignment",
+	ReadStatementType:        "read",
+	WriteStatementType:       "write",
+	CallStatementType:        "call",
+	IfStatementType:          "if",
+	WhileStatementType:       "while",
+	CompoundStatementType:    "compound",
+}
+
 type (
+	// Type of a node in the abstract syntax tree.
+	NodeType int
+
 	// Traversal order for the abstract syntax tree.
 	TraversalOrder int
 
@@ -123,6 +167,7 @@ type (
 
 	// A node in the abstract syntax tree.
 	Node interface {
+		Type() NodeType
 		SetParent(node Node)
 		Parent() Node
 		Children() []Node
@@ -158,17 +203,19 @@ type (
 
 	// Block node represents a block in the AST.
 	BlockNode struct {
-		ParentNode   Node          `json:"-"`         // parent node of the block
-		Name         string        `json:"name"`      // name of the block that can be used for lookup in the symbol table
-		Depth        int32         `json:"depth"`     // block nesting depth
-		Offset       uint64        `json:"offset"`    // offset counter for all variable in the block procedure stack frame
-		Scope        *Scope        `json:"-"`         // scope with symbol table of the block that has its own outer scope chain
-		Declarations []Declaration `json:"-"`         // all declarations of the block
-		Statement    Statement     `json:"statement"` // statement of the block
+		TypeName     string        `json:"type"`         // type name of the block node
+		ParentNode   Node          `json:"-"`            // parent node of the block
+		Name         string        `json:"name"`         // name of the block that can be used for lookup in the symbol table
+		Depth        int32         `json:"depth"`        // block nesting depth
+		Offset       uint64        `json:"offset"`       // offset counter for all variable in the block procedure stack frame
+		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
+		Declarations []Declaration `json:"declarations"` // all declarations of the block
+		Statement    Statement     `json:"statement"`    // statement of the block
 	}
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
 	ConstantDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the constant declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
 		Name             string       `json:"name"`               // name of the constant
 		Value            any          `json:"value"`              // value of constant
@@ -180,6 +227,7 @@ type (
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
 		DataType         DataType     `json:"data_type"`          // data type of the variable
@@ -191,9 +239,10 @@ type (
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the procedure declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
-		Block            Block        `json:"-"`                  // block of the procedure
+		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
@@ -202,6 +251,7 @@ type (
 
 	// Literal node represents the usage of a literal value in the AST.
 	LiteralNode struct {
+		TypeName   string   `json:"type"`      // type name of the literal node
 		ParentNode Node     `json:"-"`         // parent node of the literal
 		Value      any      `json:"value"`     // literal value
 		DataType   DataType `json:"data_type"` // data type of the literal
@@ -209,9 +259,10 @@ type (
 
 	// IdentifierUseNode represents the usage of an identifier in the AST.
 	IdentifierUseNode struct {
+		TypeName         string `json:"type"`               // type name of the identifier usage node
 		ParentNode       Node   `json:"-"`                  // parent node of the identifier usage
 		Name             string `json:"name"`               // name of the identifier
-		Scope            *Scope `json:"scope"`              // scope of the identifier usage
+		Scope            *Scope `json:"-"`                  // scope of the identifier usage
 		Context          Entry  `json:"context"`            // context of the identifier
 		Use              Usage  `json:"use"`                // usage mode of the identifier
 		TokenStreamIndex int    `json:"token_stream_index"` // index of the token in the token stream
@@ -219,6 +270,7 @@ type (
 
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
+		TypeName   string        `json:"type"`      // type name of the unary operation node
 		ParentNode Node          `json:"-"`         // parent node of the unary operation
 		Operation  UnaryOperator `json:"operation"` // unary operation
 		Operand    Expression    `json:"operand"`   // operand of the unary operation
@@ -226,6 +278,7 @@ type (
 
 	// BinaryOperation node represents a binary operation in the AST.
 	BinaryOperationNode struct {
+		TypeName   string         `json:"type"`      // type name of the binary operation node
 		ParentNode Node           `json:"-"`         // parent node of the binary operation
 		Operation  BinaryOperator `json:"operation"` // binary operation
 		Left       Expression     `json:"left"`      // left operand of the binary operation
@@ -234,6 +287,7 @@ type (
 
 	// ConditionalOperation node represents a conditional operation in the AST.
 	ConditionalOperationNode struct {
+		TypeName   string             `json:"type"`      // type name of the conditional operation node
 		ParentNode Node               `json:"-"`         // parent node of the conditional
 		Operation  RelationalOperator `json:"operation"` // conditional operation
 		Left       Expression         `json:"left"`      // left operand of the conditional operation
@@ -242,6 +296,7 @@ type (
 
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
+		TypeName   string     `json:"type"`       // type name of the assignment statement node
 		ParentNode Node       `json:"-"`          // parent node of the assignment statement
 		Variable   Expression `json:"variable"`   // variable use on the left side of the assignment statement
 		Expression Expression `json:"expression"` // expression on the right side of the assignment statement
@@ -249,24 +304,28 @@ type (
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
+		TypeName   string     `json:"type"`     // type name of the read statement node
 		ParentNode Node       `json:"-"`        // parent node of the read statement
 		Variable   Expression `json:"variable"` // variable use of the read statement
 	}
 
 	// WriteStatement node represents a write statement in the AST.
 	WriteStatementNode struct {
+		TypeName   string     `json:"type"`       // type name of the write statement node
 		ParentNode Node       `json:"-"`          // parent node of the write statement
 		Expression Expression `json:"expression"` // expression of the write statement
 	}
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
+		TypeName   string     `json:"type"`      // type name of the call statement node
 		ParentNode Node       `json:"-"`         // parent node of the call statement
 		Procedure  Expression `json:"procedure"` // procedure use of the call statement
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
 	IfStatementNode struct {
+		TypeName   string     `json:"type"`      // type name of the if-then statement node
 		ParentNode Node       `json:"-"`         // parent node of the if-then statement
 		Condition  Expression `json:"condition"` // if-condition of the if-then statement
 		Statement  Statement  `json:"statement"` // then-statement of the if-then statement
@@ -274,6 +333,7 @@ type (
 
 	// WhileStatement node represents a while-do statement in the AST.
 	WhileStatementNode struct {
+		TypeName   string     `json:"type"`      // type name of the while-do statement node
 		ParentNode Node       `json:"-"`         // parent node of the while-do statement
 		Condition  Expression `json:"condition"` // while-condition of the while-do statement
 		Statement  Statement  `json:"statement"` // do-statement of the while-do statement
@@ -281,6 +341,7 @@ type (
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	CompoundStatementNode struct {
+		TypeName   string      `json:"type"`       // type name of the compound statement node
 		ParentNode Node        `json:"-"`          // parent node of the begin-end compound statement
 		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
 	}

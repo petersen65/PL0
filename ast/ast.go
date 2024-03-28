@@ -16,7 +16,14 @@ var textAbstractSyntaxTree = []byte("Abstract Syntax Tree:\n")
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
-	block := &BlockNode{Name: name, Depth: depth, Scope: scope, Declarations: declarations, Statement: statement}
+	block := &BlockNode{
+		TypeName:     NodeTypeNames[BlockType],
+		Name:         name,
+		Depth:        depth,
+		Scope:        scope,
+		Declarations: declarations,
+		Statement:    statement,
+	}
 
 	for _, declaration := range block.Declarations {
 		declaration.SetParent(block)
@@ -29,6 +36,7 @@ func newBlock(name string, depth int32, scope *Scope, declarations []Declaration
 // Create a new constant declaration node in the abstract syntax tree.
 func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
 	return &ConstantDeclarationNode{
+		TypeName:         NodeTypeNames[ConstantDeclarationType],
 		Name:             name,
 		Value:            value,
 		DataType:         dataType,
@@ -41,6 +49,7 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope *Sc
 // Create a new variable declaration node in the abstract syntax tree.
 func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
 	return &VariableDeclarationNode{
+		TypeName:         NodeTypeNames[VariableDeclarationType],
 		Name:             name,
 		DataType:         dataType,
 		Scope:            scope,
@@ -52,6 +61,7 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 // Create a new procedure declaration node in the abstract syntax tree.
 func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
 	declaration := &ProcedureDeclarationNode{
+		TypeName:         NodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
 		Block:            block,
 		Scope:            scope,
@@ -65,24 +75,45 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, dataType DataType) Expression {
-	return &LiteralNode{Value: value, DataType: dataType}
+	return &LiteralNode{
+		TypeName: NodeTypeNames[LiteralType],
+		Value:    value,
+		DataType: dataType,
+	}
 }
 
 // Create a new identifier-use node in the abstract syntax tree.
 func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
-	return &IdentifierUseNode{Name: name, Scope: scope, Context: context, TokenStreamIndex: index}
+	return &IdentifierUseNode{
+		TypeName:         NodeTypeNames[IdentifierUseType],
+		Name:             name,
+		Scope:            scope,
+		Context:          context,
+		TokenStreamIndex: index,
+	}
 }
 
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression) Expression {
-	unary := &UnaryOperationNode{Operation: operation, Operand: operand}
+	unary := &UnaryOperationNode{
+		TypeName:  NodeTypeNames[UnaryOperationType],
+		Operation: operation,
+		Operand:   operand,
+	}
+
 	operand.SetParent(unary)
 	return unary
 }
 
 // Create a new binary operation node in the abstract syntax tree.
 func newBinaryOperation(operation BinaryOperator, left, right Expression) Expression {
-	binary := &BinaryOperationNode{Operation: operation, Left: left, Right: right}
+	binary := &BinaryOperationNode{
+		TypeName:  NodeTypeNames[BinaryOperationType],
+		Operation: operation,
+		Left:      left,
+		Right:     right,
+	}
+
 	left.SetParent(binary)
 	right.SetParent(binary)
 	return binary
@@ -90,7 +121,13 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression) Expres
 
 // Create a new conditional operation node in the abstract syntax tree.
 func newConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
-	conditional := &ConditionalOperationNode{Operation: operation, Left: left, Right: right}
+	conditional := &ConditionalOperationNode{
+		TypeName:  NodeTypeNames[ConditionalOperationType],
+		Operation: operation,
+		Left:      left,
+		Right:     right,
+	}
+
 	left.SetParent(conditional)
 	right.SetParent(conditional)
 	return conditional
@@ -98,7 +135,12 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 
 // Create a new assignment statement node in the abstract syntax tree.
 func newAssignmentStatement(variable, expression Expression) Statement {
-	assignment := &AssignmentStatementNode{Variable: variable, Expression: expression}
+	assignment := &AssignmentStatementNode{
+		TypeName:   NodeTypeNames[AssignmentStatementType],
+		Variable:   variable,
+		Expression: expression,
+	}
+
 	variable.SetParent(assignment)
 	expression.SetParent(assignment)
 	return assignment
@@ -106,28 +148,45 @@ func newAssignmentStatement(variable, expression Expression) Statement {
 
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(variable Expression) Statement {
-	read := &ReadStatementNode{Variable: variable}
+	read := &ReadStatementNode{
+		TypeName: NodeTypeNames[ReadStatementType],
+		Variable: variable,
+	}
+
 	variable.SetParent(read)
 	return read
 }
 
 // Create a new write statement node in the abstract syntax tree.
 func newWriteStatement(expression Expression) Statement {
-	write := &WriteStatementNode{Expression: expression}
+	write := &WriteStatementNode{
+		TypeName:   NodeTypeNames[WriteStatementType],
+		Expression: expression,
+	}
+
 	expression.SetParent(write)
 	return write
 }
 
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(procedure Expression) Statement {
-	call := &CallStatementNode{Procedure: procedure}
+	call := &CallStatementNode{
+		TypeName:  NodeTypeNames[CallStatementType],
+		Procedure: procedure,
+	}
+
 	procedure.SetParent(call)
 	return call
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement) Statement {
-	ifStmt := &IfStatementNode{Condition: condition, Statement: statement}
+	ifStmt := &IfStatementNode{
+		TypeName:  NodeTypeNames[IfStatementType],
+		Condition: condition,
+		Statement: statement,
+	}
+
 	condition.SetParent(ifStmt)
 	statement.SetParent(ifStmt)
 	return ifStmt
@@ -135,7 +194,12 @@ func newIfStatement(condition Expression, statement Statement) Statement {
 
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement) Statement {
-	whileStmt := &WhileStatementNode{Condition: condition, Statement: statement}
+	whileStmt := &WhileStatementNode{
+		TypeName:  NodeTypeNames[WhileStatementType],
+		Condition: condition,
+		Statement: statement,
+	}
+
 	condition.SetParent(whileStmt)
 	statement.SetParent(whileStmt)
 	return whileStmt
@@ -143,13 +207,21 @@ func newWhileStatement(condition Expression, statement Statement) Statement {
 
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement) Statement {
-	compound := &CompoundStatementNode{Statements: statements}
+	compound := &CompoundStatementNode{
+		TypeName:   NodeTypeNames[CompoundStatementType],
+		Statements: statements,
+	}
 
 	for _, statement := range compound.Statements {
 		statement.SetParent(compound)
 	}
 
 	return compound
+}
+
+// Get type of the block node.
+func (b *BlockNode) Type() NodeType {
+	return BlockType
 }
 
 // Set the parent Node of the block node.
@@ -229,6 +301,11 @@ func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 	}
 }
 
+// Type of the constant declaration node.
+func (d *ConstantDeclarationNode) Type() NodeType {
+	return ConstantDeclarationType
+}
+
 // Set the parent Node of the constant declaration node.
 func (d *ConstantDeclarationNode) SetParent(parent Node) {
 	d.ParentNode = parent
@@ -263,6 +340,11 @@ func (d *ConstantDeclarationNode) DeclarationString() string {
 // Accept the visitor for the constant declaration node.
 func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitConstantDeclaration(d)
+}
+
+// Type of the variable declaration node.
+func (d *VariableDeclarationNode) Type() NodeType {
+	return VariableDeclarationType
 }
 
 // Set the parent Node of the variable declaration node.
@@ -302,6 +384,11 @@ func (d *VariableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(d)
 }
 
+// Type of the procedure declaration node.
+func (d *ProcedureDeclarationNode) Type() NodeType {
+	return ProcedureDeclarationType
+}
+
 // Set the parent Node of the procedure declaration node.
 func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 	d.ParentNode = parent
@@ -330,6 +417,11 @@ func (d *ProcedureDeclarationNode) DeclarationString() string {
 // Accept the visitor for the procedure declaration node.
 func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitProcedureDeclaration(d)
+}
+
+// Type of the literal node.
+func (e *LiteralNode) Type() NodeType {
+	return LiteralType
 }
 
 // Set the parent Node of the literal node.
@@ -367,6 +459,11 @@ func (e *LiteralNode) ExpressionString() string {
 // Accept the visitor for the literal node.
 func (e *LiteralNode) Accept(visitor Visitor) {
 	visitor.VisitLiteral(e)
+}
+
+// Type of the identifier-use node.
+func (u *IdentifierUseNode) Type() NodeType {
+	return IdentifierUseType
 }
 
 // Set the parent Node of the identifier-use node.
@@ -415,6 +512,11 @@ func (u *IdentifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(u)
 }
 
+// Type of the unary operation node.
+func (e *UnaryOperationNode) Type() NodeType {
+	return UnaryOperationType
+}
+
 // Set the parent Node of the unary operation node.
 func (e *UnaryOperationNode) SetParent(parent Node) {
 	e.ParentNode = parent
@@ -452,6 +554,11 @@ func (e *UnaryOperationNode) ExpressionString() string {
 // Accept the visitor for the unary operation node.
 func (e *UnaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitUnaryOperation(e)
+}
+
+// Type of the binary operation node.
+func (e *BinaryOperationNode) Type() NodeType {
+	return BinaryOperationType
 }
 
 // Set the parent Node of the binary operation node.
@@ -497,6 +604,11 @@ func (e *BinaryOperationNode) ExpressionString() string {
 // Accept the visitor for the binary operation node.
 func (e *BinaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitBinaryOperation(e)
+}
+
+// Type of the conditional operation node.
+func (e *ConditionalOperationNode) Type() NodeType {
+	return ConditionalOperationType
 }
 
 // Set the parent Node of the conditional operation node.
@@ -551,6 +663,11 @@ func (e *ConditionalOperationNode) Accept(visitor Visitor) {
 	visitor.VisitConditionalOperation(e)
 }
 
+// Type of the assignment statement node.
+func (s *AssignmentStatementNode) Type() NodeType {
+	return AssignmentStatementType
+}
+
 // Set the parent Node of the assignment statement node.
 func (s *AssignmentStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -579,6 +696,11 @@ func (s *AssignmentStatementNode) StatementString() string {
 // Accept the visitor for the assignment statement node.
 func (s *AssignmentStatementNode) Accept(visitor Visitor) {
 	visitor.VisitAssignmentStatement(s)
+}
+
+// Type of the read statement node.
+func (s *ReadStatementNode) Type() NodeType {
+	return ReadStatementType
 }
 
 // Set the parent Node of the read statement node.
@@ -611,6 +733,11 @@ func (s *ReadStatementNode) Accept(visitor Visitor) {
 	visitor.VisitReadStatement(s)
 }
 
+// Type of the write statement node.
+func (s *WriteStatementNode) Type() NodeType {
+	return WriteStatementType
+}
+
 // Set the parent Node of the write statement node.
 func (s *WriteStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -639,6 +766,11 @@ func (s *WriteStatementNode) StatementString() string {
 // Accept the visitor for the write statement node.
 func (s *WriteStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWriteStatement(s)
+}
+
+// Type of the call statement node.
+func (s *CallStatementNode) Type() NodeType {
+	return CallStatementType
 }
 
 // Set the parent Node of the call statement node.
@@ -671,6 +803,11 @@ func (s *CallStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCallStatement(s)
 }
 
+// Type of the if-then statement node.
+func (s *IfStatementNode) Type() NodeType {
+	return IfStatementType
+}
+
 // Set the parent Node of the if-then statement node.
 func (s *IfStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -701,6 +838,11 @@ func (s *IfStatementNode) Accept(visitor Visitor) {
 	visitor.VisitIfStatement(s)
 }
 
+// Type of the while-do statement node.
+func (s *WhileStatementNode) Type() NodeType {
+	return WhileStatementType
+}
+
 // Set the parent Node of the while-do statement node.
 func (s *WhileStatementNode) SetParent(parent Node) {
 	s.ParentNode = parent
@@ -729,6 +871,11 @@ func (s *WhileStatementNode) StatementString() string {
 // Accept the visitor for the while-do statement node.
 func (s *WhileStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWhileStatement(s)
+}
+
+// Type of the compound statement node.
+func (s *CompoundStatementNode) Type() NodeType {
+	return CompoundStatementType
 }
 
 // Set the parent Node of the compound statement node.
