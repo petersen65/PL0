@@ -124,9 +124,9 @@ The programming language PL/0 2024 supports the following features:
 	* replace misused wording "concrete syntax" with "token stream"
 	* change PL/0 arithmetic expression grammar to support signed factors and signed constants
 
-## Planning
-
-* Q2 2024, Compiler version 2.0.0 2024, make core engine more mature
+* Mar 29 2024 - [v2.0.0](https://github.com/petersen65/pl0/releases/tag/v2.0.0)
+	* make core engine more mature
+	* build scripts with Git commit hash inclusion into the compiler version output
 	* migration to an abstract syntax tree and code generator as interface between parser and emitter
 	* introduce first semantic analysis compiler pass (symbol declaration check, symbol usage check)
 	* integrate error handling accross all compiler components and enable error messages with source code markers
@@ -135,6 +135,11 @@ The programming language PL/0 2024 supports the following features:
 	* new and more powerful command line interface that can grow in the future
 	* export of all intermediate representations of the compiler in Json, Text, and Binary format
 	* new compiler driver now manages the directory tree for all build targets, including normalization and purge
+
+## Planning
+
+* Q2 2024, Compiler version 2.1.0 2024, introduce PL/0 type system for scalar data types
+	* integer (int64), real (float64), boolean (bool), char (utf-8 rune)
 
 * H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
