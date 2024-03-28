@@ -1,0 +1,24 @@
+{ errors in several compiler components }
+
+const a = 99, b := t;
+var x, y, z, a;
+
+begin
+    xx := 4;
+    y = 5;
+    z := -x - y;
+
+    ! x;
+    ! y;
+    ! z
+    ! a;
+
+    ? v;
+
+    if odd z the
+        ! 42;
+end.
+
+var x;
+
+{

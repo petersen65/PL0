@@ -1,34 +1,23 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
-// Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
 package emitter
 
-import "fmt"
+import cor "github.com/petersen65/PL0/core"
 
-// Error codes for the IL/0 emitter.
+// Failure codes for the IL/0 emitter.
 const (
-	_ = failure(iota + 3000)
+	_ = cor.Failure(iota + 9000)
 	instructionOutOfRange
+	unknownExportFormat
+	textSectionExportFailed
+	textSectionImportFailed
 )
 
-// Failure is a type for error codes of the IL/0 emitter.
-type failure int
-
-// Map error codes to error messages.
-var errorMap = map[failure]string{
-	instructionOutOfRange: "instruction is out of range: %v",
-}
-
-// Create a new error by mapping the error code to its corresponding error message.
-func newError(code failure, value any) error {
-	var message string
-
-	if value != nil {
-		message = fmt.Sprintf(errorMap[code], value)
-	} else {
-		message = errorMap[code]
-	}
-
-	return fmt.Errorf("emitter error %v: %v", code, message)
+// Map failure codes to error messages.
+var failureMap = map[cor.Failure]string{
+	instructionOutOfRange:   "instruction is out of range: %v",
+	unknownExportFormat:     "unknown export format: %v",
+	textSectionExportFailed: "failed to export the text section",
+	textSectionImportFailed: "failed to import the text section",
 }

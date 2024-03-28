@@ -1,99 +1,130 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
-// Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
 // Package main implements the PL/0 compiler command line interface.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/petersen65/PL0/compiler"
+	com "github.com/petersen65/PL0/compiler"
 )
 
-// Function main is the entry point for the PL/0 compiler command line interface.
-// It parses the command line arguments and calls the appropriate functions.
-//
-// The command line arguments are:
-//
-//	-c[r|t|p] <source file> <target file>
-//	-r <target file>
-//	-p <target file>
+// Text messages for the compiler command line interface.
+const (
+	textTitle         = "PL/0 Compiler"
+	textVersion       = "Version 2.0.0 2024"
+	textCopyright     = "Copyright (c) 2024, Michael Petersen. All rights reserved."
+	textCompilerUsage = "Usage of PL/0 compiler"
+	textPurgeUsage    = "purge target directory before compiling"
+	textCompileUsage  = "compile PL/0 source file to IL/0 target file"
+	textExportUsage   = "export intermediate representations to {.tok .ast .int .err} target files"
+	textRunUsage      = "run IL/0 target file"
+	textSourceUsage   = "PL/0 source file"
+	textTargetUsage   = "IL/0 target file"
+	textHelpUsage     = "print help message"
+)
+
+// CommitHash is the git commit hash of the current build and will be set by the external build system.
+var CommitHash string
+
+// Function main is the entry point for the PL/0 compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
-	fmt.Println("PL/0 Compiler Version 1.1.0 2024")
-	fmt.Println("Copyright (c) 2024, Michael Petersen. All rights reserved.")
+	var options com.DriverOption
+	var help, compile, run, export, purge bool
+	var source, target string
 
-	switch {
-	case len(os.Args) > 3 && os.Args[1] == "-c" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], false)
+	// define valid command line flags
+	flag.BoolVar(&purge, "p", false, textPurgeUsage)
+	flag.BoolVar(&purge, "purge", false, textPurgeUsage)
+	flag.BoolVar(&compile, "c", false, textCompileUsage)
+	flag.BoolVar(&compile, "compile", false, textCompileUsage)
+	flag.BoolVar(&export, "e", false, textExportUsage)
+	flag.BoolVar(&export, "export", false, textExportUsage)
+	flag.BoolVar(&run, "r", false, textRunUsage)
+	flag.BoolVar(&run, "run", false, textRunUsage)
+	flag.StringVar(&source, "s", "", textSourceUsage)
+	flag.StringVar(&source, "source", "", textSourceUsage)
+	flag.StringVar(&target, "t", "", textTargetUsage)
+	flag.StringVar(&target, "target", "", textTargetUsage)
+	flag.BoolVar(&help, "h", false, textHelpUsage)
+	flag.BoolVar(&help, "help", false, textHelpUsage)
 
-	case len(os.Args) > 2 && os.Args[1] == "-r" && len(os.Args[2]) > 0:
-		run(os.Args[2])
+	// define usage function for command line flags
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
+		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
+		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
+		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
+		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
+		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
+		fmt.Fprintf(os.Stderr, "  -h | --help:    %v\n", textHelpUsage)
+	}
 
-	case len(os.Args) > 2 && os.Args[1] == "-p" && len(os.Args[2]) > 0:
-		print(os.Args[2])
+	// parse command line arguments into variables
+	flag.Parse()
 
-	case len(os.Args) > 3 && os.Args[1] == "-cr" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3], false) == nil {
-			run(os.Args[3])
+	// print title, version, and copyright
+	fmt.Fprintf(os.Stdout, "%v %v %v\n", textTitle, textVersion, CommitHash)
+	fmt.Fprintf(os.Stdout, "%v\n", textCopyright)
+
+	// print help message if requested
+	if help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	// compile PL/0 source to IL/0 target
+	if compile {
+		options |= com.Compile
+
+		if source == "" || target == "" {
+			flag.Usage()
+			os.Exit(1)
 		}
-
-	case len(os.Args) > 3 && os.Args[1] == "-ct" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		compile(os.Args[2], os.Args[3], true)
-
-	case len(os.Args) > 3 && os.Args[1] == "-cp" && len(os.Args[2]) > 0 && len(os.Args[3]) > 0:
-		if compile(os.Args[2], os.Args[3], false) == nil {
-			print(os.Args[3])
-		}	
-
-	default:
-		usage()
-	}
-}
-
-// Function compile compiles the PL/0 source file pl0 and writes the IL/0 code to the target file il0.
-func compile(pl0, il0 string, tokenStream bool) error {
-	err := compiler.CompileFile(pl0, il0, tokenStream, os.Stdout)
-
-	if err != nil {
-		compiler.PrintError(err, os.Stdout)
-	} else {
-		fmt.Println("Compilation successful")
 	}
 
-	return err
-}
+	// run IL/0 target
+	if run {
+		options |= com.Emulate
 
-// Function 'run' executes the IL/0 code in the target file il0.
-func run(il0 string) error {
-	err := compiler.RunFile(il0, os.Stdout)
-
-	if err != nil {
-		compiler.PrintError(err, os.Stdout)
-	} else {
-		fmt.Println("Run successful")
+		if target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
 	}
 
-	return err
-}
+	// export intermediate representations as {.tok .ast .int .err} targets
+	if export {
+		options |= com.Export
 
-// Function 'print' prints the IL/0 code in the target file il0 to the standard output (console).
-func print(il0 string) error {
-	err := compiler.PrintFile(il0, os.Stdout)
-
-	if err != nil {
-		compiler.PrintError(err, os.Stdout)
-	} else {
-		fmt.Println("Print successful")
+		// export requires compile option and source and target files
+		if options&com.Compile == 0 || source == "" || target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
 	}
 
-	return err
-}
+	// purge target directory
+	if purge {
+		options |= com.Clean
 
-// Function 'usage' prints the command line usage information to the standard output (console).
-func usage() {
-	fmt.Println("Usage: pl0 -c[r|t|p] <source file> <target file>")
-	fmt.Println("       pl0 -r <target file>")
-	fmt.Println("       pl0 -p <target file>")
+		// purge and run options without compilation do not make sense
+		if (options&com.Compile == 0 && options&com.Emulate != 0) || target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	// check if at least the compile, run, or purge option is set
+	if options&com.Compile == 0 && options&com.Emulate == 0 && options&com.Clean == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// call the compiler driver with the options and source and target files
+	com.Driver(options, source, target, os.Stdout)
 }

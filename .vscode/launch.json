@@ -11,9 +11,14 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "args": [
-                "-cr",
+                "--purge",
+                "--compile",
+                "--export",
+                "--run",
+                "--source",
                 "examples/playground.pl0",
-                "build/playground.il0"
+                "--target",
+                "build"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false

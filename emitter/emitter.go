@@ -1,12 +1,16 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
-// Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
 package emitter
 
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
+
+	cor "github.com/petersen65/PL0/core"
 )
 
 // Private implementation of the IL/0 emitter.
@@ -21,10 +25,101 @@ func newEmitter() Emitter {
 	}
 }
 
+// Import a raw byte slice into a text section.
+func Import(raw []byte) (TextSection, error) {
+	textSection := make(TextSection, len(raw)/binary.Size(Instruction{}))
+
+	var buffer bytes.Buffer
+	buffer.Write(raw)
+
+	if err := binary.Read(&buffer, binary.LittleEndian, textSection); err != nil {
+		return nil, cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionImportFailed, nil, err)
+	}
+
+	return textSection, nil
+}
+
+// Print the text section to a writer.
+func (ts TextSection) Print(print io.Writer, args ...any) error {
+	if _, err := print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg"))); err != nil {
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+	}
+
+	for text, instr := range ts {
+		_, err := print.Write(
+			[]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
+				text,
+				OperationNames[instr.Operation],
+				instr.BlockNestingDepthDifference,
+				instr.Address,
+				instr.ArgInt,
+			)))
+
+		if err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+	}
+
+	return nil
+}
+
+// Export the text section to a writer in the specified format.
+func (ts TextSection) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Json:
+		// export the text section as a JSON object and wrap it in a struct to provide a field name for the text section
+		if raw, err := json.MarshalIndent(struct {
+			Text TextSection `json:"text_section"`
+		}{Text: ts}, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		} else {
+			_, err = print.Write(raw)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+			}
+
+			return err
+		}
+
+	case cor.Text:
+		// print is a convenience function to export the text section as a string to the print writer
+		return ts.Print(print)
+
+	case cor.Binary:
+		var buffer bytes.Buffer
+
+		// write the raw bytes of the text section into a binary buffer
+		if err := binary.Write(&buffer, binary.LittleEndian, ts); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
+		// transfer the binary buffer to the print writer
+		if _, err := buffer.WriteTo(print); err != nil {
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
+	default:
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+
+	return nil
+}
+
+// Expose sections of the emitted IL/0 program.
+func (e *emitter) GetSections() TextSection {
+	return e.textSection
+}
+
+// Get the next free address in the text section.
+func (e *emitter) GetNextAddress() Address {
+	return Address(len(e.textSection))
+}
+
 // Update the target address and optionally the argument of an instruction in the text section.
 func (e *emitter) Update(instruction, target Address, value any) error {
 	if uint64(instruction) >= uint64(len(e.textSection)) {
-		return newError(instructionOutOfRange, instruction)
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, instructionOutOfRange, instruction, nil)
 	}
 
 	e.textSection[instruction].Address = target
@@ -35,22 +130,6 @@ func (e *emitter) Update(instruction, target Address, value any) error {
 	return nil
 }
 
-// Get the next free address in the text section.
-func (e *emitter) GetNextAddress() Address {
-	return Address(len(e.textSection))
-}
-
-// Save text section as a byte slice.
-func (e *emitter) Export() ([]byte, error) {
-	var buffer bytes.Buffer
-
-	if err := binary.Write(&buffer, binary.LittleEndian, e.textSection); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
-}
-
 // Load a constant value onto the stack.
 func (e *emitter) Constant(value any) Address {
 	e.textSection = append(e.textSection, Instruction{Operation: Ldc, ArgInt: value.(int64)})
@@ -59,13 +138,13 @@ func (e *emitter) Constant(value any) Address {
 
 // Load a variable value onto the stack.
 func (e *emitter) LoadVariable(offset Offset, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Ldv, DeclarationDepthDifference: difference, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Ldv, BlockNestingDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
 // Store a variable value into the stack.
 func (e *emitter) StoreVariable(offset Offset, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Stv, DeclarationDepthDifference: difference, Address: Address(offset)})
+	e.textSection = append(e.textSection, Instruction{Operation: Stv, BlockNestingDepthDifference: difference, Address: Address(offset)})
 	return Address(len(e.textSection) - 1)
 }
 
@@ -191,7 +270,7 @@ func (e *emitter) AllocateStackSpace(varOffset Offset) Address {
 
 // Call a procedure at the target address from a caller.
 func (e *emitter) Call(target Address, difference int32) Address {
-	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, DeclarationDepthDifference: difference})
+	e.textSection = append(e.textSection, Instruction{Operation: Cal, Address: target, BlockNestingDepthDifference: difference})
 	return Address(len(e.textSection) - 1)
 }
 

@@ -1,14 +1,11 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
-// Based on work Copyright (c) 1976, Niklaus Wirth, released in his book "Compilerbau, Teubner Studienbücher Informatik, 1986".
 
 // Package emitter implements the IL/0 emitter that generates intermediate language code targeted for the IL/0 emulator.
 package emitter
 
-const (
-	EntryPointName      = "_start" // name of the entry point procedure of a program
-	VariableOffsetStart = 0        // start offset for variables on top of stack frame descriptor
-)
+// Start offset for variables on top of stack frame descriptor.
+const VariableOffsetStart = 0
 
 // Operation codes for IL/0.
 const (
@@ -65,17 +62,17 @@ type (
 
 	// Instruction is the internal representation of an IL/0 instruction.
 	Instruction struct {
-		Operation                  Operation // operation code of the instruction
-		DeclarationDepthDifference int32     // declaration depth difference between procedure block and to be accessed variables
-		Address                    Address   // target address or offset of a variable of the operation
-		ArgInt                     int64     // int64 argument of the operation
+		Operation                   Operation `json:"operation"`                      // operation code of the instruction
+		BlockNestingDepthDifference int32     `json:"block_nesting_depth_difference"` // block nesting depth difference between procedure block and to be accessed variables
+		Address                     Address   `json:"address"`                        // target address or offset of a variable of the operation
+		ArgInt                      int64     `json:"arg_int"`                        // int64 argument of the operation
 	}
 
-	// Emitter is the public interface of the emitter implementation.
+	// The emitter interface provides an abstract API for emitting IL/0 instructions.
 	Emitter interface {
-		Update(instruction, target Address, value any) error
+		GetSections() TextSection
 		GetNextAddress() Address
-		Export() ([]byte, error)
+		Update(instruction, target Address, value any) error
 		Constant(value any) Address
 		LoadVariable(offset Offset, difference int32) Address
 		StoreVariable(offset Offset, difference int32) Address
