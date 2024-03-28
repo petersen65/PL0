@@ -20,3 +20,27 @@ call R; { Q }
 call Q; { P }
 
 call P. { MAIN }
+
+{
+    Correct output is:
+    
+    Warnings:
+        5: var a, b;
+                ^ analyzer warning 4011 [5,6]: variable declared but not used: a
+        5: var a, b;
+                  ^ analyzer warning 4011 [5,9]: variable declared but not used: b
+        8: var c, d;
+                ^ analyzer warning 4011 [8,6]: variable declared but not used: c
+        8: var c, d;
+                  ^ analyzer warning 4011 [8,9]: variable declared but not used: d
+      11: var e, f;
+                ^ analyzer warning 4011 [11,6]: variable declared but not used: e
+      11: var e, f;
+                  ^ analyzer warning 4011 [11,9]: variable declared but not used: f
+      14: var g, h;
+                ^ analyzer warning 4011 [14,6]: variable declared but not used: g
+      14: var g, h;
+                  ^ analyzer warning 4011 [14,9]: variable declared but not used: h
+  
+    Error emulating IL0 target 'build\out.il0': emulator error 10002: halt - stack overflow at stack pointer '15362'
+}

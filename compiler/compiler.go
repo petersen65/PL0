@@ -33,10 +33,10 @@ const intermediateDirectory = "obj"
 
 // Text messages for the compilation driver.
 const (
-	textCleaning		   = "Cleaning target directory '%v'\n"
+	textCleaning           = "Cleaning target directory '%v'\n"
 	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
 	textErrorCompiling     = "Error compiling PL0 source '%v': %v"
-	textAbortCompilation   = "compilation aborted"
+	textAbortCompilation   = "compilation aborted\n"
 	textErrorPersisting    = "Error persisting IL0 target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
@@ -138,25 +138,24 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		print.Write([]byte(fmt.Sprintf(textCompiling, source, target)))
 		translationUnit, err = CompileSourceToTranslationUnit(source)
 
-		// print compilation error message if an error occurred during compilation process
+		// print compilation error message if an I/O error occurred during compilation
 		if err != nil {
 			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, err)))
 			return
 		}
 
-		// print error report if errors with any severity occurred during compilation process
+		// print error report if errors with any severity occurred during compilation
 		translationUnit.ErrorHandler.Print(print)
 
-		// abandon compilation if any fatal or error errors occurred during compilation process
-		if translationUnit.ErrorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, errors.New(textAbortCompilation))))
-			return
-		}
-
-		// persist IL/0 sections to target and print persistence error message if an error occurred
-		if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
-			return
+		// print abandon compilation message if any error occurred during compilation
+		if translationUnit.ErrorHandler.HasErrors() {
+			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, textAbortCompilation)))
+		} else {
+			// persist IL/0 sections to target and print persistence error message if an error occurred
+			if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
+				print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+				return
+			}
 		}
 	}
 
@@ -171,7 +170,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// emulate IL/0 target
-	if options&Emulate != 0 {
+	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		print.Write([]byte(fmt.Sprintf(textEmulating, target)))
 
 		if err = EmulateTarget(target); err != nil {
@@ -301,12 +300,19 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
+		// safely close file and remove it if it is empty
 		var closeFile = func(file *os.File) {
 			if file != nil {
+				info, _ := file.Stat()
 				file.Close()
+
+				if info != nil && info.Size() == 0 {
+					os.Remove(file.Name())
+				}
 			}
 		}
 
+		// safely close all files
 		closeFile(tsjFile)
 		closeFile(asjFile)
 		closeFile(iljFile)
@@ -318,6 +324,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(tsbFile)
 		closeFile(ilbFile)
 
+		// remove target directory if any error occurred during file creations
 		if anyError != nil {
 			os.RemoveAll(targetDirectory)
 		}
@@ -327,21 +334,31 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		return anyError
 	}
 
-	// export all intermediate representations as Json
-	tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
-	asjErr = translationUnit.AbstractSyntax.Export(cor.Json, asjFile)
-	iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
-	erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
+	// export all token stream representations to the target files
+	if translationUnit.TokenStream != nil {
+		tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
+		tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
+		tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
+	}
 
-	// export all intermediate representations as Text
-	tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
-	astErr = translationUnit.AbstractSyntax.Export(cor.Text, astFile)
-	iltErr = translationUnit.Sections.Export(cor.Text, iltFile)
-	ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
+	// export all abstract syntax representations to the target files
+	if translationUnit.AbstractSyntax != nil {
+		asjErr = translationUnit.AbstractSyntax.Export(cor.Json, asjFile)
+		astErr = translationUnit.AbstractSyntax.Export(cor.Text, astFile)
+	}
 
-	// export all intermediate representations as Binary
-	tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
-	ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
+	// export all section representations to the target files
+	if translationUnit.Sections != nil {
+		iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
+		iltErr = translationUnit.Sections.Export(cor.Text, iltFile)
+		ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
+	}
+
+	// export all error handler representations to the target files
+	if translationUnit.ErrorHandler != nil {
+		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
+		ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
+	}
 
 	// check if any error occurred during export of intermediate representations
 	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)

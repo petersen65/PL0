@@ -411,6 +411,21 @@ func (e *errorHandler) Count(severity Severity, component Component) int {
 	return count
 }
 
+// Return whether the error handler has fatal or error entries in the error report. 
+func (e *errorHandler) HasErrors() bool {
+	return e.Count(Fatal|Error, AllComponents) > 0
+}
+
+// Return whether the error handler has warning entries in the error report.
+func (e *errorHandler) HasWarnings() bool {
+	return e.Count(Warning, AllComponents) > 0
+}
+
+// Return whether the error handler has remark entries in the error report.
+func (e *errorHandler) HasRemarks() bool {
+	return e.Count(Remark, AllComponents) > 0
+}
+
 // Print the error report to the writer of the error handler.
 func (e *errorHandler) Print(print io.Writer, args ...any) error {
 	if len(e.errorReport) == 0 {
