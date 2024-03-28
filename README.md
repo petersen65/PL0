@@ -131,7 +131,7 @@ The programming language PL/0 2024 supports the following features:
 	* introduce first semantic analysis compiler pass (symbol declaration check, symbol usage check)
 	* integrate error handling accross all compiler components and enable error messages with source code markers
 	* draft introduction of a translation unit for 1 PL/0 source file
-	* new compiler driver controls the new 4-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
+	* new compiler driver controls the new multi-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
 	* new and more powerful command line interface that can grow in the future
 	* export of all intermediate representations of the compiler in Json, Text, and Binary format
 	* new compiler driver now manages the directory tree for all build targets, including normalization and purge
@@ -141,7 +141,7 @@ The programming language PL/0 2024 supports the following features:
 * Q2 2024, Compiler version 2.1.0 2024, tbd
 	* tbd
 
-* H2 2024, Compiler version 2.1.0 2024, enhance programming language and generate assembler
+* H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
 	* introduce PL/0 type system for scalar data types: integer (int64), real (float64), boolean (bool), char (utf-8 rune)
 	* parameters for procedures
