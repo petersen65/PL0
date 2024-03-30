@@ -139,7 +139,7 @@ The programming language PL/0 2024 supports the following features:
 ## Planning
 
 * Q2 2024, Compiler version 2.1.0 2024, provide assembler backend for the existing compiler frontend
-	* assembler package that emits x86_64 assembler mnemonics for 'nasm' and links the assembler output with libc
+	* assembler package that emits x86_64 assembler mnemonics for the LLVM Assembler and links the resultant object-file with libc
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
 	* integrate Pascal scanner and parser into the PL/0 scanner and parser
