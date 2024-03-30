@@ -3,7 +3,7 @@
 
 package analyzer
 
-import cor "github.com/petersen65/PL0/core"
+import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the PL/0 semantic analyzer.
 const (

@@ -5,8 +5,8 @@
 package parser
 
 import (
-	ast "github.com/petersen65/PL0/ast"
-	cor "github.com/petersen65/PL0/core"
+	ast "github.com/petersen65/PL0/v2/ast"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Name of the entry point procedure of a program.

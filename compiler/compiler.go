@@ -12,14 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	ana "github.com/petersen65/PL0/analyzer"
-	ast "github.com/petersen65/PL0/ast"
-	cor "github.com/petersen65/PL0/core"
-	emt "github.com/petersen65/PL0/emitter"
-	emu "github.com/petersen65/PL0/emulator"
-	gen "github.com/petersen65/PL0/generator"
-	par "github.com/petersen65/PL0/parser"
-	scn "github.com/petersen65/PL0/scanner"
+	ana "github.com/petersen65/PL0/v2/analyzer"
+	ast "github.com/petersen65/PL0/v2/ast"
+	cor "github.com/petersen65/PL0/v2/core"
+	emt "github.com/petersen65/PL0/v2/emitter"
+	emu "github.com/petersen65/PL0/v2/emulator"
+	gen "github.com/petersen65/PL0/v2/generator"
+	par "github.com/petersen65/PL0/v2/parser"
+	scn "github.com/petersen65/PL0/v2/scanner"
 )
 
 // Default target filename for the compilation driver.

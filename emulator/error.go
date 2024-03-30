@@ -3,7 +3,7 @@
 
 package emulator
 
-import cor "github.com/petersen65/PL0/core"
+import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the IL/0 emulator.
 const (

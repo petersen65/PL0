@@ -4,7 +4,7 @@
 // Package scanner implements the PL/0 scanner that performs a lexical analysis of the source code.
 package scanner
 
-import cor "github.com/petersen65/PL0/core"
+import cor "github.com/petersen65/PL0/v2/core"
 
 type (
 	// The scanner interface provides methods for scanning binary UTF-8 encoded source code into a binary token stream.

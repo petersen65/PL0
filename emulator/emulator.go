@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"math"
 
-	cor "github.com/petersen65/PL0/core"
-	emt "github.com/petersen65/PL0/emitter"
+	cor "github.com/petersen65/PL0/v2/core"
+	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
 const (

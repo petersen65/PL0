@@ -7,7 +7,7 @@ package ast
 import (
 	"io"
 
-	cor "github.com/petersen65/PL0/core"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // EmptyBlockName allows the detection of empty blocks because of parsing errors. They should be ignored in all compiler passes.

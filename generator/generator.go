@@ -4,9 +4,9 @@
 package generator
 
 import (
-	ast "github.com/petersen65/PL0/ast"
-	cor "github.com/petersen65/PL0/core"
-	emt "github.com/petersen65/PL0/emitter"
+	ast "github.com/petersen65/PL0/v2/ast"
+	cor "github.com/petersen65/PL0/v2/core"
+	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
 // Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.

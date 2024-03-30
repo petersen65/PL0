@@ -3,7 +3,7 @@
 
 package generator
 
-import cor "github.com/petersen65/PL0/core"
+import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the code generator.
 const (

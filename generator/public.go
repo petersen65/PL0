@@ -5,8 +5,8 @@
 package generator
 
 import (
-	ast "github.com/petersen65/PL0/ast"
-	emt "github.com/petersen65/PL0/emitter"
+	ast "github.com/petersen65/PL0/v2/ast"
+	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
 // The generator drives the emitter to generate code from the abstract syntax tree.

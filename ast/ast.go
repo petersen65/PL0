@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/PL0/core"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Text messages for printing an abstract syntax tree.

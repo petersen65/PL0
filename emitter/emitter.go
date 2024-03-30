@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/PL0/core"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Private implementation of the IL/0 emitter.

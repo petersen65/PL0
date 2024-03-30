@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	com "github.com/petersen65/PL0/compiler"
+	com "github.com/petersen65/PL0/v2/compiler"
 )
 
 // Text messages for the compiler command line interface.
