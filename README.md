@@ -138,14 +138,12 @@ The programming language PL/0 2024 supports the following features:
 
 ## Planning
 
-* Q2 2024, Compiler version 2.1.0 2024, tbd
-	* tbd
+* Q2 2024, Compiler version 2.1.0 2024, provide assembler backend for the existing compiler frontend
+	* assembler package that emits x86_64 assembler mnemonics for 'nasm' and links the assembler output with libc
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
+	* integrate Pascal scanner and parser into the PL/0 scanner and parser
+	* migrate the PL/0 project to a Pascal II project which allows to attach interfaces to user defined datatypes and records
+	* think about generating C code for GCC and use GCC as backend for PL/0
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
-	* introduce PL/0 type system for scalar data types: integer (int64), real (float64), boolean (bool), char (utf-8 rune)
-	* parameters for procedures
-	* functions with return types
-	* user defined data types and complex data types (structs, strings)
-	* improved features for stdin and stdout
-	* optimizations like constant folding
+	* implement optimizers like constant folding
