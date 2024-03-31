@@ -17,6 +17,11 @@ type generator struct {
 	assembler      asm.Assembler // assembler that emits assembly code
 }
 
+// Map data types from the abstract syntax tree to generator data types.
+var generatorType = map[ast.DataType]string{
+	ast.Integer64: "i64",
+}
+
 // Create new code generator with the given source and abstract syntax tree.
 func newGenerator(source string, abstractSyntax ast.Block) Generator {
 	return &generator{abstractSyntax: abstractSyntax, emitter: emt.NewEmitter(), assembler: asm.NewAssembler(source)}
@@ -58,11 +63,20 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	// allocating stack space for block variables is the first code instruction of the block
 	g.emitter.AllocateStackSpace(emt.Offset(bn.Offset))
 
+	// create a function definition for the block
+	g.assembler.Function(bn.Name, generatorType[ast.Integer64])
+
 	// emit all statement instructions which are defining the code logic of the block
 	bn.Statement.Accept(g)
 
 	// emit a return instruction to return from the block
 	g.emitter.Return()
+
+	// return from the function definition of the block
+	g.assembler.Return(int64(0), generatorType[ast.Integer64])
+
+	// end the function definition of the block
+	g.assembler.EndFunction()
 }
 
 // Generate code for a constant declaration.

@@ -52,3 +52,18 @@ func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
 func (a *assembler) GetModule() Module {
 	return a.module
 }
+
+// Emit a function definition.
+func (a *assembler) Function(name string, returnType string) {
+	a.module = append(a.module, fmt.Sprintf("define %v @%v() {", returnType, name))
+}
+
+// End a function definition.
+func (a *assembler) EndFunction() {
+	a.module = append(a.module, "}")
+}
+
+// Return from a function.
+func (a *assembler) Return(value any, valueType string) {
+	a.module = append(a.module, fmt.Sprintf("ret %v %v", valueType, value.(int64)))
+}

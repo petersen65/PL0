@@ -10,7 +10,7 @@ import (
 )
 
 // Name of the entry point procedure of a program.
-const EntryPointName = "@program"
+const EntryPointName = "main"
 
 type (
 	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
