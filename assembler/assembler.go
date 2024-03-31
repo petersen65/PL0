@@ -3,14 +3,52 @@
 
 package assembler
 
+import (
+	"fmt"
+	"io"
+
+	cor "github.com/petersen65/PL0/v2/core"
+)
+
 // Private implementation of the assembler.
 type assembler struct {
-	textSection TextSection
+	module Module
 }
 
 // Return the public interface of the private assembler implementation.
-func newAssembler() Assembler {
+func newAssembler(source string) Assembler {
 	return &assembler{
-		textSection: make(TextSection, 0),
+		module: []string{
+			fmt.Sprintf("; ModuleID = '%v'", source),
+			fmt.Sprintf("source_filename = \"%v\"", source),
+		},
 	}
+}
+
+// Print the module to a writer.
+func (m Module) Print(print io.Writer, args ...any) error {
+	for _, line := range m {
+		if _, err := fmt.Fprintln(print, line); err != nil {
+			return cor.NewGeneralError(cor.Assembler, failureMap, cor.Error, moduleExportFailed, nil, err)
+		}
+	}
+
+	return nil
+}
+
+// Export the module to a writer in the specified format.
+func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Text:
+		// print is a convenience function to export the module as a string to the print writer
+		return m.Print(print)
+
+	default:
+		panic(cor.NewGeneralError(cor.Assembler, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+}
+
+// Expose module of the emitted assembler program.
+func (a *assembler) GetModule() Module {
+	return a.module
 }

@@ -106,6 +106,7 @@ var (
 		Optimizer:          "optimizer",
 		Generator:          "generator",
 		Emitter:            "emitter",
+		Assembler:          "assembler",
 		Emulator:           "emulator",
 	}
 )

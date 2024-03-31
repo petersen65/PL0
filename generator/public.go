@@ -5,16 +5,17 @@
 package generator
 
 import (
+	asm "github.com/petersen65/PL0/v2/assembler"
 	ast "github.com/petersen65/PL0/v2/ast"
 	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
-// The generator drives the emitter to generate code from the abstract syntax tree.
+// The generator drives the emitter and assembler to generate code from the abstract syntax tree.
 type Generator interface {
-	Generate() emt.Emitter
+	Generate() (emt.Emitter, asm.Assembler)
 }
 
 // Return the public interface of the private generator implementation.
-func NewGenerator(abstractSyntax ast.Block) Generator {
-	return newGenerator(abstractSyntax)
+func NewGenerator(source string, abstractSyntax ast.Block) Generator {
+	return newGenerator(source, abstractSyntax)
 }

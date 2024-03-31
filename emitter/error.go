@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the IL/0 emitter.
 const (
-	_ = cor.Failure(iota + 9000)
+	_ = cor.Failure(iota + 20000)
 	instructionOutOfRange
 	unknownExportFormat
 	textSectionExportFailed

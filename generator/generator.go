@@ -4,6 +4,7 @@
 package generator
 
 import (
+	asm "github.com/petersen65/PL0/v2/assembler"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 	emt "github.com/petersen65/PL0/v2/emitter"
@@ -11,20 +12,21 @@ import (
 
 // Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
 type generator struct {
-	abstractSyntax ast.Block   // abstract syntax tree to generate code for
-	emitter        emt.Emitter // emitter that emits the code
+	abstractSyntax ast.Block     // abstract syntax tree to generate code for
+	emitter        emt.Emitter   // emitter that emits IL/0 code
+	assembler      asm.Assembler // assembler that emits assembly code
 }
 
-// Create new code generator with the given abstract syntax tree.
-func newGenerator(abstractSyntax ast.Block) Generator {
-	return &generator{abstractSyntax: abstractSyntax, emitter: emt.NewEmitter()}
+// Create new code generator with the given source and abstract syntax tree.
+func newGenerator(source string, abstractSyntax ast.Block) Generator {
+	return &generator{abstractSyntax: abstractSyntax, emitter: emt.NewEmitter(), assembler: asm.NewAssembler(source)}
 }
 
-// Generate code for the given abstract syntax tree and return the emitter with the generated code.
+// Generate code for the given abstract syntax tree and return the emitter and assembler for their generated code.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (g *generator) Generate() emt.Emitter {
+func (g *generator) Generate() (emt.Emitter, asm.Assembler) {
 	g.abstractSyntax.Accept(g)
-	return g.emitter
+	return g.emitter, g.assembler
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.

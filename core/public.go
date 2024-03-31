@@ -63,6 +63,7 @@ const (
 	Optimizer
 	Generator
 	Emitter
+	Assembler
 	Emulator
 	AllComponents = Component(^uint64(0))
 )

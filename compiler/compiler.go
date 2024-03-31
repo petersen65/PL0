@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	ana "github.com/petersen65/PL0/v2/analyzer"
+	asm "github.com/petersen65/PL0/v2/assembler"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 	emt "github.com/petersen65/PL0/v2/emitter"
@@ -59,6 +60,7 @@ const (
 	_ Extension = iota
 	PL0
 	IL0
+	Assembler
 	Token
 	Tree
 	Error
@@ -82,6 +84,7 @@ type (
 		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
 		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
 		Sections       emt.TextSection  // IL/0 intermediate language target
+		Module         asm.Module       // module of the assembler language target
 		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
 	}
 )
@@ -90,6 +93,7 @@ type (
 var ExtensionMap = map[Extension]string{
 	PL0:          ".pl0",
 	IL0:          ".il0",
+	Assembler:    ".ll",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
@@ -248,7 +252,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	if content, err := os.ReadFile(source); err != nil {
 		return TranslationUnit{}, err
 	} else {
-		return CompileContent(content), nil
+		return CompileContent(source, content), nil
 	}
 }
 
@@ -289,6 +293,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
 	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	amtFile, amtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Assembler, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
@@ -296,7 +301,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, amtErr, ertErr, tsbErr, ilbErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -320,6 +325,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(tstFile)
 		closeFile(astFile)
 		closeFile(iltFile)
+		closeFile(amtFile)
 		closeFile(ertFile)
 		closeFile(tsbFile)
 		closeFile(ilbFile)
@@ -354,6 +360,11 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
 	}
 
+	// export all module representations to the target files
+	if translationUnit.Module != nil {
+		amtErr = translationUnit.Module.Export(cor.Text, amtFile)
+	}
+
 	// export all error handler representations to the target files
 	if translationUnit.ErrorHandler != nil {
 		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
@@ -361,7 +372,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, amtErr, ertErr, tsbErr, ilbErr)
 	return anyError
 }
 
@@ -388,7 +399,7 @@ func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) 
 }
 
 // Compile PL/0 UTF-8 encoded content and return translation unit with all intermediate results and error handler.
-func CompileContent(content []byte) TranslationUnit {
+func CompileContent(source string, content []byte) TranslationUnit {
 	// lexical analysis of PL/0 content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler(tokenStream)
@@ -400,17 +411,17 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, nil, nil, nil, errorHandler}
 	}
 
-	// code generation and emission of IL/0 intermediate language code based on abstract syntax tree
-	sections := gen.NewGenerator(abstractSyntax).Generate().GetSections()
+	// code generation and emission of IL/0 and assembler code based on abstract syntax tree
+	emitter, assembler := gen.NewGenerator(source, abstractSyntax).Generate()
 
 	// return if any fatal or error errors occurred during code generation and emission
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, abstractSyntax, nil, nil, errorHandler}
 	}
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, tokenStream, abstractSyntax, sections, errorHandler}
+	return TranslationUnit{content, tokenStream, abstractSyntax, emitter.GetSections(), assembler.GetModule(), errorHandler}
 }

@@ -143,6 +143,7 @@ The programming language PL/0 2024 supports the following features:
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
 	* integrate Pascal scanner and parser into the PL/0 scanner and parser
+	* merge emitter and assembler into a generic concept for emitting code driven by a generator
 	* migrate the PL/0 project to a Pascal II project which allows to attach interfaces to user defined datatypes and records
 	* think about generating C code for GCC and use GCC as backend for PL/0
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
