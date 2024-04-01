@@ -161,10 +161,10 @@ func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 
 		if blockNestingDepth == 0 {
 			// emit a global variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], vd.Ssa, true)
+			g.assembler.VariableDeclaration(vd.Name, generatorType[vd.DataType], vd.Ssa, true)
 		} else {
 			// emit a local variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], vd.Ssa, false)
+			g.assembler.VariableDeclaration(vd.Name, generatorType[vd.DataType], vd.Ssa, false)
 		}
 
 	default:
@@ -198,7 +198,7 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 		g.emitter.Constant(ln.Value)
 
 	case assemblerWalk:
-		g.assembler.Constant(ln.Value)
+		g.assembler.Constant(ln.Value, generatorType[ln.DataType])
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
@@ -239,7 +239,11 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	case assemblerWalk:
 		switch iu.Context {
 		case ast.Constant:
-			g.assembler.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
+			// get constant declaration of the constant to load
+			constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+
+			// load the constant value that has a specific data type
+			g.assembler.Constant(constantDeclaration.Value, generatorType[constantDeclaration.DataType])
 
 		case ast.Variable:
 			// get variable declaration of the variable to load
@@ -249,9 +253,9 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 			// load the content of the variable and increase its SSA counter
-			variableDeclaration.Ssa = g.assembler.LoadVariable(
+			_, variableDeclaration.Ssa = g.assembler.LoadVariable(
 				iu.Name,
-				generatorType[ast.Integer64],
+				generatorType[variableDeclaration.DataType],
 				variableDeclaration.Ssa,
 				blockNestingDepth == 0)
 
@@ -374,11 +378,18 @@ func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 		as.Expression.Accept(g)
 
 		// get the variable declaration on the left-hand-side of the assignment
-		// variableUse := as.Variable.(*ast.IdentifierUseNode)
-		// variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+		variableUse := as.Variable.(*ast.IdentifierUseNode)
+		variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
 		// determine the block nesting depth of the variable declaration
-		//blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+		// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+		g.assembler.StoreVariable(
+			variableUse.Name,
+			generatorType[variableDeclaration.DataType],
+			variableDeclaration.Ssa,
+			blockNestingDepth == 0)
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
