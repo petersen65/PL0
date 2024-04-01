@@ -59,12 +59,29 @@ func (a *assembler) Constant(value any) {
 }
 
 // Emit a local or global variable declaration.
-func (a *assembler) VariableDeclaration(name, dataType string, global bool) {
+func (a *assembler) VariableDeclaration(name, dataType string, ssa int, global bool) {
 	if global {
-		a.module = append(a.module, fmt.Sprintf("@%v = global %v 0", name, dataType))
+		a.module = append(a.module, fmt.Sprintf("@%v.%v = dso_local global %v 0", name, ssa, dataType))
 	} else {
-		a.module = append(a.module, fmt.Sprintf("%%%v = alloca %v", name, dataType))
+		a.module = append(a.module, fmt.Sprintf("%%%v.%v = alloca %v", name, ssa, dataType))
 	}
+}
+
+// Load a variable.
+func (a *assembler) LoadVariable(name, dataType string, ssa int, global bool) int {
+	if global {
+		if ssa > 1 {
+			a.module = append(a.module, fmt.Sprintf("%%%v.%v = load %v, ptr %%%v.%v", name, ssa+1, dataType, name, ssa))
+		} else {
+			a.module = append(a.module, fmt.Sprintf("%%%v.%v = load %v, ptr @%v.%v", name, ssa+1, dataType, name, ssa))
+		}
+	} else {
+		a.module = append(a.module, fmt.Sprintf("%%%v.%v = load %v, ptr %%%v.%v", name, ssa+1, dataType, name, ssa))
+	}
+	return ssa + 1
+}
+
+func (a *assembler) StoreVariable(name, dataType string, ssa int, global bool) {
 }
 
 // Emit a function definition.

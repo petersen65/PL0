@@ -161,10 +161,10 @@ func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 
 		if blockNestingDepth == 0 {
 			// emit a global variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], true)
+			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], vd.Ssa, true)
 		} else {
 			// emit a local variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], false)
+			g.assembler.VariableDeclaration(vd.Name, generatorType[ast.Integer64], vd.Ssa, false)
 		}
 
 	default:
@@ -207,31 +207,63 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 
 // Generate code for an identifier use.
 func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	switch iu.Context {
-	case ast.Constant:
-		g.emitter.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
+	switch g.walk {
+	case emitterWalk:
+		switch iu.Context {
+		case ast.Constant:
+			g.emitter.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
 
-	case ast.Variable:
-		// get variable declaration of the variable to load
-		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+		case ast.Variable:
+			// get variable declaration of the variable to load
+			variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
-		// determine the block nesting depth of the variable declaration
-		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+			// determine the block nesting depth of the variable declaration
+			blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-		// determine the block nesting depth of the variable use from inside an expression or statement
-		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+			// determine the block nesting depth of the variable use from inside an expression or statement
+			useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
-		// calculate the offset of the variable on the block stack frame
-		offset := emt.Offset(variableDeclaration.Offset)
+			// calculate the offset of the variable on the block stack frame
+			offset := emt.Offset(variableDeclaration.Offset)
 
-		// load the content of the variable
-		g.emitter.LoadVariable(offset, useDepth-blockNestingDepth)
+			// load the content of the variable
+			g.emitter.LoadVariable(offset, useDepth-blockNestingDepth)
 
-	case ast.Procedure:
-		// not required for code generation
+		case ast.Procedure:
+			// not required for code generation
+
+		default:
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+		}
+
+	case assemblerWalk:
+		switch iu.Context {
+		case ast.Constant:
+			g.assembler.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
+
+		case ast.Variable:
+			// get variable declaration of the variable to load
+			variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+
+			// determine the block nesting depth of the variable declaration
+			blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+			// load the content of the variable and increase its SSA counter
+			variableDeclaration.Ssa = g.assembler.LoadVariable(
+				iu.Name,
+				generatorType[ast.Integer64],
+				variableDeclaration.Ssa,
+				blockNestingDepth == 0)
+
+		case ast.Procedure:
+			// not required for code generation
+
+		default:
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
 	}
 }
 
@@ -316,24 +348,41 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 // Generate code for an assignment statement.
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	// load the value from the result of the right-hand-side expression of the assignment
-	as.Expression.Accept(g)
+	switch g.walk {
+	case emitterWalk:
+		// load the value from the result of the right-hand-side expression of the assignment
+		as.Expression.Accept(g)
 
-	// get the variable declaration on the left-hand-side of the assignment
-	variableUse := as.Variable.(*ast.IdentifierUseNode)
-	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+		// get the variable declaration on the left-hand-side of the assignment
+		variableUse := as.Variable.(*ast.IdentifierUseNode)
+		variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// determine the block nesting depth of the variable declaration
-	blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+		// determine the block nesting depth of the variable declaration
+		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// determine the block nesting depth of the assignment statement where the variable is used
-	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+		// determine the block nesting depth of the assignment statement where the variable is used
+		assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
 
-	// calculate the offset of the variable on the block stack frame
-	offset := emt.Offset(variableDeclaration.Offset)
+		// calculate the offset of the variable on the block stack frame
+		offset := emt.Offset(variableDeclaration.Offset)
 
-	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	g.emitter.StoreVariable(offset, assignmentDepth-blockNestingDepth)
+		// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+		g.emitter.StoreVariable(offset, assignmentDepth-blockNestingDepth)
+
+	case assemblerWalk:
+		// load the value from the result of the right-hand-side expression of the assignment
+		as.Expression.Accept(g)
+
+		// get the variable declaration on the left-hand-side of the assignment
+		// variableUse := as.Variable.(*ast.IdentifierUseNode)
+		// variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+
+		// determine the block nesting depth of the variable declaration
+		//blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+	default:
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
+	}
 }
 
 // Generate code for a read statement.

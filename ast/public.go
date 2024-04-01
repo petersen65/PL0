@@ -233,6 +233,7 @@ type (
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
 		Offset           uint64       `json:"offset"`             // offset of the variable in its block procedure stack frame
+		Ssa              int          `json:"-"`                  // counter for static single assignment form
 		Usage            []Expression `json:"-"`                  // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}

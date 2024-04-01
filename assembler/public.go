@@ -13,7 +13,9 @@ type (
 type Assembler interface {
 	GetModule() Module
 	Constant(value any)
-	VariableDeclaration(name, dataType string, global bool)
+	VariableDeclaration(name, dataType string, ssa int, global bool)
+	LoadVariable(name, dataType string, ssa int, global bool) int
+	StoreVariable(name, dataType string, ssa int, global bool)
 	Function(name, returnType string)
 	EndFunction()
 	Return(value any, valueType string)
