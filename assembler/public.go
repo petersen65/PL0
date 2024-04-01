@@ -12,7 +12,9 @@ type (
 // The assembler interface provides an abstract API for emitting LLVM assembly language.
 type Assembler interface {
 	GetModule() Module
-	Function(name string, returnType string)
+	Constant(value any)
+	VariableDeclaration(name, dataType string, global bool)
+	Function(name, returnType string)
 	EndFunction()
 	Return(value any, valueType string)
 }

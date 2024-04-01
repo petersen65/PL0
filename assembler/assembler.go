@@ -53,6 +53,20 @@ func (a *assembler) GetModule() Module {
 	return a.module
 }
 
+// Emit a constant value.
+func (a *assembler) Constant(value any) {
+	a.module = append(a.module, fmt.Sprintf(" %v", value))
+}
+
+// Emit a local or global variable declaration.
+func (a *assembler) VariableDeclaration(name, dataType string, global bool) {
+	if global {
+		a.module = append(a.module, fmt.Sprintf("@%v = global %v 0", name, dataType))
+	} else {
+		a.module = append(a.module, fmt.Sprintf("%%%v = alloca %v", name, dataType))
+	}
+}
+
 // Emit a function definition.
 func (a *assembler) Function(name string, returnType string) {
 	a.module = append(a.module, fmt.Sprintf("define %v @%v() {", returnType, name))
@@ -65,5 +79,9 @@ func (a *assembler) EndFunction() {
 
 // Return from a function.
 func (a *assembler) Return(value any, valueType string) {
-	a.module = append(a.module, fmt.Sprintf("ret %v %v", valueType, value.(int64)))
+	if value == nil {
+		a.module = append(a.module, "ret void")
+	} else {
+		a.module = append(a.module, fmt.Sprintf("ret %v %v", valueType, value.(int64)))
+	}
 }

@@ -82,7 +82,7 @@ const (
 
 // Data types of literals and symbols.
 const (
-	_ = DataType(iota)
+	Void = DataType(iota)
 	Integer64
 )
 
