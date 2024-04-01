@@ -65,6 +65,7 @@ func (a *assembler) GetModule() Module {
 			}
 
 		case LoadVariable:
+			// loading a variable creates a new version of the variable
 			if instr.Global {
 				if instr.Ssa > 1 {
 					module = append(
@@ -85,13 +86,14 @@ func (a *assembler) GetModule() Module {
 			}
 
 		case StoreVariable:
+			// store result of an expression into a variable
 			var from string
 			right := a.instructions[i-1]
 
 			if right.Operation == Constant {
 				from = fmt.Sprintf("%v %v", right.DataType, right.Value)
 			} else if right.Operation == LoadVariable {
-				from = fmt.Sprintf("%v %%%v.%v", right.DataType, right.Name, right.Ssa)
+				from = fmt.Sprintf("%v %%%v.%v", right.DataType, right.Name, right.Ssa+1)
 			} else {
 				panic(cor.NewGeneralError(cor.Assembler, failureMap, cor.Fatal, unexpectedOperation, right.Operation, nil))
 			}

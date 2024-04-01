@@ -24,6 +24,9 @@ type (
 	// Instructions of the emitted assembler program.
 	Instructions []Instruction
 
+	// Module of the emitted assembly language.
+	Module []string
+
 	// Instruction is the structured representation of an assembler operation.
 	Instruction struct {
 		Operation Operation // operation code of the instruction
@@ -33,26 +36,21 @@ type (
 		Global    bool      // global or local variable
 		Value     any       // value of the instruction
 	}
-)
 
-type (
-	// Module of the emitted assembly language.
-	Module []string
+	// The assembler interface provides an abstract API for emitting LLVM assembly language.
+	Assembler interface {
+		GetModule() Module
+		GetLastInstruction() (Instruction, error)
+		GetInstruction(index int) (Instruction, error)
+		Constant(value any, valueType string) int
+		VariableDeclaration(name, dataType string, ssa int, global bool) int
+		LoadVariable(name, dataType string, ssa int, global bool) (int, int)
+		StoreVariable(name, dataType string, ssa int, global bool) int
+		Function(name, returnType string) int
+		EndFunction() int
+		Return(value any, valueType string) int
+	}
 )
-
-// The assembler interface provides an abstract API for emitting LLVM assembly language.
-type Assembler interface {
-	GetModule() Module
-	GetLastInstruction() (Instruction, error)
-	GetInstruction(index int) (Instruction, error)
-	Constant(value any, valueType string) int
-	VariableDeclaration(name, dataType string, ssa int, global bool) int
-	LoadVariable(name, dataType string, ssa int, global bool) (int, int)
-	StoreVariable(name, dataType string, ssa int, global bool) int
-	Function(name, returnType string) int
-	EndFunction() int
-	Return(value any, valueType string) int
-}
 
 // Return the public interface of the private assembler implementation.
 func NewAssembler(source string) Assembler {
