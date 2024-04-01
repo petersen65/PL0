@@ -69,7 +69,7 @@ func (a *assembler) VariableDeclaration(name, dataType string, global bool) {
 
 // Emit a function definition.
 func (a *assembler) Function(name string, returnType string) {
-	a.module = append(a.module, fmt.Sprintf("define %v @%v() {", returnType, name))
+	a.module = append(a.module, fmt.Sprintf("define dso_local %v @%v() {", returnType, name))
 }
 
 // End a function definition.
