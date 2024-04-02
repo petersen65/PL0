@@ -111,7 +111,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			bn.Statement.Accept(g)
 
 			// end the program by returning from the main function
-			g.assembler.Return(int64(0), generatorType[ast.Integer64])
+			g.assembler.ReturnValue(int64(0), generatorType[ast.Integer64])
 
 			// end the function definition
 			g.assembler.EndFunction()
@@ -130,7 +130,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			bn.Statement.Accept(g)
 
 			// return from the function
-			g.assembler.Return(nil, generatorType[ast.Void])
+			g.assembler.ReturnValue(nil, generatorType[ast.Void])
 
 			// end the function definition
 			g.assembler.EndFunction()
@@ -198,7 +198,7 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 		g.emitter.Constant(ln.Value)
 
 	case assemblerWalk:
-		g.assembler.Constant(ln.Value, generatorType[ln.DataType])
+		g.assembler.LoadConstant(ln.Value, generatorType[ln.DataType])
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
@@ -243,7 +243,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
 			// load the constant value that has a specific data type
-			g.assembler.Constant(constantDeclaration.Value, generatorType[constantDeclaration.DataType])
+			g.assembler.LoadConstant(constantDeclaration.Value, generatorType[constantDeclaration.DataType])
 
 		case ast.Variable:
 			// get variable declaration of the variable to load
