@@ -12,7 +12,7 @@ import (
 )
 
 // Text messages for printing an abstract syntax tree.
-var textAbstractSyntaxTree = []byte("Abstract Syntax Tree:\n")
+const textAbstractSyntaxTree = "Abstract Syntax Tree:"
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
@@ -264,7 +264,7 @@ func (b *BlockNode) Accept(visitor Visitor) {
 // Print the abstract syntax tree to the specified writer.
 func (b *BlockNode) Print(print io.Writer, args ...any) error {
 	// print the title text message for the abstract syntax tree
-	if _, err := print.Write(textAbstractSyntaxTree); err != nil {
+	if _, err := fmt.Fprintln(print, textAbstractSyntaxTree); err != nil {
 		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
 	}
 
@@ -1046,7 +1046,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 
 // Print the abstract syntax tree to the specified writer by recursively traversing the tree in pre-order.
 func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) error {
-	if _, err := print.Write([]byte(fmt.Sprintf("%v+- %v\n", indent, node))); err != nil {
+	if _, err := fmt.Fprintf(print, "%v+- %v\n", indent, node); err != nil {
 		return err
 	}
 

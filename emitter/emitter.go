@@ -41,19 +41,18 @@ func Import(raw []byte) (TextSection, error) {
 
 // Print the text section to a writer.
 func (ts TextSection) Print(print io.Writer, args ...any) error {
-	if _, err := print.Write([]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg"))); err != nil {
+	if _, err := fmt.Fprintf(print, "%-5v %-5v %-5v %-5v %-5v\n", "text", "op", "diff", "adr", "arg"); err != nil {
 		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)
 	}
 
 	for text, instr := range ts {
-		_, err := print.Write(
-			[]byte(fmt.Sprintf("%-5v %-5v %-5v %-5v %-5v\n",
-				text,
-				OperationNames[instr.Operation],
-				instr.BlockNestingDepthDifference,
-				instr.Address,
-				instr.ArgInt,
-			)))
+		_, err := fmt.Fprintf(print, "%-5v %-5v %-5v %-5v %-5v\n",
+			text,
+			OperationNames[instr.Operation],
+			instr.BlockNestingDepthDifference,
+			instr.Address,
+			instr.ArgInt,
+		)
 
 		if err != nil {
 			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, textSectionExportFailed, nil, err)

@@ -112,7 +112,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// ensure target path exists and print persistence error message if an error occurred
 	if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
-		print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+		fmt.Fprintf(print, textErrorPersisting, target, err)
 		return
 	}
 
@@ -121,14 +121,14 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
-		print.Write([]byte(fmt.Sprintf(textCleaning, targetDirectory)))
+		fmt.Fprintf(print, textCleaning, targetDirectory)
 		os.RemoveAll(targetDirectory)
 
 		// repeat ensuring existance of target path only if compile option is set
 		if options&Compile != 0 {
 			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
 			if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
-				print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+				fmt.Fprintf(print, textErrorPersisting, target, err)
 				return
 			}
 
@@ -139,12 +139,12 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
 	if options&Compile != 0 {
-		print.Write([]byte(fmt.Sprintf(textCompiling, source, target)))
+		fmt.Fprintf(print, textCompiling, source, target)
 		translationUnit, err = CompileSourceToTranslationUnit(source)
 
 		// print compilation error message if an I/O error occurred during compilation
 		if err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, err)))
+			fmt.Fprintf(print, textErrorCompiling, source, err)
 			return
 		}
 
@@ -153,11 +153,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 		// print abandon compilation message if any error occurred during compilation
 		if translationUnit.ErrorHandler.HasErrors() {
-			print.Write([]byte(fmt.Sprintf(textErrorCompiling, source, textAbortCompilation)))
+			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
 			// persist IL/0 sections to target and print persistence error message if an error occurred
 			if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
-				print.Write([]byte(fmt.Sprintf(textErrorPersisting, target, err)))
+				fmt.Fprintf(print, textErrorPersisting, target, err)
 				return
 			}
 		}
@@ -165,29 +165,29 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// export intermediate representations to the target path
 	if options&Export != 0 {
-		print.Write([]byte(fmt.Sprintf(textExporting, filepath.Join(targetDirectory, intermediateDirectory))))
+		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
 
 		if err = ExportIntermediateRepresentationsToTarget(translationUnit, targetDirectory, baseFileName); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)))
+			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
 			return
 		}
 	}
 
 	// emulate IL/0 target
 	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
-		print.Write([]byte(fmt.Sprintf(textEmulating, target)))
+		fmt.Fprintf(print, textEmulating, target)
 
 		if err = EmulateTarget(target); err != nil {
-			print.Write([]byte(fmt.Sprintf(textErrorEmulating, target, err)))
+			fmt.Fprintf(print, textErrorEmulating, target, err)
 			return
 		}
 	}
 
 	// print driver completion message
 	if options&Compile != 0 {
-		print.Write([]byte(fmt.Sprintf(textDriverSourceTarget, source, target)))
+		fmt.Fprintf(print, textDriverSourceTarget, source, target)
 	} else {
-		print.Write([]byte(fmt.Sprintf(textDriverTarget, target)))
+		fmt.Fprintf(print, textDriverTarget, target)
 	}
 }
 

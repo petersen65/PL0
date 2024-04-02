@@ -15,6 +15,9 @@ import (
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof Token = -1
 
+// Text messages for printing the token stream.
+const textTokenStream = "Token Stream:"
+
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
 	tokenStreamIndex     int                // index of the current token in the token stream table
@@ -24,9 +27,6 @@ type tokenHandler struct {
 	failureMap           map[Failure]string // map failure codes to error messages
 	errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
 }
-
-// Text messages for printing the token stream.
-var textTokenStream = []byte("Token Stream:")
 
 // Create a new token handler for the PL/0 parser.
 func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
@@ -93,7 +93,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	var previousLine int32
 
 	// print the title text message for the token stream
-	if _, err := print.Write(textTokenStream); err != nil {
+	if _, err := fmt.Fprint(print, textTokenStream); err != nil {
 		return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 	}
 
@@ -120,7 +120,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print line number and line content if the line number is a new line
 		if td.Line != previousLine {
-			if _, err := print.Write([]byte(fmt.Sprintf("\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")))); err != nil {
+			if _, err := fmt.Fprintf(print, "\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")); err != nil {
 				return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 			}
 
@@ -128,7 +128,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 		}
 
 		// print token description below the line number and line content
-		if _, err := print.Write([]byte(fmt.Sprintf("%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue))); err != nil {
+		if _, err := fmt.Fprintf(print, "%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue); err != nil {
 			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 	}

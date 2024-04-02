@@ -45,9 +45,9 @@ func newGenerator(source string, abstractSyntax ast.Block) Generator {
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (g *generator) Generate() (emt.Emitter, asm.Assembler) {
 	g.walk = emitterWalk
-	//g.abstractSyntax.Accept(g)
-	g.walk = assemblerWalk
 	g.abstractSyntax.Accept(g)
+	// g.walk = assemblerWalk
+	// g.abstractSyntax.Accept(g)
 	return g.emitter, g.assembler
 }
 

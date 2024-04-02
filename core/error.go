@@ -29,6 +29,14 @@ var failureMap = map[Failure]string{
 	tokenStreamExportFailed: "failed to export the token stream",
 }
 
+// Text messages for printing an error report.
+const (
+	textErrorReport = "Error Report:"
+	textErrors      = "Errors:"
+	textWarnings    = "Warnings:"
+	textRemarks     = "Remarks:"
+)
+
 type (
 	// ErrorReport is a list of errors that occurred during the compilation process.
 	errorReport []error
@@ -82,12 +90,6 @@ type (
 )
 
 var (
-	// Text messages for printing an error report.
-	textErrorReport = []byte("Error Report:\n")
-	textErrors      = []byte("Errors:\n")
-	textWarnings    = []byte("Warnings:\n")
-	textRemarks     = []byte("Remarks:\n")
-
 	// Map severity levels to their corresponding names.
 	severityMap = map[Severity]string{
 		Remark:  "remark",
@@ -412,7 +414,7 @@ func (e *errorHandler) Count(severity Severity, component Component) int {
 	return count
 }
 
-// Return whether the error handler has fatal or error entries in the error report. 
+// Return whether the error handler has fatal or error entries in the error report.
 func (e *errorHandler) HasErrors() bool {
 	return e.Count(Fatal|Error, AllComponents) > 0
 }
@@ -434,13 +436,13 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 	}
 
 	// print the title text message for the error report
-	if _, err := print.Write(textErrorReport); err != nil {
+	if _, err := fmt.Fprintln(print, textErrorReport); err != nil {
 		return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
 	}
 
 	// print errors in the error report
 	if e.Count(Fatal|Error, AllComponents) > 0 {
-		if _, err := print.Write(textErrors); err != nil {
+		if _, err := fmt.Fprintln(print, textErrors); err != nil {
 			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
@@ -451,7 +453,7 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 
 	// print warnings in the error report
 	if e.Count(Warning, AllComponents) > 0 {
-		if _, err := print.Write(textWarnings); err != nil {
+		if _, err := fmt.Fprintln(print, textWarnings); err != nil {
 			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
@@ -462,7 +464,7 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 
 	// print remarks in the error report
 	if e.Count(Remark, AllComponents) > 0 {
-		if _, err := print.Write(textRemarks); err != nil {
+		if _, err := fmt.Fprintln(print, textRemarks); err != nil {
 			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
@@ -543,7 +545,7 @@ func (e *errorHandler) iterate(severity Severity, component Component) <-chan er
 // Print all errors in the errors channel to the given writer.
 func printErrors(errors <-chan error, print io.Writer) error {
 	for e := range errors {
-		if _, err := print.Write([]byte(e.Error())); err != nil {
+		if _, err := fmt.Fprint(print, e.Error()); err != nil {
 			return err
 		}
 	}
