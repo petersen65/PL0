@@ -299,21 +299,45 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	bo.Right.Accept(g)
 
 	// perform the binary operation on the left and right-hand-side values
-	switch bo.Operation {
-	case ast.Plus:
-		g.emitter.Add()
+	switch g.walk {
+	case emitterWalk:
+		switch bo.Operation {
+		case ast.Plus:
+			g.emitter.Add()
 
-	case ast.Minus:
-		g.emitter.Subtract()
+		case ast.Minus:
+			g.emitter.Subtract()
 
-	case ast.Times:
-		g.emitter.Multiply()
+		case ast.Times:
+			g.emitter.Multiply()
 
-	case ast.Divide:
-		g.emitter.Divide()
+		case ast.Divide:
+			g.emitter.Divide()
+
+		default:
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		}
+
+	case assemblerWalk:
+		switch bo.Operation {
+		case ast.Plus:
+			g.assembler.Add()
+
+		case ast.Minus:
+			g.assembler.Subtract()
+
+		case ast.Times:
+			g.assembler.Multiply()
+
+		case ast.Divide:
+			g.assembler.Divide()
+
+		default:
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
 	}
 }
 

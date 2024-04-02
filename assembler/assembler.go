@@ -12,7 +12,8 @@ import (
 
 // Private implementation of the assembler.
 type assembler struct {
-	instructions Instructions
+	virtualVariable int          // virtual variables counter
+	instructions    Instructions // instructions of the emitted assembler program
 }
 
 // Return the public interface of the private assembler implementation.
@@ -87,22 +88,21 @@ func (a *assembler) GetModule() Module {
 
 		case StoreVariable:
 			// store result of an expression into a variable
-			var from string
-			right := a.instructions[i-1]
+			right, rightType := expressionResult(a.instructions[i-1])
+			result := variable(instr.Name, instr.Ssa, instr.Global)
+			module = append(module, fmt.Sprintf("store %v %v, ptr %v", rightType, right, result))
 
-			if right.Operation == Constant {
-				from = fmt.Sprintf("%v %v", right.DataType, right.Value)
-			} else if right.Operation == LoadVariable {
-				from = fmt.Sprintf("%v %%%v.%v", right.DataType, right.Name, right.Ssa+1)
-			} else {
-				panic(cor.NewGeneralError(cor.Assembler, failureMap, cor.Fatal, unexpectedOperation, right.Operation, nil))
-			}
+		case Add:
+			left, leftType := expressionResult(a.instructions[i-2])
+			right, _ := expressionResult(a.instructions[i-1])
+			result := a.newVirtualVariable()
+			module = append(module, fmt.Sprintf("%v = add %v %v, %v", result, leftType, left, right))
 
-			if instr.Global {
-				module = append(module, fmt.Sprintf("store %v, ptr @%v.%v", from, instr.Name, instr.Ssa))
-			} else {
-				module = append(module, fmt.Sprintf("store %v, ptr %%%v.%v", from, instr.Name, instr.Ssa))
-			}
+		case Subtract:
+
+		case Multiply:
+
+		case Divide:
 
 		case Function:
 			module = append(module, fmt.Sprintf("define dso_local %v @%v() {", instr.DataType, instr.Name))
@@ -163,6 +163,26 @@ func (a *assembler) StoreVariable(name, dataType string, ssa int, global bool) i
 	return len(a.instructions) - 1
 }
 
+func (a *assembler) Add() int {
+	a.instructions = append(a.instructions, Instruction{Operation: Add})
+	return len(a.instructions) - 1
+}
+
+func (a *assembler) Subtract() int {
+	a.instructions = append(a.instructions, Instruction{Operation: Subtract})
+	return len(a.instructions) - 1
+}
+
+func (a *assembler) Multiply() int {
+	a.instructions = append(a.instructions, Instruction{Operation: Multiply})
+	return len(a.instructions) - 1
+}
+
+func (a *assembler) Divide() int {
+	a.instructions = append(a.instructions, Instruction{Operation: Divide})
+	return len(a.instructions) - 1
+}
+
 // Emit a function definition.
 func (a *assembler) Function(name string, returnType string) int {
 	a.instructions = append(a.instructions, Instruction{Operation: Function, Name: name, DataType: returnType})
@@ -179,4 +199,32 @@ func (a *assembler) EndFunction() int {
 func (a *assembler) Return(value any, valueType string) int {
 	a.instructions = append(a.instructions, Instruction{Operation: FunctionReturn, Value: value, DataType: valueType})
 	return len(a.instructions) - 1
+}
+
+// Create a new virtual variable name.
+func (a *assembler) newVirtualVariable() string {
+	a.virtualVariable++
+	return fmt.Sprintf("%%%v", a.virtualVariable)
+}
+
+func variable(name string, ssa int, global bool) string {
+	if global {
+		return fmt.Sprintf("@%v.%v", name, ssa)
+	}
+
+	return fmt.Sprintf("%%%v.%v", name, ssa)	
+}
+
+func expressionResult(instr Instruction) (string, string) {
+	var result string
+
+	if instr.Operation == Constant {
+		result = fmt.Sprintf("%v", instr.Value)
+	} else if instr.Operation == LoadVariable {
+		result = fmt.Sprintf("%%%v.%v", instr.Name, instr.Ssa+1)
+	} else {
+		panic(cor.NewGeneralError(cor.Assembler, failureMap, cor.Fatal, unexpectedOperation, instr.Operation, nil))
+	}
+
+	return result, instr.DataType
 }

@@ -12,6 +12,10 @@ const (
 	VariableDeclaration
 	LoadVariable
 	StoreVariable
+	Add
+	Subtract
+	Multiply
+	Divide
 	Function
 	EndFunction
 	FunctionReturn
@@ -46,6 +50,10 @@ type (
 		VariableDeclaration(name, dataType string, ssa int, global bool) int
 		LoadVariable(name, dataType string, ssa int, global bool) (int, int)
 		StoreVariable(name, dataType string, ssa int, global bool) int
+		Add() int
+		Subtract() int
+		Multiply() int
+		Divide() int
 		Function(name, returnType string) int
 		EndFunction() int
 		Return(value any, valueType string) int
