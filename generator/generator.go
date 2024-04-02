@@ -4,141 +4,63 @@
 package generator
 
 import (
-	asm "github.com/petersen65/PL0/v2/assembler"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
-// Walks of the generator to emit IL/0 or assembly code.
-const (
-	_ = walk(iota)
-	emitterWalk
-	assemblerWalk
-)
-
-type (
-	// Generator walk for code generation.
-	walk int
-
-	// Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
-	generator struct {
-		walk           walk          // current walk of the generator
-		abstractSyntax ast.Block     // abstract syntax tree to generate code for
-		emitter        emt.Emitter   // emitter that emits IL/0 code
-		assembler      asm.Assembler // assembler that emits assembly code
-	}
-)
-
-// Map data types from the abstract syntax tree to generator data types.
-var generatorType = map[ast.DataType]string{
-	ast.Void:      "void",
-	ast.Integer64: "i64",
+// Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
+type generator struct {
+	abstractSyntax ast.Block   // abstract syntax tree to generate code for
+	emitter        emt.Emitter // emitter that emits IL/0 code
 }
 
-// Create new code generator with the given source and abstract syntax tree.
-func newGenerator(source string, abstractSyntax ast.Block) Generator {
-	return &generator{walk: emitterWalk, abstractSyntax: abstractSyntax, emitter: emt.NewEmitter(), assembler: asm.NewAssembler(source)}
+// Create new code generator with the given abstract syntax tree.
+func newGenerator(abstractSyntax ast.Block) Generator {
+	return &generator{abstractSyntax: abstractSyntax, emitter: emt.NewEmitter()}
 }
 
-// Generate code for the given abstract syntax tree and return the emitter and assembler for their generated code.
+// Generate code for the given abstract syntax tree and return the emitter for its generated code.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (g *generator) Generate() (emt.Emitter, asm.Assembler) {
-	g.walk = emitterWalk
+func (g *generator) Generate() emt.Emitter {
 	g.abstractSyntax.Accept(g)
-	// g.walk = assemblerWalk
-	// g.abstractSyntax.Accept(g)
-	return g.emitter, g.assembler
+	return g.emitter
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (g *generator) VisitBlock(bn *ast.BlockNode) {
-	switch g.walk {
-	case emitterWalk:
-		// take the first offset for block variables from the emitter
-		bn.Offset = emt.VariableOffsetStart
+	// take the first offset for block variables from the emitter
+	bn.Offset = emt.VariableOffsetStart
 
-		// emit a jump to the first instruction of the block whose address is not yet known
-		// the address of the jump instruction itself was already stored in the procedure declaration as part of the block's procedure declaration visit function execution
-		//
-		// for block nesting depth
-		// 	 0: jump is always used to start the program
-		//   1 and above: jump is only used for forward calls to procedures with a lower block nesting depth (block not emitted yet)
-		firstInstruction := g.emitter.Jump(emt.NullAddress)
+	// emit a jump to the first instruction of the block whose address is not yet known
+	// the address of the jump instruction itself was already stored in the procedure declaration as part of the block's procedure declaration visit function execution
+	//
+	// for block nesting depth
+	// 	 0: jump is always used to start the program
+	//   1 and above: jump is only used for forward calls to procedures with a lower block nesting depth (block not emitted yet)
+	firstInstruction := g.emitter.Jump(emt.NullAddress)
 
-		// emit all declarations and with that all blocks of nested procedures (calls generator recursively)
-		for _, declaration := range bn.Declarations {
-			declaration.Accept(g)
-		}
-
-		// update the jump instruction address to the first instruction of the block
-		g.emitter.Update(firstInstruction, g.emitter.GetNextAddress(), nil)
-
-		// update the code address of the block's procedure declaration to the first instruction of the block
-		if bn.ParentNode != nil {
-			bn.ParentNode.(*ast.ProcedureDeclarationNode).Address = uint64(g.emitter.GetNextAddress())
-		}
-
-		// allocating stack space for block variables is the first code instruction of the block
-		g.emitter.AllocateStackSpace(emt.Offset(bn.Offset))
-
-		// emit all statement instructions which are defining the code logic of the block
-		bn.Statement.Accept(g)
-
-		// emit a return instruction to return from the block
-		g.emitter.Return()
-
-	case assemblerWalk:
-		// emit all blocks of nested procedure declarations first (calls generator recursively but creates only top-level function definitions)
-		for _, declaration := range bn.Declarations {
-			if _, ok := declaration.(*ast.ProcedureDeclarationNode); ok {
-				declaration.Accept(g)
-			}
-		}
-
-		if bn.Depth == 0 {
-			// emit all global variable declarations of the entrypoint block (main function)
-			for _, declaration := range bn.Declarations {
-				if variableDeclaration, ok := declaration.(*ast.VariableDeclarationNode); ok {
-					variableDeclaration.Accept(g)
-				}
-			}
-
-			// create a function definition for the entrypoint block (main function)
-			g.assembler.Function(bn.Name, generatorType[ast.Integer64])
-
-			// emit all statement instructions which are defining the code logic of the main function
-			bn.Statement.Accept(g)
-
-			// end the program by returning from the main function
-			g.assembler.ReturnValue(int64(0), generatorType[ast.Integer64])
-
-			// end the function definition
-			g.assembler.EndFunction()
-		} else {
-			// create a function definition for the block
-			g.assembler.Function(bn.Name, generatorType[ast.Void])
-
-			// emit all local variable declarations of the block
-			for _, declaration := range bn.Declarations {
-				if variableDeclaration, ok := declaration.(*ast.VariableDeclarationNode); ok {
-					variableDeclaration.Accept(g)
-				}
-			}
-
-			// emit all statement instructions which are defining the code logic of the block
-			bn.Statement.Accept(g)
-
-			// return from the function
-			g.assembler.ReturnValue(nil, generatorType[ast.Void])
-
-			// end the function definition
-			g.assembler.EndFunction()
-		}
-
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
+	// emit all declarations and with that all blocks of nested procedures (calls generator recursively)
+	for _, declaration := range bn.Declarations {
+		declaration.Accept(g)
 	}
+
+	// update the jump instruction address to the first instruction of the block
+	g.emitter.Update(firstInstruction, g.emitter.GetNextAddress(), nil)
+
+	// update the code address of the block's procedure declaration to the first instruction of the block
+	if bn.ParentNode != nil {
+		bn.ParentNode.(*ast.ProcedureDeclarationNode).Address = uint64(g.emitter.GetNextAddress())
+	}
+
+	// allocating stack space for block variables is the first code instruction of the block
+	g.emitter.AllocateStackSpace(emt.Offset(bn.Offset))
+
+	// emit all statement instructions which are defining the code logic of the block
+	bn.Statement.Accept(g)
+
+	// emit a return instruction to return from the block
+	g.emitter.Return()
 }
 
 // Generate code for a constant declaration.
@@ -148,126 +70,53 @@ func (g *generator) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
 
 // Generate code for a variable declaration.
 func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	switch g.walk {
-	case emitterWalk:
-		// calculate storage location for the variable on the block stack frame
-		block := ast.SearchBlock(ast.CurrentBlock, vd)
-		vd.Offset = block.Offset
-		block.Offset++
-
-	case assemblerWalk:
-		// determine the block nesting depth of the variable declaration
-		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, vd).Depth
-
-		if blockNestingDepth == 0 {
-			// emit a global variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[vd.DataType], vd.Ssa, true)
-		} else {
-			// emit a local variable declaration for the variable
-			g.assembler.VariableDeclaration(vd.Name, generatorType[vd.DataType], vd.Ssa, false)
-		}
-
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
-	}
+	// calculate storage location for the variable on the block stack frame
+	block := ast.SearchBlock(ast.CurrentBlock, vd)
+	vd.Offset = block.Offset
+	block.Offset++
 }
 
 // Generate code for a procedure declaration.
 func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
-	switch g.walk {
-	case emitterWalk:
-		// calculate the absolute address of the procedure block in the text section
-		pd.Address = uint64(g.emitter.GetNextAddress())
+	// calculate the absolute address of the procedure block in the text section
+	pd.Address = uint64(g.emitter.GetNextAddress())
 
-		// generate code for the block of the procedure
-		pd.Block.Accept(g)
-
-	case assemblerWalk:
-		// generate code for the block of the procedure
-		pd.Block.Accept(g)
-
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
-	}
+	// generate code for the block of the procedure
+	pd.Block.Accept(g)
 }
 
 // Generate code for a literal (load a constant value).
 func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
-	switch g.walk {
-	case emitterWalk:
-		g.emitter.Constant(ln.Value)
-
-	case assemblerWalk:
-		g.assembler.LoadConstant(ln.Value, generatorType[ln.DataType])
-
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
-	}
+	g.emitter.Constant(ln.Value)
 }
 
 // Generate code for an identifier use.
 func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	switch g.walk {
-	case emitterWalk:
-		switch iu.Context {
-		case ast.Constant:
-			g.emitter.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
+	switch iu.Context {
+	case ast.Constant:
+		g.emitter.Constant(iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode).Value)
 
-		case ast.Variable:
-			// get variable declaration of the variable to load
-			variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+	case ast.Variable:
+		// get variable declaration of the variable to load
+		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
-			// determine the block nesting depth of the variable declaration
-			blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+		// determine the block nesting depth of the variable declaration
+		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-			// determine the block nesting depth of the variable use from inside an expression or statement
-			useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+		// determine the block nesting depth of the variable use from inside an expression or statement
+		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
-			// calculate the offset of the variable on the block stack frame
-			offset := emt.Offset(variableDeclaration.Offset)
+		// calculate the offset of the variable on the block stack frame
+		offset := emt.Offset(variableDeclaration.Offset)
 
-			// load the content of the variable
-			g.emitter.LoadVariable(offset, useDepth-blockNestingDepth)
+		// load the content of the variable
+		g.emitter.LoadVariable(offset, useDepth-blockNestingDepth)
 
-		case ast.Procedure:
-			// not required for code generation
-
-		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
-		}
-
-	case assemblerWalk:
-		switch iu.Context {
-		case ast.Constant:
-			// get constant declaration of the constant to load
-			constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
-
-			// load the constant value that has a specific data type
-			g.assembler.LoadConstant(constantDeclaration.Value, generatorType[constantDeclaration.DataType])
-
-		case ast.Variable:
-			// get variable declaration of the variable to load
-			variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
-
-			// determine the block nesting depth of the variable declaration
-			blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
-
-			// load the content of the variable and increase its SSA counter
-			_, variableDeclaration.Ssa = g.assembler.LoadVariable(
-				iu.Name,
-				generatorType[variableDeclaration.DataType],
-				variableDeclaration.Ssa,
-				blockNestingDepth == 0)
-
-		case ast.Procedure:
-			// not required for code generation
-
-		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
-		}
+	case ast.Procedure:
+		// not required for code generation
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
 	}
 }
 
@@ -299,45 +148,21 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	bo.Right.Accept(g)
 
 	// perform the binary operation on the left and right-hand-side values
-	switch g.walk {
-	case emitterWalk:
-		switch bo.Operation {
-		case ast.Plus:
-			g.emitter.Add()
+	switch bo.Operation {
+	case ast.Plus:
+		g.emitter.Add()
 
-		case ast.Minus:
-			g.emitter.Subtract()
+	case ast.Minus:
+		g.emitter.Subtract()
 
-		case ast.Times:
-			g.emitter.Multiply()
+	case ast.Times:
+		g.emitter.Multiply()
 
-		case ast.Divide:
-			g.emitter.Divide()
-
-		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
-		}
-
-	case assemblerWalk:
-		switch bo.Operation {
-		case ast.Plus:
-			g.assembler.Add()
-
-		case ast.Minus:
-			g.assembler.Subtract()
-
-		case ast.Times:
-			g.assembler.Multiply()
-
-		case ast.Divide:
-			g.assembler.Divide()
-
-		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
-		}
+	case ast.Divide:
+		g.emitter.Divide()
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
@@ -376,48 +201,24 @@ func (g *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 // Generate code for an assignment statement.
 func (g *generator) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
-	switch g.walk {
-	case emitterWalk:
-		// load the value from the result of the right-hand-side expression of the assignment
-		as.Expression.Accept(g)
+	// load the value from the result of the right-hand-side expression of the assignment
+	as.Expression.Accept(g)
 
-		// get the variable declaration on the left-hand-side of the assignment
-		variableUse := as.Variable.(*ast.IdentifierUseNode)
-		variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	// get the variable declaration on the left-hand-side of the assignment
+	variableUse := as.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-		// determine the block nesting depth of the variable declaration
-		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// determine the block nesting depth of the variable declaration
+	blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-		// determine the block nesting depth of the assignment statement where the variable is used
-		assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
+	// determine the block nesting depth of the assignment statement where the variable is used
+	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, as).Depth
 
-		// calculate the offset of the variable on the block stack frame
-		offset := emt.Offset(variableDeclaration.Offset)
+	// calculate the offset of the variable on the block stack frame
+	offset := emt.Offset(variableDeclaration.Offset)
 
-		// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-		g.emitter.StoreVariable(offset, assignmentDepth-blockNestingDepth)
-
-	case assemblerWalk:
-		// load the value from the result of the right-hand-side expression of the assignment
-		as.Expression.Accept(g)
-
-		// get the variable declaration on the left-hand-side of the assignment
-		variableUse := as.Variable.(*ast.IdentifierUseNode)
-		variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
-
-		// determine the block nesting depth of the variable declaration
-		blockNestingDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
-
-		// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-		g.assembler.StoreVariable(
-			variableUse.Name,
-			generatorType[variableDeclaration.DataType],
-			variableDeclaration.Ssa,
-			blockNestingDepth == 0)
-
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidGeneratorWalk, nil, nil))
-	}
+	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	g.emitter.StoreVariable(offset, assignmentDepth-blockNestingDepth)
 }
 
 // Generate code for a read statement.

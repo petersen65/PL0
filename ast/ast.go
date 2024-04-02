@@ -53,7 +53,6 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 		Name:             name,
 		DataType:         dataType,
 		Scope:            scope,
-		Ssa:              1,
 		Usage:            make([]Expression, 0),
 		TokenStreamIndex: index,
 	}
