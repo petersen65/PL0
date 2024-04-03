@@ -8,6 +8,7 @@ import "github.com/petersen65/PL0/v2/ast"
 
 // IntermediateCode is the public interface for the intermediate code generation compiler pass.
 type IntermediateCode interface {
+	Generate()
 }
 
 // Return the public interface of the private intermediate code implementation.
