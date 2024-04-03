@@ -118,7 +118,7 @@ type (
 		LastTokenName() string
 		LastTokenValue() string
 		LastTokenIndex() int
-		Rebase(code Failure, expected, fallback Tokens) bool
+		Recover(code Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
 		NewError(severity Severity, code Failure, value any) error

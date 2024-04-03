@@ -120,7 +120,7 @@ func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, e
 		// after declarations, the block expects
 		//   a statement which also can be an assignment starting with an identifier
 		//   or the parser would fall back to declarations as anchor in the case of a syntax error
-		p.tokenHandler.Rebase(expectedStatementsIdentifiers, set(statements, cor.Identifier), declarations)
+		p.tokenHandler.Recover(expectedStatementsIdentifiers, set(statements, cor.Identifier), declarations)
 
 		if !p.lastToken().In(declarations) {
 			break
@@ -140,7 +140,7 @@ func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, e
 	//   a semicolon is expected to separate the block from the parent block
 	//   or a program-end is expected to end the program
 	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
-	p.tokenHandler.Rebase(unexpectedTokens, expected, cor.Empty)
+	p.tokenHandler.Recover(unexpectedTokens, expected, cor.Empty)
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
@@ -247,7 +247,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 			//   a statement which also can be an assignment starting with an identifier
 			//   the beginning of a new procedure declaration
 			//   or the parser would fall back to parent tokens as anchors in the case of a syntax error
-			p.tokenHandler.Rebase(expectedStatementsIdentifiersProcedures, set(statements, cor.Identifier, cor.ProcedureWord), anchors)
+			p.tokenHandler.Recover(expectedStatementsIdentifiersProcedures, set(statements, cor.Identifier, cor.ProcedureWord), anchors)
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
@@ -470,7 +470,7 @@ func (p *parser) statement(scope *ast.Scope, anchors cor.Tokens) (ast.Statement,
 	//   or the end of the program
 	//   or the end of the parent block
 	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
-	if p.tokenHandler.Rebase(unexpectedTokensAfterStatement, anchors, cor.Empty) {
+	if p.tokenHandler.Recover(unexpectedTokensAfterStatement, anchors, cor.Empty) {
 		// in case of a parsing error, return an empty statement
 		if statement == nil {
 			statement = ast.NewEmptyStatement()
@@ -694,7 +694,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	// at the beginning of a factor
 	//   the expected tokens are identifiers, numbers, and left parentheses
 	//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-	p.tokenHandler.Rebase(expectedIdentifiersNumbersExpressions, factors, anchors)
+	p.tokenHandler.Recover(expectedIdentifiersNumbersExpressions, factors, anchors)
 
 	for p.lastToken().In(factors) {
 		if p.lastToken() == cor.Identifier {
@@ -722,7 +722,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 		//   a relational operator
 		//   a right parenthesis
 		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-		p.tokenHandler.Rebase(unexpectedTokens, anchors, set(cor.LeftParenthesis))
+		p.tokenHandler.Recover(unexpectedTokens, anchors, set(cor.LeftParenthesis))
 	}
 
 	// negate the factor if a leading minus sign is present

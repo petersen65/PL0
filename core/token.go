@@ -221,7 +221,7 @@ func (t *tokenHandler) LastTokenIndex() int {
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
-func (t *tokenHandler) Rebase(code Failure, expected, fallback Tokens) bool {
+func (t *tokenHandler) Recover(code Failure, expected, fallback Tokens) bool {
 	var hasError bool
 
 	if !t.LastToken().In(expected) {
