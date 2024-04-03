@@ -100,26 +100,6 @@ const (
 	Execute
 )
 
-// NodeTypeNames maps node types to their string representation.
-var NodeTypeNames = map[NodeType]string{
-	BlockType:                "block",
-	ConstantDeclarationType:  "constant",
-	VariableDeclarationType:  "variable",
-	ProcedureDeclarationType: "procedure",
-	LiteralType:              "literal",
-	IdentifierUseType:        "use",
-	UnaryOperationType:       "unary",
-	BinaryOperationType:      "binary",
-	ConditionalOperationType: "conditional",
-	AssignmentStatementType:  "assignment",
-	ReadStatementType:        "read",
-	WriteStatementType:       "write",
-	CallStatementType:        "call",
-	IfStatementType:          "if",
-	WhileStatementType:       "while",
-	CompoundStatementType:    "compound",
-}
-
 type (
 	// Type of a node in the abstract syntax tree.
 	NodeType int
@@ -369,6 +349,26 @@ type (
 		VisitCompoundStatement(compound *CompoundStatementNode)
 	}
 )
+
+// NodeTypeNames maps node types to their string representation.
+var NodeTypeNames = map[NodeType]string{
+	BlockType:                "block",
+	ConstantDeclarationType:  "constant",
+	VariableDeclarationType:  "variable",
+	ProcedureDeclarationType: "procedure",
+	LiteralType:              "literal",
+	IdentifierUseType:        "use",
+	UnaryOperationType:       "unary",
+	BinaryOperationType:      "binary",
+	ConditionalOperationType: "conditional",
+	AssignmentStatementType:  "assignment",
+	ReadStatementType:        "read",
+	WriteStatementType:       "write",
+	CallStatementType:        "call",
+	IfStatementType:          "if",
+	WhileStatementType:       "while",
+	CompoundStatementType:    "compound",
+}
 
 // KindNames maps symbol kinds to their string representation.
 var KindNames = map[Entry]string{
