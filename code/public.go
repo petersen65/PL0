@@ -47,9 +47,13 @@ const (
 	JumpGreaterEqual // conditional jump '>='
 
 	// call p, n and y = call p, n for procedure and function calls, n is the number of actual parameters in "call p, n"
-	Parameter // pass parameter to procedure
-	Call      // call procedure or function
-	Return    // return from procedure or function
+	Parameter     // pass parameter to procedure
+	Call          // call procedure or function
+	Return        // return from procedure or function
+
+	// each variable represents a location in its logical memory space
+	StackAllocate // allocate memory on the block stack
+	HeapAllocate  // allocate memory on the program heap
 
 	// copy operations of the form x = y, where x is assigned the value of y
 	ValueCopy // value copy operation of the form x = y and x = 5

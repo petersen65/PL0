@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
@@ -14,11 +15,15 @@ import (
 // Text messages for printing an abstract syntax tree.
 const textAbstractSyntaxTree = "Abstract Syntax Tree:"
 
+// Each block node in the abstract syntax tree gets a unique identifier.
+var uniqueBlockId atomic.Int32
+
 // Create a new block node in the abstract syntax tree.
 func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     NodeTypeNames[BlockType],
 		Name:         name,
+		UniqueId:     uniqueBlockId.Add(1),
 		Depth:        depth,
 		Scope:        scope,
 		Declarations: declarations,

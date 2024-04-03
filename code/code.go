@@ -5,12 +5,18 @@ package code
 
 import "github.com/petersen65/PL0/v2/ast"
 
+type blockMetaData struct {
+	stackOffset uint64 // offset counter for all variables in the stack frame of the block
+}
+
 type intermediateCode struct {
 	abstractSyntax ast.Block
+	metaData       map[int32]*blockMetaData
+	module         *Module
 }
 
 func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return &intermediateCode{abstractSyntax: abstractSyntax}
+	return &intermediateCode{abstractSyntax: abstractSyntax, metaData: make(map[int32]*blockMetaData), module: new(Module)}
 }
 
 func (i *intermediateCode) Generate() {
@@ -18,6 +24,8 @@ func (i *intermediateCode) Generate() {
 }
 
 func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
+	i.metaData[bn.UniqueId] = new(blockMetaData)
+
 	for _, declaration := range bn.Declarations {
 		declaration.Accept(i)
 	}
@@ -28,10 +36,14 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDeclarationNode) {
 }
 
-func (i *intermediateCode) VisitVariableDeclaration(declaration *ast.VariableDeclarationNode) {
+func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+	block := ast.SearchBlock(ast.CurrentBlock, vd)
+	vd.Offset = i.metaData[block.UniqueId].stackOffset
+	i.metaData[block.UniqueId].stackOffset++
 }
 
-func (i *intermediateCode) VisitProcedureDeclaration(declaration *ast.ProcedureDeclarationNode) {
+func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+	pd.Block.Accept(i)
 }
 
 func (i *intermediateCode) VisitLiteral(literal *ast.LiteralNode) {

@@ -186,6 +186,7 @@ type (
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
 		Name         string        `json:"name"`         // name of the block that can be used for lookup in the symbol table
+		UniqueId     int32         `json:"unique_id"`    // each instance of a block node gets a unique identifier
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Offset       uint64        `json:"offset"`       // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
@@ -212,7 +213,7 @@ type (
 		Name             string       `json:"name"`               // name of the variable
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
-		Offset           uint64       `json:"offset"`             // offset of the variable in its block procedure stack frame
+		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		Usage            []Expression `json:"-"`                  // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -225,6 +226,7 @@ type (
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section
+		Label            string       `json:"label"`              // label of the procedure in its logical address space
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
