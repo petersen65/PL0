@@ -71,7 +71,7 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 	//   declaration of constants, variables and procedures
 	//   followed by a statement
 	//   and ends with the program-end
-	p.abstractSyntax = p.block(EntryPointName, 0, nil, set(declarations, statements, cor.ProgramEnd))
+	p.abstractSyntax = p.block(0, nil, set(declarations, statements, cor.ProgramEnd))
 
 	// the program must end with a specific token
 	if p.lastToken() != cor.ProgramEnd {
@@ -89,7 +89,7 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, expected cor.Tokens) ast.Block {
+func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.Tokens) ast.Block {
 	var scope = ast.NewScope(outer) // a block has its own scope to manage its symbols
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
@@ -144,7 +144,7 @@ func (p *parser) block(name string, blockNestingDepth int32, outer *ast.Scope, e
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
-	return ast.NewBlock(name, blockNestingDepth, scope, all, statement)
+	return ast.NewBlock(blockNestingDepth, scope, all, statement)
 }
 
 // Sequence of constants declarations.
@@ -235,7 +235,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 		//   declaration of constants, variables and procedures
 		//   followed by a statement
 		//   and ends with a semicolon
-		block := p.block(declaration.(*ast.ProcedureDeclarationNode).Name, blockNestingDepth+1, scope, set(anchors, cor.Semicolon))
+		block := p.block(blockNestingDepth+1, scope, set(anchors, cor.Semicolon))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
@@ -558,7 +558,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) ast.Declaration {
 	}
 
 	// the procedure block is not yet known and will be set after the block is parsed
-	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), ast.NewEmptyBlock(), scope, p.lastTokenIndex())
+	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), nil, scope, p.lastTokenIndex())
 
 	p.nextToken()
 	return declaration

@@ -4,17 +4,16 @@
 // Package code implements the intermediate code generation compiler pass by traversing the abstract syntax tree.
 package code
 
-import "github.com/petersen65/PL0/v2/ast"
+import ast "github.com/petersen65/PL0/v2/ast"
 
-// IntermediateCode is the public interface for the intermediate code generation compiler pass.
-type IntermediateCode interface {
-	Generate()
-}
+// UnusedDifference states that an intermediate code instruction does not use a block nesting depth difference.
+const UnusedDifference = -1
 
-// Return the public interface of the private intermediate code implementation.
-func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return newIntermediateCode(abstractSyntax)
-}
+// NoLabel is a constant for an empty label in an intermediate code instruction.
+const NoLabel = ""
+
+// NoAddress is a constant for an empty address in the three-address code concept.
+const NoAddress = ""
 
 // Three-address code operations for the intermediate code.
 const (
@@ -50,6 +49,7 @@ const (
 	Parameter     // pass parameter to procedure
 	Call          // call procedure or function
 	Return        // return from procedure or function
+	NullOperation // null operation for placing a label in the intermediate code
 
 	// each variable represents a location in its logical memory space
 	StackAllocate // allocate memory on the block stack
@@ -71,7 +71,7 @@ type (
 	Operation int32
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
-	Module []Instruction
+	Module []*Instruction
 
 	// Instruction represents a single operation in the intermediate code that has an optional label.
 	Instruction struct {
@@ -92,4 +92,17 @@ type (
 		Arg2      string    // second address (argument 2)
 		Result    string    // third address (result)
 	}
+
+	// IntermediateCode is the public interface for the intermediate code generation compiler pass.
+	IntermediateCode interface {
+		Generate()
+		GetModule() Module
+		NewInstruction(operatiom Operation, label string, difference int32, arg1 string, arg2 string, result string) *Instruction
+		AppendInstruction(instruction *Instruction)
+	}
 )
+
+// Return the public interface of the private intermediate code implementation.
+func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
+	return newIntermediateCode(abstractSyntax)
+}

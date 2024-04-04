@@ -9,7 +9,7 @@ import (
 	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
-// Generator is a parser pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
+// Generator is a compiler pass for code generation. It implements the Visitor interface to traverse the AST and generate code.
 type generator struct {
 	abstractSyntax ast.Block   // abstract syntax tree to generate code for
 	emitter        emt.Emitter // emitter that emits IL/0 code

@@ -105,10 +105,9 @@ var (
 		Parser:             "parser",
 		AbstractSyntaxTree: "ast",
 		Analyzer:           "analyzer",
-		Optimizer:          "optimizer",
+		Intermediate:       "intermediate",
 		Generator:          "generator",
 		Emitter:            "emitter",
-		Assembler:          "assembler",
 		Emulator:           "emulator",
 	}
 )

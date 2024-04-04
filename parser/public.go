@@ -9,9 +9,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Name of the entry point procedure of a program.
-const EntryPointName = "main"
-
 type (
 	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
 	Parser interface {

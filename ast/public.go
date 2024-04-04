@@ -10,9 +10,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// EmptyBlockName allows the detection of empty blocks because of parsing errors. They should be ignored in all compiler passes.
-const EmptyBlockName = "@block"
-
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler passes.
 const EmptyConstantName = "@constant"
 
@@ -185,8 +182,8 @@ type (
 	BlockNode struct {
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
-		Name         string        `json:"name"`         // name of the block that can be used for lookup in the symbol table
 		UniqueId     int32         `json:"unique_id"`    // each instance of a block node gets a unique identifier
+		Label        string        `json:"label"`        // start label marks the beginning of the block's statement
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Offset       uint64        `json:"offset"`       // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
@@ -211,9 +208,9 @@ type (
 		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
+		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
-		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		Usage            []Expression `json:"-"`                  // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -226,7 +223,6 @@ type (
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section
-		Label            string       `json:"label"`              // label of the procedure in its logical address space
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -431,11 +427,6 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 	return symbols
 }
 
-// An empty block does not generate code.
-func NewEmptyBlock() Block {
-	return NewBlock(EmptyBlockName, 0, NewScope(nil), make([]Declaration, 0), NewEmptyStatement())
-}
-
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
 func NewEmptyDeclaration() Declaration {
 	return NewConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewScope(nil), 0)
@@ -452,8 +443,8 @@ func NewEmptyStatement() Statement {
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
-	return newBlock(name, depth, scope, declarations, statement)
+func NewBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+	return newBlock(depth, scope, declarations, statement)
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.

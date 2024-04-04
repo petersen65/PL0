@@ -15,14 +15,21 @@ import (
 // Text messages for printing an abstract syntax tree.
 const textAbstractSyntaxTree = "Abstract Syntax Tree:"
 
-// Each block node in the abstract syntax tree gets a unique identifier.
-var uniqueBlockId atomic.Int32
+var (
+	// Each block node in the abstract syntax tree gets a unique identifier.
+	uniqueBlockId atomic.Int32
+
+	// DataTypeNames maps a data type to its string representation.
+	DataTypeNames = map[DataType]string{
+		Void:      "void",
+		Integer64: "i64",
+	}
+)
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(name string, depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     NodeTypeNames[BlockType],
-		Name:         name,
 		UniqueId:     uniqueBlockId.Add(1),
 		Depth:        depth,
 		Scope:        scope,
@@ -224,6 +231,11 @@ func newCompoundStatement(statements []Statement) Statement {
 	return compound
 }
 
+// String representation of a data type.
+func (dt DataType) String() string {
+	return DataTypeNames[dt]
+}
+
 // Get type of the block node.
 func (b *BlockNode) Type() NodeType {
 	return BlockType
@@ -236,7 +248,7 @@ func (b *BlockNode) SetParent(parent Node) {
 
 // String of the block node.
 func (b *BlockNode) String() string {
-	return fmt.Sprintf("block n=%v,d=%v", b.Name, b.Depth)
+	return fmt.Sprintf("block l=%v,d=%v", b.Label, b.Depth)
 }
 
 // Parent node of the block node.
@@ -935,11 +947,6 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresVisitorOrFunction, nil, nil)
 	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
 		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresInterfaceOrFunction, nil, nil)
-	}
-
-	// filter out empty blocks
-	if block, ok := parent.(*BlockNode); ok && block.Name == EmptyBlockName {
-		return nil
 	}
 
 	// filter out empty constants

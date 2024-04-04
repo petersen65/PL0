@@ -60,10 +60,9 @@ const (
 	Parser
 	AbstractSyntaxTree
 	Analyzer
-	Optimizer
+	Intermediate
 	Generator
 	Emitter
-	Assembler
 	Emulator
 	AllComponents = Component(^uint64(0))
 )
