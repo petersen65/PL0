@@ -22,7 +22,8 @@ var (
 	// DataTypeNames maps a data type to its string representation.
 	DataTypeNames = map[DataType]string{
 		Void:      "void",
-		Integer64: "i64",
+		Offset:    "uint64",
+		Integer64: "int64",
 	}
 )
 
@@ -234,6 +235,17 @@ func newCompoundStatement(statements []Statement) Statement {
 // String representation of a data type.
 func (dt DataType) String() string {
 	return DataTypeNames[dt]
+}
+
+// Get a data type from its representation.
+func (dtr DataTypeRepresentation) Type() DataType{
+	for dataType, representation := range DataTypeNames {
+		if representation == string(dtr) {
+			return dataType
+		}
+	}
+
+	panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
 }
 
 // Get type of the block node.

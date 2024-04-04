@@ -8,6 +8,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Failure codes for the PL/0 abstract syntax tree.
 const (
 	_ = cor.Failure(iota + 3000)
+	unknownDataTypeRepresentation
 	unknownConstantDataType
 	unknownVariableDataType
 	unknownLiteralDataType
@@ -25,6 +26,7 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
+	unknownDataTypeRepresentation:   "unknown data type representation: %v",
 	unknownConstantDataType:         "unknown constant data type",
 	unknownVariableDataType:         "unknown variable data type",
 	unknownLiteralDataType:          "unknown literal data type",

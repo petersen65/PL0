@@ -12,14 +12,11 @@ const UnusedDifference = -1
 // NoLabel is a constant for an empty label in an intermediate code instruction.
 const NoLabel = ""
 
-// NoAddress is a constant for an empty address in the three-address code concept.
-const NoAddress = ""
-
 // Three-address code operations for the intermediate code.
 const (
 	_ = Operation(iota)
 
-	// x = op y, where op is a unary arithmetic or logical operation, and x and y are addresses
+	// x = op y, where op is a unary arithmetic or logical operation and x, y are compiler-generated temporary variables
 	Odd    // unary logical operation 'odd'
 	Negate // unary arithmetic operation 'negation'
 
@@ -51,22 +48,19 @@ const (
 	Return        // return from procedure or function
 	NullOperation // null operation for placing a label in the intermediate code
 
-	// each variable represents a location in its logical memory space
-	StackAllocate // allocate memory on the block stack
-	HeapAllocate  // allocate memory on the program heap
-
-	// copy operations of the form x = y, where x is assigned the value of y
-	ValueCopy // value copy operation of the form x = y and x = 5
-
-	// x = y[i] sets x to the value in the location i memory units beyond location y
-	// x[i] = y sets the contents of the location i units beyond x to the value of y
-	IndexCopy // indexed copy operation of the form x = y[i] and x[i] = y
-
-	// x = &y sets the r-value of x to be the location (l-value) of y
-	PointerCopy // address and pointer copy operation of the form x = &y, x = *y, and *x = y
+	Allocate      // allocate memory for a variable in its logical memory space
+	ValueCopy     // copy the value of a constant or literal into a compiler-generated temporary variable
+	VariableLoad  // load variable value from its location in the logical memory space into a compiler-generated temporary variable
+	VariableStore // store variable value from a compiler-generated temporary variable into its location in the logical memory space
 )
 
 type (
+	// Address is the representation of an address in the three-address code concept.
+	Address struct {
+		DataType ast.DataType // data type of the address
+		Variable string       // variable name of the address
+	}
+
 	// Type for intermediate code operations.
 	Operation int32
 
@@ -81,23 +75,19 @@ type (
 	}
 
 	// Quadruple represents a single operation in the intermediate code which is based on the three-address code concept.
-	// Each address is a space-delimited string-concatenation of
-	//   a data-type and
-	//     a name of a symbol-table entry,
-	//     or a constant,
-	//     or a compiler-generate temporary variable.
+	// Each address is a space-delimited string-concatenation of a data-type and a variable or a compiler-generated temporary variable.
 	Quadruple struct {
 		Operation Operation // intermediate code operation
-		Arg1      string    // first address (argument 1)
-		Arg2      string    // second address (argument 2)
-		Result    string    // third address (result)
+		Arg1      *Address  // first address (argument 1)
+		Arg2      *Address  // second address (argument 2)
+		Result    *Address  // third address (result)
 	}
 
 	// IntermediateCode is the public interface for the intermediate code generation compiler pass.
 	IntermediateCode interface {
 		Generate()
 		GetModule() Module
-		NewInstruction(operatiom Operation, label string, difference int32, arg1 string, arg2 string, result string) *Instruction
+		NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction
 		AppendInstruction(instruction *Instruction)
 	}
 )

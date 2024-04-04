@@ -135,7 +135,6 @@ func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
-
 	}
 }
 

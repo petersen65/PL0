@@ -39,14 +39,14 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 }
 
 // Create a new three-address code argument or result address.
-func newAddress(dataType ast.DataType, value any) string {
-	return fmt.Sprintf("%v %v", dataType, value)
+func newAddress(dataType ast.DataType, variable any) *Address {
+	return &Address{DataType: dataType, Variable: fmt.Sprintf("%v", variable)}
 }
 
 // Create a new compiler-generated temporary variable for a block.
-func (b *blockMetaData) newTempVariable(datatype ast.DataType) string {
+func (b *blockMetaData) newTempVariable() string {
 	b.tempVariableCounter++
-	return fmt.Sprintf("%v t%v.%v", datatype, b.uniqueId, b.tempVariableCounter)
+	return fmt.Sprintf("t%v.%v", b.uniqueId, b.tempVariableCounter)
 }
 
 // Create a new compiler-generated label for a block.
@@ -56,12 +56,12 @@ func (b *blockMetaData) newLabel() string {
 }
 
 // Push a result onto the stack of temporary results.
-func (b *blockMetaData) pushResult(result string) {
+func (b *blockMetaData) pushResult(result *Address) {
 	b.results.PushBack(result)
 }
 
 // Pop a result from the stack of temporary results.
-func (b *blockMetaData) popResult() string {
+func (b *blockMetaData) popResult() *Address {
 	result := b.results.Back()
 
 	if result == nil {
@@ -69,7 +69,7 @@ func (b *blockMetaData) popResult() string {
 	}
 
 	b.results.Remove(result)
-	return result.Value.(string)
+	return result.Value.(*Address)
 }
 
 // Generate intermediate code for the abstract syntax tree.
@@ -89,7 +89,7 @@ func (i *intermediateCode) AppendInstruction(instruction *Instruction) {
 }
 
 // Create a new instruction for the intermediate code.
-func (i *intermediateCode) NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result string) *Instruction {
+func (i *intermediateCode) NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction {
 	return &Instruction{
 		Label:           label,
 		DepthDifference: difference,
@@ -111,13 +111,13 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// label of the block marking the start of the block' statement
 	bn.Label = i.metaData[bn.UniqueId].newLabel()
-	i.AppendInstruction(i.NewInstruction(NullOperation, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(NullOperation, bn.Label, UnusedDifference, nil, nil, nil))
 
 	// statement of the block
 	bn.Statement.Accept(i)
 
 	// return from the block
-	i.AppendInstruction(i.NewInstruction(Return, NoLabel, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Return, NoLabel, UnusedDifference, nil, nil, nil))
 }
 
 // Generate code for a constant declaration.
@@ -127,9 +127,24 @@ func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDec
 
 // Generate code for a variable declaration.
 func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	block := ast.SearchBlock(ast.CurrentBlock, vd)
-	vd.Offset = i.metaData[block.UniqueId].stackOffset
-	i.metaData[block.UniqueId].stackOffset++
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, vd).UniqueId]
+
+	// set the location of the variable in its logical memory space
+	vd.Offset = metaData.stackOffset
+	metaData.stackOffset++
+
+	// allocate memory for the variable in its logical memory space
+	Instruction := i.NewInstruction(
+		Allocate,
+		NoLabel,
+		UnusedDifference,
+		nil,
+		nil,
+		newAddress(vd.DataType, vd.Name))
+
+	// append instruction to the module
+	i.AppendInstruction(Instruction)
 }
 
 // Generate code for a procedure declaration.
@@ -148,23 +163,116 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		NoLabel,
 		UnusedDifference,
 		newAddress(ln.DataType, ln.Value),
-		NoAddress,
-		metaData.newTempVariable(ln.DataType))
+		nil,
+		newAddress(ln.DataType, metaData.newTempVariable()))	
 
 	// push the temporary result onto the stack and append the instruction to the module
 	metaData.pushResult(instruction.Code.Result)
 	i.AppendInstruction(instruction)
 }
 
-func (i *intermediateCode) VisitIdentifierUse(use *ast.IdentifierUseNode) {
+// Generate code for an identifier use.
+func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, iu).UniqueId]
+
+	switch iu.Context {
+	case ast.Constant:
+		// get constant declaration of the constant to load
+		cd := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+
+		// create a value copy instruction to store the constant value in a temporary variable
+		instruction := i.NewInstruction(
+			ValueCopy,
+			NoLabel,
+			UnusedDifference,
+			newAddress(cd.DataType, cd.Value),
+			nil,
+			newAddress(cd.DataType, metaData.newTempVariable()))
+
+		// push the temporary result onto the stack and append the instruction to the module
+		metaData.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
+
+	case ast.Variable:
+		// get variable declaration of the variable to load
+		vd := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+
+		// determine the block nesting depth of the variable declaration
+		declarationDepth := ast.SearchBlock(ast.CurrentBlock, vd).Depth
+
+		// determine the block nesting depth of the variable use from inside an expression or statement
+		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+
+		// create a variable load instruction to load the variable value into a temporary variable
+		instruction := i.NewInstruction(
+			VariableLoad,
+			NoLabel,
+			useDepth-declarationDepth,
+			newAddress(ast.Offset, vd.Offset),
+			nil,
+			newAddress(vd.DataType, metaData.newTempVariable()))
+
+		// push the temporary result onto the stack and append the instruction to the module
+		metaData.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
+
+	case ast.Procedure:
+		// not required for code generation
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+	}
 }
 
-func (i *intermediateCode) VisitUnaryOperation(operation *ast.UnaryOperationNode) {
+// Generate code for a unary operation.
+func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, uo).UniqueId]
+
+	// load the temporary result of the expression from the stack
+	uo.Operand.Accept(i)
+	result := metaData.popResult()
+
+	// perform the unary operation on the temporary result
+	switch uo.Operation {
+	case ast.Odd:
+		// create an odd instruction to check if the temporary result is odd
+		instruction := i.NewInstruction(
+			Odd,
+			NoLabel,
+			UnusedDifference,
+			result,
+			nil,
+			nil)
+
+		// append the instruction to the module
+		i.AppendInstruction(instruction)
+
+	case ast.Negate:
+		// create a negate instruction to negate the temporary result
+		instruction := i.NewInstruction(
+			Negate,
+			NoLabel,
+			UnusedDifference,
+			result,
+			nil,
+			newAddress(result.DataType, metaData.newTempVariable()))
+
+		// push the temporary result onto the stack and append the instruction to the module
+		metaData.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+	}
 }
 
+// Generate code for a binary operation.
 func (i *intermediateCode) VisitBinaryOperation(operation *ast.BinaryOperationNode) {
 }
 
+// Generate code for a conditional operation.
 func (i *intermediateCode) VisitConditionalOperation(operation *ast.ConditionalOperationNode) {
 }
 

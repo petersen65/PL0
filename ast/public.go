@@ -79,8 +79,10 @@ const (
 
 // Data types of literals and symbols.
 const (
-	Void = DataType(iota)
-	Integer64
+	Void   = DataType(iota) // reserved for intermediate code
+	Offset                  // reserved for intermediate code
+	_
+	Integer64 // 64-bit signed integer
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -118,6 +120,9 @@ type (
 
 	// The data type of a symbol.
 	DataType int
+
+	// String representation of a data type.
+	DataTypeRepresentation string
 
 	// Kind of symbol entries.
 	Entry uint64
