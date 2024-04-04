@@ -238,7 +238,7 @@ func (dt DataType) String() string {
 }
 
 // Get a data type from its representation.
-func (dtr DataTypeRepresentation) Type() DataType{
+func (dtr DataTypeRepresentation) DataType() DataType{
 	for dataType, representation := range DataTypeNames {
 		if representation == string(dtr) {
 			return dataType
