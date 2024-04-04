@@ -164,7 +164,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		UnusedDifference,
 		newAddress(ln.DataType, ln.Value),
 		nil,
-		newAddress(ln.DataType, metaData.newTempVariable()))	
+		newAddress(ln.DataType, metaData.newTempVariable()))
 
 	// push the temporary result onto the stack and append the instruction to the module
 	metaData.pushResult(instruction.Code.Result)
@@ -268,31 +268,126 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	}
 }
 
-// Generate code for a binary operation.
-func (i *intermediateCode) VisitBinaryOperation(operation *ast.BinaryOperationNode) {
+// Generate code for a binary arithmetic operation.
+func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, bo).UniqueId]
+
+	// load the temporary results of the left and right expressions from the stack
+	bo.Left.Accept(i)
+	bo.Right.Accept(i)
+	right := metaData.popResult()
+	left := metaData.popResult()
+
+	// perform the binary arithmetic operation on the left- and right-hand-side temporary results
+	switch bo.Operation {
+	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
+		var operation Operation
+
+		// map the AST binary operation to the corresponding three-address code binary arithmetic operation
+		switch bo.Operation {
+		case ast.Plus:
+			operation = Plus
+
+		case ast.Minus:
+			operation = Minus
+
+		case ast.Times:
+			operation = Times
+
+		case ast.Divide:
+			operation = Divide
+		}
+
+		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side temporary results
+		instruction := i.NewInstruction(
+			operation,
+			NoLabel,
+			UnusedDifference,
+			left,
+			right,
+			newAddress(left.DataType, metaData.newTempVariable()))
+
+		// push the temporary result onto the stack and append the instruction to the module
+		metaData.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
+
+	default:
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+	}
 }
 
-// Generate code for a conditional operation.
-func (i *intermediateCode) VisitConditionalOperation(operation *ast.ConditionalOperationNode) {
+// Generate code for a binary relational operation.
+func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
+
+	// load the temporary results of the left and right expressions from the stack
+	co.Left.Accept(i)
+	co.Right.Accept(i)
+	right := metaData.popResult()
+	left := metaData.popResult()
+
+	// perform the binary relational operation on the left- and right-hand-side temporary results
+	switch co.Operation {
+	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
+		var operation Operation
+
+		// map the AST binary operation to the corresponding three-address code binary relational operation
+		switch co.Operation {
+		case ast.Equal:
+			operation = Equal
+
+		case ast.NotEqual:
+			operation = NotEqual
+
+		case ast.Less:
+			operation = Less
+
+		case ast.LessEqual:
+			operation = LessEqual
+
+		case ast.Greater:
+			operation = Greater
+
+		case ast.GreaterEqual:
+			operation = GreaterEqual
+		}
+
+		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side temporary results
+		instruction := i.NewInstruction(
+			operation,
+			NoLabel,
+			UnusedDifference,
+			left,
+			right,
+			nil)
+
+		// append the instruction to the module
+		i.AppendInstruction(instruction)
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	}
 }
 
-func (i *intermediateCode) VisitAssignmentStatement(assignment *ast.AssignmentStatementNode) {
+func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 }
 
-func (i *intermediateCode) VisitReadStatement(read *ast.ReadStatementNode) {
+func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 }
 
-func (i *intermediateCode) VisitWriteStatement(write *ast.WriteStatementNode) {
+func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 }
 
-func (i *intermediateCode) VisitCallStatement(call *ast.CallStatementNode) {
+func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 }
 
-func (i *intermediateCode) VisitIfStatement(ifStmt *ast.IfStatementNode) {
+func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 }
 
-func (i *intermediateCode) VisitWhileStatement(whileStmt *ast.WhileStatementNode) {
+func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 }
 
-func (i *intermediateCode) VisitCompoundStatement(compound *ast.CompoundStatementNode) {
+func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) {
 }

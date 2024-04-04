@@ -20,7 +20,7 @@ const (
 	Odd    // unary logical operation 'odd'
 	Negate // unary arithmetic operation 'negation'
 
-	// x = y op z, where op is a binary arithmetic or relational operation, and x, y, and z are addresses
+	// x = y op z, where op is a binary arithmetic or relational operation, x, y, z are compiler-generated temporary variables
 	Plus         // binary arithmetic operation '+'
 	Minus        // binary arithmetic operation '-'
 	Times        // binary arithmetic operation '*'
@@ -32,8 +32,7 @@ const (
 	Greater      // binary relational operation '>'
 	GreaterEqual // binary relational operation '>='
 
-	// an unconditional or conditional jump goto L
-	// the three-address instruction with label L is the next to be executed
+	// an unconditional or conditional jump goto L: the three-address instruction with label L is the next to be executed
 	Jump             // unconditional jump
 	JumpEqual        // conditional jump '='
 	JumpNotEqual     // conditional jump '#'
