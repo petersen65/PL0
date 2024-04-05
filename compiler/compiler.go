@@ -178,7 +178,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			return
 		}
 
-		if err = emu.RunProcess(translationUnit.Module); err != nil {
+		if err = emu.RunModule(translationUnit.Module); err != nil {
 			fmt.Fprintf(print, textErrorEmulating, target, err)
 			return
 		}

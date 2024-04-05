@@ -5,7 +5,7 @@ package emulator
 
 import cor "github.com/petersen65/PL0/v2/core"
 
-// Failure codes for the IL/0 emulator.
+// Failure codes for the emulator.
 const (
 	_ = cor.Failure(iota + 50000)
 	addressOutOfRange
