@@ -371,7 +371,11 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 	}
 }
 
+// Generate code for an assignment statement.
 func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
+
 }
 
 func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
