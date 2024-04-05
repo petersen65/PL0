@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 	emt "github.com/petersen65/PL0/v2/emitter"
 )
@@ -37,18 +38,25 @@ const (
 
 // Emulation core types for process, cpu, and machine.
 type (
+	// Enumeration of registers of the cpu.
 	register int
-	flag     uint64
 
+	// Flags that reflect the state of the cpu and the result of arithmetic operations.
+	flag uint64
+
+	// Virtual process that holds the binary instructions of a program.
 	process struct {
-		text emt.TextSection
+		text   emt.TextSection
+		module cod.Module // module with IL/C instructions
 	}
 
+	// Virtual cpu with registers and the stack.
 	cpu struct {
 		registers map[register]uint64
 		stack     []uint64
 	}
 
+	// Virtual machine that can run IL/C processes.
 	machine struct {
 		cpu cpu
 	}
@@ -61,6 +69,73 @@ func newMachine() *machine {
 			registers: make(map[register]uint64),
 			stack:     make([]uint64, stackSize),
 		},
+	}
+}
+
+// Run a process and return an error if the process fails.
+func (m *machine) runProcess(module cod.Module) error {
+	var process process
+
+	// attach module to a process
+	process.module = module
+
+	// state of active callee, which is a running procedure: bp, sp, and ip
+	// state of caller is in descriptor of callee (first 3 entries of stack frame)
+	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
+
+	m.cpu.registers[ax] = 0                       // accumulator register
+	m.cpu.registers[bx] = 0                       // base register
+	m.cpu.registers[cx] = 0                       // counter register
+	m.cpu.registers[dx] = 0                       // data register
+	m.cpu.registers[flags] = 0                    // flags register
+	m.cpu.registers[ip] = 0                       // instruction pointer
+	m.cpu.registers[sp] = stackDescriptorSize - 1 // stack pointer to top of stack (end of stack frame descriptor)
+	m.cpu.registers[bp] = 0                       // base pointer to bottom of stack frame
+
+	// preserve state of first caller and create descriptor of first callee
+	// first callee is the entrypoint of the program
+	m.cpu.stack[0] = m.cpu.registers[ip]      // return address (instruction pointer of caller + 1)
+	m.cpu.stack[1] = m.cpu.registers[bp]      // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.cpu.stack[2] = m.cpu.parent(0)          // static link points to direct parent block in block nesting hierarchy
+	m.cpu.registers[bp] = m.cpu.registers[sp] // base pointer of callee is pointing to the end of its descriptor
+
+	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
+	for {
+		if m.cpu.registers[ip] >= uint64(len(process.text)) {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[ip], nil)
+		}
+
+		if m.cpu.registers[sp] >= stackSize-stackForbiddenZone || m.cpu.registers[sp] < (stackDescriptorSize-1) {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[sp], nil)
+		}
+
+		// fetch current instruction from module and increment instruction pointer for next instruction
+		instr := process.module[m.cpu.registers[ip]]
+		m.cpu.registers[ip]++
+
+		// emulate IL/C instructions based on their operation code
+		switch instr.Code.Operation {
+		case cod.Label: // label is a no-operation instruction
+
+		case cod.Allocate: // allocate stack space for 1 variable
+			m.cpu.registers[sp]++
+
+
+
+		case cod.Return: // callee procedure returns to caller procedure
+			// restore state of caller procdure from descriptor of callee procedure
+			m.cpu.registers[sp] = m.cpu.registers[bp] - 1 // discard stack space and static link
+			m.cpu.pop(bp)                                 // restore callers base pointer
+			m.cpu.pop(ip)                                 // restore callers instruction pointer
+
+			// returning from the entrypoint of the program exits the program
+			if m.cpu.registers[ip] == 0 {
+				return nil
+			}
+
+		default:
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[ip]-1, nil)
+		}
 	}
 }
 

@@ -177,6 +177,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			fmt.Fprintf(print, textErrorEmulating, target, err)
 			return
 		}
+
+		if err = emu.RunProcess(translationUnit.Module); err != nil {
+			fmt.Fprintf(print, textErrorEmulating, target, err)
+			return
+		}
 	}
 
 	// print driver completion message

@@ -148,14 +148,14 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	i.metaData[bn.UniqueId].uniqueId = bn.UniqueId
 	i.metaData[bn.UniqueId].results = list.New()
 
-	// all declarations and with that all blocks of nested procedures (calls generator recursively)
-	for _, declaration := range bn.Declarations {
-		declaration.Accept(i)
-	}
-
 	// label of the block marking the start of the block' statement
 	bn.Label = i.metaData[bn.UniqueId].newLabel()
 	i.AppendInstruction(i.NewInstruction(Label, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
+
+	// all declarations and with that all blocks of nested procedures (calls generator recursively)
+	for _, declaration := range bn.Declarations {
+		declaration.Accept(i)
+	}	
 
 	// statement of the block
 	bn.Statement.Accept(i)
