@@ -258,7 +258,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			VariableLoad,
 			NoLabel,
 			useDepth-declarationDepth,
-			newAddress(ast.Offset, variableDeclaration.Offset),
+			newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
 			NoAddress,
 			newAddress(variableDeclaration.DataType, metaData.newTempVariable()))
 
@@ -445,16 +445,62 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		NoLabel,
 		assignmentDepth-declarationDepth,
 		right,
-		newAddress(ast.Offset, variableDeclaration.Offset),
+		newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
 		newAddress(variableDeclaration.DataType, variableDeclaration.Name))
 
 	// append the instruction to the module
 	i.AppendInstruction(insstruction)
 }
 
+// Generate code for a read statement.
 func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+
+	// get the variable declaration of the variable to read into
+	variableUse := s.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+
+	// determine the block nesting depth of the variable declaration
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+	// determine the block nesting depth of the read statement where the variable is used
+	readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+
+	// parameter 1 for the readln runtime function
+	line := i.NewInstruction(
+		Parameter,
+		NoLabel,
+		UnusedDifference,
+		NoAddress,
+		NoAddress,
+		newAddress(ast.Integer64, metaData.newTempVariable()))
+
+	// call the readln runtime function with 1 parameter
+	readln := i.NewInstruction(
+		Runtime,
+		NoLabel,
+		UnusedDifference,
+		newAddress(ast.UnsignedInteger64, uint64(1)),
+		newAddress(ast.UnsignedInteger64, uint64(ReadLn)),
+		NoAddress)
+
+	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	store := i.NewInstruction(
+		VariableStore,
+		NoLabel,
+		readDepth-declarationDepth,
+		line.Code.Result,
+		newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
+		newAddress(variableDeclaration.DataType, variableDeclaration.Name))
+
+	// append the instructions to the module
+	i.AppendInstruction(line)
+	i.AppendInstruction(readln)
+	i.AppendInstruction(store)
 }
 
+// Generate code for a write statement.
 func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 }
 

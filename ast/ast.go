@@ -18,9 +18,9 @@ var (
 
 	// DataTypeNames maps a data type to its string representation.
 	DataTypeNames = map[DataType]string{
-		Void:      "void",
-		Offset:    "uint64",
-		Integer64: "int64",
+		Void:              "void",
+		UnsignedInteger64: "uint64",
+		Integer64:         "int64",
 	}
 )
 

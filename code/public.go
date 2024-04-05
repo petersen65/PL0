@@ -45,12 +45,20 @@ const (
 	Parameter     // pass parameter to procedure
 	Call          // call procedure or function
 	Return        // return from procedure or function
+	Runtime       // call procedure or function of the external runtime library
 	NullOperation // null operation for placing a label in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into a compiler-generated temporary variable
 	VariableLoad  // load variable value from its location in the logical memory space into a compiler-generated temporary variable
 	VariableStore // store variable value from a compiler-generated temporary variable into its location in the logical memory space
+)
+
+// External runtime functions provided for the programming language PL/0.
+const (
+	_ = RuntimeFunction(iota)
+	ReadLn
+	WriteLn
 )
 
 type (
@@ -62,6 +70,9 @@ type (
 
 	// Type for intermediate code operations.
 	Operation int32
+
+	// Enumeration of runtime functions that belong to the external runtime library.
+	RuntimeFunction uint64
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module []*Instruction
@@ -119,6 +130,7 @@ var (
 		Parameter:        "param",
 		Call:             "call",
 		Return:           "return",
+		Runtime:          "runtime",
 		NullOperation:    "nullOp",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
