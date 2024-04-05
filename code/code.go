@@ -155,7 +155,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// label of the block marking the start of the block' statement
 	bn.Label = i.metaData[bn.UniqueId].newLabel()
-	i.AppendInstruction(i.NewInstruction(NullOperation, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Label, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// statement of the block
 	bn.Statement.Accept(i)
@@ -527,13 +527,74 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 	i.AppendInstruction(write)
 }
 
+// Generate code for a call statement.
 func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
+	// get the declaration of the procedure to call
+	procedureUse := s.Procedure.(*ast.IdentifierUseNode)
+	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
+
+	// determine the block nesting depth of the procedure declaration
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
+
+	// determine the block nesting depth of the call statement where the procedure is called
+	callDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+
+	// call the procedure with 0 parameters
+	call := i.NewInstruction(
+		Call,
+		NoLabel,
+		callDepth-declarationDepth,
+		NewAddress(ast.UnsignedInteger64, 0, uint64(0)),
+		NewAddress(ast.Label, 0, procedureDeclaration.Block.(*ast.BlockNode).Label),
+		NoAddress)
+
+	// append the instruction to the module
+	i.AppendInstruction(call)
 }
 
+// Generate code for an if-then statement.
 func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	behindStatement := metaData.newLabel()
+
+	// calculate the result of the condition expression
+	s.Condition.Accept(i)
+
+	// jump behind the statement if the condition is false
+	i.jumpConditional(s.Condition, false, behindStatement)
+
+	// execute statement if the condition is true
+	s.Statement.Accept(i)
+
+	// append a label instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Label, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
+// Generate code for a while-do statement.
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	beforeCondition := metaData.newLabel()
+	behindStatement := metaData.newLabel()
+
+	// append a label instruction before the condition expression instructions
+	i.AppendInstruction(i.NewInstruction(Label, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
+
+	// calculate the result of the condition expression
+	s.Condition.Accept(i)
+
+	// jump behind the statement if the condition is false
+	i.jumpConditional(s.Condition, false, behindStatement)
+
+	// execute statement if the condition is true
+	s.Statement.Accept(i)
+
+	// append a label instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Label, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+
+	// append a jump instruction to jump back to the condition expression instructions
+	i.AppendInstruction(i.NewInstruction(Jump, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a compound begin-end statement.
@@ -542,4 +603,82 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 	for _, statement := range s.Statements {
 		statement.Accept(i)
 	}
+}
+
+// Conditional jump instruction based on an expression that must be a unary or conditional operation node.
+func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, target string) {
+	var jump *Instruction
+
+	// odd operation or conditional operations are valid for conditional jumps
+	switch condition := expression.(type) {
+	// unary operation node with the odd operation
+	case *ast.UnaryOperationNode:
+		if condition.Operation == ast.Odd {
+			if jumpIfCondition {
+				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+			} else {
+				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+			}
+		} else {
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+		}
+
+	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
+	case *ast.ConditionalOperationNode:
+		if jumpIfCondition {
+			// jump if the condition is true
+			switch condition.Operation {
+			case ast.Equal:
+				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.NotEqual:
+				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.Less:
+				jump = i.NewInstruction(JumpLess, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.LessEqual:
+				jump = i.NewInstruction(JumpLessEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.Greater:
+				jump = i.NewInstruction(JumpGreater, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.GreaterEqual:
+				jump = i.NewInstruction(JumpGreaterEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			default:
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+			}
+		} else {
+			// jump if the condition is false
+			switch condition.Operation {
+			case ast.Equal:
+				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.NotEqual:
+				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.Less:
+				jump = i.NewInstruction(JumpGreaterEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.LessEqual:
+				jump = i.NewInstruction(JumpGreater, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.Greater:
+				jump = i.NewInstruction(JumpLessEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			case ast.GreaterEqual:
+				jump = i.NewInstruction(JumpLess, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+
+			default:
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+			}
+		}
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	}
+
+	// append the conditional jump instruction to the module
+	i.AppendInstruction(jump)
 }

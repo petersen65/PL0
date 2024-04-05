@@ -80,6 +80,7 @@ const (
 // Data types of literals and symbols.
 const (
 	Void              = DataType(iota) // reserved for intermediate code
+	Label                              // reserved for intermediate code
 	UnsignedInteger64                  // reserved for intermediate code
 	_
 	Integer64 // 64-bit signed integer

@@ -46,11 +46,11 @@ const (
 	JumpGreaterEqual // conditional jump '>='
 
 	// call p, n and y = call p, n for procedure and function calls, n is the number of actual parameters in "call p, n"
-	Parameter     // pass parameter to procedure
-	Call          // call procedure or function
-	Return        // return from procedure or function
-	Runtime       // call procedure or function of the external runtime library
-	NullOperation // null operation for placing a label in the intermediate code
+	Parameter // pass parameter to procedure
+	Call      // call procedure or function
+	Return    // return from procedure or function
+	Runtime   // call procedure or function of the external runtime library
+	Label     // label operation for placing a logical jump address in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into a compiler-generated temporary variable
@@ -136,7 +136,7 @@ var (
 		Call:             "call",
 		Return:           "return",
 		Runtime:          "runtime",
-		NullOperation:    "nullOp",
+		Label:            "label",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
 		VariableLoad:     "varLoad",
