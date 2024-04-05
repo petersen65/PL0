@@ -4,7 +4,11 @@
 // Package code implements the intermediate code generation compiler pass by traversing the abstract syntax tree.
 package code
 
-import ast "github.com/petersen65/PL0/v2/ast"
+import (
+	"fmt"
+
+	ast "github.com/petersen65/PL0/v2/ast"
+)
 
 // UnusedDifference states that an intermediate code instruction does not use a block nesting depth difference.
 const UnusedDifference = -1
@@ -65,6 +69,7 @@ type (
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
 		DataType ast.DataType // data type of the address
+		Offset   uint64       // variable offset in the logical memory space
 		Variable string       // variable name of the address
 	}
 
@@ -104,7 +109,7 @@ type (
 
 var (
 	// NoAddress represents an unused address in the three-address code concept.
-	NoAddress = &Address{DataType: ast.Void, Variable: "-"}
+	NoAddress = &Address{DataType: ast.Void, Offset: 0, Variable: "-"}
 
 	// OperationNames is a map of operation names for the intermediate code.
 	OperationNames = map[Operation]string{
@@ -142,4 +147,9 @@ var (
 // Return the public interface of the private intermediate code implementation.
 func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return newIntermediateCode(abstractSyntax)
+}
+
+// Create a new three-address code argument or result address.
+func NewAddress(dataType ast.DataType, offset uint64, variable any) *Address {
+	return &Address{DataType: dataType, Offset: offset, Variable: fmt.Sprintf("%v", variable)}
 }

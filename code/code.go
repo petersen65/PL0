@@ -39,14 +39,9 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	}
 }
 
-// Create a new three-address code argument or result address.
-func newAddress(dataType ast.DataType, variable any) *Address {
-	return &Address{DataType: dataType, Variable: fmt.Sprintf("%v", variable)}
-}
-
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	return fmt.Sprintf("%-7v: %-7v", a.DataType, a.Variable)
+	return fmt.Sprintf("%v:%v:%v", a.DataType, a.Offset, a.Variable)
 }
 
 // String representation of an intermediate code operation.
@@ -57,7 +52,7 @@ func (o Operation) String() string {
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
 	return fmt.Sprintf(
-		"%-7v %4v   %-12v   %-12v   %-12v   %-12v",
+		"%-8v %4v    %-12v    %-16v    %-16v    %-16v",
 		i.Label,
 		i.DepthDifference,
 		i.Code.Operation,
@@ -93,9 +88,9 @@ func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
 }
 
 // Create a new compiler-generated temporary variable for a block.
-func (b *blockMetaData) newTempVariable() string {
+func (b *blockMetaData) newTempVariable(dataType ast.DataType) *Address {
 	b.tempVariableCounter++
-	return fmt.Sprintf("t%v.%v", b.uniqueId, b.tempVariableCounter)
+	return NewAddress(dataType, 0, fmt.Sprintf("t%v.%v", b.uniqueId, b.tempVariableCounter))
 }
 
 // Create a new compiler-generated label for a block.
@@ -190,7 +185,7 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 		UnusedDifference,
 		NoAddress,
 		NoAddress,
-		newAddress(vd.DataType, vd.Name))
+		NewAddress(vd.DataType, vd.Offset, vd.Name))
 
 	// append instruction to the module
 	i.AppendInstruction(Instruction)
@@ -211,9 +206,9 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		ValueCopy,
 		NoLabel,
 		UnusedDifference,
-		newAddress(ln.DataType, ln.Value),
+		NewAddress(ln.DataType, 0, ln.Value),
 		NoAddress,
-		newAddress(ln.DataType, metaData.newTempVariable()))
+		metaData.newTempVariable(ln.DataType))
 
 	// push the temporary result onto the stack and append the instruction to the module
 	metaData.pushResult(instruction.Code.Result)
@@ -235,9 +230,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			ValueCopy,
 			NoLabel,
 			UnusedDifference,
-			newAddress(cd.DataType, cd.Value),
+			NewAddress(cd.DataType, 0, cd.Value),
 			NoAddress,
-			newAddress(cd.DataType, metaData.newTempVariable()))
+			metaData.newTempVariable(cd.DataType))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -258,9 +253,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			VariableLoad,
 			NoLabel,
 			useDepth-declarationDepth,
-			newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
+			NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name),
 			NoAddress,
-			newAddress(variableDeclaration.DataType, metaData.newTempVariable()))
+			metaData.newTempVariable(variableDeclaration.DataType))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -306,7 +301,7 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			UnusedDifference,
 			result,
 			NoAddress,
-			newAddress(result.DataType, metaData.newTempVariable()))
+			metaData.newTempVariable(result.DataType))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -355,7 +350,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			UnusedDifference,
 			left,
 			right,
-			newAddress(left.DataType, metaData.newTempVariable()))
+			metaData.newTempVariable(left.DataType))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -445,8 +440,8 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		NoLabel,
 		assignmentDepth-declarationDepth,
 		right,
-		newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
-		newAddress(variableDeclaration.DataType, variableDeclaration.Name))
+		NoAddress,
+		NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name))
 
 	// append the instruction to the module
 	i.AppendInstruction(insstruction)
@@ -468,40 +463,68 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
 	// parameter 1 for the readln runtime function
-	line := i.NewInstruction(
+	param := i.NewInstruction(
 		Parameter,
 		NoLabel,
 		UnusedDifference,
 		NoAddress,
 		NoAddress,
-		newAddress(ast.Integer64, metaData.newTempVariable()))
+		metaData.newTempVariable(ast.Integer64))
 
 	// call the readln runtime function with 1 parameter
 	readln := i.NewInstruction(
 		Runtime,
 		NoLabel,
 		UnusedDifference,
-		newAddress(ast.UnsignedInteger64, uint64(1)),
-		newAddress(ast.UnsignedInteger64, uint64(ReadLn)),
+		NewAddress(ast.UnsignedInteger64, 0, uint64(1)),
+		NewAddress(ast.UnsignedInteger64, 0, uint64(ReadLn)),
 		NoAddress)
 
-	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	// store the resultant value into the variable used by the read statement
 	store := i.NewInstruction(
 		VariableStore,
 		NoLabel,
 		readDepth-declarationDepth,
-		line.Code.Result,
-		newAddress(ast.UnsignedInteger64, variableDeclaration.Offset),
-		newAddress(variableDeclaration.DataType, variableDeclaration.Name))
+		param.Code.Result,
+		NoAddress,
+		NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name))
 
 	// append the instructions to the module
-	i.AppendInstruction(line)
+	i.AppendInstruction(param)
 	i.AppendInstruction(readln)
 	i.AppendInstruction(store)
 }
 
 // Generate code for a write statement.
 func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
+	// access metadata of the current block
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+
+	// load the value from the result of the expression on the right-hand-side of the write statement
+	s.Expression.Accept(i)
+	right := metaData.popResult()
+
+	// parameter 1 for the writeln runtime function
+	param := i.NewInstruction(
+		Parameter,
+		NoLabel,
+		UnusedDifference,
+		right,
+		NoAddress,
+		metaData.newTempVariable(right.DataType))
+
+	// call the writeln runtime function with 1 parameter
+	write := i.NewInstruction(
+		Runtime,
+		NoLabel,
+		UnusedDifference,
+		NewAddress(ast.UnsignedInteger64, 0, uint64(1)),
+		NewAddress(ast.UnsignedInteger64, 0, uint64(WriteLn)),
+		NoAddress)
+
+	// append the instructions to the module
+	i.AppendInstruction(param)
+	i.AppendInstruction(write)
 }
 
 func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
