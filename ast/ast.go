@@ -12,9 +12,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Text messages for printing an abstract syntax tree.
-const textAbstractSyntaxTree = "Abstract Syntax Tree:"
-
 var (
 	// Each block node in the abstract syntax tree gets a unique identifier.
 	uniqueBlockId atomic.Int32
@@ -238,7 +235,7 @@ func (dt DataType) String() string {
 }
 
 // Get a data type from its representation.
-func (dtr DataTypeRepresentation) DataType() DataType{
+func (dtr DataTypeRepresentation) DataType() DataType {
 	for dataType, representation := range DataTypeNames {
 		if representation == string(dtr) {
 			return dataType
@@ -291,11 +288,6 @@ func (b *BlockNode) Accept(visitor Visitor) {
 
 // Print the abstract syntax tree to the specified writer.
 func (b *BlockNode) Print(print io.Writer, args ...any) error {
-	// print the title text message for the abstract syntax tree
-	if _, err := fmt.Fprintln(print, textAbstractSyntaxTree); err != nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
-	}
-
 	// traverse the abstract syntax tree and print each node
 	if err := printAbstractSyntaxTree(b, "", true, print); err != nil {
 		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
@@ -342,13 +334,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	switch d.DataType {
-	case Integer64:
-		return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=i64)", KindNames[Constant], d.Name, d.Value)
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownConstantDataType, nil, nil))
-	}
+	return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=%v)", KindNames[Constant], d.Name, d.Value, d.DataType)
 }
 
 // Parent node of the constant declaration node.
@@ -383,14 +369,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	switch d.DataType {
-	case Integer64:
-		return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=i64)", KindNames[Variable], d.Name, d.Offset)
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownVariableDataType, nil, nil))
-
-	}
+	return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=%v)", KindNames[Variable], d.Name, d.Offset, d.DataType)
 }
 
 // Parent node of the variable declaration node.
@@ -460,14 +439,7 @@ func (e *LiteralNode) SetParent(parent Node) {
 
 // String of the literal node.
 func (e *LiteralNode) String() string {
-	switch e.DataType {
-	case Integer64:
-		return fmt.Sprintf("literal(v=%v,t=i64)", e.Value)
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownLiteralDataType, nil, nil))
-
-	}
+	return fmt.Sprintf("literal(v=%v,t=%v)", e.Value, e.DataType)
 }
 
 // Parent node of the literal node.

@@ -15,9 +15,6 @@ import (
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof Token = -1
 
-// Text messages for printing the token stream.
-const textTokenStream = "Token Stream:"
-
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
 	tokenStreamIndex     int                // index of the current token in the token stream table
@@ -92,11 +89,6 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	var start int
 	var previousLine int32
 
-	// print the title text message for the token stream
-	if _, err := fmt.Fprint(print, textTokenStream); err != nil {
-		return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
-	}
-
 	// check if the bottom flag is set
 	if len(args) == 1 {
 		if b, ok := args[0].(bool); ok {
@@ -120,7 +112,13 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print line number and line content if the line number is a new line
 		if td.Line != previousLine {
-			if _, err := fmt.Fprintf(print, "\n%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")); err != nil {
+			if previousLine != 0 {
+				if _, err := fmt.Fprintln(print); err != nil {
+					return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+				}
+			}
+
+			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")); err != nil {
 				return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 			}
 
