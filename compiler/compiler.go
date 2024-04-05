@@ -14,6 +14,7 @@ import (
 
 	ana "github.com/petersen65/PL0/v2/analyzer"
 	ast "github.com/petersen65/PL0/v2/ast"
+	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 	emt "github.com/petersen65/PL0/v2/emitter"
 	emu "github.com/petersen65/PL0/v2/emulator"
@@ -81,6 +82,7 @@ type (
 		SourceContent  []byte           // PL/0 utf-8 source content
 		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
 		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
+		Module         cod.Module       // intermediate code module
 		Sections       emt.TextSection  // IL/0 intermediate language target
 		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
 	}
@@ -400,17 +402,22 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, nil, nil, nil, errorHandler}
 	}
+
+	// intermediate code generation based on the abstract syntax tree
+	intermediate := cod.NewIntermediateCode(abstractSyntax)
+	intermediate.Generate()
+	module := intermediate.GetModule()
 
 	// code generation and emission of IL/0 and assembler code based on abstract syntax tree
 	emitter := gen.NewGenerator(abstractSyntax).Generate()
 
 	// return if any fatal or error errors occurred during code generation and emission
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, abstractSyntax, nil, nil, errorHandler}
 	}
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, tokenStream, abstractSyntax, emitter.GetSections(), errorHandler}
+	return TranslationUnit{content, tokenStream, abstractSyntax, module, emitter.GetSections(), errorHandler}
 }

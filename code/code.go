@@ -196,10 +196,10 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 	case ast.Variable:
 		// get variable declaration of the variable to load
-		vd := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
 		// determine the block nesting depth of the variable declaration
-		declarationDepth := ast.SearchBlock(ast.CurrentBlock, vd).Depth
+		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
 		// determine the block nesting depth of the variable use from inside an expression or statement
 		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
@@ -209,9 +209,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			VariableLoad,
 			NoLabel,
 			useDepth-declarationDepth,
-			newAddress(ast.Offset, vd.Offset),
+			newAddress(ast.Offset, variableDeclaration.Offset),
 			nil,
-			newAddress(vd.DataType, metaData.newTempVariable()))
+			newAddress(variableDeclaration.DataType, metaData.newTempVariable()))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -374,8 +374,33 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 // Generate code for an assignment statement.
 func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
+	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
 
+	// load the value from the result of the right-hand-side expression of the assignment
+	s.Expression.Accept(i)
+	right := metaData.popResult()
+
+	// get the variable declaration on the left-hand-side of the assignment
+	variableUse := s.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+
+	// determine the block nesting depth of the variable declaration
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+
+	// determine the block nesting depth of the assignment statement where the variable is used
+	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+
+	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	insstruction := i.NewInstruction(
+		VariableStore,
+		NoLabel,
+		assignmentDepth-declarationDepth,
+		right,
+		newAddress(ast.Offset, variableDeclaration.Offset),
+		newAddress(variableDeclaration.DataType, variableDeclaration.Name))
+
+	// append the instruction to the module
+	i.AppendInstruction(insstruction)
 }
 
 func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
@@ -393,5 +418,10 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 }
 
+// Generate code for a compound begin-end statement.
 func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) {
+	// generate code for all statements in the compound statement
+	for _, statement := range s.Statements {
+		statement.Accept(i)
+	}
 }
