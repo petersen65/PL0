@@ -58,7 +58,6 @@ const (
 // File extensions for all generated files.
 const (
 	_ Extension = iota
-	PL0
 	IL0
 	Token
 	Tree
@@ -90,12 +89,11 @@ type (
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	PL0:          ".pl0",
 	IL0:          ".il0",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
-	Intermediate: ".int",
+	Intermediate: ".ilc",
 	Json:         ".json",
 	Text:         ".txt",
 	Binary:       ".bin",
@@ -284,21 +282,22 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// create all Json files for intermediate representations
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
-	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
+	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Json))
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
 	// create all Text files for intermediate representations
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
-	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Text))
+	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
 	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
-	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Binary))
+	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Binary))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ictErr, ertErr, tsbErr, ilbErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -322,6 +321,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(tstFile)
 		closeFile(astFile)
 		closeFile(iltFile)
+		closeFile(ictFile)
 		closeFile(ertFile)
 		closeFile(tsbFile)
 		closeFile(ilbFile)
@@ -356,6 +356,11 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
 	}
 
+	// export all intermediate code representations to the target files
+	if translationUnit.Module != nil {
+		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
+	}
+
 	// export all error handler representations to the target files
 	if translationUnit.ErrorHandler != nil {
 		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
@@ -363,7 +368,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ertErr, tsbErr, ilbErr)
+	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ictErr, ertErr, tsbErr, ilbErr)
 	return anyError
 }
 

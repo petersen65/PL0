@@ -6,6 +6,7 @@ package code
 import (
 	"container/list"
 	"fmt"
+	"io"
 
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
@@ -42,6 +43,33 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 func newAddress(dataType ast.DataType, variable any) *Address {
 	return &Address{DataType: dataType, Variable: fmt.Sprintf("%v", variable)}
 }
+
+// Print the module to the specified writer.
+func (m Module) Print(print io.Writer, args ...any) error {
+	// enumerate all instructions in the module and print them to the writer
+	for _, instruction := range m {
+		_, err := fmt.Fprintf(print, "%v\n", instruction)
+
+		if err != nil {
+			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+		}
+	}
+
+	return nil
+}
+
+// Export the module of the intermediate code generator.
+func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Text:
+		// print is a convenience function to export the module as a string to the print writer
+		return m.Print(print)
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+}
+
 
 // Create a new compiler-generated temporary variable for a block.
 func (b *blockMetaData) newTempVariable() string {

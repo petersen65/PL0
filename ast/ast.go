@@ -304,7 +304,7 @@ func (b *BlockNode) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the abstract syntax tree of the block node (only the Text format is supported).
+// Export the abstract syntax tree of the block node.
 func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:

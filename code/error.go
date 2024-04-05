@@ -13,6 +13,8 @@ const (
 	unknownBinaryOperation
 	unknownConditionalOperation
 	unexpectedTemporaryResult
+	unknownExportFormat
+	intermediateCodeExportFailed
 )
 
 // Map failure codes to error messages.
@@ -22,4 +24,6 @@ var failureMap = map[cor.Failure]string{
 	unknownBinaryOperation:        "unknown binary operation",
 	unknownConditionalOperation:   "unknown conditional operation",
 	unexpectedTemporaryResult:     "unexpected temporary result",
+	unknownExportFormat:           "unknown export format: %v",
+	intermediateCodeExportFailed:  "failed to export intermediate code",
 }
