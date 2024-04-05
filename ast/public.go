@@ -353,32 +353,34 @@ type (
 	}
 )
 
-// NodeTypeNames maps node types to their string representation.
-var NodeTypeNames = map[NodeType]string{
-	BlockType:                "block",
-	ConstantDeclarationType:  "constant",
-	VariableDeclarationType:  "variable",
-	ProcedureDeclarationType: "procedure",
-	LiteralType:              "literal",
-	IdentifierUseType:        "use",
-	UnaryOperationType:       "unary",
-	BinaryOperationType:      "binary",
-	ConditionalOperationType: "conditional",
-	AssignmentStatementType:  "assignment",
-	ReadStatementType:        "read",
-	WriteStatementType:       "write",
-	CallStatementType:        "call",
-	IfStatementType:          "if",
-	WhileStatementType:       "while",
-	CompoundStatementType:    "compound",
-}
+var (
+	// NodeTypeNames maps node types to their string representation.
+	NodeTypeNames = map[NodeType]string{
+		BlockType:                "block",
+		ConstantDeclarationType:  "constant",
+		VariableDeclarationType:  "variable",
+		ProcedureDeclarationType: "procedure",
+		LiteralType:              "literal",
+		IdentifierUseType:        "use",
+		UnaryOperationType:       "unary",
+		BinaryOperationType:      "binary",
+		ConditionalOperationType: "conditional",
+		AssignmentStatementType:  "assignment",
+		ReadStatementType:        "read",
+		WriteStatementType:       "write",
+		CallStatementType:        "call",
+		IfStatementType:          "if",
+		WhileStatementType:       "while",
+		CompoundStatementType:    "compound",
+	}
 
-// KindNames maps symbol kinds to their string representation.
-var KindNames = map[Entry]string{
-	Constant:  "constant",
-	Variable:  "variable",
-	Procedure: "procedure",
-}
+	// KindNames maps symbol kinds to their string representation.
+	KindNames = map[Entry]string{
+		Constant:  "constant",
+		Variable:  "variable",
+		Procedure: "procedure",
+	}
+)
 
 // NewScope creates a new scope with an empty symbol table.
 func NewScope(outer *Scope) *Scope {

@@ -44,6 +44,28 @@ func newAddress(dataType ast.DataType, variable any) *Address {
 	return &Address{DataType: dataType, Variable: fmt.Sprintf("%v", variable)}
 }
 
+// String representation of the three-address code address.
+func (a *Address) String() string {
+	return fmt.Sprintf("%-7v: %-7v", a.DataType, a.Variable)
+}
+
+// String representation of an intermediate code operation.
+func (o Operation) String() string {
+	return OperationNames[o]
+}
+
+// String representation of an intermediate code instruction.
+func (i *Instruction) String() string {
+	return fmt.Sprintf(
+		"%-7v %4v   %-12v   %-12v   %-12v   %-12v",
+		i.Label,
+		i.DepthDifference,
+		i.Code.Operation,
+		i.Code.Arg1,
+		i.Code.Arg2,
+		i.Code.Result)
+}
+
 // Print the module to the specified writer.
 func (m Module) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the module and print them to the writer
@@ -69,7 +91,6 @@ func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
 }
-
 
 // Create a new compiler-generated temporary variable for a block.
 func (b *blockMetaData) newTempVariable() string {
@@ -139,13 +160,13 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// label of the block marking the start of the block' statement
 	bn.Label = i.metaData[bn.UniqueId].newLabel()
-	i.AppendInstruction(i.NewInstruction(NullOperation, bn.Label, UnusedDifference, nil, nil, nil))
+	i.AppendInstruction(i.NewInstruction(NullOperation, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// statement of the block
 	bn.Statement.Accept(i)
 
 	// return from the block
-	i.AppendInstruction(i.NewInstruction(Return, NoLabel, UnusedDifference, nil, nil, nil))
+	i.AppendInstruction(i.NewInstruction(Return, NoLabel, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a constant declaration.
@@ -167,8 +188,8 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 		Allocate,
 		NoLabel,
 		UnusedDifference,
-		nil,
-		nil,
+		NoAddress,
+		NoAddress,
 		newAddress(vd.DataType, vd.Name))
 
 	// append instruction to the module
@@ -191,7 +212,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		NoLabel,
 		UnusedDifference,
 		newAddress(ln.DataType, ln.Value),
-		nil,
+		NoAddress,
 		newAddress(ln.DataType, metaData.newTempVariable()))
 
 	// push the temporary result onto the stack and append the instruction to the module
@@ -215,7 +236,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			NoLabel,
 			UnusedDifference,
 			newAddress(cd.DataType, cd.Value),
-			nil,
+			NoAddress,
 			newAddress(cd.DataType, metaData.newTempVariable()))
 
 		// push the temporary result onto the stack and append the instruction to the module
@@ -238,7 +259,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			NoLabel,
 			useDepth-declarationDepth,
 			newAddress(ast.Offset, variableDeclaration.Offset),
-			nil,
+			NoAddress,
 			newAddress(variableDeclaration.DataType, metaData.newTempVariable()))
 
 		// push the temporary result onto the stack and append the instruction to the module
@@ -271,8 +292,8 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			NoLabel,
 			UnusedDifference,
 			result,
-			nil,
-			nil)
+			NoAddress,
+			NoAddress)
 
 		// append the instruction to the module
 		i.AppendInstruction(instruction)
@@ -284,7 +305,7 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			NoLabel,
 			UnusedDifference,
 			result,
-			nil,
+			NoAddress,
 			newAddress(result.DataType, metaData.newTempVariable()))
 
 		// push the temporary result onto the stack and append the instruction to the module
@@ -389,7 +410,7 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 			UnusedDifference,
 			left,
 			right,
-			nil)
+			NoAddress)
 
 		// append the instruction to the module
 		i.AppendInstruction(instruction)

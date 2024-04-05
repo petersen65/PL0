@@ -66,7 +66,7 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module []*Instruction
 
-	// Instruction represents a single operation in the intermediate code that has an optional label.
+	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {
 		Label           string    // optional label
 		DepthDifference int32     // block nesting depth difference between variable use and variable declaration
@@ -88,6 +88,42 @@ type (
 		GetModule() Module
 		NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction
 		AppendInstruction(instruction *Instruction)
+	}
+)
+
+var (
+	// NoAddress represents an unused address in the three-address code concept.
+	NoAddress = &Address{DataType: ast.Void, Variable: "-"}
+
+	// OperationNames is a map of operation names for the intermediate code.
+	OperationNames = map[Operation]string{
+		Odd:              "odd",
+		Negate:           "negate",
+		Plus:             "add",
+		Minus:            "subtract",
+		Times:            "multiply",
+		Divide:           "divide",
+		Equal:            "eq",
+		NotEqual:         "neq",
+		Less:             "lss",
+		LessEqual:        "lssEq",
+		Greater:          "gtr",
+		GreaterEqual:     "gtrEq",
+		Jump:             "jmp",
+		JumpEqual:        "jmpEq",
+		JumpNotEqual:     "jmpNeq",
+		JumpLess:         "jmpLss",
+		JumpLessEqual:    "jmpLssEq",
+		JumpGreater:      "jmpGtr",
+		JumpGreaterEqual: "jmpGtrEq",
+		Parameter:        "param",
+		Call:             "call",
+		Return:           "return",
+		NullOperation:    "nullOp",
+		Allocate:         "alloc",
+		ValueCopy:        "valCopy",
+		VariableLoad:     "varLoad",
+		VariableStore:    "varStore",
 	}
 )
 
