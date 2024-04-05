@@ -11,41 +11,51 @@ import (
 
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
-	emt "github.com/petersen65/PL0/v2/emitter"
 )
 
 // Operation codes for AS/C.
 const (
-	_ = operation(iota)
-	ldc
-	ldv
-	stv
-	cal
-	ret
-	alc
-	jmp
-	je
+	_ = operationCode(iota)
+	push
+	jmp // jmp qword ptr [rax]
+	cmp // pop rax, pop rbx, cmp rax,rbx: result is in the flags register
+	je  // je label, assembler replaces label with address
 	jne
 	jl
 	jle
 	jg
 	jge
-	neg
-	add
-	sub
-	mul
-	div
-	and
-	eq
-	neq
-	lss
-	leq
-	gtr
-	geq
-	sys
+	neg // neg qword ptr [rsp]
+	and // and qword ptr [rsp], 1
+
+	ldv
+	stv
+	alc // m.cpu.registers[sp] += uint64(instr.address)
+
+	// The call instruction pushes the return address (the address of the instruction following the call) onto the stack, and then jumps to the function's address. The ret instruction pops the return address from the stack and jumps to this address.
+	cal // call myFunction
+	ret // myFunction: ; Function body goes here, ret
+
+	// The mov instructions for mul and div are necessary because these instructions store the result in rax, so the result needs to be moved back to the top of the stack.
+	add  // pop rax, add qword ptr [rsp], rax, add: add top two elements of the stack
+	sub  // pop rax, sub qword ptr [rsp], rax, sub: subtract top element of the stack from the second top element
+	imul // signed, pop rax, imul rax, qword ptr [rsp], mov qword ptr [rsp], rax: mul: multiply top two elements of the stack
+	idiv // signed, pop rax, idiv qword ptr [rsp], mov qword ptr [rsp], rax, div: divide second top element of the stack by the top element
+
+	rcall
 )
 
-// Runtime call codes for a programming language.
+const (
+	_         = operandType(iota)
+	registers // rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
+	values    // constant values, mov eax, 1
+	memory    // memory locations, mov eax, [ebx], [ebx] is a memory address.
+	labels    // labels, jmp label, label: ; jump to label, They are used to identify functions, variables, and locations in the code.
+	targets   // Jump Targets: These are destinations for jump instructions. They can be specified as absolute addresses, relative offsets, or labels.
+	segments  // egment Registers: These are used in some modes of the CPU to hold the base address of a segment of memory. Examples include cs, ds, es, fs, gs, and ss
+)
+
+// Call codes for the programming language runtime library.
 const (
 	readln = runtimeCall(iota)
 	writeln
@@ -76,8 +86,11 @@ const (
 )
 
 type (
-	// Type for operation codes.
-	operation int32
+	// Type for operationCode codes.
+	operationCode int32
+
+	// Type of operands.
+	operandType int32
 
 	// Type for runtime call codes.
 	runtimeCall int32
@@ -85,12 +98,18 @@ type (
 	// Text section of the binary target.
 	textSection []instruction
 
-	// Instruction is the representation of a single operation with its data in the binary target.
+	operand struct {
+		operand         operandType // type of the operand
+		register        register    // register operand for the operation
+		address         uint64      // target address or offset of a variable of the operation
+		argInt          int64       // int64 argument of the operation
+		depthDifference int32       // block nesting depth difference between variable use and variable declaration
+	}
+
+	// Instruction is the representation of a single operation with all its operands.
 	instruction struct {
-		operation       operation // operation code of the instruction
-		depthDifference int32     // block nesting depth difference between variable use and variable declaration
-		address         uint64    // target address or offset of a variable of the operation
-		argInt          int64     // int64 argument of the operation
+		operation operationCode // operation code of the instruction
+		operands  []operand     // operands for the operation
 	}
 
 	// Enumeration of registers of the CPU.
@@ -106,8 +125,8 @@ type (
 
 	// Virtual CPU with registers and the stack.
 	cpu struct {
-		registers map[register]uint64
-		stack     []uint64
+		registers map[register]uint64 // registers of the CPU
+		stack     []uint64            // stack of the CPU
 	}
 
 	// Virtual machine that can run binary instructions of processes.
@@ -116,10 +135,18 @@ type (
 	}
 )
 
-
+// Create a new emulation machine with CPU, registers and stack that can run binary processes.
+func newMachine() *machine {
+	return &machine{
+		cpu: cpu{
+			registers: make(map[register]uint64),
+			stack:     make([]uint64, stackSize),
+		},
+	}
+}
 
 // Import a raw byte slice into the text section of a process.
-func (p *process) Import(raw []byte) error {
+func (p *process) importRaw(raw []byte) error {
 	p.text = make(textSection, len(raw)/binary.Size(instruction{}))
 
 	var buffer bytes.Buffer
@@ -132,19 +159,6 @@ func (p *process) Import(raw []byte) error {
 	return nil
 }
 
-
-
-
-// Create a new emulation machine with CPU, registers and stack that can run binary processes.
-func newMachine() *machine {
-	return &machine{
-		cpu: cpu{
-			registers: make(map[register]uint64),
-			stack:     make([]uint64, stackSize),
-		},
-	}
-}
-
 // Load an IL/C module and return an error if the module fails to JIT compile and execute as AS/C.
 func (m *machine) runProcess(module cod.Module) error {
 	return nil
@@ -155,8 +169,8 @@ func (m *machine) runProgram(raw []byte) error {
 	var process process
 	var err error
 
-	// load program into memory (text section)
-	if process.text, err = emt.Import(raw); err != nil {
+	// import raw target into memory (text section)
+	if err = process.importRaw(raw); err != nil {
 		return err
 	}
 
@@ -193,93 +207,93 @@ func (m *machine) runProgram(raw []byte) error {
 		instr := process.text[m.cpu.registers[ip]]
 		m.cpu.registers[ip]++
 
-		switch instr.Operation {
-		case emt.Ldc: // copy int64 constant onto the stack
-			m.cpu.push(uint64(instr.ArgInt))
+		switch instr.operation {
+		case push: // copy int64 constant onto the stack
+			m.cpu.push(uint64(instr.argInt))
 
-		case emt.Jmp: // unconditionally jump to uint64 address
-			m.cpu.jmp(uint64(instr.Address))
+		case jmp: // unconditionally jump to uint64 address
+			m.cpu.jmp(uint64(instr.address))
 
-		case emt.Je: // jump to uint64 address if last comparison was equal
-			m.cpu.je(uint64(instr.Address))
+		case je: // jump to uint64 address if last comparison was equal
+			m.cpu.je(uint64(instr.address))
 
-		case emt.Jne: // jump to uint64 address if last comparison was not equal
-			m.cpu.jne(uint64(instr.Address))
+		case jne: // jump to uint64 address if last comparison was not equal
+			m.cpu.jne(uint64(instr.address))
 
-		case emt.Jl: // jump to uint64 address if last comparison was less than
-			m.cpu.jl(uint64(instr.Address))
+		case jl: // jump to uint64 address if last comparison was less than
+			m.cpu.jl(uint64(instr.address))
 
-		case emt.Jle: // jump to uint64 address if last comparison was less than or equal to
-			m.cpu.jle(uint64(instr.Address))
+		case jle: // jump to uint64 address if last comparison was less than or equal to
+			m.cpu.jle(uint64(instr.address))
 
-		case emt.Jg: // jump to uint64 address if last comparison was greater than
-			m.cpu.jg(uint64(instr.Address))
+		case jg: // jump to uint64 address if last comparison was greater than
+			m.cpu.jg(uint64(instr.address))
 
-		case emt.Jge: // jump to uint64 address if last comparison was greater than or equal to
-			m.cpu.jge(uint64(instr.Address))
+		case jge: // jump to uint64 address if last comparison was greater than or equal to
+			m.cpu.jge(uint64(instr.address))
 
-		case emt.Alc: // allocate stack space for variables
-			m.cpu.registers[sp] += uint64(instr.Address)
+		case alc: // allocate stack space for variables
+			m.cpu.registers[sp] += uint64(instr.address)
 
-		case emt.Neg: // negate int64 element on top of stack
+		case neg: // negate int64 element on top of stack
 			if err := m.cpu.neg(); err != nil {
 				return err
 			}
 
-		case emt.And: // test if top of stack's uint64 element is odd and set zero flag if it is
+		case and: // test if top of stack's uint64 element is odd and set zero flag if it is
 			m.cpu.and(1)
 
-		case emt.Add: // add two int64 elements from top of stack and store the result onto the stack
+		case add: // add two int64 elements from top of stack and store the result onto the stack
 			if err := m.cpu.add(); err != nil {
 				return err
 			}
 
-		case emt.Sub: // subtract two int64 elements from top of stack and store the result onto the stack
+		case sub: // subtract two int64 elements from top of stack and store the result onto the stack
 			if err := m.cpu.sub(); err != nil {
 				return err
 			}
 
-		case emt.Mul: // multiply two int64 elements from top of stack and store the result onto the stack
+		case imul: // multiply two int64 elements from top of stack and store the result onto the stack
 			if err := m.cpu.mul(); err != nil {
 				return err
 			}
 
-		case emt.Div: // divide two int64 elements from top of stack and store the result onto the stack
+		case idiv: // divide two int64 elements from top of stack and store the result onto the stack
 			if err := m.cpu.div(); err != nil {
 				return err
 			}
 
-		case emt.Eq: // test if two int64 elements from top of stack are equal and set zero flag if they are
-			fallthrough
+		// case eq: // test if two int64 elements from top of stack are equal and set zero flag if they are
+		// 	fallthrough
 
-		case emt.Neq: // test if two int64 elements from top of stack are not equal and clear zero flag if they are
-			fallthrough
+		// case neq: // test if two int64 elements from top of stack are not equal and clear zero flag if they are
+		// 	fallthrough
 
-		case emt.Lss: // test if the int64 element from top of stack is less than the int64 element from top of stack minus one and store result in flags register
-			fallthrough
+		// case lss: // test if the int64 element from top of stack is less than the int64 element from top of stack minus one and store result in flags register
+		// 	fallthrough
 
-		case emt.Leq: // test if the int64 element from top of stack is less than or equal to the int64 element from top of stack minus one and store result in flags register
-			fallthrough
+		// case leq: // test if the int64 element from top of stack is less than or equal to the int64 element from top of stack minus one and store result in flags register
+		// 	fallthrough
 
-		case emt.Gtr: // test if the int64 element from top of stack is greater than the int64 element from top of stack minus one and store result in flags register
-			fallthrough
+		// case gtr: // test if the int64 element from top of stack is greater than the int64 element from top of stack minus one and store result in flags register
+		// 	fallthrough
 
-		case emt.Geq: // test if the int64 element from top of stack is greater than or equal to the int64 element from top of stack minus one and store result in flags register
-			m.cpu.cmp()
+		// case geq: // test if the int64 element from top of stack is greater than or equal to the int64 element from top of stack minus one and store result in flags register
+		// 	m.cpu.cmp()
 
-		case emt.Cal: // caller procedure calls callee procedure
+		case cal: // caller procedure calls callee procedure
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(m.cpu.registers[ip])                             // return address
-			m.cpu.push(m.cpu.registers[bp])                             // dynamic link
-			m.cpu.push(m.cpu.parent(instr.BlockNestingDepthDifference)) // static link
+			m.cpu.push(m.cpu.registers[ip])                 // return address
+			m.cpu.push(m.cpu.registers[bp])                 // dynamic link
+			m.cpu.push(m.cpu.parent(instr.depthDifference)) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
 			m.cpu.registers[bp] = m.cpu.registers[sp]
 
 			// jump to procedure at uint64 address
-			m.cpu.jmp(uint64(instr.Address))
+			m.cpu.jmp(uint64(instr.address))
 
-		case emt.Ret: // callee procedure returns to caller procedure
+		case ret: // callee procedure returns to caller procedure
 			// restore state of caller procdure from descriptor of callee procedure
 			m.cpu.registers[sp] = m.cpu.registers[bp] - 1 // discard stack space and static link
 			m.cpu.pop(bp)                                 // restore callers base pointer
@@ -290,17 +304,17 @@ func (m *machine) runProgram(raw []byte) error {
 				return nil
 			}
 
-		case emt.Ldv: // copy int64 variable loaded from its base plus offset onto the stack
-			variablesBase := m.cpu.parent(instr.BlockNestingDepthDifference) + 1 // base pointer + 1
-			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.Address)])         // variables base + variable offset
+		case ldv: // copy int64 variable loaded from its base plus offset onto the stack
+			variablesBase := m.cpu.parent(instr.depthDifference) + 1     // base pointer + 1
+			m.cpu.push(m.cpu.stack[variablesBase+uint64(instr.address)]) // variables base + variable offset
 
-		case emt.Stv: // copy int64 element from top of stack to a variable stored within its base plus offset
-			variablesBase := m.cpu.parent(instr.BlockNestingDepthDifference) + 1   // base pointer + 1
+		case stv: // copy int64 element from top of stack to a variable stored within its base plus offset
+			variablesBase := m.cpu.parent(instr.depthDifference) + 1               // base pointer + 1
 			m.cpu.pop(ax)                                                          // int64 element to be stored in variable
-			m.cpu.stack[variablesBase+uint64(instr.Address)] = m.cpu.registers[ax] // variables base + variable offset
+			m.cpu.stack[variablesBase+uint64(instr.address)] = m.cpu.registers[ax] // variables base + variable offset
 
-		case emt.Sys: // system call to operating system based on system call code
-			m.cpu.sys(emt.SystemCall(instr.Address))
+		case rcall: // call to programming language runtime library based on runtime call code
+			m.cpu.runtime(runtimeCall(instr.address))
 
 		default:
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[ip]-1, nil)
@@ -590,10 +604,10 @@ func (c *cpu) unset_of() {
 	c.registers[flags] &= ^uint64(of)
 }
 
-// System call to operating system based on system call code.
-func (c *cpu) sys(code emt.SystemCall) {
+// Call to programming language runtime library.
+func (c *cpu) runtime(code runtimeCall) {
 	switch code {
-	case emt.Read:
+	case readln:
 		// read integer from stdin
 		var input int64
 
@@ -607,7 +621,7 @@ func (c *cpu) sys(code emt.SystemCall) {
 			}
 		}
 
-	case emt.Write:
+	case writeln:
 		// write integer to stdout
 		c.pop(ax)
 		fmt.Printf("%v\n", int64(c.registers[ax]))
