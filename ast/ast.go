@@ -334,7 +334,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=%v)", KindNames[Constant], d.Name, d.Value, d.DataType)
+	return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=%v,u=%v)", KindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
 }
 
 // Parent node of the constant declaration node.
@@ -369,7 +369,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=%v)", KindNames[Variable], d.Name, d.Offset, d.DataType)
+	return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=%v,u=%v)", KindNames[Variable], d.Name, d.Offset, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -404,7 +404,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,a=%v)", KindNames[Procedure], d.Name, d.Address)
+	return fmt.Sprintf("declaration(%v,n=%v,u=%v)", KindNames[Procedure], d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
