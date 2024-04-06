@@ -50,7 +50,7 @@ const (
 	Call      // call procedure or function
 	Return    // return from procedure or function
 	Runtime   // call procedure or function of the external runtime library
-	Label     // label operation for placing a logical jump address in the intermediate code
+	Target    // target operation for placing a logical branch address in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into a compiler-generated temporary variable
@@ -58,7 +58,15 @@ const (
 	VariableStore // store variable value from a compiler-generated temporary variable into its location in the logical memory space
 )
 
-// External runtime functions provided for the programming language PL/0.
+// Data types of values and variables in the three-address code concept.
+const (
+	Void = DataType(iota)
+	Label
+	UnsignedInteger64
+	Integer64
+)
+
+// External runtime functions provided for the programming language.
 const (
 	_ = RuntimeFunction(iota)
 	ReadLn
@@ -66,11 +74,17 @@ const (
 )
 
 type (
+	// The data type of an address in the three-address code concept.
+	DataType int
+
+	// String representation of a data type.
+	DataTypeRepresentation string
+
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
-		DataType ast.DataType // data type of the address
-		Offset   uint64       // variable offset in the logical memory space
-		Variable string       // variable name of the address
+		DataType DataType // data type of the address
+		Offset   uint64   // variable offset in the logical memory space
+		Variable string   // variable name of the address
 	}
 
 	// Type for intermediate code operations.
@@ -82,9 +96,9 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module []*Instruction
 
-	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
+	// Instruction represents a single operation in the intermediate code that has a target and a block nesting depth difference.
 	Instruction struct {
-		Label           string    // optional label
+		Label           string    // logical target for any branching operation
 		DepthDifference int32     // block nesting depth difference between variable use and variable declaration
 		Code            Quadruple // three-address code operation
 	}
@@ -108,8 +122,21 @@ type (
 )
 
 var (
+	// Map abstract syntax data types to intermediate code data types (they have separate type systems)
+	DataTypeMap = map[ast.DataType]DataType{
+		ast.Integer64: Integer64,
+	}
+
+	// DataTypeNames maps a data type to its string representation.
+	DataTypeNames = map[DataType]string{
+		Void:              "void",
+		Label:             "label",
+		UnsignedInteger64: "uint64",
+		Integer64:         "int64",
+	}
+
 	// NoAddress represents an unused address in the three-address code concept.
-	NoAddress = &Address{DataType: ast.Void, Offset: 0, Variable: "-"}
+	NoAddress = &Address{DataType: Void, Offset: 0, Variable: "-"}
 
 	// OperationNames is a map of operation names for the intermediate code.
 	OperationNames = map[Operation]string{
@@ -136,7 +163,7 @@ var (
 		Call:             "call",
 		Return:           "return",
 		Runtime:          "runtime",
-		Label:            "label",
+		Target:           "label",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
 		VariableLoad:     "varLoad",
@@ -150,6 +177,6 @@ func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(dataType ast.DataType, offset uint64, variable any) *Address {
+func NewAddress(dataType DataType, offset uint64, variable any) *Address {
 	return &Address{DataType: dataType, Offset: offset, Variable: fmt.Sprintf("%v", variable)}
 }

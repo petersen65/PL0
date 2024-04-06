@@ -8,6 +8,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Failure codes for the intermediate code generator.
 const (
 	_ = cor.Failure(iota + 5000)
+	unknownDataTypeRepresentation
 	invalidContextInIdentifierUse
 	unknownUnaryOperation
 	unknownBinaryOperation
@@ -19,6 +20,7 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
+	unknownDataTypeRepresentation: "unknown data type representation: %v",
 	invalidContextInIdentifierUse: "invalid context in identifier use",
 	unknownUnaryOperation:         "unknown unary operation",
 	unknownBinaryOperation:        "unknown binary operation",

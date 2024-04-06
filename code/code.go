@@ -39,6 +39,22 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	}
 }
 
+// String representation of a data type.
+func (dt DataType) String() string {
+	return DataTypeNames[dt]
+}
+
+// Get a data type from its representation.
+func (dtr DataTypeRepresentation) DataType() DataType {
+	for dataType, representation := range DataTypeNames {
+		if representation == string(dtr) {
+			return dataType
+		}
+	}
+
+	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+}
+
 // String representation of the three-address code address.
 func (a *Address) String() string {
 	return fmt.Sprintf("%v:%v:%v", a.DataType, a.Offset, a.Variable)
@@ -88,7 +104,7 @@ func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
 }
 
 // Create a new compiler-generated temporary variable for a block.
-func (b *blockMetaData) newTempVariable(dataType ast.DataType) *Address {
+func (b *blockMetaData) newTempVariable(dataType DataType) *Address {
 	b.tempVariableCounter++
 	return NewAddress(dataType, 0, fmt.Sprintf("t%v.%v", b.uniqueId, b.tempVariableCounter))
 }
@@ -150,12 +166,12 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// label of the block marking the start of the block' statement
 	bn.Label = i.metaData[bn.UniqueId].newLabel()
-	i.AppendInstruction(i.NewInstruction(Label, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Target, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// all declarations and with that all blocks of nested procedures (calls generator recursively)
 	for _, declaration := range bn.Declarations {
 		declaration.Accept(i)
-	}	
+	}
 
 	// statement of the block
 	bn.Statement.Accept(i)
@@ -185,7 +201,7 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 		UnusedDifference,
 		NoAddress,
 		NoAddress,
-		NewAddress(vd.DataType, vd.Offset, vd.Name))
+		NewAddress(DataTypeMap[vd.DataType], vd.Offset, vd.Name))
 
 	// append instruction to the module
 	i.AppendInstruction(Instruction)
@@ -206,9 +222,9 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		ValueCopy,
 		NoLabel,
 		UnusedDifference,
-		NewAddress(ln.DataType, 0, ln.Value),
+		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
 		NoAddress,
-		metaData.newTempVariable(ln.DataType))
+		metaData.newTempVariable(DataTypeMap[ln.DataType]))
 
 	// push the temporary result onto the stack and append the instruction to the module
 	metaData.pushResult(instruction.Code.Result)
@@ -223,16 +239,16 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	switch iu.Context {
 	case ast.Constant:
 		// get constant declaration of the constant to load
-		cd := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
 		// create a value copy instruction to store the constant value in a temporary variable
 		instruction := i.NewInstruction(
 			ValueCopy,
 			NoLabel,
 			UnusedDifference,
-			NewAddress(cd.DataType, 0, cd.Value),
+			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
 			NoAddress,
-			metaData.newTempVariable(cd.DataType))
+			metaData.newTempVariable(DataTypeMap[constantDeclaration.DataType]))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -253,9 +269,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			VariableLoad,
 			NoLabel,
 			useDepth-declarationDepth,
-			NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name),
+			NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name),
 			NoAddress,
-			metaData.newTempVariable(variableDeclaration.DataType))
+			metaData.newTempVariable(DataTypeMap[variableDeclaration.DataType]))
 
 		// push the temporary result onto the stack and append the instruction to the module
 		metaData.pushResult(instruction.Code.Result)
@@ -441,7 +457,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		assignmentDepth-declarationDepth,
 		right,
 		NoAddress,
-		NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name))
+		NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name))
 
 	// append the instruction to the module
 	i.AppendInstruction(insstruction)
@@ -469,15 +485,15 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		UnusedDifference,
 		NoAddress,
 		NoAddress,
-		metaData.newTempVariable(ast.Integer64))
+		metaData.newTempVariable(Integer64))
 
 	// call the readln runtime function with 1 parameter
 	readln := i.NewInstruction(
 		Runtime,
 		NoLabel,
 		UnusedDifference,
-		NewAddress(ast.UnsignedInteger64, 0, uint64(1)),
-		NewAddress(ast.UnsignedInteger64, 0, uint64(ReadLn)),
+		NewAddress(UnsignedInteger64, 0, uint64(1)),
+		NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
 		NoAddress)
 
 	// store the resultant value into the variable used by the read statement
@@ -487,7 +503,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		readDepth-declarationDepth,
 		param.Code.Result,
 		NoAddress,
-		NewAddress(variableDeclaration.DataType, variableDeclaration.Offset, variableDeclaration.Name))
+		NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name))
 
 	// append the instructions to the module
 	i.AppendInstruction(param)
@@ -518,8 +534,8 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 		Runtime,
 		NoLabel,
 		UnusedDifference,
-		NewAddress(ast.UnsignedInteger64, 0, uint64(1)),
-		NewAddress(ast.UnsignedInteger64, 0, uint64(WriteLn)),
+		NewAddress(UnsignedInteger64, 0, uint64(1)),
+		NewAddress(UnsignedInteger64, 0, uint64(WriteLn)),
 		NoAddress)
 
 	// append the instructions to the module
@@ -544,8 +560,8 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 		Call,
 		NoLabel,
 		callDepth-declarationDepth,
-		NewAddress(ast.UnsignedInteger64, 0, uint64(0)),
-		NewAddress(ast.Label, 0, procedureDeclaration.Block.(*ast.BlockNode).Label),
+		NewAddress(UnsignedInteger64, 0, uint64(0)),
+		NewAddress(Label, 0, procedureDeclaration.Block.(*ast.BlockNode).Label),
 		NoAddress)
 
 	// append the instruction to the module
@@ -568,7 +584,7 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a label instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Label, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a while-do statement.
@@ -579,7 +595,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	behindStatement := metaData.newLabel()
 
 	// append a label instruction before the condition expression instructions
-	i.AppendInstruction(i.NewInstruction(Label, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(i)
@@ -591,7 +607,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a label instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Label, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// append a jump instruction to jump back to the condition expression instructions
 	i.AppendInstruction(i.NewInstruction(Jump, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))

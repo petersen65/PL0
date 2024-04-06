@@ -79,11 +79,8 @@ const (
 
 // Data types of literals and symbols.
 const (
-	Void              = DataType(iota) // reserved for intermediate code
-	Label                              // reserved for intermediate code
-	UnsignedInteger64                  // reserved for intermediate code
-	_
-	Integer64 // 64-bit signed integer
+	_ = DataType(iota)
+	Integer64
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -355,6 +352,11 @@ type (
 )
 
 var (
+	// DataTypeNames maps a data type to its string representation.
+	DataTypeNames = map[DataType]string{
+		Integer64: "int64",
+	}
+
 	// NodeTypeNames maps node types to their string representation.
 	NodeTypeNames = map[NodeType]string{
 		BlockType:                "block",

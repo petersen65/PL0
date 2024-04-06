@@ -12,17 +12,8 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-var (
-	// Each block node in the abstract syntax tree gets a unique identifier.
-	uniqueBlockId atomic.Int32
-
-	// DataTypeNames maps a data type to its string representation.
-	DataTypeNames = map[DataType]string{
-		Void:              "void",
-		UnsignedInteger64: "uint64",
-		Integer64:         "int64",
-	}
-)
+// Each block node in the abstract syntax tree gets a unique identifier.
+var uniqueBlockId atomic.Int32
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
