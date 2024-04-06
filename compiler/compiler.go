@@ -16,9 +16,7 @@ import (
 	ast "github.com/petersen65/PL0/v2/ast"
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
-	emt "github.com/petersen65/PL0/v2/emitter"
 	emu "github.com/petersen65/PL0/v2/emulator"
-	gen "github.com/petersen65/PL0/v2/generator"
 	par "github.com/petersen65/PL0/v2/parser"
 	scn "github.com/petersen65/PL0/v2/scanner"
 )
@@ -82,14 +80,12 @@ type (
 		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
 		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
 		Module         cod.Module       // intermediate code module
-		Sections       emt.TextSection  // IL/0 intermediate language target
 		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
 	}
 )
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	IL0:          ".il0",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
@@ -152,10 +148,10 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
 			// persist IL/0 sections to target and print persistence error message if an error occurred
-			if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
-				fmt.Fprintf(print, textErrorPersisting, target, err)
-				return
-			}
+			// if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
+			// 	fmt.Fprintf(print, textErrorPersisting, target, err)
+			// 	return
+			// }
 		}
 	}
 
@@ -258,19 +254,19 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 }
 
 // Persist IL/0 sections to the given target.
-func PersistSectionsToTarget(sections emt.TextSection, target string) error {
-	if program, err := os.Create(target); err != nil {
-		return err
-	} else {
-		defer program.Close()
+// func PersistSectionsToTarget(sections emt.TextSection, target string) error {
+// 	if program, err := os.Create(target); err != nil {
+// 		return err
+// 	} else {
+// 		defer program.Close()
 
-		if err := sections.Export(cor.Binary, program); err != nil {
-			return err
-		}
-	}
+// 		if err := sections.Export(cor.Binary, program); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // Export all intermediate representations to the target path.
 func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
@@ -355,11 +351,11 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// export all section representations to the target files
-	if translationUnit.Sections != nil {
-		iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
-		iltErr = translationUnit.Sections.Export(cor.Text, iltFile)
-		ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
-	}
+	// if translationUnit.Sections != nil {
+	// 	iljErr = translationUnit.Sections.Export(cor.Json, iljFile)
+	// 	iltErr = translationUnit.Sections.Export(cor.Text, iltFile)
+	// 	ilbErr = translationUnit.Sections.Export(cor.Binary, ilbFile)
+	// }
 
 	// export all intermediate code representations to the target files
 	if translationUnit.Module != nil {
@@ -412,7 +408,7 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, nil, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
 	}
 
 	// intermediate code generation based on the abstract syntax tree
@@ -421,13 +417,13 @@ func CompileContent(content []byte) TranslationUnit {
 	module := intermediate.GetModule()
 
 	// code generation and emission of IL/0 and assembler code based on abstract syntax tree
-	emitter := gen.NewGenerator(abstractSyntax).Generate()
+	// emitter := gen.NewGenerator(abstractSyntax).Generate()
 
 	// return if any fatal or error errors occurred during code generation and emission
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, abstractSyntax, nil, nil, errorHandler}
+		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
 	}
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, tokenStream, abstractSyntax, module, emitter.GetSections(), errorHandler}
+	return TranslationUnit{content, tokenStream, abstractSyntax, module, errorHandler}
 }
