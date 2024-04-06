@@ -50,12 +50,4 @@ end.
                             ^ analyzer warning 4011 [3,18]: variable declared but not used: e
         3: var a, b, c, d, e, f;
                                ^ analyzer warning 4011 [3,21]: variable declared but not used: f
-
-    Error emulating IL0 target 'build\out.il0': emulator error 10002: halt - stack overflow at stack pointer '15361'
-    Error emulating IL0 target 'build\out.il0': emulator error 10004: halt - arithmetic overflow (negation) at address '9'
-    Error emulating IL0 target 'build\out.il0': emulator error 10005: halt - arithmetic overflow (addition) at address '8'
-    Error emulating IL0 target 'build\out.il0': emulator error 10006: halt - arithmetic overflow (subtraction) at address '8'
-    Error emulating IL0 target 'build\out.il0': emulator error 10007: halt - arithmetic overflow (multiplication) at address '8'
-    Error emulating IL0 target 'build\out.il0': emulator error 10005: halt - arithmetic overflow (addition) at address '8'
-    Error emulating IL0 target 'build\out.il0': emulator error 10008: halt - arithmetic overflow (division) at address '8'
 }

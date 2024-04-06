@@ -73,12 +73,22 @@ const (
 	WriteLn
 )
 
+// Label types for the intermediate code.
+const (
+	_ = LabelType(iota)
+	Branch
+	Procedure
+)
+
 type (
 	// The data type of an address in the three-address code concept.
 	DataType int
 
 	// String representation of a data type.
 	DataTypeRepresentation string
+
+	// Type of a label in the intermediate code.
+	LabelType int
 
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
@@ -135,6 +145,12 @@ var (
 		Integer64:         "int64",
 	}
 
+	// Label prefixes for label types in the intermediate code.
+	LabelPrefix = map[LabelType]string{
+		Branch:    "B",
+		Procedure: "P",
+	}
+
 	// NoAddress represents an unused address in the three-address code concept.
 	NoAddress = &Address{DataType: Void, Offset: 0, Variable: "-"}
 
@@ -163,7 +179,7 @@ var (
 		Call:             "call",
 		Return:           "return",
 		Runtime:          "runtime",
-		Target:           "label",
+		Target:           "target",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
 		VariableLoad:     "varLoad",

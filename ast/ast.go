@@ -61,7 +61,7 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 
 // Create a new procedure declaration node in the abstract syntax tree.
 func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
-	declaration := &ProcedureDeclarationNode{
+	return &ProcedureDeclarationNode{
 		TypeName:         NodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
 		Block:            block,
@@ -69,9 +69,6 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 		Usage:            make([]Expression, 0),
 		TokenStreamIndex: index,
 	}
-
-	block.SetParent(declaration)
-	return declaration
 }
 
 // Create a new literal node in the abstract syntax tree.

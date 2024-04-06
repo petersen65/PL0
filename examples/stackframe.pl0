@@ -41,6 +41,4 @@ call P. { MAIN }
                 ^ analyzer warning 4011 [14,6]: variable declared but not used: g
       14: var g, h;
                   ^ analyzer warning 4011 [14,9]: variable declared but not used: h
-  
-    Error emulating IL0 target 'build\out.il0': emulator error 10002: halt - stack overflow at stack pointer '15362'
 }

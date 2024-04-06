@@ -110,9 +110,9 @@ func (b *blockMetaData) newTempVariable(dataType DataType) *Address {
 }
 
 // Create a new compiler-generated label for a block.
-func (b *blockMetaData) newLabel() string {
+func (b *blockMetaData) newLabel(labelType LabelType) string {
 	b.labelCounter++
-	return fmt.Sprintf("L%v.%v", b.uniqueId, b.labelCounter)
+	return fmt.Sprintf("%v%v.%v", LabelPrefix[labelType], b.uniqueId, b.labelCounter)
 }
 
 // Push a result onto the stack of temporary results.
@@ -164,9 +164,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	i.metaData[bn.UniqueId].uniqueId = bn.UniqueId
 	i.metaData[bn.UniqueId].results = list.New()
 
-	// label of the block marking the start of the block' statement
-	bn.Label = i.metaData[bn.UniqueId].newLabel()
-	i.AppendInstruction(i.NewInstruction(Target, bn.Label, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// create a procedure label for the block to mark the beginning of the block
+	procedure := i.metaData[bn.UniqueId].newLabel(Procedure)
+	i.AppendInstruction(i.NewInstruction(Target, procedure, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// all declarations and with that all blocks of nested procedures (calls generator recursively)
 	for _, declaration := range bn.Declarations {
@@ -176,8 +176,8 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	// statement of the block
 	bn.Statement.Accept(i)
 
-	// return from the block
-	i.AppendInstruction(i.NewInstruction(Return, NoLabel, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// return from the block and mark the end of the block
+	i.AppendInstruction(i.NewInstruction(Return, procedure, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a constant declaration.
@@ -572,7 +572,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	// access metadata of the current block
 	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	behindStatement := metaData.newLabel()
+	behindStatement := metaData.newLabel(Branch)
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(i)
@@ -591,8 +591,8 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// access metadata of the current block
 	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	beforeCondition := metaData.newLabel()
-	behindStatement := metaData.newLabel()
+	beforeCondition := metaData.newLabel(Branch)
+	behindStatement := metaData.newLabel(Branch)
 
 	// append a label instruction before the condition expression instructions
 	i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))

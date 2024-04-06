@@ -398,4 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 
 # PL/0 Programming Language
-*.il0
+*.alc

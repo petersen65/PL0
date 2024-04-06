@@ -33,16 +33,16 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling PL0 source '%v' to IL0 target '%v'\n"
-	textErrorCompiling     = "Error compiling PL0 source '%v': %v"
+	textCompiling          = "Compiling PL/0 source '%v' to AL/C target '%v'\n"
+	textErrorCompiling     = "Error compiling PL/0 source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting IL0 target '%v': %v"
+	textErrorPersisting    = "Error persisting AL/C target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textEmulating          = "Emulating IL0 target '%v'\n"
-	textErrorEmulating     = "Error emulating IL0 target '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and IL0 target '%v' completed\n"
-	textDriverTarget       = "Compiler Driver with IL0 target '%v' completed\n"
+	textEmulating          = "Emulating AL/C target '%v'\n"
+	textErrorEmulating     = "Error emulating AL/C target '%v': %v"
+	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and AL/C target '%v' completed\n"
+	textDriverTarget       = "Compiler Driver with AL/C target '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -56,7 +56,7 @@ const (
 // File extensions for all generated files.
 const (
 	_ Extension = iota
-	IL0
+	Alc
 	Token
 	Tree
 	Error
@@ -86,6 +86,7 @@ type (
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
+	Alc:          ".alc",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
@@ -109,7 +110,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// cleaned and validated target path
-	target = GetFullPath(targetDirectory, baseFileName, IL0)
+	target = GetFullPath(targetDirectory, baseFileName, Alc)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -125,7 +126,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			}
 
 			// cleaned and validated target path after cleaning
-			target = GetFullPath(targetDirectory, baseFileName, IL0)
+			target = GetFullPath(targetDirectory, baseFileName, Alc)
 		}
 	}
 
@@ -283,19 +284,19 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// create all Json files for intermediate representations
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
-	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Json))
+	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Json))
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
 	// create all Text files for intermediate representations
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
-	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Text))
+	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
 	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
-	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, IL0, Binary))
+	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Binary))
 
 	// check if any error occurred during file creations
 	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ictErr, ertErr, tsbErr, ilbErr)
