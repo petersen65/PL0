@@ -57,7 +57,13 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	return fmt.Sprintf("%v:%v:%v", a.DataType, a.Offset, a.Variable)
+	representation := fmt.Sprintf("%v:%v:%v", a.DataType, a.Offset, a.Variable)
+
+	if len(representation) > 20 {
+		return representation[:20]
+	}
+
+	return representation
 }
 
 // String representation of an intermediate code operation.
@@ -68,7 +74,7 @@ func (o Operation) String() string {
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
 	return fmt.Sprintf(
-		"%-8v %4v    %-12v    %-16v    %-16v    %-16v",
+		"%-8v %4v    %-12v    %-20v    %-20v    %-20v",
 		i.Label,
 		i.DepthDifference,
 		i.Code.Operation,
@@ -135,6 +141,22 @@ func (b *blockMetaData) popResult() *Address {
 // Generate intermediate code for the abstract syntax tree.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (i *intermediateCode) Generate() {
+	// create metadata for all blocks in the abstract syntax tree and assign labels to its parent procedure declarations
+	ast.Walk(i.abstractSyntax, ast.PreOrder, i, func(node ast.Node, code any) {
+		if bn, ok := node.(*ast.BlockNode); ok {
+			metadata := new(blockMetaData)
+			code.(*intermediateCode).metaData[bn.UniqueId] = metadata
+			metadata.uniqueId = bn.UniqueId
+			metadata.results = list.New()
+
+			// only main block has no parent procedure declaration
+			if bn.ParentNode != nil {
+				bn.ParentNode.(*ast.ProcedureDeclarationNode).Label = metadata.newLabel(Procedure)
+			}
+		}
+	})
+
+	// generate intermediate code for the abstract syntax tree based on existing metadata and labels for procedure declarations
 	i.abstractSyntax.Accept(i)
 }
 
@@ -159,25 +181,38 @@ func (i *intermediateCode) NewInstruction(operatiom Operation, label string, dif
 
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
-	// create metadata for the block
-	i.metaData[bn.UniqueId] = new(blockMetaData)
-	i.metaData[bn.UniqueId].uniqueId = bn.UniqueId
-	i.metaData[bn.UniqueId].results = list.New()
+	var target string // target-label for the block
 
-	// create a procedure label for the block to mark the beginning of the block
-	procedure := i.metaData[bn.UniqueId].newLabel(Procedure)
-	i.AppendInstruction(i.NewInstruction(Target, procedure, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	if bn.ParentNode == nil {
+		// create a new target-label for the main block because it has no parent procedure declaration
+		target = i.metaData[bn.UniqueId].newLabel(Procedure)
+	} else {
+		// take the label of the parent procedure declaration as target-label for the block
+		target = bn.ParentNode.(*ast.ProcedureDeclarationNode).Label
+	}
 
-	// all declarations and with that all blocks of nested procedures (calls generator recursively)
+	// append a target instruction with a target-label to mark the beginning of the block
+	i.AppendInstruction(i.NewInstruction(Target, target, UnusedDifference, NoAddress, NoAddress, NoAddress))
+
+	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
-		declaration.Accept(i)
+		if declaration.Type() != ast.ProcedureDeclarationType {
+			declaration.Accept(i)
+		}
 	}
 
 	// statement of the block
 	bn.Statement.Accept(i)
 
 	// return from the block and mark the end of the block
-	i.AppendInstruction(i.NewInstruction(Return, procedure, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Return, target, UnusedDifference, NoAddress, NoAddress, NoAddress))
+
+	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
+	for _, declaration := range bn.Declarations {
+		if declaration.Type() == ast.ProcedureDeclarationType {
+			declaration.Accept(i)
+		}
+	}
 }
 
 // Generate code for a constant declaration.
@@ -209,6 +244,7 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 
 // Generate code for a procedure declaration.
 func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+	// generate code for the block of the procedure
 	pd.Block.Accept(i)
 }
 
@@ -561,7 +597,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 		NoLabel,
 		callDepth-declarationDepth,
 		NewAddress(UnsignedInteger64, 0, uint64(0)),
-		NewAddress(Label, 0, procedureDeclaration.Block.(*ast.BlockNode).Label),
+		NewAddress(Label, 0, procedureDeclaration.Label),
 		NoAddress)
 
 	// append the instruction to the module
@@ -610,7 +646,8 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// append a jump instruction to jump back to the condition expression instructions
-	i.AppendInstruction(i.NewInstruction(Jump, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
+	i.AppendInstruction(i.NewInstruction(Jump, NoLabel, UnusedDifference, beforeConditionAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a compound begin-end statement.
@@ -622,8 +659,9 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 }
 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
-func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, target string) {
+func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *Instruction
+	address := NewAddress(Label, 0, label)
 
 	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {
@@ -631,9 +669,9 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 	case *ast.UnaryOperationNode:
 		if condition.Operation == ast.Odd {
 			if jumpIfCondition {
-				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 			} else {
-				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 			}
 		} else {
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
@@ -645,22 +683,22 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 			// jump if the condition is true
 			switch condition.Operation {
 			case ast.Equal:
-				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.NotEqual:
-				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.Less:
-				jump = i.NewInstruction(JumpLess, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.LessEqual:
-				jump = i.NewInstruction(JumpLessEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.Greater:
-				jump = i.NewInstruction(JumpGreater, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.GreaterEqual:
-				jump = i.NewInstruction(JumpGreaterEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			default:
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
@@ -669,22 +707,22 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 			// jump if the condition is false
 			switch condition.Operation {
 			case ast.Equal:
-				jump = i.NewInstruction(JumpNotEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.NotEqual:
-				jump = i.NewInstruction(JumpEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.Less:
-				jump = i.NewInstruction(JumpGreaterEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.LessEqual:
-				jump = i.NewInstruction(JumpGreater, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.Greater:
-				jump = i.NewInstruction(JumpLessEqual, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			case ast.GreaterEqual:
-				jump = i.NewInstruction(JumpLess, target, UnusedDifference, NoAddress, NoAddress, NoAddress)
+				jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
 			default:
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))

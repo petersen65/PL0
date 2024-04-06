@@ -245,7 +245,7 @@ func (b *BlockNode) SetParent(parent Node) {
 
 // String of the block node.
 func (b *BlockNode) String() string {
-	return fmt.Sprintf("block l=%v,d=%v", b.Label, b.Depth)
+	return fmt.Sprintf("block d=%v", b.Depth)
 }
 
 // Parent node of the block node.
@@ -392,7 +392,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,u=%v)", KindNames[Procedure], d.Name, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,n=%v,l=%v,u=%v)", KindNames[Procedure], d.Name, d.Label, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.

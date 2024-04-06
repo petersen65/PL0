@@ -227,6 +227,7 @@ func (p *process) importRaw(raw []byte) error {
 
 // JIT compile a module into a process and return an error if the module fails to compile.
 func (p *process) jitCompile(module cod.Module) error {
+	p.text = make(textSection, 0, len(module))
 	return nil
 }
 

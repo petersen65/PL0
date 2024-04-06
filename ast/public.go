@@ -186,7 +186,6 @@ type (
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
 		UniqueId     int32         `json:"unique_id"`    // each instance of a block node gets a unique identifier
-		Label        string        `json:"label"`        // start label marks the beginning of the block's statement
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Offset       uint64        `json:"offset"`       // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
@@ -223,6 +222,7 @@ type (
 		TypeName         string       `json:"type"`               // type name of the procedure declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
+		Label            string       `json:"label"`              // label marks the beginning of the procedure's block
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section

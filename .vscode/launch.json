@@ -16,7 +16,7 @@
                 "--export",
                 // "--run",
                 "--source",
-                "examples/recursions.pl0",
+                "examples/procedures.pl0",
                 "--target",
                 "build"
             ],
