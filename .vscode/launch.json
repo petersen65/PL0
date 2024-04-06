@@ -14,9 +14,9 @@
                 "--purge",
                 "--compile",
                 "--export",
-                "--run",
+                // "--run",
                 "--source",
-                "examples/playground.pl0",
+                "examples/recursions.pl0",
                 "--target",
                 "build"
             ],

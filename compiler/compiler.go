@@ -1,7 +1,7 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package compiler provides functions that compile PL/0 source code into IL/0 intermediate language code.
+// Package compiler provides functions that compile PL/0 source code into AL/C intermediate language code.
 package compiler
 
 import (
@@ -130,7 +130,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// compile PL/0 source to IL/0 target and persist IL/0 sections to target
+	// compile PL/0 source to AL/C target and persist AL/C sections to target
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, source, target)
 		translationUnit, err = CompileSourceToTranslationUnit(source)
@@ -148,7 +148,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
-			// persist IL/0 sections to target and print persistence error message if an error occurred
+			// persist AL/C sections to target and print persistence error message if an error occurred
 			// if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
 			// 	fmt.Fprintf(print, textErrorPersisting, target, err)
 			// 	return
@@ -166,7 +166,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// emulate IL/0 target
+	// emulate AL/C target
 	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		fmt.Fprintf(print, textEmulating, target)
 
@@ -254,7 +254,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist IL/0 sections to the given target.
+// Persist AL/C sections to the given target.
 // func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 // 	if program, err := os.Create(target); err != nil {
 // 		return err
@@ -374,7 +374,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	return anyError
 }
 
-// Run IL/0 target with the emulator.
+// Run AL/C target with the emulator.
 func EmulateTarget(target string) error {
 	if raw, err := os.ReadFile(target); err != nil {
 		return err
@@ -417,7 +417,7 @@ func CompileContent(content []byte) TranslationUnit {
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
-	// code generation and emission of IL/0 and assembler code based on abstract syntax tree
+	// code generation and emission of AL/C and assembler code based on abstract syntax tree
 	// emitter := gen.NewGenerator(abstractSyntax).Generate()
 
 	// return if any fatal or error errors occurred during code generation and emission
