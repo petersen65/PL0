@@ -392,7 +392,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,l=%v,u=%v)", KindNames[Procedure], d.Name, d.Label, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,n=%v,u=%v)", KindNames[Procedure], d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
@@ -471,7 +471,7 @@ func (u *IdentifierUseNode) String() string {
 			return fmt.Sprintf("use(k=v,n=%v,o=%v,u=%v)", symbol.Name, symbol.Declaration.(*VariableDeclarationNode).Offset, u.Use)
 
 		case Procedure:
-			return fmt.Sprintf("use(k=p,n=%v,a=%v,u=%v)", symbol.Name, symbol.Declaration.(*ProcedureDeclarationNode).Address, u.Use)
+			return fmt.Sprintf("use(k=p,n=%v,u=%v)", symbol.Name, u.Use)
 
 		default:
 			panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))

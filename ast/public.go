@@ -222,10 +222,8 @@ type (
 		TypeName         string       `json:"type"`               // type name of the procedure declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
-		Label            string       `json:"label"`              // label marks the beginning of the procedure's block
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
-		Address          uint64       `json:"address"`            // absolute address of the procedure in a text section
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
