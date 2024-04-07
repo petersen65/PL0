@@ -12,14 +12,28 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Each block node in the abstract syntax tree gets a unique identifier.
-var uniqueBlockId atomic.Int32
+// Each scope in the abstract syntax tree gets a unique identifier.
+var uniqueScopeId atomic.Int32
+
+// NewScope creates a new scope with an empty symbol table.
+func newScope(outer *Scope) *Scope {
+	symbolTable := make(SymbolTable)
+	return &Scope{Outer: outer, id: uniqueScopeId.Add(1), names: make([]string, 0), symbolTable: &symbolTable}
+}
+
+// Create a new entry for the symbol table.
+func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
+	return &Symbol{
+		Name:        name,
+		Kind:        kind,
+		Declaration: declaration,
+		Extension:   make(map[ExtensionType]any)}
+}
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     NodeTypeNames[BlockType],
-		UniqueId:     uniqueBlockId.Add(1),
 		Depth:        depth,
 		Scope:        scope,
 		Declarations: declarations,
@@ -233,6 +247,69 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 	panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
 }
 
+// Return the unique identifier of the scope
+func (s *Scope) Id() int32 {
+	return s.id
+}
+
+// Create a new compiler-generated unique identifier name for a scope.
+func (s *Scope) NewIdentifier(prefix rune) string {
+	s.identifierCounter++
+	return fmt.Sprintf("%v%v.%v", prefix, s.id, s.identifierCounter)
+}
+
+// Create a new compiler-generated unique label name for a scope.
+func (s *Scope) NewLabel(prefix rune) string {
+	s.labelCounter++
+	return fmt.Sprintf("%v%v.%v", prefix, s.id, s.labelCounter)
+}
+
+// Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
+func (s *Scope) Insert(symbol *Symbol) {
+	if s.LookupCurrent(symbol.Name) == nil {
+		s.names = append(s.names, symbol.Name)
+	}
+
+	(*s.symbolTable)[symbol.Name] = symbol
+}
+
+// Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
+func (s *Scope) Lookup(name string) *Symbol {
+	if symbol := s.LookupCurrent(name); symbol != nil {
+		return symbol
+	}
+
+	if s.Outer != nil {
+		return s.Outer.Lookup(name)
+	}
+
+	return nil
+}
+
+// Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
+func (s *Scope) LookupCurrent(name string) *Symbol {
+	if symbol, ok := (*s.symbolTable)[name]; ok {
+		return symbol
+	}
+
+	return nil
+}
+
+// Deterministically iterate over all symbols in the symbol table of the current scope.
+func (s *Scope) IterateCurrent() <-chan *Symbol {
+	symbols := make(chan *Symbol)
+
+	go func() {
+		for _, name := range s.names {
+			symbols <- (*s.symbolTable)[name]
+		}
+
+		close(symbols)
+	}()
+
+	return symbols
+}
+
 // Get type of the block node.
 func (b *BlockNode) Type() NodeType {
 	return BlockType
@@ -345,11 +422,6 @@ func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitConstantDeclaration(d)
 }
 
-// Set unique full qualified target name for the constant declaration.
-func (d *ConstantDeclarationNode) SetTarget(target string) {
-	d.Target = target
-}
-
 // Type of the variable declaration node.
 func (d *VariableDeclarationNode) Type() NodeType {
 	return VariableDeclarationType
@@ -385,11 +457,6 @@ func (d *VariableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(d)
 }
 
-// Set unique full qualified target name for the variable declaration.
-func (d *VariableDeclarationNode) SetTarget(target string) {
-	d.Target = target
-}
-
 // Type of the procedure declaration node.
 func (d *ProcedureDeclarationNode) Type() NodeType {
 	return ProcedureDeclarationType
@@ -423,11 +490,6 @@ func (d *ProcedureDeclarationNode) DeclarationString() string {
 // Accept the visitor for the procedure declaration node.
 func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitProcedureDeclaration(d)
-}
-
-// Set unique full qualified target name for the procedure declaration.
-func (d *ProcedureDeclarationNode) SetTarget(target string) {
-	d.Target = target
 }
 
 // Type of the literal node.

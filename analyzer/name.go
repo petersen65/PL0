@@ -52,12 +52,7 @@ func (a *nameAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode)
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
 	} else {
-		cd.Scope.Insert(&ast.Symbol{
-			Name:        cd.Name,
-			Kind:        ast.Constant,
-			Declaration: cd,
-			Extension:   make(map[ast.ExtensionType]any),
-		})
+		cd.Scope.Insert(ast.NewSymbol(cd.Name, ast.Constant, cd))
 	}
 }
 
@@ -66,12 +61,7 @@ func (a *nameAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode)
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
 	} else {
-		vd.Scope.Insert(&ast.Symbol{
-			Name:        vd.Name,
-			Kind:        ast.Variable,
-			Declaration: vd,
-			Extension:   make(map[ast.ExtensionType]any),
-		})
+		vd.Scope.Insert(ast.NewSymbol(vd.Name, ast.Variable, vd))
 	}
 }
 
@@ -80,12 +70,7 @@ func (a *nameAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNod
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
-		pd.Scope.Insert(&ast.Symbol{
-			Name:        pd.Name,
-			Kind:        ast.Procedure,
-			Declaration: pd,
-			Extension:   make(map[ast.ExtensionType]any),
-		})
+		pd.Scope.Insert(ast.NewSymbol(pd.Name, ast.Procedure, pd))
 	}
 
 	pd.Block.Accept(a)

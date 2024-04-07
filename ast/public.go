@@ -144,9 +144,12 @@ type (
 
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
-		Outer       *Scope       // outer scope or nil if this is the outermost scope
-		names       []string     // enable deterministic iteration over the symbol table
-		symbolTable *SymbolTable // symbol table of the scope
+		Outer             *Scope       // outer scope or nil if this is the outermost scope
+		id                int32        // each scope has a unique identifier
+		identifierCounter uint64       // identifier counter for the scope
+		labelCounter      uint64       // label counter for the scope
+		names             []string     // enable deterministic iteration over the symbol table
+		symbolTable       *SymbolTable // symbol table of the scope
 	}
 
 	// A node in the abstract syntax tree.
@@ -171,7 +174,6 @@ type (
 	Declaration interface {
 		Node
 		DeclarationString() string
-		SetTarget(target string)
 	}
 
 	// An expression represented as an abstract syntax tree.
@@ -190,7 +192,6 @@ type (
 	BlockNode struct {
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
-		UniqueId     int32         `json:"unique_id"`    // each instance of a block node gets a unique identifier
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
@@ -202,7 +203,6 @@ type (
 		TypeName         string       `json:"type"`               // type name of the constant declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
 		Name             string       `json:"name"`               // name of the constant
-		Target           string       `json:"target"`             // unique target name of the constant
 		Value            any          `json:"value"`              // value of constant
 		DataType         DataType     `json:"data_type"`          // data type of the constant
 		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
@@ -215,7 +215,6 @@ type (
 		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
-		Target           string       `json:"target"`             // unique target name of the variable
 		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
@@ -228,7 +227,6 @@ type (
 		TypeName         string       `json:"type"`               // type name of the procedure declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
-		Target           string       `json:"target"`             // unique target name of the procedure
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
@@ -392,54 +390,12 @@ var (
 
 // NewScope creates a new scope with an empty symbol table.
 func NewScope(outer *Scope) *Scope {
-	symbolTable := make(SymbolTable)
-	return &Scope{Outer: outer, names: make([]string, 0), symbolTable: &symbolTable}
+	return newScope(outer)
 }
 
-// Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
-func (s *Scope) Insert(symbol *Symbol) {
-	if s.LookupCurrent(symbol.Name) == nil {
-		s.names = append(s.names, symbol.Name)
-	}
-
-	(*s.symbolTable)[symbol.Name] = symbol
-}
-
-// Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
-func (s *Scope) Lookup(name string) *Symbol {
-	if symbol := s.LookupCurrent(name); symbol != nil {
-		return symbol
-	}
-
-	if s.Outer != nil {
-		return s.Outer.Lookup(name)
-	}
-
-	return nil
-}
-
-// Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
-func (s *Scope) LookupCurrent(name string) *Symbol {
-	if symbol, ok := (*s.symbolTable)[name]; ok {
-		return symbol
-	}
-
-	return nil
-}
-
-// Deterministically iterate over all symbols in the symbol table of the current scope.
-func (s *Scope) IterateCurrent() <-chan *Symbol {
-	symbols := make(chan *Symbol)
-
-	go func() {
-		for _, name := range s.names {
-			symbols <- (*s.symbolTable)[name]
-		}
-
-		close(symbols)
-	}()
-
-	return symbols
+// Create a new entry for the symbol table.
+func NewSymbol(name string, kind Entry, declaration Declaration) *Symbol {
+	return newSymbol(name, kind, declaration)
 }
 
 // An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
