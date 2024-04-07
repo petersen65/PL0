@@ -345,6 +345,11 @@ func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitConstantDeclaration(d)
 }
 
+// Set unique full qualified target name for the constant declaration.
+func (d *ConstantDeclarationNode) SetTarget(target string) {
+	d.Target = target
+}
+
 // Type of the variable declaration node.
 func (d *VariableDeclarationNode) Type() NodeType {
 	return VariableDeclarationType
@@ -380,6 +385,11 @@ func (d *VariableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(d)
 }
 
+// Set unique full qualified target name for the variable declaration.
+func (d *VariableDeclarationNode) SetTarget(target string) {
+	d.Target = target
+}
+
 // Type of the procedure declaration node.
 func (d *ProcedureDeclarationNode) Type() NodeType {
 	return ProcedureDeclarationType
@@ -413,6 +423,11 @@ func (d *ProcedureDeclarationNode) DeclarationString() string {
 // Accept the visitor for the procedure declaration node.
 func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitProcedureDeclaration(d)
+}
+
+// Set unique full qualified target name for the procedure declaration.
+func (d *ProcedureDeclarationNode) SetTarget(target string) {
+	d.Target = target
 }
 
 // Type of the literal node.

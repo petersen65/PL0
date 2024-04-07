@@ -171,6 +171,7 @@ type (
 	Declaration interface {
 		Node
 		DeclarationString() string
+		SetTarget(target string)
 	}
 
 	// An expression represented as an abstract syntax tree.
@@ -191,7 +192,6 @@ type (
 		ParentNode   Node          `json:"-"`            // parent node of the block
 		UniqueId     int32         `json:"unique_id"`    // each instance of a block node gets a unique identifier
 		Depth        int32         `json:"depth"`        // block nesting depth
-		Offset       uint64        `json:"offset"`       // offset counter for all variable in the block procedure stack frame
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
 		Statement    Statement     `json:"statement"`    // statement of the block
@@ -202,6 +202,7 @@ type (
 		TypeName         string       `json:"type"`               // type name of the constant declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
 		Name             string       `json:"name"`               // name of the constant
+		Target           string       `json:"target"`             // unique target name of the constant
 		Value            any          `json:"value"`              // value of constant
 		DataType         DataType     `json:"data_type"`          // data type of the constant
 		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
@@ -214,6 +215,7 @@ type (
 		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
+		Target           string       `json:"target"`             // unique target name of the variable
 		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
@@ -226,6 +228,7 @@ type (
 		TypeName         string       `json:"type"`               // type name of the procedure declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
+		Target           string       `json:"target"`             // unique target name of the procedure
 		Block            Block        `json:"block"`              // block of the procedure
 		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
 		Usage            []Expression `json:"-"`                  // all usages of the procedure
