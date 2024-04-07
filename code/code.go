@@ -13,8 +13,11 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Function name of the entrypoint
+// Function name of the entrypoint.
 const entryPoint = "@main"
+
+// Abstract syntax extension type for intermediate code.
+const scopeExtension ast.ExtensionType = 16
 
 // Kind of supported symbol entry.
 const (
@@ -26,9 +29,8 @@ const (
 type (
 	// Intermediate code generation compiler pass. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
-		abstractSyntax ast.Block                // abstract syntax tree to generate code for
-		metaData       map[int32]*blockMetaData // metadata for each block in the abstract syntax tree
-		module         *module                  // module to store the generated intermediate code
+		abstractSyntax ast.Block // abstract syntax tree to generate code for
+		module         *module   // module to store the generated intermediate code
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -39,13 +41,10 @@ type (
 		instructions *list.List         // intermediate code instructions as doubly linked list that allows reordering
 	}
 
-	// Metadata for each block in the abstract syntax tree.
-	blockMetaData struct {
-		uniqueId            int32      // unique identifier of the block that this metadata belongs to
-		offsetCounter       uint64     // offset counter for all variables in the stack frame of the block
-		tempVariableCounter uint64     // temporary variable counter for the block
-		labelCounter        uint64     // label counter for the block
-		results             *list.List // lifo stack holding temporary results from expressions
+	// Metadata for each scope in the abstract syntax tree.
+	scopeMetaData struct {
+		offsetCounter uint64     // offset counter for all variables of a scope
+		results       *list.List // lifo stack holding temporary results from expressions
 	}
 
 	// Kind of symbol entries.
@@ -63,11 +62,7 @@ type (
 
 // Create a new intermediate code generator.
 func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return &intermediateCode{
-		abstractSyntax: abstractSyntax,
-		metaData:       make(map[int32]*blockMetaData),
-		module:         NewModule().(*module),
-	}
+	return &intermediateCode{abstractSyntax: abstractSyntax, module: NewModule().(*module)}
 }
 
 // Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
@@ -80,9 +75,9 @@ func newModule() Module {
 	}
 }
 
-// Create metadata for a block with the block's unique identifier.
-func newBlockMetaData(uniqueId int32) *blockMetaData {
-	return &blockMetaData{uniqueId: uniqueId, results: list.New()}
+// Create metadata for a scope in the abstract syntax tree.
+func newBlockMetaData(uniqueId int32) *scopeMetaData {
+	return &scopeMetaData{results: list.New()}
 }
 
 // String representation of a data type.
@@ -191,18 +186,6 @@ func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
-}
-
-// Create a new compiler-generated temporary variable for a block.
-func (b *blockMetaData) newTempVariable(dataType DataType, offset uint64) *Address {
-	b.tempVariableCounter++
-	return NewAddress(dataType, offset, fmt.Sprintf("t%v.%v", b.uniqueId, b.tempVariableCounter))
-}
-
-// Create a new compiler-generated label for a block.
-func (b *blockMetaData) newLabel(labelType LabelType) string {
-	b.labelCounter++
-	return fmt.Sprintf("%v%v.%v", LabelPrefix[labelType], b.uniqueId, b.labelCounter)
 }
 
 // Push a result onto the stack of temporary results.
