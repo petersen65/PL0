@@ -6,8 +6,10 @@ package code
 
 import (
 	"fmt"
+	"io"
 
 	ast "github.com/petersen65/PL0/v2/ast"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // UnusedDifference states that an intermediate code instruction does not use a block nesting depth difference.
@@ -45,11 +47,11 @@ const (
 	JumpGreater      // conditional jump '>'
 	JumpGreaterEqual // conditional jump '>='
 
-	// call p, n and y = call p, n for procedure and function calls, n is the number of actual parameters in "call p, n"
-	Parameter // pass parameter to procedure
-	Call      // call procedure or function
-	Return    // return from procedure or function
-	Runtime   // call procedure or function of the external runtime library
+	// call f, n and y = call f, n for function calls, n is the number of actual parameters in "call f, n"
+	Parameter // pass parameter to function
+	Call      // call function
+	Return    // return from function
+	Runtime   // call function of the external runtime library
 	Target    // target operation for placing a logical branch address in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
@@ -76,8 +78,8 @@ const (
 // Label types for the intermediate code.
 const (
 	_ = LabelType(iota)
-	Branch
-	Procedure
+	BranchLabel
+	FunctionLabel
 )
 
 type (
@@ -103,9 +105,6 @@ type (
 	// Enumeration of runtime functions that belong to the external runtime library.
 	RuntimeFunction uint64
 
-	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
-	Module []*Instruction
-
 	// Instruction represents a single operation in the intermediate code that has a target and a block nesting depth difference.
 	Instruction struct {
 		Label           string    // logical target for any branching operation
@@ -129,6 +128,13 @@ type (
 		NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction
 		AppendInstruction(instruction *Instruction)
 	}
+
+	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
+	Module interface {
+		AppendInstruction(instruction *Instruction)
+		Print(print io.Writer, args ...any) error
+		Export(format cor.ExportFormat, print io.Writer) error
+	}
 )
 
 var (
@@ -147,8 +153,8 @@ var (
 
 	// Label prefixes for label types in the intermediate code.
 	LabelPrefix = map[LabelType]string{
-		Branch:    "B",
-		Procedure: "P",
+		BranchLabel:   "B",
+		FunctionLabel: "F",
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
@@ -190,6 +196,11 @@ var (
 // Return the public interface of the private intermediate code implementation.
 func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return newIntermediateCode(abstractSyntax)
+}
+
+// Return the public interface of the private intermediate code module implementation.
+func NewModule() Module {
+	return newModule()
 }
 
 // Create a new three-address code argument or result address.

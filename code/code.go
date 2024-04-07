@@ -8,8 +8,16 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/google/uuid"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
+)
+
+// Kind of supported symbol entry.
+const (
+	_ = entry(iota)
+	variable
+	function
 )
 
 type (
@@ -28,6 +36,34 @@ type (
 		metaData       map[int32]*blockMetaData // metadata for each block in the abstract syntax tree
 		module         Module                   // module to store the generated intermediate code
 	}
+
+	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
+	module struct {
+		uniqueId     string         // unique identifier of the module
+		scope        *scope         // symbol table of the module
+		instructions []*Instruction // intermediate code instructions
+
+	}
+
+	// Kind of symbol entries.
+	entry int
+
+	// SymbolTable is a map of symbols that maps a symbol name to its definition.
+	symbolTable map[string]*symbol
+
+	// Symbol represents a symbol in the intermediate code that maps its name to a line number where it was defined.
+	symbol struct {
+		name     string   // symbol name
+		kind     entry    // kind of symbol entry
+		dataType DataType // data type of the symbol
+		line     int32    // line number where the symbol was defined
+	}
+
+	// A scope is a data structure that stores information about defined symbols and enables deterministic iterations over their symbol table.
+	scope struct {
+		names       []string     // enable deterministic iteration over the symbol table
+		symbolTable *symbolTable // symbol table of the scope
+	}
 )
 
 // Create a new intermediate code generator.
@@ -35,8 +71,19 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return &intermediateCode{
 		abstractSyntax: abstractSyntax,
 		metaData:       make(map[int32]*blockMetaData),
-		module:         make(Module, 0),
+		module:         NewModule(),
 	}
+}
+
+// Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
+func newModule() Module {
+	return &module{uniqueId: uuid.NewString(), scope: NewScope(), instructions: make([]*Instruction, 0)}
+}
+
+// NewScope creates a new scope with an empty symbol table.
+func NewScope() *scope {
+	symbolTable := make(symbolTable)
+	return &scope{names: make([]string, 0), symbolTable: &symbolTable}
 }
 
 // String representation of a data type.
@@ -83,10 +130,15 @@ func (i *Instruction) String() string {
 		i.Code.Result)
 }
 
+// Append an instruction to the intermediate code.
+func (m *module) AppendInstruction(instruction *Instruction) {
+	m.instructions = append(m.instructions, instruction)
+}
+
 // Print the module to the specified writer.
-func (m Module) Print(print io.Writer, args ...any) error {
+func (m *module) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the module and print them to the writer
-	for _, instruction := range m {
+	for _, instruction := range m.instructions {
 		_, err := fmt.Fprintf(print, "%v\n", instruction)
 
 		if err != nil {
@@ -98,7 +150,7 @@ func (m Module) Print(print io.Writer, args ...any) error {
 }
 
 // Export the module of the intermediate code generator.
-func (m Module) Export(format cor.ExportFormat, print io.Writer) error {
+func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Text:
 		// print is a convenience function to export the module as a string to the print writer
@@ -151,7 +203,7 @@ func (i *intermediateCode) Generate() {
 
 			// only main block has no parent procedure declaration
 			if bn.ParentNode != nil {
-				bn.ParentNode.(*ast.ProcedureDeclarationNode).Label = metadata.newLabel(Procedure)
+				bn.ParentNode.(*ast.ProcedureDeclarationNode).Label = metadata.newLabel(FunctionLabel)
 			}
 		}
 	})
@@ -167,7 +219,7 @@ func (i *intermediateCode) GetModule() Module {
 
 // Append an instruction to the intermediate code module.
 func (i *intermediateCode) AppendInstruction(instruction *Instruction) {
-	i.module = append(i.module, instruction)
+	i.module.AppendInstruction(instruction)
 }
 
 // Create a new instruction for the intermediate code.
@@ -185,7 +237,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	if bn.ParentNode == nil {
 		// create a new target-label for the main block because it has no parent procedure declaration
-		target = i.metaData[bn.UniqueId].newLabel(Procedure)
+		target = i.metaData[bn.UniqueId].newLabel(FunctionLabel)
 	} else {
 		// take the label of the parent procedure declaration as target-label for the block
 		target = bn.ParentNode.(*ast.ProcedureDeclarationNode).Label
@@ -608,7 +660,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	// access metadata of the current block
 	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	behindStatement := metaData.newLabel(Branch)
+	behindStatement := metaData.newLabel(BranchLabel)
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(i)
@@ -627,8 +679,8 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// access metadata of the current block
 	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	beforeCondition := metaData.newLabel(Branch)
-	behindStatement := metaData.newLabel(Branch)
+	beforeCondition := metaData.newLabel(BranchLabel)
+	behindStatement := metaData.newLabel(BranchLabel)
 
 	// append a label instruction before the condition expression instructions
 	i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))

@@ -388,7 +388,7 @@ var (
 // NewScope creates a new scope with an empty symbol table.
 func NewScope(outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
-	return &Scope{Outer: outer, symbolTable: &symbolTable}
+	return &Scope{Outer: outer, names: make([]string, 0), symbolTable: &symbolTable}
 }
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
