@@ -18,7 +18,14 @@ var uniqueScopeId atomic.Int32
 // NewScope creates a new scope with an empty symbol table.
 func newScope(outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
-	return &Scope{Outer: outer, id: uniqueScopeId.Add(1), names: make([]string, 0), symbolTable: &symbolTable}
+
+	return &Scope{
+		Outer:       outer,
+		Extension:   make(map[ExtensionType]any),
+		id:          uniqueScopeId.Add(1),
+		names:       make([]string, 0),
+		symbolTable: &symbolTable,
+	}
 }
 
 // Create a new entry for the symbol table.
@@ -27,7 +34,8 @@ func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
 		Name:        name,
 		Kind:        kind,
 		Declaration: declaration,
-		Extension:   make(map[ExtensionType]any)}
+		Extension:   make(map[ExtensionType]any),
+	}
 }
 
 // Create a new block node in the abstract syntax tree.

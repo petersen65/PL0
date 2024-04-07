@@ -128,7 +128,7 @@ type (
 	// Usage mode of an identifier.
 	Usage uint64
 
-	// Support for symbol table extensions of later compiler passes
+	// Support for symbol table extensions of compiler passes
 	ExtensionType int32
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
@@ -136,7 +136,7 @@ type (
 		Name        string                // name of the symbol
 		Kind        Entry                 // kind of the symbol
 		Declaration Declaration           // declaration node of the symbol
-		Extension   map[ExtensionType]any // extensions for later compiler passes
+		Extension   map[ExtensionType]any // extensions for compiler passes
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
@@ -144,12 +144,13 @@ type (
 
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
-		Outer             *Scope       // outer scope or nil if this is the outermost scope
-		id                int32        // each scope has a unique identifier
-		identifierCounter uint64       // identifier counter for the scope
-		labelCounter      uint64       // label counter for the scope
-		names             []string     // enable deterministic iteration over the symbol table
-		symbolTable       *SymbolTable // symbol table of the scope
+		Outer             *Scope                // outer scope or nil if this is the outermost scope
+		Extension         map[ExtensionType]any // extensions for compiler passes
+		id                int32                 // each scope has a unique identifier
+		identifierCounter uint64                // identifier counter for the scope
+		labelCounter      uint64                // label counter for the scope
+		names             []string              // enable deterministic iteration over the symbol table
+		symbolTable       *SymbolTable          // symbol table of the scope
 	}
 
 	// A node in the abstract syntax tree.
