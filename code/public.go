@@ -5,6 +5,7 @@
 package code
 
 import (
+	"container/list"
 	"fmt"
 	"io"
 
@@ -126,12 +127,12 @@ type (
 		Generate()
 		GetModule() Module
 		NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction
-		AppendInstruction(instruction *Instruction)
+		AppendInstruction(instruction *Instruction) *list.Element
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
-		AppendInstruction(instruction *Instruction)
+		AppendInstruction(instruction *Instruction) *list.Element
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
