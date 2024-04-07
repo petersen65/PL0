@@ -23,13 +23,6 @@ const (
 	function
 )
 
-// Criteria for searching a symbol in the symbol table.
-const (
-	_ = search(iota)
-	byName
-	byTarget
-)
-
 type (
 	// Intermediate code generation compiler pass. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
@@ -40,15 +33,16 @@ type (
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	module struct {
-		uniqueId     string     // unique identifier of the module
-		scope        *scope     // symbol table of the module
-		instructions *list.List // intermediate code instructions as doubly linked list that allows reordering
+		uniqueId     string             // unique identifier of the module
+		targets      []string           // enable deterministic iteration over the symbol table in the order of past inserts
+		symbolTable  map[string]*symbol // symbol table for intermediate code targets
+		instructions *list.List         // intermediate code instructions as doubly linked list that allows reordering
 	}
 
 	// Metadata for each block in the abstract syntax tree.
 	blockMetaData struct {
 		uniqueId            int32      // unique identifier of the block that this metadata belongs to
-		stackOffset         uint64     // offset counter for all variables in the stack frame of the block
+		offsetCounter       uint64     // offset counter for all variables in the stack frame of the block
 		tempVariableCounter uint64     // temporary variable counter for the block
 		labelCounter        uint64     // label counter for the block
 		results             *list.List // lifo stack holding temporary results from expressions
@@ -57,27 +51,13 @@ type (
 	// Kind of symbol entries.
 	entry int
 
-	// Module search type.
-	search int
-
-	// SymbolTable is a map of symbols that maps a symbol name to its definition.
-	symbolTable map[string]*symbol
-
-	// Symbol represents a symbol in the intermediate code that maps its name to a line number where it was defined.
+	// Symbol represents a symbol in the intermediate code that maps its target to where it was defined.
 	symbol struct {
-		name       string        // symbol name in the abstract syntax
 		target     string        // target label in the intermediate code
 		kind       entry         // kind of symbol entry
 		dataType   DataType      // data type of the symbol
 		offset     uint64        // variable offset in the logical memory space
 		definition *list.Element // instruction where the symbol is defined
-	}
-
-	// A scope is a data structure that stores information about defined symbols and enables deterministic iterations over their symbol table.
-	scope struct {
-		names            []string     // enable deterministic iteration over the symbol table by order of inserts
-		abstractSyntax   *symbolTable // symbol table for abstract syntax names
-		intermediateCode *symbolTable // symbol table for intermediate code targets
 	}
 )
 
@@ -92,19 +72,17 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 
 // Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
 func newModule() Module {
-	return &module{uniqueId: uuid.NewString(), scope: newScope(), instructions: list.New()}
+	return &module{
+		uniqueId:     uuid.NewString(),
+		targets:      make([]string, 0),
+		symbolTable:  make(map[string]*symbol),
+		instructions: list.New(),
+	}
 }
 
 // Create metadata for a block with the block's unique identifier.
 func newBlockMetaData(uniqueId int32) *blockMetaData {
 	return &blockMetaData{uniqueId: uniqueId, results: list.New()}
-}
-
-// NewScope creates a new scope with an empty symbol table.
-func newScope() *scope {
-	abstractSyntax := make(symbolTable)
-	intermediateCode := make(symbolTable)
-	return &scope{names: make([]string, 0), abstractSyntax: &abstractSyntax, intermediateCode: &intermediateCode}
 }
 
 // String representation of a data type.
@@ -153,24 +131,17 @@ func (i *Instruction) String() string {
 
 // Insert a symbol into the symbol table of the module. If the symbol already exists, it will be overwritten.
 func (m *module) insert(symbol *symbol) {
-	if m.lookup(symbol.name, byName) == nil {
-		m.scope.names = append(m.scope.names, symbol.name)
+	if m.lookup(symbol.target) == nil {
+		m.targets = append(m.targets, symbol.target)
 	}
 
-	(*m.scope.abstractSyntax)[symbol.name] = symbol
-	(*m.scope.intermediateCode)[symbol.target] = symbol
+	m.symbolTable[symbol.target] = symbol
 }
 
 // Lookup a symbol in the symbol table of the module. If the symbol is not found, nil is returned.
-func (m *module) lookup(item string, criteria search) *symbol {
-	if criteria == byName {
-		if symbol, ok := (*m.scope.abstractSyntax)[item]; ok {
-			return symbol
-		}
-	} else if criteria == byTarget {
-		if symbol, ok := (*m.scope.intermediateCode)[item]; ok {
-			return symbol
-		}
+func (m *module) lookup(target string) *symbol {
+	if symbol, ok := m.symbolTable[target]; ok {
+		return symbol
 	}
 
 	return nil
@@ -181,8 +152,8 @@ func (m *module) iterate() <-chan *symbol {
 	symbols := make(chan *symbol)
 
 	go func() {
-		for _, name := range m.scope.names {
-			symbols <- (*m.scope.abstractSyntax)[name]
+		for _, name := range m.targets {
+			symbols <- m.symbolTable[name]
 		}
 
 		close(symbols)
@@ -353,8 +324,8 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, vd).UniqueId]
 
 	// set the location of the variable in its logical memory space
-	vd.Offset = metaData.stackOffset
-	metaData.stackOffset++
+	vd.Offset = metaData.offsetCounter
+	metaData.offsetCounter++
 
 	// allocate memory for the variable in its logical memory space
 	instruction := i.NewInstruction(

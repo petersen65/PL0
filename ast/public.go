@@ -128,11 +128,15 @@ type (
 	// Usage mode of an identifier.
 	Usage uint64
 
+	// Support for symbol table extensions of later compiler passes
+	ExtensionType int32
+
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
-		Name        string      // name of the symbol
-		Kind        Entry       // kind of the symbol
-		Declaration Declaration // declaration node of the symbol
+		Name        string                // name of the symbol
+		Kind        Entry                 // kind of the symbol
+		Declaration Declaration           // declaration node of the symbol
+		Extension   map[ExtensionType]any // extensions for later compiler passes
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.

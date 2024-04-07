@@ -56,6 +56,7 @@ func (a *nameAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode)
 			Name:        cd.Name,
 			Kind:        ast.Constant,
 			Declaration: cd,
+			Extension:   make(map[ast.ExtensionType]any),
 		})
 	}
 }
@@ -69,6 +70,7 @@ func (a *nameAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode)
 			Name:        vd.Name,
 			Kind:        ast.Variable,
 			Declaration: vd,
+			Extension:   make(map[ast.ExtensionType]any),
 		})
 	}
 }
@@ -82,6 +84,7 @@ func (a *nameAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNod
 			Name:        pd.Name,
 			Kind:        ast.Procedure,
 			Declaration: pd,
+			Extension:   make(map[ast.ExtensionType]any),
 		})
 	}
 
