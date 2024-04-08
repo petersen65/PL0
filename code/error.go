@@ -10,6 +10,8 @@ const (
 	_ = cor.Failure(iota + 5000)
 	unknownDataTypeRepresentation
 	invalidContextInIdentifierUse
+	symbolTableUpdateFailed
+	symbolMetaDataUpdateFailed
 	unknownUnaryOperation
 	unknownBinaryOperation
 	unknownConditionalOperation
@@ -22,6 +24,8 @@ const (
 var failureMap = map[cor.Failure]string{
 	unknownDataTypeRepresentation:    "unknown data type representation: %v",
 	invalidContextInIdentifierUse:    "invalid context in identifier use",
+	symbolTableUpdateFailed:          "error while updating symbol table from target: %v",
+	symbolMetaDataUpdateFailed:       "error while updating symbol metadata from target: %v",
 	unknownUnaryOperation:            "unknown unary operation",
 	unknownBinaryOperation:           "unknown binary operation",
 	unknownConditionalOperation:      "unknown conditional operation",

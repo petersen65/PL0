@@ -7,6 +7,7 @@ import (
 	"container/list"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/google/uuid"
 	ast "github.com/petersen65/PL0/v2/ast"
@@ -147,6 +148,19 @@ func (i *Instruction) String() string {
 		i.Code.Result)
 }
 
+// Update symbol metadata in the abstract syntax tree.
+func (s *symbolMetaData) update(newTargetVersion string) {
+	targetParts := strings.Split(s.target, ".")
+	newTargetVersionParts := strings.Split(newTargetVersion, ".")
+
+	if s.target == newTargetVersion ||
+		len(targetParts) != 2 || len(newTargetVersionParts) != 2 || targetParts[0] != newTargetVersionParts[0] {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolMetaDataUpdateFailed, s.target, nil))
+	}
+
+	s.target = newTargetVersion
+}
+
 // Insert a symbol into the symbol table of the module. If the symbol already exists, it will be overwritten.
 func (m *module) insert(symbol *symbol) {
 	if m.lookup(symbol.target) == nil {
@@ -163,6 +177,34 @@ func (m *module) lookup(target string) *symbol {
 	}
 
 	return nil
+}
+
+// Update symbol table from target with new version from that target
+func (m *module) update(target, newTargetVersion string) {
+	var found bool
+
+	for i := 0; i < len(m.targets); i++ {
+		if m.targets[i] == target {
+			m.targets[i] = newTargetVersion
+			found = true
+			break
+		}
+	}
+
+	if target == newTargetVersion || !found {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, target, nil))
+	}
+
+	targetParts := strings.Split(target, ".")
+	newTargetVersionParts := strings.Split(newTargetVersion, ".")
+
+	if len(targetParts) != 2 || len(newTargetVersionParts) != 2 || targetParts[0] != newTargetVersionParts[0] {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, target, nil))
+	}
+
+	m.symbolTable[newTargetVersion] = m.symbolTable[target]
+	m.symbolTable[newTargetVersion].target = newTargetVersion
+	delete(m.symbolTable, target)
 }
 
 // Deterministically iterate over all symbols in the symbol table of the module.
@@ -607,8 +649,13 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	// determine the intermediate code target name of the abstract syntax variable declaration
 	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).target
 
+	// variables are immutable and hence a new version is created every time a variable is assigned a new value
+	newTargetVersion := variableDeclaration.Scope.NewIdentifierVersion(target)
+	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newTargetVersion)
+	i.module.update(target, newTargetVersion)
+
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(target)
+	codeSymbol := i.module.lookup(newTargetVersion)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := i.NewInstruction(
@@ -616,7 +663,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		NoLabel,
 		assignmentDepth-declarationDepth,
 		right,
-		NoAddress,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, target),
 		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
 
 	// // append the instruction to the module
