@@ -242,6 +242,7 @@ type (
 		ParentNode Node     `json:"-"`         // parent node of the literal
 		Value      any      `json:"value"`     // literal value
 		DataType   DataType `json:"data_type"` // data type of the literal
+		Scope      *Scope   `json:"-"`         // scope of the literal usage
 	}
 
 	// IdentifierUseNode represents the usage of an identifier in the AST.
@@ -413,7 +414,7 @@ func NewEmptyDeclaration() Declaration {
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), Integer64)
+	return newLiteral(int64(0), Integer64, NewEmptyScope())
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
@@ -442,8 +443,8 @@ func NewProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType DataType) Expression {
-	return newLiteral(value, dataType)
+func NewLiteral(value any, dataType DataType, scope *Scope) Expression {
+	return newLiteral(value, dataType, scope)
 }
 
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.

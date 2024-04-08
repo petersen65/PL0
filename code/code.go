@@ -13,6 +13,9 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Display name of entry point only used for informational purposes
+const entryPointDisplayName = "@main"
+
 // Abstract syntax extension for the scope.
 const scopeExtension ast.ExtensionType = 16
 
@@ -30,8 +33,9 @@ const (
 type (
 	// Intermediate code generation compiler pass. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
-		abstractSyntax ast.Block // abstract syntax tree to generate code for
-		module         *module   // module to store the generated intermediate code
+		abstractSyntax ast.Block  // abstract syntax tree to generate code for
+		module         *module    // module to store the generated intermediate code
+		results        *list.List // lifo stack holding temporary results from expressions
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -44,13 +48,12 @@ type (
 
 	// Metadata for each scope in the abstract syntax tree.
 	scopeMetaData struct {
-		offsetCounter uint64     // offset counter for all variables of a scope
-		results       *list.List // lifo stack holding temporary results from expressions
+		offsetCounter uint64 // offset counter for all variables of a scope
 	}
 
 	// Metadata for each symbol in the abstract syntax tree.
 	symbolMetaData struct {
-		target string // target label in the intermediate code
+		target string // target name in the intermediate code
 	}
 
 	// Kind of symbol entries.
@@ -58,7 +61,7 @@ type (
 
 	// Symbol represents a symbol in the intermediate code that maps its target to where it was defined.
 	symbol struct {
-		target     string        // target label in the intermediate code
+		target     string        // target name in the intermediate code
 		kind       entry         // kind of symbol entry
 		dataType   DataType      // data type of the symbol
 		offset     uint64        // variable offset in the logical memory space
@@ -68,7 +71,11 @@ type (
 
 // Create a new intermediate code generator.
 func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return &intermediateCode{abstractSyntax: abstractSyntax, module: NewModule().(*module)}
+	return &intermediateCode{
+		abstractSyntax: abstractSyntax,
+		module:         NewModule().(*module),
+		results:        list.New(),
+	}
 }
 
 // Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
@@ -88,7 +95,7 @@ func newSymbol(target string, kind entry, dataType DataType) *symbol {
 
 // Create metadata for a scope in the abstract syntax tree.
 func newScopeMetaData() *scopeMetaData {
-	return &scopeMetaData{results: list.New()}
+	return &scopeMetaData{}
 }
 
 // Create metadata for a symbol in the abstract syntax tree.
@@ -204,23 +211,6 @@ func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	}
 }
 
-// Push a result onto the stack of temporary results.
-func (s *scopeMetaData) pushResult(result *Address) {
-	s.results.PushBack(result)
-}
-
-// Pop a result from the stack of temporary results.
-func (s *scopeMetaData) popResult() *Address {
-	result := s.results.Back()
-
-	if result == nil {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedTemporaryResult, nil, nil))
-	}
-
-	s.results.Remove(result)
-	return result.Value.(*Address)
-}
-
 // Generate intermediate code for the abstract syntax tree.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (i *intermediateCode) Generate() {
@@ -284,14 +274,28 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		blockBegin = bn.Scope.NewIdentifier(TargetPrefix[FunctionPrefix])
 
 		// append a target instruction with a target-label to mark the beginning of the block
-		instruction := i.NewInstruction(Target, blockBegin, UnusedDifference, NoAddress, NoAddress, NoAddress)
+		instruction := i.NewInstruction(
+			Target,
+			blockBegin,
+			UnusedDifference,
+			NewAddress(Void, 0, entryPointDisplayName),
+			NoAddress,
+			NewAddress(Void, 0, blockBegin))
+
 		i.AppendInstruction(instruction)
 	} else {
-		symbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
-		blockBegin = symbol.Extension[symbolExtension].(*symbolMetaData).target
+		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
+		blockBegin = astSymbol.Extension[symbolExtension].(*symbolMetaData).target
 
 		// append a target instruction with a target-label to mark the beginning of the block
-		instruction := i.NewInstruction(Target, blockBegin, UnusedDifference, NoAddress, NoAddress, NoAddress)
+		instruction := i.NewInstruction(
+			Target,
+			blockBegin,
+			UnusedDifference,
+			NewAddress(Void, 0, astSymbol.Name),
+			NoAddress,
+			NewAddress(Void, 0, blockBegin))
+
 		element := i.AppendInstruction(instruction)
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
@@ -327,35 +331,30 @@ func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDec
 
 // Generate code for a variable declaration.
 func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, vd).UniqueId]
+	// // access intermediate code metadata from abstract syntax scope
+	scopeMetaData := vd.Scope.Extension[scopeExtension].(*scopeMetaData)
+
+	// determine the intermediate code target name of the abstract syntax variable declaration
+	target := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).target
+
+	// get the intermediate code symbol table entry of the abstract syntax variable declaration
+	codeSymbol := i.module.lookup(target)
 
 	// // set the location of the variable in its logical memory space
-	// vd.Offset = metaData.offsetCounter
-	// metaData.offsetCounter++
+	codeSymbol.offset = scopeMetaData.offsetCounter
+	scopeMetaData.offsetCounter++
 
 	// // allocate memory for the variable in its logical memory space
-	// instruction := i.NewInstruction(
-	// 	Allocate,
-	// 	NoLabel,
-	// 	UnusedDifference,
-	// 	NewAddress(DataTypeMap[vd.DataType], vd.Offset, vd.Name),
-	// 	NoAddress,
-	// 	metaData.newTempVariable(DataTypeMap[vd.DataType], vd.Offset))
+	instruction := i.NewInstruction(
+		Allocate,
+		NoLabel,
+		UnusedDifference,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, vd.Name),
+		NoAddress,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
 
-	// // append instruction to the module
-	// element := i.AppendInstruction(instruction)
-
-	// // insert the variable into the symbol table of the module
-	// i.module.insert(
-	// 	&symbol{
-	// 		name:       vd.Name,
-	// 		target:     instruction.Code.Result.Variable,
-	// 		kind:       variable,
-	// 		dataType:   instruction.Code.Result.DataType,
-	// 		offset:     instruction.Code.Result.Offset,
-	// 		definition: element,
-	// 	})
+	// append allocate instruction to the module and set it as definition for intermediate code variable
+	codeSymbol.definition = i.AppendInstruction(instruction)
 }
 
 // Generate code for a procedure declaration.
@@ -366,21 +365,18 @@ func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 
 // Generate code for a literal.
 func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, ln).UniqueId]
-
 	// // create a value copy instruction to store the literal in a temporary variable
-	// instruction := i.NewInstruction(
-	// 	ValueCopy,
-	// 	NoLabel,
-	// 	UnusedDifference,
-	// 	NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
-	// 	NoAddress,
-	// 	metaData.newTempVariable(DataTypeMap[ln.DataType], 0))
+	instruction := i.NewInstruction(
+		ValueCopy,
+		NoLabel,
+		UnusedDifference,
+		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
+		NoAddress,
+		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(TargetPrefix[LiteralPrefix])))
 
-	// // push the temporary result onto the stack and append the instruction to the module
-	// metaData.pushResult(instruction.Code.Result)
-	// i.AppendInstruction(instruction)
+	// push the temporary result onto the stack and append the instruction to the module
+	i.pushResult(instruction.Code.Result)
+	i.AppendInstruction(instruction)
 }
 
 // Generate code for an identifier use.
@@ -860,4 +856,21 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 
 	// // append the conditional jump instruction to the module
 	// i.AppendInstruction(jump)
+}
+
+// Push a result onto the stack of temporary results.
+func (i *intermediateCode) pushResult(result *Address) {
+	i.results.PushBack(result)
+}
+
+// Pop a result from the stack of temporary results.
+func (i *intermediateCode) popResult() *Address {
+	result := i.results.Back()
+
+	if result == nil {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedTemporaryResult, nil, nil))
+	}
+
+	i.results.Remove(result)
+	return result.Value.(*Address)
 }

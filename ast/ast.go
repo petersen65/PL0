@@ -90,11 +90,12 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType) Expression {
+func newLiteral(value any, dataType DataType, scope *Scope) Expression {
 	return &LiteralNode{
 		TypeName: NodeTypeNames[LiteralType],
 		Value:    value,
 		DataType: dataType,
+		Scope:    scope,
 	}
 }
 

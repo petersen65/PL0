@@ -704,7 +704,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == cor.Number {
-			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64)
+			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64, scope)
 			sign = cor.Unknown
 			p.nextToken()
 		} else if p.lastToken() == cor.LeftParenthesis {
