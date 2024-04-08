@@ -5,8 +5,12 @@ package ast
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
@@ -261,6 +265,31 @@ func (s *Scope) Id() int32 {
 func (s *Scope) NewIdentifier(prefix rune) string {
 	s.identifierCounter++
 	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter)
+}
+
+// Create a new compiler-generated version of an unique identifier name for a scope.
+func (s *Scope) NewIdentifierVersion(identifier string) string {
+	parts := strings.Split(identifier, ".")
+
+	if len(parts) != 2 {
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, illegalIdentifierName, identifier, nil))
+	}
+
+	prefix, length := utf8.DecodeRuneInString(parts[0])
+	id, err := strconv.Atoi(parts[0][length:])
+	counter, err2 := strconv.Atoi(parts[1])
+
+	if prefix == utf8.RuneError || err != nil || err2 != nil || id != int(s.id) || counter <= 0 {
+		panic(cor.NewGeneralError(
+			cor.AbstractSyntaxTree,
+			failureMap,
+			cor.Fatal,
+			illegalIdentifierName,
+			identifier,
+			errors.Join(err, err2)))
+	}
+
+	return s.NewIdentifier(prefix)
 }
 
 // Create a new compiler-generated unique label name for a scope.
