@@ -414,7 +414,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		UnusedDifference,
 		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
 		NoAddress,
-		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(TargetPrefix[LiteralPrefix])))
+		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
 
 	// push the intermediate code result onto the stack and append the instruction to the module
 	i.pushResult(instruction.Code.Result)
@@ -441,7 +441,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			UnusedDifference,
 			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
 			NoAddress,
-			NewAddress(codeSymbol.dataType, 0, codeSymbol.target))
+			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
 
 		// push the intermediate code result onto the stack and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
@@ -468,9 +468,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			VariableLoad,
 			NoLabel,
 			useDepth-declarationDepth,
+			NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
 			NoAddress,
-			NoAddress,
-			NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
+			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
 
 		// push the intermediate code result onto the stack and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
@@ -486,148 +486,142 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Generate code for a unary operation.
 func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, uo).UniqueId]
+	// load the intermediate code result of the expression from the stack
+	uo.Operand.Accept(i)
+	result := i.popResult()
 
-	// // load the temporary result of the expression from the stack
-	// uo.Operand.Accept(i)
-	// result := metaData.popResult()
+	// perform the unary operation on the intermediate code result
+	switch uo.Operation {
+	case ast.Odd:
+		// create an odd instruction to check if the intermediate code result is odd
+		instruction := i.NewInstruction(
+			Odd,
+			NoLabel,
+			UnusedDifference,
+			result,
+			NoAddress,
+			NoAddress)
 
-	// // perform the unary operation on the temporary result
-	// switch uo.Operation {
-	// case ast.Odd:
-	// 	// create an odd instruction to check if the temporary result is odd
-	// 	instruction := i.NewInstruction(
-	// 		Odd,
-	// 		NoLabel,
-	// 		UnusedDifference,
-	// 		result,
-	// 		NoAddress,
-	// 		NoAddress)
+		// append the instruction to the module (boolean results are not stored on the stack)
+		i.AppendInstruction(instruction)
 
-	// 	// append the instruction to the module
-	// 	i.AppendInstruction(instruction)
+	case ast.Negate:
+		// create a negate instruction to negate the intermediate code result
+		instruction := i.NewInstruction(
+			Negate,
+			NoLabel,
+			UnusedDifference,
+			result,
+			NoAddress,
+			result) // the intermediate code result is negated in-place (read, negate, write back)
 
-	// case ast.Negate:
-	// 	// create a negate instruction to negate the temporary result
-	// 	instruction := i.NewInstruction(
-	// 		Negate,
-	// 		NoLabel,
-	// 		UnusedDifference,
-	// 		result,
-	// 		NoAddress,
-	// 		metaData.newTempVariable(result.DataType, result.Offset))
+		// push the intermediate code result onto the stack and append the instruction to the module
+		i.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
 
-	// 	// push the temporary result onto the stack and append the instruction to the module
-	// 	metaData.pushResult(instruction.Code.Result)
-	// 	i.AppendInstruction(instruction)
-
-	// default:
-	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
-	// }
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+	}
 }
 
 // Generate code for a binary arithmetic operation.
 func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, bo).UniqueId]
+	// determine block and its scope where the binary operation is located
+	scope := ast.SearchBlock(ast.CurrentBlock, bo).Scope
 
-	// // load the temporary results of the left and right expressions from the stack
-	// bo.Left.Accept(i)
-	// bo.Right.Accept(i)
-	// right := metaData.popResult()
-	// left := metaData.popResult()
+	// load the intermediate code results of the left and right expressions from the stack
+	bo.Left.Accept(i)
+	bo.Right.Accept(i)
+	right := i.popResult()
+	left := i.popResult()
 
-	// // perform the binary arithmetic operation on the left- and right-hand-side temporary results
-	// switch bo.Operation {
-	// case ast.Plus, ast.Minus, ast.Times, ast.Divide:
-	// 	var operation Operation
+	// perform the binary arithmetic operation on the left- and right-hand-side intermediate code results
+	switch bo.Operation {
+	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
+		var operation Operation
 
-	// 	// map the AST binary operation to the corresponding three-address code binary arithmetic operation
-	// 	switch bo.Operation {
-	// 	case ast.Plus:
-	// 		operation = Plus
+		// map the AST binary operation to the corresponding three-address code binary arithmetic operation
+		switch bo.Operation {
+		case ast.Plus:
+			operation = Plus
 
-	// 	case ast.Minus:
-	// 		operation = Minus
+		case ast.Minus:
+			operation = Minus
 
-	// 	case ast.Times:
-	// 		operation = Times
+		case ast.Times:
+			operation = Times
 
-	// 	case ast.Divide:
-	// 		operation = Divide
-	// 	}
+		case ast.Divide:
+			operation = Divide
+		}
 
-	// 	// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side temporary results
-	// 	instruction := i.NewInstruction(
-	// 		operation,
-	// 		NoLabel,
-	// 		UnusedDifference,
-	// 		left,
-	// 		right,
-	// 		metaData.newTempVariable(left.DataType, 0))
+		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side results
+		instruction := i.NewInstruction(
+			operation,
+			NoLabel,
+			UnusedDifference,
+			left,
+			right,
+			NewAddress(left.DataType, 0, scope.NewIdentifier(TargetPrefix[ResultPrefix])))
 
-	// 	// push the temporary result onto the stack and append the instruction to the module
-	// 	metaData.pushResult(instruction.Code.Result)
-	// 	i.AppendInstruction(instruction)
+		// push the intermediate code result result onto the stack and append the instruction to the module
+		i.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
 
-	// default:
-	// 	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
-	// }
+	default:
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+	}
 }
 
 // Generate code for a binary relational operation.
 func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
+	// load the intermediate code results of the left and right expressions from the stack
+	co.Left.Accept(i)
+	co.Right.Accept(i)
+	right := i.popResult()
+	left := i.popResult()
 
-	// // load the temporary results of the left and right expressions from the stack
-	// co.Left.Accept(i)
-	// co.Right.Accept(i)
-	// right := metaData.popResult()
-	// left := metaData.popResult()
+	// perform the binary relational operation on the left- and right-hand-side intermediate code results
+	switch co.Operation {
+	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
+		var operation Operation
 
-	// // perform the binary relational operation on the left- and right-hand-side temporary results
-	// switch co.Operation {
-	// case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
-	// 	var operation Operation
+		// map the AST binary operation to the corresponding three-address code binary relational operation
+		switch co.Operation {
+		case ast.Equal:
+			operation = Equal
 
-	// 	// map the AST binary operation to the corresponding three-address code binary relational operation
-	// 	switch co.Operation {
-	// 	case ast.Equal:
-	// 		operation = Equal
+		case ast.NotEqual:
+			operation = NotEqual
 
-	// 	case ast.NotEqual:
-	// 		operation = NotEqual
+		case ast.Less:
+			operation = Less
 
-	// 	case ast.Less:
-	// 		operation = Less
+		case ast.LessEqual:
+			operation = LessEqual
 
-	// 	case ast.LessEqual:
-	// 		operation = LessEqual
+		case ast.Greater:
+			operation = Greater
 
-	// 	case ast.Greater:
-	// 		operation = Greater
+		case ast.GreaterEqual:
+			operation = GreaterEqual
+		}
 
-	// 	case ast.GreaterEqual:
-	// 		operation = GreaterEqual
-	// 	}
+		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
+		instruction := i.NewInstruction(
+			operation,
+			NoLabel,
+			UnusedDifference,
+			left,
+			right,
+			NoAddress)
 
-	// 	// create a binary relational operation instruction to perform the operation on the left- and right-hand-side temporary results
-	// 	instruction := i.NewInstruction(
-	// 		operation,
-	// 		NoLabel,
-	// 		UnusedDifference,
-	// 		left,
-	// 		right,
-	// 		NoAddress)
+		// append the instruction to the module (boolean results are not stored on the stack)
+		i.AppendInstruction(instruction)
 
-	// 	// append the instruction to the module
-	// 	i.AppendInstruction(instruction)
-
-	// default:
-	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-	// }
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	}
 }
 
 // Generate code for an assignment statement.

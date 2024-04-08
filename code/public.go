@@ -80,7 +80,7 @@ const (
 const (
 	_ = PrefixType(iota)
 	BranchPrefix
-	LiteralPrefix
+	ResultPrefix
 	ConstantPrefix
 	VariablePrefix
 	FunctionPrefix
@@ -158,7 +158,7 @@ var (
 	// Target prefixes in the intermediate code.
 	TargetPrefix = map[PrefixType]rune{
 		BranchPrefix:   'B',
-		LiteralPrefix:  'L',
+		ResultPrefix:   't',
 		ConstantPrefix: 'C',
 		VariablePrefix: 'V',
 		FunctionPrefix: 'F',
