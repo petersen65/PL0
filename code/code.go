@@ -365,7 +365,7 @@ func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 
 // Generate code for a literal.
 func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
-	// // create a value copy instruction to store the literal in a temporary variable
+	// // create a value copy instruction to store the literal in an intermediate code result
 	instruction := i.NewInstruction(
 		ValueCopy,
 		NoLabel,
@@ -374,63 +374,72 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		NoAddress,
 		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(TargetPrefix[LiteralPrefix])))
 
-	// push the temporary result onto the stack and append the instruction to the module
+	// push the intermediate code result onto the stack and append the instruction to the module
 	i.pushResult(instruction.Code.Result)
 	i.AppendInstruction(instruction)
 }
 
 // Generate code for an identifier use.
 func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, iu).UniqueId]
+	switch iu.Context {
+	case ast.Constant:
+		// get constant declaration of the constant to load
+		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
-	// switch iu.Context {
-	// case ast.Constant:
-	// 	// get constant declaration of the constant to load
-	// 	constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+		// determine the intermediate code target name of the abstract syntax constant declaration
+		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).target
 
-	// 	// create a value copy instruction to store the constant value in a temporary variable
-	// 	instruction := i.NewInstruction(
-	// 		ValueCopy,
-	// 		NoLabel,
-	// 		UnusedDifference,
-	// 		NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
-	// 		NoAddress,
-	// 		metaData.newTempVariable(DataTypeMap[constantDeclaration.DataType], 0))
+		// get the intermediate code symbol table entry of the abstract syntax constant declaration
+		codeSymbol := i.module.lookup(target)
 
-	// 	// push the temporary result onto the stack and append the instruction to the module
-	// 	metaData.pushResult(instruction.Code.Result)
-	// 	i.AppendInstruction(instruction)
+		// create a value copy instruction to store the constant value in an intermediate code result
+		instruction := i.NewInstruction(
+			ValueCopy,
+			NoLabel,
+			UnusedDifference,
+			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
+			NoAddress,
+			NewAddress(codeSymbol.dataType, 0, codeSymbol.target))
 
-	// case ast.Variable:
-	// 	// get variable declaration of the variable to load
-	// 	variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+		// push the intermediate code result onto the stack and append the instruction to the module
+		i.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
 
-	// 	// determine the block nesting depth of the variable declaration
-	// 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	case ast.Variable:
+		// get variable declaration of the variable to load
+		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// 	// determine the block nesting depth of the variable use from inside an expression or statement
-	// 	useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+		// determine the block nesting depth of the variable declaration
+		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// 	// create a variable load instruction to load the variable value into a temporary variable
-	// 	instruction := i.NewInstruction(
-	// 		VariableLoad,
-	// 		NoLabel,
-	// 		useDepth-declarationDepth,
-	// 		NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name),
-	// 		NoAddress,
-	// 		metaData.newTempVariable(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset))
+		// determine the block nesting depth of the variable use from inside an expression or statement
+		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
-	// 	// push the temporary result onto the stack and append the instruction to the module
-	// 	metaData.pushResult(instruction.Code.Result)
-	// 	i.AppendInstruction(instruction)
+		// determine the intermediate code target name of the abstract syntax variable declaration
+		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).target
 
-	// case ast.Procedure:
-	// 	// not required for code generation
+		// get the intermediate code symbol table entry of the abstract syntax variable declaration
+		codeSymbol := i.module.lookup(target)
 
-	// default:
-	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
-	// }
+		// create a variable load instruction to load the variable value into an intermediate code result
+		instruction := i.NewInstruction(
+			VariableLoad,
+			NoLabel,
+			useDepth-declarationDepth,
+			NoAddress,
+			NoAddress,
+			NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
+
+		// push the intermediate code result onto the stack and append the instruction to the module
+		i.pushResult(instruction.Code.Result)
+		i.AppendInstruction(instruction)
+
+	case ast.Procedure:
+		// not required for code generation
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+	}
 }
 
 // Generate code for a unary operation.
@@ -581,37 +590,37 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 
 // Generate code for an assignment statement.
 func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
-	// // access metadata of the current block
-	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// load the value from the intermediate code result of the right-hand-side expression of the assignment
+	s.Expression.Accept(i)
+	right := i.popResult()
 
-	// // load the value from the result of the right-hand-side expression of the assignment
-	// s.Expression.Accept(i)
-	// right := metaData.popResult()
+	// get the variable declaration on the left-hand-side of the assignment
+	variableUse := s.Variable.(*ast.IdentifierUseNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// // get the variable declaration on the left-hand-side of the assignment
-	// variableUse := s.Variable.(*ast.IdentifierUseNode)
-	// variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	// determine the block nesting depth of the variable declaration
+	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// // determine the block nesting depth of the variable declaration
-	// declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// determine the block nesting depth of the assignment statement where the variable is used
+	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// // determine the block nesting depth of the assignment statement where the variable is used
-	// assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+	// determine the intermediate code target name of the abstract syntax variable declaration
+	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).target
 
-	// // map the abstract syntax variable declaration to the intermediate code variable symbol
-	// varSymbol := i.module.lookup(variableDeclaration.Name, byName)
+	// get the intermediate code symbol table entry of the abstract syntax variable declaration
+	codeSymbol := i.module.lookup(target)
 
-	// // store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	// insstruction := i.NewInstruction(
-	// 	VariableStore,
-	// 	NoLabel,
-	// 	assignmentDepth-declarationDepth,
-	// 	right,
-	// 	NoAddress,
-	// 	NewAddress(varSymbol.dataType, varSymbol.offset, varSymbol.target))
+	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	instruction := i.NewInstruction(
+		VariableStore,
+		NoLabel,
+		assignmentDepth-declarationDepth,
+		right,
+		NoAddress,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
 
 	// // append the instruction to the module
-	// i.AppendInstruction(insstruction)
+	i.AppendInstruction(instruction)
 }
 
 // Generate code for a read statement.
@@ -858,17 +867,17 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 	// i.AppendInstruction(jump)
 }
 
-// Push a result onto the stack of temporary results.
+// Push a result onto the stack of intermediate code results.
 func (i *intermediateCode) pushResult(result *Address) {
 	i.results.PushBack(result)
 }
 
-// Pop a result from the stack of temporary results.
+// Pop a result from the stack of intermediate code results.
 func (i *intermediateCode) popResult() *Address {
 	result := i.results.Back()
 
 	if result == nil {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedTemporaryResult, nil, nil))
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedIntermediateCodeResult, nil, nil))
 	}
 
 	i.results.Remove(result)

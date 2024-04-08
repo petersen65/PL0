@@ -13,19 +13,19 @@ const (
 	unknownUnaryOperation
 	unknownBinaryOperation
 	unknownConditionalOperation
-	unexpectedTemporaryResult
+	unexpectedIntermediateCodeResult
 	unknownExportFormat
 	intermediateCodeExportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unknownDataTypeRepresentation: "unknown data type representation: %v",
-	invalidContextInIdentifierUse: "invalid context in identifier use",
-	unknownUnaryOperation:         "unknown unary operation",
-	unknownBinaryOperation:        "unknown binary operation",
-	unknownConditionalOperation:   "unknown conditional operation",
-	unexpectedTemporaryResult:     "unexpected temporary result",
-	unknownExportFormat:           "unknown export format: %v",
-	intermediateCodeExportFailed:  "failed to export intermediate code",
+	unknownDataTypeRepresentation:    "unknown data type representation: %v",
+	invalidContextInIdentifierUse:    "invalid context in identifier use",
+	unknownUnaryOperation:            "unknown unary operation",
+	unknownBinaryOperation:           "unknown binary operation",
+	unknownConditionalOperation:      "unknown conditional operation",
+	unexpectedIntermediateCodeResult: "unexpected intermediate code result",
+	unknownExportFormat:              "unknown export format: %v",
+	intermediateCodeExportFailed:     "failed to export intermediate code",
 }
