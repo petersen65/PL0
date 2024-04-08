@@ -10,6 +10,9 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Empty scopes are required to use this number as their scope id
+const EmptyScopeId = -1
+
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler passes.
 const EmptyConstantName = "@constant"
 
@@ -216,7 +219,6 @@ type (
 		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
-		Offset           uint64       `json:"offset"`             // offset of the variable in its logical memory space
 		DataType         DataType     `json:"data_type"`          // data type of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
 		Usage            []Expression `json:"-"`                  // all usages of the variable
@@ -389,9 +391,9 @@ var (
 	}
 )
 
-// NewScope creates a new scope with an empty symbol table.
-func NewScope(outer *Scope) *Scope {
-	return newScope(outer)
+// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation passes.
+func NewScope(uniqueId int32, outer *Scope) *Scope {
+	return newScope(uniqueId, outer)
 }
 
 // Create a new entry for the symbol table.
@@ -399,17 +401,22 @@ func NewSymbol(name string, kind Entry, declaration Declaration) *Symbol {
 	return newSymbol(name, kind, declaration)
 }
 
-// An empty declaration is a 0 constant with empty name and should only occur during a parsing error.
+// An empty scope should only be used in the context of parser errors and is free from any side-effect.
+func NewEmptyScope() *Scope {
+	return newScope(EmptyScopeId, nil)
+}
+
+// An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return NewConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewScope(nil), 0)
+	return newConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewEmptyScope(), 0)
 }
 
-// An empty expression is a 0 literal and should only occur during a parsing error.
+// An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return NewLiteral(int64(0), Integer64)
+	return newLiteral(int64(0), Integer64)
 }
 
-// An empty statement does not generate code.
+// An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyStatement() Statement {
 	return newCompoundStatement(make([]Statement, 0))
 }

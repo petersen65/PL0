@@ -7,22 +7,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync/atomic"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Each scope in the abstract syntax tree gets a unique identifier.
-var uniqueScopeId atomic.Int32
-
-// NewScope creates a new scope with an empty symbol table.
-func newScope(outer *Scope) *Scope {
+// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation passes.
+func newScope(uniqueId int32, outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
 
 	return &Scope{
 		Outer:       outer,
 		Extension:   make(map[ExtensionType]any),
-		id:          uniqueScopeId.Add(1),
+		id:          uniqueId,
 		names:       make([]string, 0),
 		symbolTable: &symbolTable,
 	}
@@ -263,13 +259,13 @@ func (s *Scope) Id() int32 {
 // Create a new compiler-generated unique identifier name for a scope.
 func (s *Scope) NewIdentifier(prefix rune) string {
 	s.identifierCounter++
-	return fmt.Sprintf("%v%v.%v", prefix, s.id, s.identifierCounter)
+	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter)
 }
 
 // Create a new compiler-generated unique label name for a scope.
-func (s *Scope) NewLabel(prefix rune) string {
+func (s *Scope) NewLabel() string {
 	s.labelCounter++
-	return fmt.Sprintf("%v%v.%v", prefix, s.id, s.labelCounter)
+	return fmt.Sprintf("L%v.%v", s.id, s.labelCounter)
 }
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
@@ -442,7 +438,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,o=%v,t=%v,u=%v)", KindNames[Variable], d.Name, d.Offset, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,n=%v,t=%v,u=%v)", KindNames[Variable], d.Name, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -553,7 +549,7 @@ func (u *IdentifierUseNode) String() string {
 			return fmt.Sprintf("use(k=c,n=%v,v=%v,u=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
 		case Variable:
-			return fmt.Sprintf("use(k=v,n=%v,o=%v,u=%v)", symbol.Name, symbol.Declaration.(*VariableDeclarationNode).Offset, u.Use)
+			return fmt.Sprintf("use(k=v,n=%v,u=%v)", symbol.Name, u.Use)
 
 		case Procedure:
 			return fmt.Sprintf("use(k=p,n=%v,u=%v)", symbol.Name, u.Use)

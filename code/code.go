@@ -13,15 +13,16 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Function name of the entrypoint.
-const entryPoint = "@main"
-
-// Abstract syntax extension type for intermediate code.
+// Abstract syntax extension for the scope.
 const scopeExtension ast.ExtensionType = 16
+
+// Abstract syntax extension for the symbol.
+const symbolExtension ast.ExtensionType = 17
 
 // Kind of supported symbol entry.
 const (
 	_ = entry(iota)
+	constant
 	variable
 	function
 )
@@ -45,6 +46,11 @@ type (
 	scopeMetaData struct {
 		offsetCounter uint64     // offset counter for all variables of a scope
 		results       *list.List // lifo stack holding temporary results from expressions
+	}
+
+	// Metadata for each symbol in the abstract syntax tree.
+	symbolMetaData struct {
+		target string // target label in the intermediate code
 	}
 
 	// Kind of symbol entries.
@@ -75,9 +81,19 @@ func newModule() Module {
 	}
 }
 
+// create new symbol for the intermediate code
+func newSymbol(target string, kind entry, dataType DataType) *symbol {
+	return &symbol{target: target, kind: kind, dataType: dataType}
+}
+
 // Create metadata for a scope in the abstract syntax tree.
-func newBlockMetaData(uniqueId int32) *scopeMetaData {
+func newScopeMetaData() *scopeMetaData {
 	return &scopeMetaData{results: list.New()}
+}
+
+// Create metadata for a symbol in the abstract syntax tree.
+func newSymbolMetaData(target string) *symbolMetaData {
+	return &symbolMetaData{target: target}
 }
 
 // String representation of a data type.
@@ -189,53 +205,55 @@ func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 }
 
 // Push a result onto the stack of temporary results.
-func (b *blockMetaData) pushResult(result *Address) {
-	b.results.PushBack(result)
+func (s *scopeMetaData) pushResult(result *Address) {
+	s.results.PushBack(result)
 }
 
 // Pop a result from the stack of temporary results.
-func (b *blockMetaData) popResult() *Address {
-	result := b.results.Back()
+func (s *scopeMetaData) popResult() *Address {
+	result := s.results.Back()
 
 	if result == nil {
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedTemporaryResult, nil, nil))
 	}
 
-	b.results.Remove(result)
+	s.results.Remove(result)
 	return result.Value.(*Address)
 }
 
 // Generate intermediate code for the abstract syntax tree.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (i *intermediateCode) Generate() {
-	// create intermediate code metadata for all blocks from the abstract syntax tree
-	ast.Walk(i.abstractSyntax, ast.PreOrder, i, func(node ast.Node, code any) {
-		if bn, ok := node.(*ast.BlockNode); ok {
-			metadata := newBlockMetaData(bn.UniqueId)
-			code.(*intermediateCode).metaData[bn.UniqueId] = metadata
+	// pre-create symbol table for intermediate code
+	ast.Walk(i.abstractSyntax, ast.PreOrder, i, configureSymbols)
 
-			// name of entrypoint function
-			name := entryPoint
-
-			// only main block has no parent procedure declaration
-			if bn.ParentNode != nil {
-				name = bn.ParentNode.(*ast.ProcedureDeclarationNode).Name
-			}
-
-			// pre-create intermediate code function symbols for all abstract syntax procedures to enable forward calls
-			i.module.insert(
-				&symbol{
-					name:       name,
-					target:     metadata.newLabel(FunctionLabel),
-					kind:       function,
-					dataType:   Void,
-					definition: nil, // emphasize that the intermediate code of the function body is not yet generated
-				})
-		}
-	})
-
-	// generate intermediate code for the abstract syntax tree using created metadata
+	// generate intermediate code for the abstract syntax tree
 	i.abstractSyntax.Accept(i)
+}
+
+// Configure abstract syntax extensions and fill the symbol table of the intermediate code
+func configureSymbols(node ast.Node, code any) {
+	module := code.(*intermediateCode).module
+
+	switch n := node.(type) {
+	case *ast.BlockNode:
+		n.Scope.Extension[scopeExtension] = newScopeMetaData()
+
+	case *ast.ConstantDeclarationNode:
+		target := n.Scope.NewIdentifier(TargetPrefix[ConstantPrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
+		module.insert(newSymbol(target, constant, DataTypeMap[n.DataType]))
+
+	case *ast.VariableDeclarationNode:
+		target := n.Scope.NewIdentifier(TargetPrefix[VariablePrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
+		module.insert(newSymbol(target, variable, DataTypeMap[n.DataType]))
+
+	case *ast.ProcedureDeclarationNode:
+		target := n.Block.(*ast.BlockNode).Scope.NewIdentifier(TargetPrefix[FunctionPrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
+		module.insert(newSymbol(target, function, Void))
+	}
 }
 
 // Get the generated intermediate code module.
@@ -259,21 +277,27 @@ func (i *intermediateCode) NewInstruction(operatiom Operation, label string, dif
 
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
-	// name of entrypoint function
-	name := entryPoint
+	var blockBegin string
 
 	// only main block has no parent procedure declaration
-	if bn.ParentNode != nil {
-		name = bn.ParentNode.(*ast.ProcedureDeclarationNode).Name
+	if bn.ParentNode == nil {
+		blockBegin = bn.Scope.NewIdentifier(TargetPrefix[FunctionPrefix])
+
+		// append a target instruction with a target-label to mark the beginning of the block
+		instruction := i.NewInstruction(Target, blockBegin, UnusedDifference, NoAddress, NoAddress, NoAddress)
+		i.AppendInstruction(instruction)
+	} else {
+		symbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
+		blockBegin = symbol.Extension[symbolExtension].(*symbolMetaData).target
+
+		// append a target instruction with a target-label to mark the beginning of the block
+		instruction := i.NewInstruction(Target, blockBegin, UnusedDifference, NoAddress, NoAddress, NoAddress)
+		element := i.AppendInstruction(instruction)
+
+		// update intermediate code function symbol with the instruction that marks the beginning of the block
+		funcSymbol := i.module.lookup(blockBegin)
+		funcSymbol.definition = element
 	}
-
-	// intermediate code function symbol
-	funcSymbol := i.module.lookup(name, byName)
-
-	// append a target instruction with a target-label to mark the beginning of the block
-	// update intermediate code definition in the symbol table
-	funcSymbol.definition = i.AppendInstruction(
-		i.NewInstruction(Target, funcSymbol.target, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -286,7 +310,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	bn.Statement.Accept(i)
 
 	// return from the block and mark the end of the block
-	i.AppendInstruction(i.NewInstruction(Return, funcSymbol.target, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Return, blockBegin, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
@@ -303,35 +327,35 @@ func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDec
 
 // Generate code for a variable declaration.
 func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, vd).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, vd).UniqueId]
 
-	// set the location of the variable in its logical memory space
-	vd.Offset = metaData.offsetCounter
-	metaData.offsetCounter++
+	// // set the location of the variable in its logical memory space
+	// vd.Offset = metaData.offsetCounter
+	// metaData.offsetCounter++
 
-	// allocate memory for the variable in its logical memory space
-	instruction := i.NewInstruction(
-		Allocate,
-		NoLabel,
-		UnusedDifference,
-		NewAddress(DataTypeMap[vd.DataType], vd.Offset, vd.Name),
-		NoAddress,
-		metaData.newTempVariable(DataTypeMap[vd.DataType], vd.Offset))
+	// // allocate memory for the variable in its logical memory space
+	// instruction := i.NewInstruction(
+	// 	Allocate,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	NewAddress(DataTypeMap[vd.DataType], vd.Offset, vd.Name),
+	// 	NoAddress,
+	// 	metaData.newTempVariable(DataTypeMap[vd.DataType], vd.Offset))
 
-	// append instruction to the module
-	element := i.AppendInstruction(instruction)
+	// // append instruction to the module
+	// element := i.AppendInstruction(instruction)
 
-	// insert the variable into the symbol table of the module
-	i.module.insert(
-		&symbol{
-			name:       vd.Name,
-			target:     instruction.Code.Result.Variable,
-			kind:       variable,
-			dataType:   instruction.Code.Result.DataType,
-			offset:     instruction.Code.Result.Offset,
-			definition: element,
-		})
+	// // insert the variable into the symbol table of the module
+	// i.module.insert(
+	// 	&symbol{
+	// 		name:       vd.Name,
+	// 		target:     instruction.Code.Result.Variable,
+	// 		kind:       variable,
+	// 		dataType:   instruction.Code.Result.DataType,
+	// 		offset:     instruction.Code.Result.Offset,
+	// 		definition: element,
+	// 	})
 }
 
 // Generate code for a procedure declaration.
@@ -342,413 +366,413 @@ func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 
 // Generate code for a literal.
 func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, ln).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, ln).UniqueId]
 
-	// create a value copy instruction to store the literal in a temporary variable
-	instruction := i.NewInstruction(
-		ValueCopy,
-		NoLabel,
-		UnusedDifference,
-		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
-		NoAddress,
-		metaData.newTempVariable(DataTypeMap[ln.DataType], 0))
+	// // create a value copy instruction to store the literal in a temporary variable
+	// instruction := i.NewInstruction(
+	// 	ValueCopy,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
+	// 	NoAddress,
+	// 	metaData.newTempVariable(DataTypeMap[ln.DataType], 0))
 
-	// push the temporary result onto the stack and append the instruction to the module
-	metaData.pushResult(instruction.Code.Result)
-	i.AppendInstruction(instruction)
+	// // push the temporary result onto the stack and append the instruction to the module
+	// metaData.pushResult(instruction.Code.Result)
+	// i.AppendInstruction(instruction)
 }
 
 // Generate code for an identifier use.
 func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, iu).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, iu).UniqueId]
 
-	switch iu.Context {
-	case ast.Constant:
-		// get constant declaration of the constant to load
-		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+	// switch iu.Context {
+	// case ast.Constant:
+	// 	// get constant declaration of the constant to load
+	// 	constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
-		// create a value copy instruction to store the constant value in a temporary variable
-		instruction := i.NewInstruction(
-			ValueCopy,
-			NoLabel,
-			UnusedDifference,
-			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
-			NoAddress,
-			metaData.newTempVariable(DataTypeMap[constantDeclaration.DataType], 0))
+	// 	// create a value copy instruction to store the constant value in a temporary variable
+	// 	instruction := i.NewInstruction(
+	// 		ValueCopy,
+	// 		NoLabel,
+	// 		UnusedDifference,
+	// 		NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
+	// 		NoAddress,
+	// 		metaData.newTempVariable(DataTypeMap[constantDeclaration.DataType], 0))
 
-		// push the temporary result onto the stack and append the instruction to the module
-		metaData.pushResult(instruction.Code.Result)
-		i.AppendInstruction(instruction)
+	// 	// push the temporary result onto the stack and append the instruction to the module
+	// 	metaData.pushResult(instruction.Code.Result)
+	// 	i.AppendInstruction(instruction)
 
-	case ast.Variable:
-		// get variable declaration of the variable to load
-		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+	// case ast.Variable:
+	// 	// get variable declaration of the variable to load
+	// 	variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
-		// determine the block nesting depth of the variable declaration
-		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// 	// determine the block nesting depth of the variable declaration
+	// 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-		// determine the block nesting depth of the variable use from inside an expression or statement
-		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
+	// 	// determine the block nesting depth of the variable use from inside an expression or statement
+	// 	useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
-		// create a variable load instruction to load the variable value into a temporary variable
-		instruction := i.NewInstruction(
-			VariableLoad,
-			NoLabel,
-			useDepth-declarationDepth,
-			NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name),
-			NoAddress,
-			metaData.newTempVariable(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset))
+	// 	// create a variable load instruction to load the variable value into a temporary variable
+	// 	instruction := i.NewInstruction(
+	// 		VariableLoad,
+	// 		NoLabel,
+	// 		useDepth-declarationDepth,
+	// 		NewAddress(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset, variableDeclaration.Name),
+	// 		NoAddress,
+	// 		metaData.newTempVariable(DataTypeMap[variableDeclaration.DataType], variableDeclaration.Offset))
 
-		// push the temporary result onto the stack and append the instruction to the module
-		metaData.pushResult(instruction.Code.Result)
-		i.AppendInstruction(instruction)
+	// 	// push the temporary result onto the stack and append the instruction to the module
+	// 	metaData.pushResult(instruction.Code.Result)
+	// 	i.AppendInstruction(instruction)
 
-	case ast.Procedure:
-		// not required for code generation
+	// case ast.Procedure:
+	// 	// not required for code generation
 
-	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
-	}
+	// default:
+	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+	// }
 }
 
 // Generate code for a unary operation.
 func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, uo).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, uo).UniqueId]
 
-	// load the temporary result of the expression from the stack
-	uo.Operand.Accept(i)
-	result := metaData.popResult()
+	// // load the temporary result of the expression from the stack
+	// uo.Operand.Accept(i)
+	// result := metaData.popResult()
 
-	// perform the unary operation on the temporary result
-	switch uo.Operation {
-	case ast.Odd:
-		// create an odd instruction to check if the temporary result is odd
-		instruction := i.NewInstruction(
-			Odd,
-			NoLabel,
-			UnusedDifference,
-			result,
-			NoAddress,
-			NoAddress)
+	// // perform the unary operation on the temporary result
+	// switch uo.Operation {
+	// case ast.Odd:
+	// 	// create an odd instruction to check if the temporary result is odd
+	// 	instruction := i.NewInstruction(
+	// 		Odd,
+	// 		NoLabel,
+	// 		UnusedDifference,
+	// 		result,
+	// 		NoAddress,
+	// 		NoAddress)
 
-		// append the instruction to the module
-		i.AppendInstruction(instruction)
+	// 	// append the instruction to the module
+	// 	i.AppendInstruction(instruction)
 
-	case ast.Negate:
-		// create a negate instruction to negate the temporary result
-		instruction := i.NewInstruction(
-			Negate,
-			NoLabel,
-			UnusedDifference,
-			result,
-			NoAddress,
-			metaData.newTempVariable(result.DataType, result.Offset))
+	// case ast.Negate:
+	// 	// create a negate instruction to negate the temporary result
+	// 	instruction := i.NewInstruction(
+	// 		Negate,
+	// 		NoLabel,
+	// 		UnusedDifference,
+	// 		result,
+	// 		NoAddress,
+	// 		metaData.newTempVariable(result.DataType, result.Offset))
 
-		// push the temporary result onto the stack and append the instruction to the module
-		metaData.pushResult(instruction.Code.Result)
-		i.AppendInstruction(instruction)
+	// 	// push the temporary result onto the stack and append the instruction to the module
+	// 	metaData.pushResult(instruction.Code.Result)
+	// 	i.AppendInstruction(instruction)
 
-	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
-	}
+	// default:
+	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+	// }
 }
 
 // Generate code for a binary arithmetic operation.
 func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, bo).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, bo).UniqueId]
 
-	// load the temporary results of the left and right expressions from the stack
-	bo.Left.Accept(i)
-	bo.Right.Accept(i)
-	right := metaData.popResult()
-	left := metaData.popResult()
+	// // load the temporary results of the left and right expressions from the stack
+	// bo.Left.Accept(i)
+	// bo.Right.Accept(i)
+	// right := metaData.popResult()
+	// left := metaData.popResult()
 
-	// perform the binary arithmetic operation on the left- and right-hand-side temporary results
-	switch bo.Operation {
-	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
-		var operation Operation
+	// // perform the binary arithmetic operation on the left- and right-hand-side temporary results
+	// switch bo.Operation {
+	// case ast.Plus, ast.Minus, ast.Times, ast.Divide:
+	// 	var operation Operation
 
-		// map the AST binary operation to the corresponding three-address code binary arithmetic operation
-		switch bo.Operation {
-		case ast.Plus:
-			operation = Plus
+	// 	// map the AST binary operation to the corresponding three-address code binary arithmetic operation
+	// 	switch bo.Operation {
+	// 	case ast.Plus:
+	// 		operation = Plus
 
-		case ast.Minus:
-			operation = Minus
+	// 	case ast.Minus:
+	// 		operation = Minus
 
-		case ast.Times:
-			operation = Times
+	// 	case ast.Times:
+	// 		operation = Times
 
-		case ast.Divide:
-			operation = Divide
-		}
+	// 	case ast.Divide:
+	// 		operation = Divide
+	// 	}
 
-		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side temporary results
-		instruction := i.NewInstruction(
-			operation,
-			NoLabel,
-			UnusedDifference,
-			left,
-			right,
-			metaData.newTempVariable(left.DataType, 0))
+	// 	// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side temporary results
+	// 	instruction := i.NewInstruction(
+	// 		operation,
+	// 		NoLabel,
+	// 		UnusedDifference,
+	// 		left,
+	// 		right,
+	// 		metaData.newTempVariable(left.DataType, 0))
 
-		// push the temporary result onto the stack and append the instruction to the module
-		metaData.pushResult(instruction.Code.Result)
-		i.AppendInstruction(instruction)
+	// 	// push the temporary result onto the stack and append the instruction to the module
+	// 	metaData.pushResult(instruction.Code.Result)
+	// 	i.AppendInstruction(instruction)
 
-	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
-	}
+	// default:
+	// 	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+	// }
 }
 
 // Generate code for a binary relational operation.
 func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, co).UniqueId]
 
-	// load the temporary results of the left and right expressions from the stack
-	co.Left.Accept(i)
-	co.Right.Accept(i)
-	right := metaData.popResult()
-	left := metaData.popResult()
+	// // load the temporary results of the left and right expressions from the stack
+	// co.Left.Accept(i)
+	// co.Right.Accept(i)
+	// right := metaData.popResult()
+	// left := metaData.popResult()
 
-	// perform the binary relational operation on the left- and right-hand-side temporary results
-	switch co.Operation {
-	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
-		var operation Operation
+	// // perform the binary relational operation on the left- and right-hand-side temporary results
+	// switch co.Operation {
+	// case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
+	// 	var operation Operation
 
-		// map the AST binary operation to the corresponding three-address code binary relational operation
-		switch co.Operation {
-		case ast.Equal:
-			operation = Equal
+	// 	// map the AST binary operation to the corresponding three-address code binary relational operation
+	// 	switch co.Operation {
+	// 	case ast.Equal:
+	// 		operation = Equal
 
-		case ast.NotEqual:
-			operation = NotEqual
+	// 	case ast.NotEqual:
+	// 		operation = NotEqual
 
-		case ast.Less:
-			operation = Less
+	// 	case ast.Less:
+	// 		operation = Less
 
-		case ast.LessEqual:
-			operation = LessEqual
+	// 	case ast.LessEqual:
+	// 		operation = LessEqual
 
-		case ast.Greater:
-			operation = Greater
+	// 	case ast.Greater:
+	// 		operation = Greater
 
-		case ast.GreaterEqual:
-			operation = GreaterEqual
-		}
+	// 	case ast.GreaterEqual:
+	// 		operation = GreaterEqual
+	// 	}
 
-		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side temporary results
-		instruction := i.NewInstruction(
-			operation,
-			NoLabel,
-			UnusedDifference,
-			left,
-			right,
-			NoAddress)
+	// 	// create a binary relational operation instruction to perform the operation on the left- and right-hand-side temporary results
+	// 	instruction := i.NewInstruction(
+	// 		operation,
+	// 		NoLabel,
+	// 		UnusedDifference,
+	// 		left,
+	// 		right,
+	// 		NoAddress)
 
-		// append the instruction to the module
-		i.AppendInstruction(instruction)
+	// 	// append the instruction to the module
+	// 	i.AppendInstruction(instruction)
 
-	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-	}
+	// default:
+	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	// }
 }
 
 // Generate code for an assignment statement.
 func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
 
-	// load the value from the result of the right-hand-side expression of the assignment
-	s.Expression.Accept(i)
-	right := metaData.popResult()
+	// // load the value from the result of the right-hand-side expression of the assignment
+	// s.Expression.Accept(i)
+	// right := metaData.popResult()
 
-	// get the variable declaration on the left-hand-side of the assignment
-	variableUse := s.Variable.(*ast.IdentifierUseNode)
-	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	// // get the variable declaration on the left-hand-side of the assignment
+	// variableUse := s.Variable.(*ast.IdentifierUseNode)
+	// variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// determine the block nesting depth of the variable declaration
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// // determine the block nesting depth of the variable declaration
+	// declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// determine the block nesting depth of the assignment statement where the variable is used
-	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+	// // determine the block nesting depth of the assignment statement where the variable is used
+	// assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// map the abstract syntax variable declaration to the intermediate code variable symbol
-	varSymbol := i.module.lookup(variableDeclaration.Name, byName)
+	// // map the abstract syntax variable declaration to the intermediate code variable symbol
+	// varSymbol := i.module.lookup(variableDeclaration.Name, byName)
 
-	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	insstruction := i.NewInstruction(
-		VariableStore,
-		NoLabel,
-		assignmentDepth-declarationDepth,
-		right,
-		NoAddress,
-		NewAddress(varSymbol.dataType, varSymbol.offset, varSymbol.target))
+	// // store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
+	// insstruction := i.NewInstruction(
+	// 	VariableStore,
+	// 	NoLabel,
+	// 	assignmentDepth-declarationDepth,
+	// 	right,
+	// 	NoAddress,
+	// 	NewAddress(varSymbol.dataType, varSymbol.offset, varSymbol.target))
 
-	// append the instruction to the module
-	i.AppendInstruction(insstruction)
+	// // append the instruction to the module
+	// i.AppendInstruction(insstruction)
 }
 
 // Generate code for a read statement.
 func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
 
-	// get the variable declaration of the variable to read into
-	variableUse := s.Variable.(*ast.IdentifierUseNode)
-	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	// // get the variable declaration of the variable to read into
+	// variableUse := s.Variable.(*ast.IdentifierUseNode)
+	// variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
 
-	// determine the block nesting depth of the variable declaration
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
+	// // determine the block nesting depth of the variable declaration
+	// declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
 
-	// determine the block nesting depth of the read statement where the variable is used
-	readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+	// // determine the block nesting depth of the read statement where the variable is used
+	// readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// parameter 1 for the readln runtime function
-	param := i.NewInstruction(
-		Parameter,
-		NoLabel,
-		UnusedDifference,
-		NoAddress,
-		NoAddress,
-		metaData.newTempVariable(Integer64, 0))
+	// // parameter 1 for the readln runtime function
+	// param := i.NewInstruction(
+	// 	Parameter,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	NoAddress,
+	// 	NoAddress,
+	// 	metaData.newTempVariable(Integer64, 0))
 
-	// call the readln runtime function with 1 parameter
-	readln := i.NewInstruction(
-		Runtime,
-		NoLabel,
-		UnusedDifference,
-		NewAddress(UnsignedInteger64, 0, uint64(1)),
-		NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
-		NoAddress)
+	// // call the readln runtime function with 1 parameter
+	// readln := i.NewInstruction(
+	// 	Runtime,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	NewAddress(UnsignedInteger64, 0, uint64(1)),
+	// 	NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
+	// 	NoAddress)
 
-	// map the abstract syntax variable declaration to the intermediate code variable symbol
-	varSymbol := i.module.lookup(variableDeclaration.Name, byName)
+	// // map the abstract syntax variable declaration to the intermediate code variable symbol
+	// varSymbol := i.module.lookup(variableDeclaration.Name, byName)
 
-	// store the resultant value into the variable used by the read statement
-	store := i.NewInstruction(
-		VariableStore,
-		NoLabel,
-		readDepth-declarationDepth,
-		param.Code.Result,
-		NoAddress,
-		NewAddress(varSymbol.dataType, varSymbol.offset, varSymbol.target))
+	// // store the resultant value into the variable used by the read statement
+	// store := i.NewInstruction(
+	// 	VariableStore,
+	// 	NoLabel,
+	// 	readDepth-declarationDepth,
+	// 	param.Code.Result,
+	// 	NoAddress,
+	// 	NewAddress(varSymbol.dataType, varSymbol.offset, varSymbol.target))
 
-	// append the instructions to the module
-	i.AppendInstruction(param)
-	i.AppendInstruction(readln)
-	i.AppendInstruction(store)
+	// // append the instructions to the module
+	// i.AppendInstruction(param)
+	// i.AppendInstruction(readln)
+	// i.AppendInstruction(store)
 }
 
 // Generate code for a write statement.
 func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
 
-	// load the value from the result of the expression on the right-hand-side of the write statement
-	s.Expression.Accept(i)
-	right := metaData.popResult()
+	// // load the value from the result of the expression on the right-hand-side of the write statement
+	// s.Expression.Accept(i)
+	// right := metaData.popResult()
 
-	// parameter 1 for the writeln runtime function
-	param := i.NewInstruction(
-		Parameter,
-		NoLabel,
-		UnusedDifference,
-		right,
-		NoAddress,
-		metaData.newTempVariable(right.DataType, 0))
+	// // parameter 1 for the writeln runtime function
+	// param := i.NewInstruction(
+	// 	Parameter,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	right,
+	// 	NoAddress,
+	// 	metaData.newTempVariable(right.DataType, 0))
 
-	// call the writeln runtime function with 1 parameter
-	write := i.NewInstruction(
-		Runtime,
-		NoLabel,
-		UnusedDifference,
-		NewAddress(UnsignedInteger64, 0, uint64(1)),
-		NewAddress(UnsignedInteger64, 0, uint64(WriteLn)),
-		NoAddress)
+	// // call the writeln runtime function with 1 parameter
+	// write := i.NewInstruction(
+	// 	Runtime,
+	// 	NoLabel,
+	// 	UnusedDifference,
+	// 	NewAddress(UnsignedInteger64, 0, uint64(1)),
+	// 	NewAddress(UnsignedInteger64, 0, uint64(WriteLn)),
+	// 	NoAddress)
 
-	// append the instructions to the module
-	i.AppendInstruction(param)
-	i.AppendInstruction(write)
+	// // append the instructions to the module
+	// i.AppendInstruction(param)
+	// i.AppendInstruction(write)
 }
 
 // Generate code for a call statement.
 func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
-	// get the declaration of the procedure to call
-	procedureUse := s.Procedure.(*ast.IdentifierUseNode)
-	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
+	// // get the declaration of the procedure to call
+	// procedureUse := s.Procedure.(*ast.IdentifierUseNode)
+	// procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
 
-	// determine the block nesting depth of the procedure declaration
-	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
+	// // determine the block nesting depth of the procedure declaration
+	// declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth
 
-	// determine the block nesting depth of the call statement where the procedure is called
-	callDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
+	// // determine the block nesting depth of the call statement where the procedure is called
+	// callDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// map the abstract syntax procedure declaration to the intermediate code function symbol
-	funcSymbol := i.module.lookup(procedureDeclaration.Name, byName)
+	// // map the abstract syntax procedure declaration to the intermediate code function symbol
+	// funcSymbol := i.module.lookup(procedureDeclaration.Name, byName)
 
-	// call the function with 0 parameters
-	call := i.NewInstruction(
-		Call,
-		NoLabel,
-		callDepth-declarationDepth,
-		NewAddress(UnsignedInteger64, 0, uint64(0)),
-		NewAddress(Label, 0, funcSymbol.target),
-		NoAddress)
+	// // call the function with 0 parameters
+	// call := i.NewInstruction(
+	// 	Call,
+	// 	NoLabel,
+	// 	callDepth-declarationDepth,
+	// 	NewAddress(UnsignedInteger64, 0, uint64(0)),
+	// 	NewAddress(Label, 0, funcSymbol.target),
+	// 	NoAddress)
 
-	// append the instruction to the module
-	i.AppendInstruction(call)
+	// // append the instruction to the module
+	// i.AppendInstruction(call)
 }
 
 // Generate code for an if-then statement.
 func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	behindStatement := metaData.newLabel(BranchLabel)
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// behindStatement := metaData.newLabel(BranchPrefix)
 
-	// calculate the result of the condition expression
-	s.Condition.Accept(i)
+	// // calculate the result of the condition expression
+	// s.Condition.Accept(i)
 
-	// jump behind the statement if the condition is false
-	i.jumpConditional(s.Condition, false, behindStatement)
+	// // jump behind the statement if the condition is false
+	// i.jumpConditional(s.Condition, false, behindStatement)
 
-	// execute statement if the condition is true
-	s.Statement.Accept(i)
+	// // execute statement if the condition is true
+	// s.Statement.Accept(i)
 
-	// append a label instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// // append a label instruction behind the statement instructions
+	// i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a while-do statement.
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
-	// access metadata of the current block
-	metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
-	beforeCondition := metaData.newLabel(BranchLabel)
-	behindStatement := metaData.newLabel(BranchLabel)
+	// // access metadata of the current block
+	// metaData := i.metaData[ast.SearchBlock(ast.CurrentBlock, s).UniqueId]
+	// beforeCondition := metaData.newLabel(BranchPrefix)
+	// behindStatement := metaData.newLabel(BranchPrefix)
 
-	// append a label instruction before the condition expression instructions
-	i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// // append a label instruction before the condition expression instructions
+	// i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
-	// calculate the result of the condition expression
-	s.Condition.Accept(i)
+	// // calculate the result of the condition expression
+	// s.Condition.Accept(i)
 
-	// jump behind the statement if the condition is false
-	i.jumpConditional(s.Condition, false, behindStatement)
+	// // jump behind the statement if the condition is false
+	// i.jumpConditional(s.Condition, false, behindStatement)
 
-	// execute statement if the condition is true
-	s.Statement.Accept(i)
+	// // execute statement if the condition is true
+	// s.Statement.Accept(i)
 
-	// append a label instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// // append a label instruction behind the statement instructions
+	// i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
-	// append a jump instruction to jump back to the condition expression instructions
-	beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
-	i.AppendInstruction(i.NewInstruction(Jump, NoLabel, UnusedDifference, beforeConditionAddress, NoAddress, NoAddress))
+	// // append a jump instruction to jump back to the condition expression instructions
+	// beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
+	// i.AppendInstruction(i.NewInstruction(Jump, NoLabel, UnusedDifference, beforeConditionAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a compound begin-end statement.
@@ -761,79 +785,79 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
 func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
-	var jump *Instruction
-	address := NewAddress(Label, 0, label)
+	// var jump *Instruction
+	// address := NewAddress(Label, 0, label)
 
-	// odd operation or conditional operations are valid for conditional jumps
-	switch condition := expression.(type) {
-	// unary operation node with the odd operation
-	case *ast.UnaryOperationNode:
-		if condition.Operation == ast.Odd {
-			if jumpIfCondition {
-				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
-			} else {
-				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
-			}
-		} else {
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
-		}
+	// // odd operation or conditional operations are valid for conditional jumps
+	// switch condition := expression.(type) {
+	// // unary operation node with the odd operation
+	// case *ast.UnaryOperationNode:
+	// 	if condition.Operation == ast.Odd {
+	// 		if jumpIfCondition {
+	// 			jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		} else {
+	// 			jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		}
+	// 	} else {
+	// 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+	// 	}
 
-	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
-	case *ast.ConditionalOperationNode:
-		if jumpIfCondition {
-			// jump if the condition is true
-			switch condition.Operation {
-			case ast.Equal:
-				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// // conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
+	// case *ast.ConditionalOperationNode:
+	// 	if jumpIfCondition {
+	// 		// jump if the condition is true
+	// 		switch condition.Operation {
+	// 		case ast.Equal:
+	// 			jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.NotEqual:
-				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.NotEqual:
+	// 			jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.Less:
-				jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.Less:
+	// 			jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.LessEqual:
-				jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.LessEqual:
+	// 			jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.Greater:
-				jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.Greater:
+	// 			jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.GreaterEqual:
-				jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.GreaterEqual:
+	// 			jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			default:
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-			}
-		} else {
-			// jump if the condition is false
-			switch condition.Operation {
-			case ast.Equal:
-				jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		default:
+	// 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	// 		}
+	// 	} else {
+	// 		// jump if the condition is false
+	// 		switch condition.Operation {
+	// 		case ast.Equal:
+	// 			jump = i.NewInstruction(JumpNotEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.NotEqual:
-				jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.NotEqual:
+	// 			jump = i.NewInstruction(JumpEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.Less:
-				jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.Less:
+	// 			jump = i.NewInstruction(JumpGreaterEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.LessEqual:
-				jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.LessEqual:
+	// 			jump = i.NewInstruction(JumpGreater, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.Greater:
-				jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.Greater:
+	// 			jump = i.NewInstruction(JumpLessEqual, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			case ast.GreaterEqual:
-				jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
+	// 		case ast.GreaterEqual:
+	// 			jump = i.NewInstruction(JumpLess, NoLabel, UnusedDifference, address, NoAddress, NoAddress)
 
-			default:
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-			}
-		}
+	// 		default:
+	// 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	// 		}
+	// 	}
 
-	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-	}
+	// default:
+	// 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+	// }
 
-	// append the conditional jump instruction to the module
-	i.AppendInstruction(jump)
+	// // append the conditional jump instruction to the module
+	// i.AppendInstruction(jump)
 }

@@ -76,11 +76,13 @@ const (
 	WriteLn
 )
 
-// Label types for the intermediate code.
+// Target name prefixes for the intermediate code.
 const (
-	_ = LabelType(iota)
-	BranchLabel
-	FunctionLabel
+	_ = PrefixType(iota)
+	BranchPrefix
+	ConstantPrefix
+	VariablePrefix
+	FunctionPrefix
 )
 
 type (
@@ -90,8 +92,8 @@ type (
 	// String representation of a data type.
 	DataTypeRepresentation string
 
-	// Type of a label in the intermediate code.
-	LabelType int
+	// Enumeration of prefixes for target names
+	PrefixType int
 
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
@@ -152,10 +154,12 @@ var (
 		Integer64:         "int64",
 	}
 
-	// Label prefixes for label types in the intermediate code.
-	LabelPrefix = map[LabelType]string{
-		BranchLabel:   "B",
-		FunctionLabel: "F",
+	// Target prefixes in the intermediate code.
+	TargetPrefix = map[PrefixType]rune{
+		BranchPrefix:   'B',
+		ConstantPrefix: 'C',
+		VariablePrefix: 'V',
+		FunctionPrefix: 'F',
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.

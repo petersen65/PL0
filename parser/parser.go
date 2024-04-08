@@ -15,6 +15,7 @@ const integerBitSize = 64
 
 // Private implementation of the recursive descent PL/0 parser.
 type parser struct {
+	uniqueScopeId  int32            // the parser is required to provide a unique number for each scope it creates
 	errorHandler   cor.ErrorHandler // error handler that is used to handle errors that occurred during parsing
 	tokenHandler   cor.TokenHandler // token handler that manages the tokens of the token stream
 	abstractSyntax ast.Block        // abstract syntax tree of the program
@@ -90,7 +91,8 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 
 // A block is a sequence of declarations followed by a statement.
 func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.Tokens) ast.Block {
-	var scope = ast.NewScope(outer) // a block has its own scope to manage its symbols
+	p.uniqueScopeId++                                // generate a scope number that must be unique accross compilation
+	var scope = ast.NewScope(p.uniqueScopeId, outer) // a block has its own scope to manage its symbols
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
 	constants := make([]ast.Declaration, 0)
