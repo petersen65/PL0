@@ -1,7 +1,7 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package compiler provides functions that compile PL/0 source code into AL/C intermediate language code.
+// Package compiler provides functions that compile PL/0 source code into assembly language code.
 package compiler
 
 import (
@@ -33,16 +33,16 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling PL/0 source '%v' to AL/C target '%v'\n"
+	textCompiling          = "Compiling PL/0 source '%v' to assembler target '%v'\n"
 	textErrorCompiling     = "Error compiling PL/0 source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting AL/C target '%v': %v"
+	textErrorPersisting    = "Error persisting assembler target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textEmulating          = "Emulating AL/C target '%v'\n"
-	textErrorEmulating     = "Error emulating AL/C target '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and AL/C target '%v' completed\n"
-	textDriverTarget       = "Compiler Driver with AL/C target '%v' completed\n"
+	textEmulating          = "Emulating assembler target '%v'\n"
+	textErrorEmulating     = "Error emulating assembler target '%v': %v"
+	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and assembler target '%v' completed\n"
+	textDriverTarget       = "Compiler Driver with assembler target '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -56,7 +56,7 @@ const (
 // File extensions for all generated files.
 const (
 	_ Extension = iota
-	Alc
+	Assembler
 	Token
 	Tree
 	Error
@@ -86,7 +86,7 @@ type (
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	Alc:          ".alc",
+	Assembler:    ".asm",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
@@ -110,7 +110,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// cleaned and validated target path
-	target = GetFullPath(targetDirectory, baseFileName, Alc)
+	target = GetFullPath(targetDirectory, baseFileName, Assembler)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -126,11 +126,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			}
 
 			// cleaned and validated target path after cleaning
-			target = GetFullPath(targetDirectory, baseFileName, Alc)
+			target = GetFullPath(targetDirectory, baseFileName, Assembler)
 		}
 	}
 
-	// compile PL/0 source to AL/C target and persist AL/C sections to target
+	// compile PL/0 source to assembler target and persist assembler sections to assembler target file
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, source, target)
 		translationUnit, err = CompileSourceToTranslationUnit(source)
@@ -148,7 +148,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
-			// persist AL/C sections to target and print persistence error message if an error occurred
+			// persist assembler sections to assembler target file and print persistence error message if an error occurred
 			// if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
 			// 	fmt.Fprintf(print, textErrorPersisting, target, err)
 			// 	return
@@ -166,7 +166,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// emulate AL/C target
+	// emulate assembler target
 	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		fmt.Fprintf(print, textEmulating, target)
 
@@ -254,7 +254,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist AL/C sections to the given target.
+// Persist assembler sections to the given target.
 // func PersistSectionsToTarget(sections emt.TextSection, target string) error {
 // 	if program, err := os.Create(target); err != nil {
 // 		return err
@@ -284,19 +284,19 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// create all Json files for intermediate representations
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
-	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Json))
+	iljFile, iljErr := os.Create(GetFullPath(targetDirectory, baseFileName, Assembler, Json))
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
 	// create all Text files for intermediate representations
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
-	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Text))
+	iltFile, iltErr := os.Create(GetFullPath(targetDirectory, baseFileName, Assembler, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
 	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
-	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Alc, Binary))
+	ilbFile, ilbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Assembler, Binary))
 
 	// check if any error occurred during file creations
 	anyError = errors.Join(tsjErr, asjErr, iljErr, erjErr, tstErr, astErr, iltErr, ictErr, ertErr, tsbErr, ilbErr)
@@ -374,7 +374,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	return anyError
 }
 
-// Run AL/C target with the emulator.
+// Run assembler target with the emulator.
 func EmulateTarget(target string) error {
 	if raw, err := os.ReadFile(target); err != nil {
 		return err
@@ -417,7 +417,7 @@ func CompileContent(content []byte) TranslationUnit {
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
-	// code generation and emission of AL/C and assembler code based on abstract syntax tree
+	// code generation and emission of assembler code based on abstract syntax tree
 	// emitter := gen.NewGenerator(abstractSyntax).Generate()
 
 	// return if any fatal or error errors occurred during code generation and emission

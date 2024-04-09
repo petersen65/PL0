@@ -19,11 +19,11 @@ const (
 	textCopyright     = "Copyright (c) 2024, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of PL/0 compiler"
 	textPurgeUsage    = "purge target directory before compiling"
-	textCompileUsage  = "compile PL/0 source file to AL/C target file"
-	textExportUsage   = "export intermediate representations to {.tok .ast .int .err} target files"
-	textRunUsage      = "run AL/C target file"
+	textCompileUsage  = "compile PL/0 source file to assembler target file"
+	textExportUsage   = "export intermediate representations to target files"
+	textRunUsage      = "run assembler target file"
 	textSourceUsage   = "PL/0 source file"
-	textTargetUsage   = "AL/C target file"
+	textTargetUsage   = "assembler target file"
 	textHelpUsage     = "print help message"
 )
 
@@ -77,7 +77,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// compile PL/0 source to AL/C target
+	// compile PL/0 source to assembler target
 	if compile {
 		options |= com.Compile
 
@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	// run AL/C target
+	// run assembler target
 	if run {
 		options |= com.Emulate
 
@@ -97,7 +97,7 @@ func main() {
 		}
 	}
 
-	// export intermediate representations as {.tok .ast .int .err} targets
+	// export intermediate representations as target files
 	if export {
 		options |= com.Export
 

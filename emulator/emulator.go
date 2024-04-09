@@ -13,7 +13,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Operation codes for AS/C.
+// Operation codes for assembler instructions.
 const (
 	_ = operationCode(iota)
 
@@ -54,7 +54,7 @@ const (
 	rcall
 )
 
-// Operand types for AS/C.
+// Operand types for assembler instructions.
 const (
 	_          = operandType(iota)
 	registers  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
@@ -225,7 +225,7 @@ func (p *process) importRaw(raw []byte) error {
 	return nil
 }
 
-// Run a binary AS/C target and return an error if the target fails to execute.
+// Run a binary target and return an error if the target fails to execute.
 func (m *machine) runRaw(raw []byte) error {
 	var process process
 
@@ -238,7 +238,7 @@ func (m *machine) runRaw(raw []byte) error {
 	return m.runProcess(&process)
 }
 
-// Load an IL/C module and return an error if the module fails to JIT compile and execute as AS/C.
+// Load a module and return an error if the module fails to JIT compile and execute.
 func (m *machine) runModule(module cod.Module) error {
 	var process process
 
@@ -251,7 +251,7 @@ func (m *machine) runModule(module cod.Module) error {
 	return m.runProcess(&process)
 }
 
-// Run an AS/C process and return an error if the process fails to execute.
+// Run a process and return an error if the process fails to execute.
 func (m *machine) runProcess(process *process) error {
 	// state of active callee, which is a running procedure: bp, sp, and ip
 	// state of caller is in descriptor of callee (first 3 entries of stack frame)
