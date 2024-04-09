@@ -16,7 +16,7 @@
                 "--export",
                 // "--run",
                 "--source",
-                "examples/procedures.pl0",
+                "examples/playground.pl0",
                 "--target",
                 "build"
             ],

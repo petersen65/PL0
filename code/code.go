@@ -685,14 +685,23 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.module.lookup(target)
 
+	// create a variable load instruction to load the variable value into an intermediate code result
+	load := i.NewInstruction(
+		VariableLoad,
+		NoLabel,
+		readDepth-declarationDepth,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+		NoAddress,
+		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+
 	// parameter 1 for the readln runtime function
 	param := i.NewInstruction(
 		Parameter,
 		NoLabel,
 		UnusedDifference,
+		load.Code.Result,
 		NoAddress,
-		NoAddress,
-		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+		NoAddress)
 
 	// call the readln runtime function with 1 parameter
 	readln := i.NewInstruction(
@@ -703,16 +712,25 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
 		NoAddress)
 
+	// variables are immutable and hence a new version is created every time a variable is assigned a new value
+	newTargetVersion := variableDeclaration.Scope.NewIdentifierVersion(target)
+	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newTargetVersion)
+	i.module.update(target, newTargetVersion)
+
+	// get the intermediate code symbol table entry of the abstract syntax variable declaration
+	codeSymbol = i.module.lookup(newTargetVersion)
+
 	// store the resultant value into the variable used by the read statement
 	store := i.NewInstruction(
 		VariableStore,
 		NoLabel,
 		readDepth-declarationDepth,
-		param.Code.Result,
-		NoAddress,
+		param.Code.Arg1,
+		NewAddress(codeSymbol.dataType, codeSymbol.offset, target),
 		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target))
 
 	// append the instructions to the module
+	i.AppendInstruction(load)
 	i.AppendInstruction(param)
 	i.AppendInstruction(readln)
 	i.AppendInstruction(store)
