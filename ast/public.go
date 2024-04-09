@@ -150,7 +150,7 @@ type (
 		Outer             *Scope                // outer scope or nil if this is the outermost scope
 		Extension         map[ExtensionType]any // extensions for compiler passes
 		id                int32                 // each scope has a unique identifier
-		identifierCounter uint64                // identifier counter for the scope
+		identifierCounter map[rune]uint64       // identifier counter for the scope
 		labelCounter      uint64                // label counter for the scope
 		names             []string              // enable deterministic iteration over the symbol table
 		symbolTable       *SymbolTable          // symbol table of the scope

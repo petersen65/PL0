@@ -20,11 +20,12 @@ func newScope(uniqueId int32, outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
 
 	return &Scope{
-		Outer:       outer,
-		Extension:   make(map[ExtensionType]any),
-		id:          uniqueId,
-		names:       make([]string, 0),
-		symbolTable: &symbolTable,
+		Outer:             outer,
+		Extension:         make(map[ExtensionType]any),
+		id:                uniqueId,
+		identifierCounter: make(map[rune]uint64),
+		names:             make([]string, 0),
+		symbolTable:       &symbolTable,
 	}
 }
 
@@ -263,8 +264,12 @@ func (s *Scope) Id() int32 {
 
 // Create a new compiler-generated unique identifier name for a scope.
 func (s *Scope) NewIdentifier(prefix rune) string {
-	s.identifierCounter++
-	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter)
+	if _, ok := s.identifierCounter[prefix]; !ok {
+		s.identifierCounter[prefix] = 0
+	}
+
+	s.identifierCounter[prefix]++
+	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter[prefix])
 }
 
 // Create a new compiler-generated version of an unique identifier name for a scope.
@@ -295,7 +300,7 @@ func (s *Scope) NewIdentifierVersion(identifier string) string {
 // Create a new compiler-generated unique label name for a scope.
 func (s *Scope) NewLabel() string {
 	s.labelCounter++
-	return fmt.Sprintf("L%v.%v", s.id, s.labelCounter)
+	return fmt.Sprintf("l%v.%v", s.id, s.labelCounter)
 }
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.

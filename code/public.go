@@ -157,11 +157,11 @@ var (
 
 	// Target prefixes in the intermediate code.
 	TargetPrefix = map[PrefixType]rune{
-		BranchPrefix:   'B',
+		BranchPrefix:   'b',
 		ResultPrefix:   't',
-		ConstantPrefix: 'C',
-		VariablePrefix: 'V',
-		FunctionPrefix: 'F',
+		ConstantPrefix: 'c',
+		VariablePrefix: 'v',
+		FunctionPrefix: 'f',
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
