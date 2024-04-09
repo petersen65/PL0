@@ -1,36 +1,27 @@
-var a, b, c;
+{ provide playground for trying out PL/0 }
 
-procedure P;
-
-procedure Q;
-var y, x;
-begin
-    x := a + b * 23;
-end;
+const a = 99;
+var x, y, z;
 
 begin
-    a := 1;
-    b := a + 2;
-    call Q;
-end;
+    x := 4;
+    y := 5;
+    z := -x - y;
 
-procedure R;
+    ! x;
+    ! y;
+    ! z;
+    ! a;
 
-procedure Q;
-var y, x;
-begin
-    call R;
-    call P;
-end;
+    if odd z then
+        ! 42;
 
-begin
-    a := 1;
-    b := a + 2;
-    c := 37;
-    call Q;
-end;
-
-begin
-    call P;
-    call R;
+    {
+        Correct output is:
+            4
+            5
+            -9
+            99
+            42
+    }
 end.

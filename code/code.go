@@ -207,21 +207,6 @@ func (m *module) update(target, newTargetVersion string) {
 	delete(m.symbolTable, target)
 }
 
-// Deterministically iterate over all symbols in the symbol table of the module.
-func (m *module) iterate() <-chan *symbol {
-	symbols := make(chan *symbol)
-
-	go func() {
-		for _, name := range m.targets {
-			symbols <- m.symbolTable[name]
-		}
-
-		close(symbols)
-	}()
-
-	return symbols
-}
-
 // Append an instruction to the intermediate code.
 func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
 	return m.instructions.PushBack(instruction)
