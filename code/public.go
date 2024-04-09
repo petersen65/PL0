@@ -23,11 +23,11 @@ const NoLabel = ""
 const (
 	_ = Operation(iota)
 
-	// x = op y, where op is a unary arithmetic or logical operation and x, y are compiler-generated temporary variables
+	// x = op y, where op is a unary arithmetic or logical operation and x, y are addresses
 	Odd    // unary logical operation 'odd'
 	Negate // unary arithmetic operation 'negation'
 
-	// x = y op z, where op is a binary arithmetic or relational operation, x, y, z are compiler-generated temporary variables
+	// x = y op z, where op is a binary arithmetic or relational operation, x, y, z are addresses
 	Plus         // binary arithmetic operation '+'
 	Minus        // binary arithmetic operation '-'
 	Times        // binary arithmetic operation '*'
@@ -39,7 +39,7 @@ const (
 	Greater      // binary relational operation '>'
 	GreaterEqual // binary relational operation '>='
 
-	// an unconditional or conditional jump goto L: the three-address instruction with label L is the next to be executed
+	// an unconditional or conditional jump goto L: the instruction with label L is the next to be executed
 	Jump             // unconditional jump
 	JumpEqual        // conditional jump '='
 	JumpNotEqual     // conditional jump '#'
@@ -53,12 +53,12 @@ const (
 	Call      // call function
 	Return    // return from function
 	Runtime   // call function of the external runtime library
-	Target    // target operation for placing a logical branch address in the intermediate code
+	Branch    // branch operation for placing a logical branch instruction in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
-	ValueCopy     // copy the value of a constant or literal into a compiler-generated temporary variable
-	VariableLoad  // load variable value from its location in the logical memory space into a compiler-generated temporary variable
-	VariableStore // store variable value from a compiler-generated temporary variable into its location in the logical memory space
+	ValueCopy     // copy the value of a constant or literal into an address
+	VariableLoad  // load variable value from its location in the logical memory space into an address
+	VariableStore // store variable value from an address into its location in the logical memory space
 )
 
 // Data types of values and variables in the three-address code concept.
@@ -76,7 +76,7 @@ const (
 	WriteLn
 )
 
-// Target name prefixes for the intermediate code.
+// Prefixes for variable names of addresses.
 const (
 	_ = PrefixType(iota)
 	BranchPrefix
@@ -93,7 +93,7 @@ type (
 	// String representation of a data type.
 	DataTypeRepresentation string
 
-	// Enumeration of prefixes for target names
+	// Enumeration of prefixes used for variable names of addresses
 	PrefixType int
 
 	// Address is the representation of an address in the three-address code concept.
@@ -109,15 +109,14 @@ type (
 	// Enumeration of runtime functions that belong to the external runtime library.
 	RuntimeFunction uint64
 
-	// Instruction represents a single operation in the intermediate code that has a target and a block nesting depth difference.
+	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {
-		Label           string    // logical target for any branching operation
+		Label           string    // branch-label for any branching operation
 		DepthDifference int32     // block nesting depth difference between variable use and variable declaration
 		Code            Quadruple // three-address code operation
 	}
 
 	// Quadruple represents a single operation in the intermediate code which is based on the three-address code concept.
-	// Each address is a space-delimited string-concatenation of a data-type and a variable or a compiler-generated temporary variable.
 	Quadruple struct {
 		Operation Operation // intermediate code operation
 		Arg1      *Address  // first address (argument 1)
@@ -147,7 +146,7 @@ var (
 		ast.Integer64: Integer64,
 	}
 
-	// DataTypeNames maps a data type to its string representation.
+	// DataTypeNames maps an address data type to its string representation.
 	DataTypeNames = map[DataType]string{
 		Void:              "void",
 		Label:             "label",
@@ -155,8 +154,8 @@ var (
 		Integer64:         "int64",
 	}
 
-	// Target prefixes in the intermediate code.
-	TargetPrefix = map[PrefixType]rune{
+	// Prefixes used for variable names of addresses.
+	Prefix = map[PrefixType]rune{
 		BranchPrefix:   'b',
 		ResultPrefix:   't',
 		ConstantPrefix: 'c',
@@ -192,7 +191,7 @@ var (
 		Call:             "call",
 		Return:           "return",
 		Runtime:          "runtime",
-		Target:           "target",
+		Branch:           "branch",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
 		VariableLoad:     "varLoad",

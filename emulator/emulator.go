@@ -116,7 +116,7 @@ type (
 	// Text section of the binary target.
 	textSection []instruction
 
-	// Operand of an operation with a register, address, int64 value, depth difference, or label.
+	// Operand of an operation with a register, address, int64 value, or label.
 	operand struct {
 		operand  operandType // type of the operand
 		register register    // register operand for the operation
@@ -125,7 +125,7 @@ type (
 		label    string      // labels for jump instructions will be replaced by an address or offset
 	}
 
-	// Instruction is the representation of a single operation with all its operands.
+	// Instruction is the representation of a single operation with all its operands and a depth difference.
 	instruction struct {
 		operation       operationCode // operation code of the instruction
 		operands        []operand     // operands for the operation
@@ -222,12 +222,6 @@ func (p *process) importRaw(raw []byte) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionImportFailed, nil, err)
 	}
 
-	return nil
-}
-
-// JIT compile a module into a process and return an error if the module fails to compile.
-func (p *process) jitCompile(module cod.Module) error {
-	p.text = make(textSection, 0)
 	return nil
 }
 

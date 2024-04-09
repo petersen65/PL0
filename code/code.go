@@ -36,7 +36,7 @@ type (
 	intermediateCode struct {
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for
 		module         *module    // module to store the generated intermediate code
-		results        *list.List // lifo stack holding temporary results from expressions
+		results        *list.List // lifo stack holding intermediate code results from expressions
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -61,6 +61,8 @@ type (
 	entry int
 
 	// Symbol represents a symbol in the intermediate code that maps its target to where it was defined.
+	// A target is the structured name of any abstract syntax identifier mapped to the intermediate code.
+	// A target is always relativ to a scope where it is defined and is unique accross all definitions within a module.
 	symbol struct {
 		target     string        // target name in the intermediate code
 		kind       entry         // kind of symbol entry
@@ -257,17 +259,17 @@ func configureSymbols(node ast.Node, code any) {
 		n.Scope.Extension[scopeExtension] = newScopeMetaData()
 
 	case *ast.ConstantDeclarationNode:
-		target := n.Scope.NewIdentifier(TargetPrefix[ConstantPrefix])
+		target := n.Scope.NewIdentifier(Prefix[ConstantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
 		module.insert(newSymbol(target, constant, DataTypeMap[n.DataType]))
 
 	case *ast.VariableDeclarationNode:
-		target := n.Scope.NewIdentifier(TargetPrefix[VariablePrefix])
+		target := n.Scope.NewIdentifier(Prefix[VariablePrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
 		module.insert(newSymbol(target, variable, DataTypeMap[n.DataType]))
 
 	case *ast.ProcedureDeclarationNode:
-		target := n.Block.(*ast.BlockNode).Scope.NewIdentifier(TargetPrefix[FunctionPrefix])
+		target := n.Block.(*ast.BlockNode).Scope.NewIdentifier(Prefix[FunctionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
 		module.insert(newSymbol(target, function, Void))
 	}
@@ -298,11 +300,11 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// only main block has no parent procedure declaration
 	if bn.ParentNode == nil {
-		blockBegin = bn.Scope.NewIdentifier(TargetPrefix[FunctionPrefix])
+		blockBegin = bn.Scope.NewIdentifier(Prefix[FunctionPrefix])
 
-		// append a target instruction with a target-label to mark the beginning of the block
+		// append a branch instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
-			Target,
+			Branch,
 			blockBegin,
 			UnusedDifference,
 			NewAddress(Void, 0, entryPointDisplayName),
@@ -314,9 +316,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
 		blockBegin = astSymbol.Extension[symbolExtension].(*symbolMetaData).target
 
-		// append a target instruction with a target-label to mark the beginning of the block
+		// append a branch instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
-			Target,
+			Branch,
 			blockBegin,
 			UnusedDifference,
 			NewAddress(Void, 0, astSymbol.Name),
@@ -326,8 +328,8 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		element := i.AppendInstruction(instruction)
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
-		funcSymbol := i.module.lookup(blockBegin)
-		funcSymbol.definition = element
+		codeSymbol := i.module.lookup(blockBegin)
+		codeSymbol.definition = element
 	}
 
 	// all declarations except blocks of nested procedures
@@ -399,7 +401,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		UnusedDifference,
 		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
 		NoAddress,
-		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(Prefix[ResultPrefix])))
 
 	// push the intermediate code result onto the stack and append the instruction to the module
 	i.pushResult(instruction.Code.Result)
@@ -426,7 +428,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			UnusedDifference,
 			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
 			NoAddress,
-			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])))
 
 		// push the intermediate code result onto the stack and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
@@ -455,7 +457,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			useDepth-declarationDepth,
 			NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
 			NoAddress,
-			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])))
 
 		// push the intermediate code result onto the stack and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
@@ -547,7 +549,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			UnusedDifference,
 			left,
 			right,
-			NewAddress(left.DataType, 0, scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+			NewAddress(left.DataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])))
 
 		// push the intermediate code result result onto the stack and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
@@ -677,7 +679,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		readDepth-declarationDepth,
 		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
 		NoAddress,
-		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(TargetPrefix[ResultPrefix])))
+		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])))
 
 	// parameter 1 for the readln runtime function
 	param := i.NewInstruction(
@@ -793,8 +795,8 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	// execute statement if the condition is true
 	s.Statement.Accept(i)
 
-	// append a target instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// append a branch instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Branch, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a while-do statement.
@@ -804,8 +806,8 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	beforeCondition := scope.NewLabel()
 	behindStatement := scope.NewLabel()
 
-	// append a target instruction before the conditional expression instructions
-	i.AppendInstruction(i.NewInstruction(Target, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// append a branch instruction before the conditional expression instructions
+	i.AppendInstruction(i.NewInstruction(Branch, beforeCondition, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// calculate the result of the conditional expression
 	s.Condition.Accept(i)
@@ -816,8 +818,8 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// execute statement if the condition is true
 	s.Statement.Accept(i)
 
-	// append a target instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Target, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
+	// append a branch instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Branch, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 
 	// append a jump instruction to jump back to the conditional expression instructions
 	beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
