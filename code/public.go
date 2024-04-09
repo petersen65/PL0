@@ -135,6 +135,7 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
 		AppendInstruction(instruction *Instruction) *list.Element
+		IterateInstruction() <- chan *Instruction
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}

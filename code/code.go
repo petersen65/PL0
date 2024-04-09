@@ -214,6 +214,21 @@ func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
 	return m.instructions.PushBack(instruction)
 }
 
+// Iterate over all instructions in the module.
+func (m *module) IterateInstruction() <- chan *Instruction {
+	instructions := make(chan *Instruction)
+
+	go func() {
+		for e := m.instructions.Front(); e != nil; e = e.Next() {
+			instructions <- e.Value.(*Instruction)
+		}
+
+		close(instructions)
+	}()
+
+	return instructions
+}
+
 // Print the module to the specified writer.
 func (m *module) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the module and print them to the writer

@@ -9,6 +9,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 const (
 	_ = cor.Failure(iota + 50000)
 	textSectionImportFailed
+	unknownIntermediateCodeOperation
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -24,6 +25,7 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	textSectionImportFailed:          "failed to import raw bytes into the text section",
+	unknownIntermediateCodeOperation: "unknown intermediate code operation: '%v'",
 	unsupportedOperand:               "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                "halt - address '%v' out of range",
 	stackOverflow:                    "halt - stack overflow at stack pointer '%v'",
