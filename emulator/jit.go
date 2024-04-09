@@ -14,8 +14,11 @@ func (p *process) jitCompile(module cod.Module) error {
 
 	// Iterate over the module's code and compile it into the text section of the process.
 	for instruction := range module.IterateInstruction() {
-		// Instruction selection of assembly code.
+		// Instruction selection for assembly code.
 		switch instruction.Code.Operation {
+			case cod.Allocate:
+				instruction := newInstruction(alloc, 0, newOperand(addressOperand, uint64(1)))
+				p.appendInstruction(instruction)
 
 		default:
 			return cor.NewGeneralError(
@@ -24,4 +27,8 @@ func (p *process) jitCompile(module cod.Module) error {
 	}
 
 	return nil
+}
+
+func (p *process) appendInstruction(instruction *instruction) {
+	p.text = append(p.text, instruction)
 }
