@@ -136,8 +136,19 @@ type (
 	Module interface {
 		AppendInstruction(instruction *Instruction) *list.Element
 		IterateInstruction() <- chan *Instruction
+		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
+	}
+
+	// The iterator interface provides navigation methods for the module's intermediate code instructions.  
+	Iterator interface {
+		Reset()
+		First() *Instruction
+		Last() *Instruction
+		Next() *Instruction
+		Previous() *Instruction
+		Peek(offset int) *Instruction
 	}
 )
 

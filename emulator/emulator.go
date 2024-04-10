@@ -122,7 +122,7 @@ type (
 		register register    // register operand for the operation
 		address  uint64      // jump address or offset of a variable
 		argInt   int64       // int64 value argument
-		label    string      // labels for jump instructions will be replaced by an address or offset
+		label    string      // labels for jump instructions will be replaced by an address
 	}
 
 	// Instruction is the representation of a single operation with all its operands and a depth difference.
@@ -130,6 +130,7 @@ type (
 		operation       operationCode // operation code of the instruction
 		operands        []*operand    // operands for the operation
 		depthDifference int32         // block nesting depth difference between variable use and variable declaration
+		label           string        // label to whom a jump instruction will jump
 	}
 
 	// Enumeration of registers of the CPU.
@@ -192,11 +193,12 @@ func newMachine() *machine {
 }
 
 // Create a new instruction with an operation code, a depth difference, and operands.
-func newInstruction(op operationCode, depthDifference int32, operands ...*operand) *instruction {
+func newInstruction(op operationCode, depthDifference int32, label string, operands ...*operand) *instruction {
 	return &instruction{
 		operation:       op,
 		operands:        operands,
 		depthDifference: depthDifference,
+		label:           label,
 	}
 }
 

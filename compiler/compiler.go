@@ -153,6 +153,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			// 	fmt.Fprintf(print, textErrorPersisting, target, err)
 			// 	return
 			// }
+			emu.RunModule(translationUnit.Module)
 			return
 		}
 	}

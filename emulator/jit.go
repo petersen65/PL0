@@ -16,9 +16,9 @@ func (p *process) jitCompile(module cod.Module) error {
 	for instruction := range module.IterateInstruction() {
 		// Instruction selection for assembly code.
 		switch instruction.Code.Operation {
-			case cod.Allocate:
-				instruction := newInstruction(alloc, 0, newOperand(addressOperand, uint64(1)))
-				p.appendInstruction(instruction)
+		case cod.Branch:
+
+		case cod.Allocate:
 
 		default:
 			return cor.NewGeneralError(
