@@ -5,7 +5,7 @@ package emulator
 
 import (
 	"bytes"
-	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"math"
@@ -105,7 +105,7 @@ const (
 )
 
 type (
-	// Type for operationCode codes.
+	// Type for operation codes.
 	operationCode int32
 
 	// Type of operands.
@@ -119,19 +119,19 @@ type (
 
 	// Operand of an operation with a register, address, int64 value, or label.
 	operand struct {
-		operand  operandType // type of the operand
-		register register    // register operand for the operation
-		address  uint64      // jump address or offset of a variable
-		argInt   int64       // int64 value argument
-		label    string      // labels for jump instructions will be replaced by an address
+		Operand  operandType // type of the operand
+		Register register    // register operand for the operation
+		Address  uint64      // jump address or offset of a variable
+		ArgInt   int64       // int64 value argument
+		Label    string      // labels for jump instructions will be replaced by an address
 	}
 
 	// Instruction is the representation of a single operation with all its operands and a depth difference.
 	instruction struct {
-		operation       operationCode // operation code of the instruction
-		operands        []*operand    // operands for the operation
-		depthDifference int32         // block nesting depth difference between variable use and variable declaration
-		label           string        // label to whom a jump instruction will jump
+		Operation       operationCode // operation code of the instruction
+		Operands        []*operand    // operands for the operation
+		DepthDifference int32         // block nesting depth difference between variable use and variable declaration
+		Label           string        // label to whom a jump instruction will jump
 	}
 
 	// Enumeration of registers of the CPU.
@@ -200,10 +200,10 @@ func newMachine() Machine {
 // Create a new instruction with an operation code, a depth difference, and operands.
 func newInstruction(op operationCode, depthDifference int32, label string, operands ...*operand) *instruction {
 	return &instruction{
-		operation:       op,
-		operands:        operands,
-		depthDifference: depthDifference,
-		label:           label,
+		Operation:       op,
+		Operands:        operands,
+		DepthDifference: depthDifference,
+		Label:           label,
 	}
 }
 
@@ -211,30 +211,38 @@ func newInstruction(op operationCode, depthDifference int32, label string, opera
 func newOperand(opType operandType, op any) *operand {
 	switch opType {
 	case registerOperand:
-		return &operand{operand: registerOperand, register: op.(register)}
+		return &operand{Operand: registerOperand, Register: op.(register)}
 
 	case immediateOperand:
-		return &operand{operand: immediateOperand, argInt: op.(int64)}
+		return &operand{Operand: immediateOperand, ArgInt: op.(int64)}
 
 	case addressOperand:
-		return &operand{operand: addressOperand, address: op.(uint64)}
+		return &operand{Operand: addressOperand, Address: op.(uint64)}
 
 	case labelOperand:
-		return &operand{operand: labelOperand, label: op.(string)}
+		return &operand{Operand: labelOperand, Label: op.(string)}
 
 	default:
 		return &operand{} // empty operand will generate an error when used
 	}
 }
 
+// String representation of an operation code.
+func (oc operationCode) String() string {
+	return operationMap[oc]
+}
+
 // Import a raw byte slice into the text section of a process.
 func (p *process) importRaw(raw []byte) error {
-	p.text = make(textSection, len(raw)/binary.Size(instruction{}))
-
 	var buffer bytes.Buffer
-	buffer.Write(raw)
 
-	if err := binary.Read(&buffer, binary.LittleEndian, p.text); err != nil {
+	// transfer raw bytes into a binary buffer
+	if _, err := buffer.Write(raw); err != nil {
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionImportFailed, nil, err)
+	}
+
+	// decode the binary buffer into the text section
+	if err := gob.NewDecoder(&buffer).Decode(&p.text); err != nil {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionImportFailed, nil, err)
 	}
 
@@ -243,7 +251,7 @@ func (p *process) importRaw(raw []byte) error {
 
 // Load a binary target and return an error if the target import fails.
 func (m *machine) Load(raw []byte) error {
-	// import a raw target into a process
+	// import a binary target into a process
 	if err := m.process.importRaw(raw); err != nil {
 		return err
 	}
@@ -263,6 +271,10 @@ func (m *machine) LoadModule(module cod.Module) error {
 
 // Print an assembly target to the specified writer.
 func (m *machine) Print(print io.Writer, args ...any) error {
+	if _, err := fmt.Fprintf(print, "global _start\n\nsection .text\n_start:\n"); err != nil {
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+	}
+
 	return nil
 }
 
@@ -274,6 +286,18 @@ func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 		return m.Print(print)
 
 	case cor.Binary:
+		var buffer bytes.Buffer
+
+		// encode the text section into a binary buffer
+		if err := gob.NewEncoder(&buffer).Encode(m.process.text); err != nil {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
+		// transfer the binary buffer to the print writer
+		if _, err := buffer.WriteTo(print); err != nil {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
+
 		return nil
 
 	default:
@@ -326,85 +350,85 @@ func (m *machine) RunProcess() error {
 		instr := m.process.text[m.cpu.registers[rip]]
 		m.cpu.registers[rip]++
 
-		switch instr.operation {
+		switch instr.Operation {
 		case push: // push operand onto the stack
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[push], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 			}
 
-			if err := m.cpu.push(instr.operands[0]); err != nil {
+			if err := m.cpu.push(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jmp: // unconditionally jump to uint64 address
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jmp], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jmp, nil)
 			}
 
-			if err := m.cpu.jmp(instr.operands[0]); err != nil {
+			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case je: // jump to uint64 address if last comparison was equal
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[je], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, je, nil)
 			}
 
-			if err := m.cpu.je(instr.operands[0]); err != nil {
+			if err := m.cpu.je(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jne: // jump to uint64 address if last comparison was not equal
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jne], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jne, nil)
 			}
 
-			if err := m.cpu.jne(instr.operands[0]); err != nil {
+			if err := m.cpu.jne(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jl: // jump to uint64 address if last comparison was less than
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jl], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jl, nil)
 			}
 
-			if err := m.cpu.jl(instr.operands[0]); err != nil {
+			if err := m.cpu.jl(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jle: // jump to uint64 address if last comparison was less than or equal to
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jle], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jle, nil)
 			}
 
-			if err := m.cpu.jle(instr.operands[0]); err != nil {
+			if err := m.cpu.jle(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jg: // jump to uint64 address if last comparison was greater than
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jg], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jg, nil)
 			}
 
-			if err := m.cpu.jg(instr.operands[0]); err != nil {
+			if err := m.cpu.jg(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case jge: // jump to uint64 address if last comparison was greater than or equal to
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jge], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jge, nil)
 			}
 
-			if err := m.cpu.jge(instr.operands[0]); err != nil {
+			if err := m.cpu.jge(instr.Operands[0]); err != nil {
 				return err
 			}
 
 		case alloc: // allocate stack space for variables
-			if len(instr.operands) != 1 || instr.operands[0].operand != addressOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[alloc], nil)
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, alloc, nil)
 			}
 
-			m.cpu.registers[rsp] += instr.operands[0].address
+			m.cpu.registers[rsp] += instr.Operands[0].Address
 
 		case neg: // negate int64 element on top of stack
 			if err := m.cpu.neg(); err != nil {
@@ -438,20 +462,20 @@ func (m *machine) RunProcess() error {
 			m.cpu.cmp()
 
 		case call: // caller procedure calls callee procedure
-			if len(instr.operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[call], nil)
+			if len(instr.Operands) != 1 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, call, nil)
 			}
 
 			// create descriptor of procedure being called and preserve state of caller in it
 			m.cpu.push(newOperand(registerOperand, m.cpu.registers[rip]))               // return address
 			m.cpu.push(newOperand(registerOperand, m.cpu.registers[rbp]))               // dynamic link
-			m.cpu.push(newOperand(addressOperand, m.cpu.parent(instr.depthDifference))) // static link
+			m.cpu.push(newOperand(addressOperand, m.cpu.parent(instr.DepthDifference))) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
 			m.cpu.registers[rbp] = m.cpu.registers[rsp]
 
 			// jump to procedure at uint64 address
-			if err := m.cpu.jmp(instr.operands[0]); err != nil {
+			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
 				return err
 			}
 
@@ -467,30 +491,30 @@ func (m *machine) RunProcess() error {
 			}
 
 		case loadvar: // copy int64 variable loaded from its base plus offset onto the stack
-			if len(instr.operands) != 1 || instr.operands[0].operand != addressOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[loadvar], nil)
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.depthDifference) + 1                          // base pointer + 1
-			variableOffset := instr.operands[0].address                                       // variable offset
+			variablesBase := m.cpu.parent(instr.DepthDifference) + 1                          // base pointer + 1
+			variableOffset := instr.Operands[0].Address                                       // variable offset
 			m.cpu.push(newOperand(addressOperand, m.cpu.stack[variablesBase+variableOffset])) // variables base + variable offset
 
 		case storevar: // copy int64 element from top of stack to a variable stored within its base plus offset
-			if len(instr.operands) != 1 || instr.operands[0].operand != addressOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[storevar], nil)
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.depthDifference) + 1         // base pointer + 1
-			variableOffset := instr.operands[0].address                      // variable offset
+			variablesBase := m.cpu.parent(instr.DepthDifference) + 1         // base pointer + 1
+			variableOffset := instr.Operands[0].Address                      // variable offset
 			m.cpu.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
 			m.cpu.stack[variablesBase+variableOffset] = m.cpu.registers[rax] // variables base + variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
-			if len(instr.operands) != 1 || instr.operands[0].operand != immediateOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[rcall], nil)
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, rcall, nil)
 			}
 
-			m.cpu.runtime(runtimeCall(instr.operands[0].argInt))
+			m.cpu.runtime(runtimeCall(instr.Operands[0].ArgInt))
 
 		default:
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[rip]-1, nil)
@@ -513,18 +537,18 @@ func (c *cpu) parent(difference int32) uint64 {
 func (c *cpu) push(op *operand) error {
 	var arg uint64
 
-	switch op.operand {
+	switch op.Operand {
 	case registerOperand:
-		arg = c.registers[op.register]
+		arg = c.registers[op.Register]
 
 	case immediateOperand:
-		arg = uint64(op.argInt)
+		arg = uint64(op.ArgInt)
 
 	case addressOperand:
-		arg = op.address
+		arg = op.Address
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[push], nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 	}
 
 	c.registers[rsp]++
@@ -534,12 +558,12 @@ func (c *cpu) push(op *operand) error {
 
 // Pop element from top of stack into operand, top of stack points to previous element.
 func (c *cpu) pop(op *operand) error {
-	switch op.operand {
+	switch op.Operand {
 	case registerOperand:
-		c.registers[op.register] = c.stack[c.registers[rsp]]
+		c.registers[op.Register] = c.stack[c.registers[rsp]]
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[pop], nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, pop, nil)
 	}
 
 	if c.registers[rsp] > 0 {
@@ -668,15 +692,15 @@ func (c *cpu) cmp() {
 
 // Unconditionally jump to uint64 address.
 func (c *cpu) jmp(op *operand) error {
-	switch op.operand {
+	switch op.Operand {
 	case addressOperand:
-		c.registers[rip] = op.address
+		c.registers[rip] = op.Address
 
 	case registerOperand:
-		c.registers[rip] = c.registers[op.register]
+		c.registers[rip] = c.registers[op.Register]
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, operationMap[jmp], nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jmp, nil)
 	}
 
 	return nil

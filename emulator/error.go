@@ -10,6 +10,7 @@ const (
 	_ = cor.Failure(iota + 50000)
 	recoveredFromIllegalIntermediateCode
 	textSectionImportFailed
+	textSectionExportFailed
 	unknownIntermediateCodeOperation
 	consecutiveBranchOperationsNotSupported
 	unsupportedOperandDataType
@@ -31,6 +32,7 @@ const (
 var failureMap = map[cor.Failure]string{
 	recoveredFromIllegalIntermediateCode:    "recovered from illegal intermediate code: %v",
 	textSectionImportFailed:                 "failed to import raw bytes into the text section",
+	textSectionExportFailed:                 "failed to export the text section into raw bytes",
 	unknownIntermediateCodeOperation:        "unknown intermediate code operation: '%v'",
 	consecutiveBranchOperationsNotSupported: "consecutive branch operations are not supported",
 	unsupportedOperandDataType:              "datatype not supported for an operand: %v",

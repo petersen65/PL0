@@ -14,7 +14,7 @@
                 "--purge",
                 "--compile",
                 "--export",
-                // "--run",
+                "--run",
                 "--source",
                 "examples/playground.pl0",
                 "--target",
