@@ -135,19 +135,20 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
 		AppendInstruction(instruction *Instruction) *list.Element
-		IterateInstruction() <- chan *Instruction
+		IterateInstruction() <-chan *Instruction
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
 
-	// The iterator interface provides navigation methods for the module's intermediate code instructions.  
+	// The iterator interface provides navigation methods for the module's intermediate code instructions.
 	Iterator interface {
-		Reset()
+		Current() *Instruction
 		First() *Instruction
 		Last() *Instruction
 		Next() *Instruction
 		Previous() *Instruction
+		Skip(offset int) *Instruction
 		Peek(offset int) *Instruction
 	}
 )

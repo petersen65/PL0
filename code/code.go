@@ -72,7 +72,7 @@ type (
 	}
 
 	iterator struct {
-		current *list.Element
+		current      *list.Element
 		instructions *list.List
 	}
 )
@@ -168,26 +168,28 @@ func (s *symbolMetaData) update(newTargetVersion string) {
 	s.target = newTargetVersion
 }
 
-// Set the iterator to the first instruction in the list.
-func (i *iterator) Reset() {
-	i.current = i.instructions.Front()
+// Get the instruction at the current position in the list.
+func (i *iterator) Current() *Instruction {
+	return i.Peek(0)
 }
 
-// Get the first instruction in the list.
+// Move to the first instruction in the list.
 func (i *iterator) First() *Instruction {
 	if i.instructions.Len() == 0 {
 		return nil
 	}
 
+	i.current = i.instructions.Front().Next()
 	return i.instructions.Front().Value.(*Instruction)
 }
 
-// Get the last instruction in the list.
+// Move to the last instruction in the list.
 func (i *iterator) Last() *Instruction {
 	if i.instructions.Len() == 0 {
 		return nil
 	}
 
+	i.current = nil
 	return i.instructions.Back().Value.(*Instruction)
 }
 
@@ -208,22 +210,22 @@ func (i *iterator) Previous() *Instruction {
 	if i.current == nil {
 		return nil
 	}
-
+	
 	instruction := i.current.Value.(*Instruction)
 	i.current = i.current.Prev()
 
 	return instruction
 }
 
-// Peek the instruction at the specified offset from the current instruction.
-func (i *iterator) Peek(offset int) *Instruction {
-	if offset < 0 {
-		for ; i.current != nil && offset < 0; offset++ {
-			i.current = i.current.Prev()
+// Move the iterator N instructions backward or forward
+func (i *iterator) Skip(offset int) *Instruction {
+	if (offset < 0) {
+		for j := 0; j > offset; j-- {
+			i.Previous()
 		}
-	} else {
-		for ; i.current != nil && offset > 0; offset-- {
-			i.current = i.current.Next()
+	} else if offset > 0 {
+		for j := 0; j < offset; j++ {
+			i.Next()
 		}
 	}
 
@@ -232,6 +234,27 @@ func (i *iterator) Peek(offset int) *Instruction {
 	}
 
 	return i.current.Value.(*Instruction)
+}
+
+// Peek the instruction at the specified offset from the current instruction.
+func (i *iterator) Peek(offset int) *Instruction {
+	element := i.current
+
+	if offset < 0 {
+		for j := 0; element != nil && j > offset; j-- {
+			element = element.Prev()
+		}
+	} else if offset > 0 {
+		for j := 0; element != nil && j < offset; j++ {
+			element = element.Next()
+		}
+	}
+
+	if element == nil {
+		return nil
+	}
+
+	return element.Value.(*Instruction)
 }
 
 // Insert a symbol into the symbol table of the module. If the symbol already exists, it will be overwritten.
@@ -286,7 +309,7 @@ func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
 }
 
 // Iterate over all instructions in the module.
-func (m *module) IterateInstruction() <- chan *Instruction {
+func (m *module) IterateInstruction() <-chan *Instruction {
 	instructions := make(chan *Instruction)
 
 	go func() {

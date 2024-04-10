@@ -154,7 +154,6 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			// 	return
 			// }
 			emu.RunModule(translationUnit.Module)
-			return
 		}
 	}
 
