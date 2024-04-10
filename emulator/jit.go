@@ -4,9 +4,20 @@
 package emulator
 
 import (
+	"strconv"
+
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 )
+
+// Number of bits of a signed integer.
+const integerBitSize = 64
+
+// UnusedDifference states that an assembly instruction does not use a block nesting depth difference.
+const unusedDifference = -1
+
+// NoLabel is a constant for an empty label in an assembly instruction.
+const noLabel = ""
 
 // JIT compile a module into the text section of a process and return an error if the module fails to compile.
 func (p *process) jitCompile(module cod.Module) (err error) {
@@ -21,11 +32,11 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		}
 	}()
 
-	// Iterate over the module's code and compile it into the text section of the process.
-	for i, l := iterator.First(), ""; i != nil; i = iterator.Next() {
+	// iterate over the module's code and compile it into the text section of the process
+	for i, l := iterator.First(), noLabel; i != nil; i = iterator.Next() {
 		switch i.Code.Operation {
 		case cod.Branch:
-			if next := iterator.Peek(1); l != "" || next != nil && next.Code.Operation == cod.Branch {
+			if next := iterator.Peek(1); l != noLabel || next != nil && next.Code.Operation == cod.Branch {
 				return cor.NewGeneralError(
 					cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
 			}
@@ -36,10 +47,27 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// group consecutive intermediate code allocate operations into one assembly alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
-					p.appendInstruction(newInstruction(alloc, 0, l, newOperand(addressOperand, uint64(j+1))))
+					p.appendInstruction(newInstruction(alloc, unusedDifference, l, newOperand(addressOperand, uint64(j+1))))
 					iterator.Skip(j)
 					break
 				}
+			}
+
+		case cod.ValueCopy:
+			switch i.Code.Arg1.DataType {
+			case cod.Integer64:
+				arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize)
+
+				if err != nil {
+					return cor.NewGeneralError(
+						cor.Emulator, failureMap, cor.Error, immediateOperandParsingError, i.Code.Arg1.Variable, err)
+				}
+
+				p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(immediateOperand, arg)))
+
+			default:
+				return cor.NewGeneralError(
+					cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
 			}
 
 		default:
@@ -49,7 +77,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 		// a label must be used by the directly following assembly instruction
 		if i.Code.Operation != cod.Branch {
-			l = ""
+			l = noLabel
 		}
 	}
 

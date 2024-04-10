@@ -12,6 +12,8 @@ const (
 	textSectionImportFailed
 	unknownIntermediateCodeOperation
 	consecutiveBranchOperationsNotSupported
+	unsupportedOperandDataType
+	immediateOperandParsingError
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -30,6 +32,8 @@ var failureMap = map[cor.Failure]string{
 	textSectionImportFailed:                 "failed to import raw bytes into the text section",
 	unknownIntermediateCodeOperation:        "unknown intermediate code operation: '%v'",
 	consecutiveBranchOperationsNotSupported: "consecutive branch operations are not supported",
+	unsupportedOperandDataType:              "datatype not supported for an operand: %v",
+	immediateOperandParsingError:            "value for immediate operand cannot be parsed: %v",
 	unsupportedOperand:                      "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                       "halt - address '%v' out of range",
 	stackOverflow:                           "halt - stack overflow at stack pointer '%v'",
