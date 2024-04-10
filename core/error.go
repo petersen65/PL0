@@ -106,8 +106,6 @@ var (
 		AbstractSyntaxTree: "ast",
 		Analyzer:           "analyzer",
 		Intermediate:       "intermediate",
-		Generator:          "generator",
-		Emitter:            "emitter",
 		Emulator:           "emulator",
 	}
 )

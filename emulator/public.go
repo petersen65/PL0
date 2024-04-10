@@ -4,14 +4,23 @@
 // Package emulator provides the emulation and JIT engine.
 package emulator
 
-import cod "github.com/petersen65/PL0/v2/code"
+import (
+	"io"
 
-// Run a binary target and return an error if the target fails to execute.
-func Run(raw []byte) error {
-	return newMachine().runRaw(raw)
+	cod "github.com/petersen65/PL0/v2/code"
+	cor "github.com/petersen65/PL0/v2/core"
+)
+
+// Virtual machine that can run processes and modules.
+type Machine interface {
+	Load(raw []byte) error
+	LoadModule(module cod.Module) error
+	RunProcess() error
+	Print(print io.Writer, args ...any) error
+	Export(format cor.ExportFormat, print io.Writer) error
 }
 
-// Load a module and return an error if the module fails to JIT compile and execute.
-func RunModule(module cod.Module) error {
-	return newMachine().runModule(module)
+// Create a new emulation machine with CPU, registers and stack that can run binary processes and modules.
+func NewMachine() Machine {
+	return newMachine()
 }

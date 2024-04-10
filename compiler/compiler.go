@@ -33,16 +33,16 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling PL/0 source '%v' to assembler target '%v'\n"
-	textErrorCompiling     = "Error compiling PL/0 source '%v': %v"
+	textCompiling          = "Compiling source code '%v' to binary target '%v'\n"
+	textErrorCompiling     = "Error compiling source code '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting assembler target '%v': %v"
+	textErrorPersisting    = "Error persisting binary target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textEmulating          = "Emulating assembler target '%v'\n"
-	textErrorEmulating     = "Error emulating assembler target '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with PL0 source '%v' and assembler target '%v' completed\n"
-	textDriverTarget       = "Compiler Driver with assembler target '%v' completed\n"
+	textEmulating          = "Emulating binary target '%v'\n"
+	textErrorEmulating     = "Error emulating binary target '%v': %v"
+	textDriverSourceTarget = "Compiler Driver with source code '%v' and binary target '%v' completed\n"
+	textDriverTarget       = "Compiler Driver with binary target '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -110,7 +110,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// cleaned and validated target path
-	target = GetFullPath(targetDirectory, baseFileName, Assembler)
+	target = GetFullPath(targetDirectory, baseFileName, Binary)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -126,11 +126,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			}
 
 			// cleaned and validated target path after cleaning
-			target = GetFullPath(targetDirectory, baseFileName, Assembler)
+			target = GetFullPath(targetDirectory, baseFileName, Binary)
 		}
 	}
 
-	// compile PL/0 source to assembler target and persist assembler sections to assembler target file
+	// compile source code to module and persist module to binary target
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, source, target)
 		translationUnit, err = CompileSourceToTranslationUnit(source)
@@ -148,12 +148,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
-			// persist assembler sections to assembler target file and print persistence error message if an error occurred
-			// if err = PersistSectionsToTarget(translationUnit.Sections, target); err != nil {
-			// 	fmt.Fprintf(print, textErrorPersisting, target, err)
-			// 	return
-			// }
-			emu.RunModule(translationUnit.Module)
+			// persist module to target and print persistence error message if an error occurred
+			if err = PersistModuleToTarget(translationUnit.Module, target); err != nil {
+				fmt.Fprintf(print, textErrorPersisting, target, err)
+				return
+			}
 		}
 	}
 
@@ -167,16 +166,11 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// emulate assembler target
+	// emulate binary target if no errors occurred during compilation
 	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		fmt.Fprintf(print, textEmulating, target)
 
 		if err = EmulateTarget(target); err != nil {
-			fmt.Fprintf(print, textErrorEmulating, target, err)
-			return
-		}
-
-		if err = emu.RunModule(translationUnit.Module); err != nil {
 			fmt.Fprintf(print, textErrorEmulating, target, err)
 			return
 		}
@@ -246,7 +240,7 @@ func EnsureTargetPath(target string) (string, string, error) {
 	return targetDirectory, baseFileName, nil
 }
 
-// Compile PL/0 source and return translation unit with all intermediate results and error handler.
+// Compile source code and return translation unit with all intermediate results and error handler.
 func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	if content, err := os.ReadFile(source); err != nil {
 		return TranslationUnit{}, err
@@ -255,20 +249,25 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist assembler sections to the given target.
-// func PersistSectionsToTarget(sections emt.TextSection, target string) error {
-// 	if program, err := os.Create(target); err != nil {
-// 		return err
-// 	} else {
-// 		defer program.Close()
+// Persist a module to the given binary target.
+func PersistModuleToTarget(module cod.Module, target string) error {
+	if program, err := os.Create(target); err != nil {
+		return err
+	} else {
+		defer program.Close()
+		machine := emu.NewMachine()
 
-// 		if err := sections.Export(cor.Binary, program); err != nil {
-// 			return err
-// 		}
-// 	}
+		if err := machine.LoadModule(module); err != nil {
+			return err
+		}
 
-// 	return nil
-// }
+		if err := machine.Export(cor.Binary, program); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // Export all intermediate representations to the target path.
 func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
@@ -375,12 +374,35 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	return anyError
 }
 
-// Run assembler target with the emulator.
+// Run module with the emulator.
+func EmulateModule(module cod.Module) error {
+	machine := emu.NewMachine()
+
+	if err := machine.LoadModule(module); err != nil {
+		return err
+	}
+
+	if err := machine.RunProcess(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Run binary target with the emulator.
 func EmulateTarget(target string) error {
 	if raw, err := os.ReadFile(target); err != nil {
 		return err
-	} else if err := emu.Run(raw); err != nil {
-		return err
+	} else {
+		machine := emu.NewMachine()
+
+		if err := machine.Load(raw); err != nil {
+			return err
+		}
+
+		if err := machine.RunProcess(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -397,14 +419,14 @@ func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) 
 	return targetFullPath
 }
 
-// Compile PL/0 UTF-8 encoded content and return translation unit with all intermediate results and error handler.
+// Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
 func CompileContent(content []byte) TranslationUnit {
-	// lexical analysis of PL/0 content
+	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler(tokenStream)
 	errorHandler.AppendError(scannerError) // nil errors are ignored
 
-	// syntax analysis and semantic analysis of PL/0 token stream
+	// syntax analysis and semantic analysis of token stream
 	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
 	ana.NewNameAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
 
@@ -413,15 +435,12 @@ func CompileContent(content []byte) TranslationUnit {
 		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
 	}
 
-	// intermediate code generation based on the abstract syntax tree
+	// intermediate code generation based on the abstract syntax tree results in a module
 	intermediate := cod.NewIntermediateCode(abstractSyntax)
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
-	// code generation and emission of assembler code based on abstract syntax tree
-	// emitter := gen.NewGenerator(abstractSyntax).Generate()
-
-	// return if any fatal or error errors occurred during code generation and emission
+	// return if any fatal or error errors occurred during code generation
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
 		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
 	}

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 
 	cod "github.com/petersen65/PL0/v2/code"
@@ -150,9 +151,10 @@ type (
 		stack     []uint64            // stack of the CPU
 	}
 
-	// Virtual machine that can run binary instructions of processes.
+	// Virtual machine that can run processes and modules.
 	machine struct {
-		cpu cpu
+		cpu     cpu
+		process process
 	}
 )
 
@@ -183,11 +185,14 @@ var operationMap = map[operationCode]string{
 }
 
 // Create a new emulation machine with CPU, registers and stack that can run binary processes.
-func newMachine() *machine {
+func newMachine() Machine {
 	return &machine{
 		cpu: cpu{
 			registers: make(map[register]uint64),
 			stack:     make([]uint64, stackSize),
+		},
+		process: process{
+			text: make(textSection, 0),
 		},
 	}
 }
@@ -236,34 +241,48 @@ func (p *process) importRaw(raw []byte) error {
 	return nil
 }
 
-// Run a binary target and return an error if the target fails to execute.
-func (m *machine) runRaw(raw []byte) error {
-	var process process
-
-	// import a raw target into memory
-	if err := process.importRaw(raw); err != nil {
+// Load a binary target and return an error if the target import fails.
+func (m *machine) Load(raw []byte) error {
+	// import a raw target into a process
+	if err := m.process.importRaw(raw); err != nil {
 		return err
 	}
 
-	// run process and return an error if it fails to execute
-	return m.runProcess(&process)
+	return nil
 }
 
-// Load a module and return an error if the module fails to JIT compile and execute.
-func (m *machine) runModule(module cod.Module) error {
-	var process process
-
+// Load a module and return an error if the module fails to JIT compile.
+func (m *machine) LoadModule(module cod.Module) error {
 	// JIT compile the module into a process
-	if err := process.jitCompile(module); err != nil {
+	if err := m.process.jitCompile(module); err != nil {
 		return err
 	}
 
-	// run process and return an error if it fails to execute
-	return m.runProcess(&process)
+	return nil
+}
+
+// Print an assembly target to the specified writer.
+func (m *machine) Print(print io.Writer, args ...any) error {
+	return nil
+}
+
+// Export the assembly or binary target that is managed by the virtual machine.
+func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
+	switch format {
+	case cor.Text:
+		// print is a convenience function to export the assembly target as a string to the print writer
+		return m.Print(print)
+
+	case cor.Binary:
+		return nil
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
 }
 
 // Run a process and return an error if the process fails to execute.
-func (m *machine) runProcess(process *process) error {
+func (m *machine) RunProcess() error {
 	// state of active callee, which is a running procedure: bp, sp, and ip
 	// state of caller is in descriptor of callee (first 3 entries of stack frame)
 	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
@@ -296,7 +315,7 @@ func (m *machine) runProcess(process *process) error {
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
-		if m.cpu.registers[rip] >= uint64(len(process.text)) {
+		if m.cpu.registers[rip] >= uint64(len(m.process.text)) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[rip], nil)
 		}
 
@@ -304,7 +323,7 @@ func (m *machine) runProcess(process *process) error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[rsp], nil)
 		}
 
-		instr := process.text[m.cpu.registers[rip]]
+		instr := m.process.text[m.cpu.registers[rip]]
 		m.cpu.registers[rip]++
 
 		switch instr.operation {

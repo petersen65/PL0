@@ -61,8 +61,6 @@ const (
 	AbstractSyntaxTree
 	Analyzer
 	Intermediate
-	Generator
-	Emitter
 	Emulator
 	AllComponents = Component(^uint64(0))
 )

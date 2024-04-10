@@ -14,6 +14,7 @@ const (
 	consecutiveBranchOperationsNotSupported
 	unsupportedOperandDataType
 	immediateOperandParsingError
+	unknownExportFormat
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -34,6 +35,7 @@ var failureMap = map[cor.Failure]string{
 	consecutiveBranchOperationsNotSupported: "consecutive branch operations are not supported",
 	unsupportedOperandDataType:              "datatype not supported for an operand: %v",
 	immediateOperandParsingError:            "value for immediate operand cannot be parsed: %v",
+	unknownExportFormat:                     "unknown export format: %v",
 	unsupportedOperand:                      "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                       "halt - address '%v' out of range",
 	stackOverflow:                           "halt - stack overflow at stack pointer '%v'",

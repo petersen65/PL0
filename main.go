@@ -17,20 +17,20 @@ const (
 	textTitle         = "PL/0 Compiler"
 	textVersion       = "Version 2.1.0 2024"
 	textCopyright     = "Copyright (c) 2024, Michael Petersen. All rights reserved."
-	textCompilerUsage = "Usage of PL/0 compiler"
+	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
-	textCompileUsage  = "compile PL/0 source file to assembler target file"
+	textCompileUsage  = "compile source code file to binary target file"
 	textExportUsage   = "export intermediate representations to target files"
-	textRunUsage      = "run assembler target file"
-	textSourceUsage   = "PL/0 source file"
-	textTargetUsage   = "assembler target file"
+	textRunUsage      = "run binary target file"
+	textSourceUsage   = "source code file"
+	textTargetUsage   = "binary target file"
 	textHelpUsage     = "print help message"
 )
 
 // CommitHash is the git commit hash of the current build and will be set by the external build system.
 var CommitHash string
 
-// Function main is the entry point for the PL/0 compiler command line interface. It parses the command line arguments and calls the appropriate functions.
+// Function main is the entry point for the compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
 	var options com.DriverOption
 	var help, compile, run, export, purge bool
@@ -77,7 +77,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// compile PL/0 source to assembler target
+	// compile source code to binary target
 	if compile {
 		options |= com.Compile
 
@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	// run assembler target
+	// run binary target
 	if run {
 		options |= com.Emulate
 
