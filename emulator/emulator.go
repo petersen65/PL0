@@ -62,7 +62,7 @@ const (
 	storevar
 )
 
-// Operand types for assembler instructions.
+// Operand types for instructions.
 const (
 	_                = operandType(iota)
 	registerOperand  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
@@ -345,7 +345,7 @@ func (m *machine) LoadModule(module cod.Module) error {
 	return nil
 }
 
-// Print an assembly target to the specified writer.
+// Print an emulator target to the specified writer.
 func (m *machine) Print(print io.Writer, args ...any) error {
 	var start string
 
@@ -369,11 +369,11 @@ func (m *machine) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the assembly or binary target that is managed by the virtual machine.
+// Export the emulator or binary target that is managed by the virtual machine.
 func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Text:
-		// print is a convenience function to export the assembly target as a string to the print writer
+		// print is a convenience function to export the emulator target as a string to the print writer
 		return m.Print(print)
 
 	case cor.Binary:

@@ -138,13 +138,11 @@ The programming language PL/0 2024 supports the following features:
 
 ## Planning
 
-* Q2 2024, Compiler version 2.1.0 2024, provide assembler backend for the existing compiler frontend
-	* assembler package that emits x86_64 assembler mnemonics for the LLVM Assembler and links the resultant object-file with libc
+* Q2 2024, Compiler version 2.1.0 2024, provide new emulator backend for the existing compiler frontend
+	* code package implementing an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
+	* new emulation engine that compiles intermediate language code into pseudo-assembler code which the emulator can execute
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
-	* integrate Pascal scanner and parser into the PL/0 scanner and parser
-	* merge emitter and assembler into a generic concept for emitting code driven by a generator
-	* migrate the PL/0 project to a Pascal II project which allows to attach interfaces to user defined datatypes and records
-	* think about generating C code for GCC and use GCC as backend for PL/0
+	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
-	* implement optimizers like constant folding
+	* implement optimizers documented in compiler construction literature

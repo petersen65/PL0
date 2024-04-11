@@ -13,10 +13,10 @@ import (
 // Number of bits of a signed integer.
 const integerBitSize = 64
 
-// UnusedDifference states that an assembly instruction does not use a block nesting depth difference.
+// UnusedDifference states that an instruction does not use a block nesting depth difference.
 const unusedDifference = -1
 
-// NoLabel is a constant for an empty label in an assembly instruction.
+// NoLabel is a constant for an empty label in an instruction.
 const noLabel = ""
 
 // JIT compile a module into the text section of a process and return an error if the module fails to compile.
@@ -41,10 +41,10 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 					cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
 			}
 
-			l = i.Label // save label for directly following assembly instruction
+			l = i.Label // save label for directly following instruction
 
 		case cod.Allocate:
-			// group consecutive intermediate code allocate operations into one assembly alloc instruction
+			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
 					p.appendInstruction(newInstruction(alloc, unusedDifference, l, newOperand(addressOperand, uint64(j+1))))
@@ -75,7 +75,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
 		}
 
-		// a label must be used by the directly following assembly instruction
+		// a label must be used by the directly following instruction
 		if i.Code.Operation != cod.Branch {
 			l = noLabel
 		}
@@ -84,7 +84,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	return nil
 }
 
-// Append an assembler instruction to the end of the text section
+// Append an instruction to the end of the text section
 func (p *process) appendInstruction(instruction *instruction) {
 	p.text = append(p.text, instruction)
 }

@@ -1,7 +1,7 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package compiler provides functions that compile PL/0 source code into assembly language code.
+// Package compiler provides functions that compile PL/0 source code into target language codes.
 package compiler
 
 import (
@@ -56,7 +56,7 @@ const (
 // File extensions for all generated files.
 const (
 	_ Extension = iota
-	Assembler
+	Emulator
 	Token
 	Tree
 	Error
@@ -86,7 +86,7 @@ type (
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	Assembler:    ".asm",
+	Emulator:     ".emu",
 	Token:        ".tok",
 	Tree:         ".ast",
 	Error:        ".err",
@@ -301,7 +301,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
-	amtFile, amtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Assembler, Text))
+	amtFile, amtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// create all Binary files for intermediate representations
@@ -363,7 +363,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
 	}
 
-	// export all assembly representations to the target files
+	// export all emulator representations to the target files
 	if translationUnit.Module != nil {
 		machine := emu.NewMachine()
 
