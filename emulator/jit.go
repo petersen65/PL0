@@ -230,8 +230,8 @@ func (p *process) linker() error {
 	labels := make(map[string]uint64)
 
 	for i := range p.text {
-		if p.text[i].Label != noLabel {
-			labels[p.text[i].Label] = uint64(i)
+		if p.text[i].Labels != noLabel {
+			labels[p.text[i].Labels] = uint64(i)
 		}
 
 		p.text[i].Address = uint64(i)

@@ -136,7 +136,7 @@ type (
 		Operation       operationCode // operation code of the instruction
 		Operands        []*operand    // operands for the operation
 		DepthDifference int32         // block nesting depth difference between variable use and variable declaration
-		Label           string        // label to whom a jump instruction will jump
+		Labels          []string      // labels to whom jump instructions will jump
 		Address         uint64        // absolute address of this instruction in the text section is set during linking
 	}
 
@@ -227,12 +227,12 @@ func newMachine() Machine {
 }
 
 // Create a new instruction with an operation code, a depth difference, and operands.
-func newInstruction(op operationCode, depthDifference int32, label string, operands ...*operand) *instruction {
+func newInstruction(op operationCode, depthDifference int32, labels []string, operands ...*operand) *instruction {
 	return &instruction{
 		Operation:       op,
 		Operands:        operands,
 		DepthDifference: depthDifference,
-		Label:           label,
+		Labels:          labels,
 	}
 }
 
@@ -290,9 +290,11 @@ func (oc operationCode) String() string {
 func (i *instruction) String() string {
 	var buffer bytes.Buffer
 
-	if i.Label != noLabel {
-		buffer.WriteString(i.Label)
-		buffer.WriteString(":\n")
+	for _, label := range i.Labels {
+		if label != noLabel {
+			buffer.WriteString(label)
+			buffer.WriteString(":\n")
+		}
 	}
 
 	buffer.WriteString(fmt.Sprintf("%7v", i.Address))
@@ -347,9 +349,9 @@ func (m *machine) LoadModule(module cod.Module) error {
 func (m *machine) Print(print io.Writer, args ...any) error {
 	var start string
 
-	if len(m.process.text) > 0 && m.process.text[0].Label != noLabel {
-		start = m.process.text[0].Label
-		m.process.text[0].Label = noLabel
+	if len(m.process.text) > 0 && m.process.text[0].Labels != noLabel {
+		start = m.process.text[0].Labels
+		m.process.text[0].Labels = noLabel
 	} else {
 		start = defaultStartLabel
 	}
@@ -556,8 +558,8 @@ func (m *machine) RunProcess() error {
 			}
 
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rip]))               // return address
-			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rbp]))               // dynamic link
+			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rip]))                // return address
+			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rbp]))                // dynamic link
 			m.cpu.push(newOperand(addressOperand, m.cpu.parent(instr.DepthDifference))) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
