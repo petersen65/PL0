@@ -239,8 +239,7 @@ func (p *process) linker() error {
 		switch instr.Operation {
 		case call, jmp, je, jne, jl, jle, jg, jge:
 			if address, ok := labels[instr.Operands[0].Label]; !ok {
-				continue
-				//return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, instr.Operands[0].Label, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, instr.Operands[0].Label, nil)
 			} else {
 				instr.Operands[0] = newOperand(addressOperand, address)
 			}
