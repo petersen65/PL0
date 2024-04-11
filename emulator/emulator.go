@@ -15,9 +15,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Number of spaces for indentation.
-const indentSize = 4
-
 // Label for the entry point of the program if none is provided.
 const defaultStartLabel = "_start"
 
