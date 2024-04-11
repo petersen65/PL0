@@ -4,6 +4,7 @@
 package emulator
 
 import (
+	"container/list"
 	"strconv"
 
 	cod "github.com/petersen65/PL0/v2/code"
@@ -23,12 +24,12 @@ const noLabel = ""
 func (p *process) jitCompile(module cod.Module) (err error) {
 	p.text = make(textSection, 0)
 	iterator := module.GetIterator()
+	parameters := list.New()
 
 	// protect the JIT compiler against non-valid structured intermediate code
 	defer func() {
 		if r := recover(); r != nil {
-			err = cor.NewGeneralError(
-				cor.Emulator, failureMap, cor.Error, recoveredFromIllegalIntermediateCode, r, nil)
+			err = cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, recoveredFromIllegalIntermediateCode, r, nil)
 		}
 	}()
 
@@ -37,8 +38,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		switch i.Code.Operation {
 		case cod.Branch:
 			if next := iterator.Peek(1); l != noLabel || next != nil && next.Code.Operation == cod.Branch {
-				return cor.NewGeneralError(
-					cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
 			}
 
 			l = i.Label // save label for directly following instruction
@@ -59,20 +59,95 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize)
 
 				if err != nil {
-					return cor.NewGeneralError(
-						cor.Emulator, failureMap, cor.Error, immediateOperandParsingError, i.Code.Arg1.Variable, err)
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg1.Variable, err)
 				}
 
 				p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(immediateOperand, arg)))
 
 			default:
-				return cor.NewGeneralError(
-					cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
 			}
 
+		case cod.VariableLoad:
+			switch i.Code.Arg1.DataType {
+			case cod.Integer64:
+				p.appendInstruction(newInstruction(loadvar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Arg1.Offset)))
+
+			default:
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
+			}
+
+		case cod.VariableStore:
+			switch i.Code.Result.DataType {
+			case cod.Integer64:
+				p.appendInstruction(newInstruction(storevar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Result.Offset)))
+
+			default:
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Result.DataType, nil)
+			}
+
+		case cod.Negate:
+			p.appendInstruction(newInstruction(neg, unusedDifference, l))
+
+		case cod.Odd:
+			p.appendInstruction(newInstruction(and, unusedDifference, l))
+
+		case cod.Plus:
+			p.appendInstruction(newInstruction(add, unusedDifference, l))
+
+		case cod.Minus:
+			p.appendInstruction(newInstruction(sub, unusedDifference, l))
+
+		case cod.Times:
+			p.appendInstruction(newInstruction(imul, unusedDifference, l))
+
+		case cod.Divide:
+			p.appendInstruction(newInstruction(idiv, unusedDifference, l))
+
+		case cod.Parameter:
+			parameters.PushBack(i)
+
+		case cod.Runtime:
+			param := parameters.Back().Value.(*cod.Instruction)
+			parameters.Remove(parameters.Back())
+
+			switch param.Code.Arg1.DataType {
+			case cod.Integer64:
+				if i.Code.Arg1.DataType != cod.UnsignedInteger64 {
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
+				}
+
+				arg, err := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize)
+
+				if err != nil {
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg1.Variable, err)
+				}
+
+				if arg != 1 {
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
+				}
+
+				if i.Code.Arg2.DataType != cod.UnsignedInteger64 {
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg2.DataType, nil)
+				}
+
+				rtc, err := strconv.ParseUint(i.Code.Arg2.Variable, 10, integerBitSize)
+
+				if err != nil {
+					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg2.Variable, err)
+				}
+
+				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(addressOperand, rtc)))
+
+			default:
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, param.Code.Arg1.DataType, nil)
+			}
+
+		case cod.Return:
+			p.appendInstruction(newInstruction(ret, unusedDifference, l))
+
 		default:
-			return cor.NewGeneralError(
-				cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
+			// return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
 		}
 
 		// a label must be used by the directly following instruction

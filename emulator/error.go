@@ -9,14 +9,16 @@ import cor "github.com/petersen65/PL0/v2/core"
 const (
 	_ = cor.Failure(iota + 50000)
 	recoveredFromIllegalIntermediateCode
+	unknownExportFormat
 	textSectionImportFailed
 	textSectionExportFailed
 	unknownIntermediateCodeOperation
 	consecutiveBranchOperationsNotSupported
 	unsupportedOperandDataType
-	immediateOperandParsingError
-	unknownExportFormat
+	operandParsingError
 	unknownInstructionOperand
+	unexpectedNumberOfFunctionArguments
+	unknownRuntimeCallCode
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -32,14 +34,16 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	recoveredFromIllegalIntermediateCode:    "recovered from illegal intermediate code: %v",
+	unknownExportFormat:                     "unknown export format: %v",
 	textSectionImportFailed:                 "failed to import raw bytes into the text section",
 	textSectionExportFailed:                 "failed to export the text section into raw bytes",
 	unknownIntermediateCodeOperation:        "unknown intermediate code operation: %v",
 	consecutiveBranchOperationsNotSupported: "consecutive branch operations are not supported",
 	unsupportedOperandDataType:              "datatype not supported for an operand: %v",
-	immediateOperandParsingError:            "value for immediate operand cannot be parsed: %v",
-	unknownExportFormat:                     "unknown export format: %v",
+	operandParsingError:                     "value of operand cannot be parsed: %v",
 	unknownInstructionOperand:               "unknown instruction operand: %v",
+	unexpectedNumberOfFunctionArguments:     "unexpected number of arguments for function call",
+	unknownRuntimeCallCode:                  "unknown runtime library call code: %v",
 	unsupportedOperand:                      "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                       "halt - address '%v' out of range",
 	stackOverflow:                           "halt - stack overflow at stack pointer '%v'",

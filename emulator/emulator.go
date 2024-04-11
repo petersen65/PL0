@@ -73,7 +73,8 @@ const (
 
 // Call codes for the programming language runtime library.
 const (
-	readln = runtimeCall(iota)
+	_ = runtimeCall(iota)
+	readln
 	writeln
 )
 
@@ -119,7 +120,7 @@ type (
 	operandType int32
 
 	// Type for runtime call codes.
-	runtimeCall int64
+	runtimeCall uint64
 
 	// Text section of the binary target.
 	textSection []*instruction
@@ -601,11 +602,14 @@ func (m *machine) RunProcess() error {
 			m.cpu.stack[variablesBase+variableOffset] = m.cpu.registers[rax] // variables base + variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, rcall, nil)
 			}
 
-			m.cpu.runtime(runtimeCall(instr.Operands[0].ArgInt))
+			// call runtime library function via call code
+			if err := m.cpu.runtime(runtimeCall(instr.Operands[0].Address)); err != nil {
+				return err
+			}
 
 		default:
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[rip]-1, nil)
@@ -944,7 +948,7 @@ func (c *cpu) unset_of() {
 }
 
 // Call to programming language runtime library.
-func (c *cpu) runtime(code runtimeCall) {
+func (c *cpu) runtime(code runtimeCall) error {
 	switch code {
 	case readln:
 		// read integer from stdin
@@ -964,5 +968,10 @@ func (c *cpu) runtime(code runtimeCall) {
 		// write integer to stdout
 		c.pop(newOperand(registerOperand, rax))
 		fmt.Printf("%v\n", int64(c.registers[rax]))
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownRuntimeCallCode, code, nil)
 	}
+
+	return nil
 }
