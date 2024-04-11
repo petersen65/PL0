@@ -192,7 +192,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			p.appendInstruction(newInstruction(ret, unusedDifference, l))
 
 		default:
-			// return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
 		}
 
 		// a label must be used by the directly following instruction
@@ -201,24 +201,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		}
 	}
 
-	linker := make(map[string]uint64)
-
-	for i := range p.text {
-		if p.text[i].Label != noLabel {
-			linker[p.text[i].Label] = uint64(i)
-		}
-	}
-
-	for i := range p.text {
-		switch p.text[i].Operation {
-		case call, jmp, je, jne, jl, jle, jg, jge:
-			if address, ok := linker[p.text[i].Operands[0].Label]; ok {
-				p.text[i].Operands[0] = newOperand(addressOperand, address)
-			}
-		}
-	}
-
-	return nil
+	return p.linker()
 }
 
 // Append an instruction to the end of the text section
@@ -240,4 +223,30 @@ func validateDataType(expected cod.DataType, actuals ...cod.DataType) error {
 // Create a new parsing error with the given value and inner error.
 func newParsingError(value any, inner error) error {
 	return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, value, inner)
+}
+
+// The linker resolves label references to absolut code addresses.
+func (p *process) linker() error {
+	labels := make(map[string]uint64)
+
+	for i := range p.text {
+		if p.text[i].Label != noLabel {
+			labels[p.text[i].Label] = uint64(i)
+		}
+
+		p.text[i].Address = uint64(i)
+	}
+
+	for _, instr := range p.text {
+		switch instr.Operation {
+		case call, jmp, je, jne, jl, jle, jg, jge:
+			if address, ok := labels[instr.Operands[0].Label]; !ok {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, instr.Operands[0].Label, nil)
+			} else {
+				instr.Operands[0] = newOperand(addressOperand, address)
+			}
+		}
+	}
+
+	return nil
 }

@@ -19,6 +19,7 @@ const (
 	unknownInstructionOperand
 	unexpectedNumberOfFunctionArguments
 	unknownRuntimeCallCode
+	unresolvedLabelReference
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -44,6 +45,7 @@ var failureMap = map[cor.Failure]string{
 	unknownInstructionOperand:               "unknown instruction operand: %v",
 	unexpectedNumberOfFunctionArguments:     "unexpected number of arguments for function call",
 	unknownRuntimeCallCode:                  "unknown runtime library call code: %v",
+	unresolvedLabelReference:                "unresolved label reference: %v",
 	unsupportedOperand:                      "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                       "halt - address '%v' out of range",
 	stackOverflow:                           "halt - stack overflow at stack pointer '%v'",

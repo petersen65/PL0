@@ -140,6 +140,7 @@ type (
 		Operands        []*operand    // operands for the operation
 		DepthDifference int32         // block nesting depth difference between variable use and variable declaration
 		Label           string        // label to whom a jump instruction will jump
+		Address         uint64        // absolute address of this instruction in the text section is set during linking
 	}
 
 	// Enumeration of registers of the CPU.
@@ -297,9 +298,8 @@ func (i *instruction) String() string {
 		buffer.WriteString(":\n")
 	}
 
-	buffer.WriteString(strings.Repeat(" ", indentSize))
-	buffer.WriteString(i.Operation.String())
-	buffer.WriteString(" ")
+	buffer.WriteString(fmt.Sprintf("%7v", i.Address))
+	buffer.WriteString(fmt.Sprintf("  %-12v", i.Operation))
 
 	for _, op := range i.Operands {
 		buffer.WriteString(op.String())
