@@ -932,12 +932,12 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// execute statement if the condition is true
 	s.Statement.Accept(i)
 
-	// append a branch instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Branch, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
-
 	// append a jump instruction to jump back to the conditional expression instructions
 	beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
 	i.AppendInstruction(i.NewInstruction(Jump, NoLabel, UnusedDifference, beforeConditionAddress, NoAddress, NoAddress))
+
+	// append a branch instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Branch, behindStatement, UnusedDifference, NoAddress, NoAddress, NoAddress))
 }
 
 // Generate code for a compound begin-end statement.

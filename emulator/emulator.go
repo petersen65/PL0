@@ -556,8 +556,8 @@ func (m *machine) RunProcess() error {
 			}
 
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(newOperand(registerOperand, m.cpu.registers[rip]))               // return address
-			m.cpu.push(newOperand(registerOperand, m.cpu.registers[rbp]))               // dynamic link
+			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rip]))               // return address
+			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rbp]))               // dynamic link
 			m.cpu.push(newOperand(addressOperand, m.cpu.parent(instr.DepthDifference))) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
