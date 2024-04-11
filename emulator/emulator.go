@@ -347,16 +347,7 @@ func (m *machine) LoadModule(module cod.Module) error {
 
 // Print an emulator target to the specified writer.
 func (m *machine) Print(print io.Writer, args ...any) error {
-	var start string
-
-	if len(m.process.text) > 0 && m.process.text[0].Labels != noLabel {
-		start = m.process.text[0].Labels
-		m.process.text[0].Labels = noLabel
-	} else {
-		start = defaultStartLabel
-	}
-
-	if _, err := fmt.Fprintf(print, "global %v\n\nsection .text\n%v:\n", start, start); err != nil {
+	if _, err := fmt.Fprintf(print, "global %v\nsection .text\n%v:\n", defaultStartLabel, defaultStartLabel); err != nil {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
 	}
 

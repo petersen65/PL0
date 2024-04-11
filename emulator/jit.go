@@ -34,14 +34,10 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	}()
 
 	// iterate over the module's code and compile it into the text section of the process
-	for i, l := iterator.First(), noLabel; i != nil; i = iterator.Next() {
+	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		switch i.Code.Operation {
 		case cod.Branch:
-			// if next := iterator.Peek(1); l != noLabel || next != nil && next.Code.Operation == cod.Branch {
-			// 	return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
-			// }
-
-			l = i.Label // save label for directly following instruction
+			l = append(l, i.Label) // append labels for directly following instruction
 
 		case cod.Allocate:
 			// group consecutive intermediate code allocate operations into one alloc instruction
@@ -197,7 +193,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 		// a label must be used by the directly following instruction
 		if i.Code.Operation != cod.Branch {
-			l = noLabel
+			l = make([]string, 0)
 		}
 	}
 
@@ -230,8 +226,10 @@ func (p *process) linker() error {
 	labels := make(map[string]uint64)
 
 	for i := range p.text {
-		if p.text[i].Labels != noLabel {
-			labels[p.text[i].Labels] = uint64(i)
+		for _, label := range p.text[i].Labels {
+			if label != noLabel {
+				labels[label] = uint64(i)
+			}
 		}
 
 		p.text[i].Address = uint64(i)
@@ -241,7 +239,8 @@ func (p *process) linker() error {
 		switch instr.Operation {
 		case call, jmp, je, jne, jl, jle, jg, jge:
 			if address, ok := labels[instr.Operands[0].Label]; !ok {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, instr.Operands[0].Label, nil)
+				continue
+				//return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, instr.Operands[0].Label, nil)
 			} else {
 				instr.Operands[0] = newOperand(addressOperand, address)
 			}
