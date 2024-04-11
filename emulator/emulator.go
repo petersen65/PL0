@@ -9,18 +9,26 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Operation codes for assembler instructions.
+// Number of spaces for indentation.
+const indentSize = 4
+
+// Label for the entry point of the program if none is provided.
+const defaultStartLabel = "_start"
+
+// Operation codes for pseudo-assembly instructions.
 const (
 	_ = operationCode(iota)
 
 	// stack assembly instructions for stack operations
 	push
 	pop
+	alloc
 
 	// comparison assembly instruction for all relational operators and conditional jumps
 	cmp
@@ -47,12 +55,11 @@ const (
 	// subroutine assembly instructions for procedure calls
 	call
 	ret
+	rcall
 
-	// pseudo-assembly instructions that require multiple assembly instructions
+	// assembly instructions for loading and storing variables
 	loadvar
 	storevar
-	alloc
-	rcall
 )
 
 // Operand types for assembler instructions.
@@ -158,31 +165,54 @@ type (
 	}
 )
 
-// Map operation codes to their string representation.
-var operationMap = map[operationCode]string{
-	push:     "push",
-	pop:      "pop",
-	cmp:      "cmp",
-	jmp:      "jmp",
-	je:       "je",
-	jne:      "jne",
-	jl:       "jl",
-	jle:      "jle",
-	jg:       "jg",
-	jge:      "jge",
-	neg:      "neg",
-	and:      "and",
-	add:      "add",
-	sub:      "sub",
-	imul:     "imul",
-	idiv:     "idiv",
-	call:     "call",
-	ret:      "ret",
-	loadvar:  "loadvar",
-	storevar: "storevar",
-	alloc:    "alloc",
-	rcall:    "rcall",
-}
+var (
+	// Map operation codes to their string representation.
+	operationNames = map[operationCode]string{
+		push:     "push",
+		pop:      "pop",
+		cmp:      "cmp",
+		jmp:      "jmp",
+		je:       "je",
+		jne:      "jne",
+		jl:       "jl",
+		jle:      "jle",
+		jg:       "jg",
+		jge:      "jge",
+		neg:      "neg",
+		and:      "and",
+		add:      "add",
+		sub:      "sub",
+		imul:     "imul",
+		idiv:     "idiv",
+		call:     "call",
+		ret:      "ret",
+		loadvar:  "loadvar",
+		storevar: "storevar",
+		alloc:    "alloc",
+		rcall:    "rcall",
+	}
+
+	// Map registers to their string representation.
+	registerNames = map[register]string{
+		rax: "rax",
+		rbx: "rbx",
+		rcx: "rcx",
+		rdx: "rdx",
+		rsi: "rsi",
+		rdi: "rdi",
+		r8:  "r8",
+		r9:  "r9",
+		r10: "r10",
+		r11: "r11",
+		r12: "r12",
+		r13: "r13",
+		r14: "r14",
+		r15: "r15",
+		rip: "rip",
+		rsp: "rsp",
+		rbp: "rbp",
+	}
+)
 
 // Create a new emulation machine with CPU, registers and stack that can run binary processes.
 func newMachine() Machine {
@@ -227,9 +257,55 @@ func newOperand(opType operandType, op any) *operand {
 	}
 }
 
+// String representation of a register.
+func (r register) String() string {
+	return registerNames[r]
+}
+
+// String representation of an operand.
+func (o *operand) String() string {
+	switch o.Operand {
+	case registerOperand:
+		return o.Register.String()
+
+	case immediateOperand:
+		return fmt.Sprintf("%v", o.ArgInt)
+
+	case addressOperand:
+		return fmt.Sprintf("%v", o.Address)
+
+	case labelOperand:
+		return o.Label
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownInstructionOperand, o.Operand, nil))
+	}
+}
+
 // String representation of an operation code.
 func (oc operationCode) String() string {
-	return operationMap[oc]
+	return operationNames[oc]
+}
+
+// String representation of an instruction.
+func (i *instruction) String() string {
+	var buffer bytes.Buffer
+
+	if i.Label != noLabel {
+		buffer.WriteString(i.Label)
+		buffer.WriteString(":\n")
+	}
+
+	buffer.WriteString(strings.Repeat(" ", indentSize))
+	buffer.WriteString(i.Operation.String())
+	buffer.WriteString(" ")
+
+	for _, op := range i.Operands {
+		buffer.WriteString(op.String())
+		buffer.WriteString(", ")
+	}
+
+	return strings.TrimSuffix(buffer.String(), ", ")
 }
 
 // Import a raw byte slice into the text section of a process.
@@ -271,8 +347,23 @@ func (m *machine) LoadModule(module cod.Module) error {
 
 // Print an assembly target to the specified writer.
 func (m *machine) Print(print io.Writer, args ...any) error {
-	if _, err := fmt.Fprintf(print, "global _start\n\nsection .text\n_start:\n"); err != nil {
+	var start string
+
+	if len(m.process.text) > 0 && m.process.text[0].Label != noLabel {
+		start = m.process.text[0].Label
+		m.process.text[0].Label = noLabel
+	} else {
+		start = defaultStartLabel
+	}
+
+	if _, err := fmt.Fprintf(print, "global %v\n\nsection .text\n%v:\n", start, start); err != nil {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+	}
+
+	for _, instr := range m.process.text {
+		if _, err := fmt.Fprintf(print, "%v\n", instr); err != nil {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		}
 	}
 
 	return nil

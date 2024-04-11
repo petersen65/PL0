@@ -251,17 +251,28 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 
 // Persist a module to the given binary target.
 func PersistModuleToTarget(module cod.Module, target string) error {
-	if program, err := os.Create(target); err != nil {
+	var err error
+	var program *os.File
+
+	if program, err = os.Create(target); err != nil {
 		return err
 	} else {
-		defer program.Close()
+		// safely close file and remove it if there is an error
+		defer func() {
+			program.Close()
+
+			if err != nil {
+				os.Remove(target)
+			}
+		}()
+
 		machine := emu.NewMachine()
 
-		if err := machine.LoadModule(module); err != nil {
+		if err = machine.LoadModule(module); err != nil {
 			return err
 		}
 
-		if err := machine.Export(cor.Binary, program); err != nil {
+		if err = machine.Export(cor.Binary, program); err != nil {
 			return err
 		}
 	}
@@ -352,7 +363,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
 	}
 
-	// export all assembler representations to the target files
+	// export all assembly representations to the target files
 	if translationUnit.Module != nil {
 		machine := emu.NewMachine()
 
