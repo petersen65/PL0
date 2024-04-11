@@ -37,9 +37,9 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	for i, l := iterator.First(), noLabel; i != nil; i = iterator.Next() {
 		switch i.Code.Operation {
 		case cod.Branch:
-			if next := iterator.Peek(1); l != noLabel || next != nil && next.Code.Operation == cod.Branch {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
-			}
+			// if next := iterator.Peek(1); l != noLabel || next != nil && next.Code.Operation == cod.Branch {
+			// 	return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, consecutiveBranchOperationsNotSupported, nil, nil)
+			// }
 
 			l = i.Label // save label for directly following instruction
 
@@ -56,16 +56,14 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		case cod.ValueCopy:
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
-				arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize)
-
-				if err != nil {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg1.Variable, err)
+				if arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize); err != nil {
+					return newParsingError(i.Code.Arg1.Variable, err)
+				} else {
+					p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(immediateOperand, arg)))
 				}
 
-				p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(immediateOperand, arg)))
-
 			default:
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
+				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
 			}
 
 		case cod.VariableLoad:
@@ -74,7 +72,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				p.appendInstruction(newInstruction(loadvar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Arg1.Offset)))
 
 			default:
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
+				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
 			}
 
 		case cod.VariableStore:
@@ -83,64 +81,111 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				p.appendInstruction(newInstruction(storevar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Result.Offset)))
 
 			default:
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Result.DataType, nil)
+				return validateDataType(cod.Integer64, i.Code.Result.DataType)
 			}
 
 		case cod.Negate:
+			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType); err != nil {
+				return err
+			}
+
 			p.appendInstruction(newInstruction(neg, unusedDifference, l))
 
 		case cod.Odd:
+			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType); err != nil {
+				return err
+			}
+
 			p.appendInstruction(newInstruction(and, unusedDifference, l))
 
-		case cod.Plus:
-			p.appendInstruction(newInstruction(add, unusedDifference, l))
+		case cod.Plus, cod.Minus, cod.Times, cod.Divide:
+			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType, i.Code.Arg2.DataType); err != nil {
+				return err
+			}
 
-		case cod.Minus:
-			p.appendInstruction(newInstruction(sub, unusedDifference, l))
+			switch i.Code.Operation {
+			case cod.Plus:
+				p.appendInstruction(newInstruction(add, unusedDifference, l))
 
-		case cod.Times:
-			p.appendInstruction(newInstruction(imul, unusedDifference, l))
+			case cod.Minus:
+				p.appendInstruction(newInstruction(sub, unusedDifference, l))
 
-		case cod.Divide:
-			p.appendInstruction(newInstruction(idiv, unusedDifference, l))
+			case cod.Times:
+				p.appendInstruction(newInstruction(imul, unusedDifference, l))
+
+			case cod.Divide:
+				p.appendInstruction(newInstruction(idiv, unusedDifference, l))
+			}
+
+		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual:
+			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType, i.Code.Arg2.DataType); err != nil {
+				return err
+			}
+
+			p.appendInstruction(newInstruction(cmp, unusedDifference, l))
+
+		case cod.Jump:
+			p.appendInstruction(newInstruction(jmp, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpEqual:
+			p.appendInstruction(newInstruction(je, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpNotEqual:
+			p.appendInstruction(newInstruction(jne, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpLess:
+			p.appendInstruction(newInstruction(jl, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpLessEqual:
+			p.appendInstruction(newInstruction(jle, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpGreater:
+			p.appendInstruction(newInstruction(jg, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
+
+		case cod.JumpGreaterEqual:
+			p.appendInstruction(newInstruction(jge, unusedDifference, l, newOperand(labelOperand, i.Code.Arg1.Variable)))
 
 		case cod.Parameter:
 			parameters.PushBack(i)
+
+		case cod.Call:
+			if i.Code.Arg1.DataType != cod.UnsignedInteger64 {
+				return validateDataType(cod.UnsignedInteger64, i.Code.Arg1.DataType)
+			}
+
+			if arg, err := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize); err != nil {
+				return newParsingError(i.Code.Arg1.Variable, err)
+			} else if arg != 0 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
+			} else {
+				p.appendInstruction(newInstruction(call, i.DepthDifference, l, newOperand(labelOperand, i.Code.Arg2.Variable)))
+			}
 
 		case cod.Runtime:
 			param := parameters.Back().Value.(*cod.Instruction)
 			parameters.Remove(parameters.Back())
 
-			switch param.Code.Arg1.DataType {
-			case cod.Integer64:
-				if i.Code.Arg1.DataType != cod.UnsignedInteger64 {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg1.DataType, nil)
-				}
+			arg, err1 := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize)
+			rtc, err2 := strconv.ParseUint(i.Code.Arg2.Variable, 10, integerBitSize)
 
-				arg, err := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize)
+			switch {
+			case param.Code.Arg1.DataType != cod.Integer64:
+				return validateDataType(cod.Integer64, param.Code.Arg1.DataType)
 
-				if err != nil {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg1.Variable, err)
-				}
+			case i.Code.Arg1.DataType != cod.UnsignedInteger64 || i.Code.Arg2.DataType != cod.UnsignedInteger64:
+				return validateDataType(cod.UnsignedInteger64, i.Code.Arg1.DataType, i.Code.Arg2.DataType)
 
-				if arg != 1 {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
-				}
+			case err1 != nil:
+				return newParsingError(i.Code.Arg1.Variable, err1)
 
-				if i.Code.Arg2.DataType != cod.UnsignedInteger64 {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, i.Code.Arg2.DataType, nil)
-				}
+			case err2 != nil:
+				return newParsingError(i.Code.Arg2.Variable, err2)
 
-				rtc, err := strconv.ParseUint(i.Code.Arg2.Variable, 10, integerBitSize)
-
-				if err != nil {
-					return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, i.Code.Arg2.Variable, err)
-				}
-
-				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(addressOperand, rtc)))
+			case arg != 1:
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
 
 			default:
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, param.Code.Arg1.DataType, nil)
+				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(addressOperand, rtc)))
 			}
 
 		case cod.Return:
@@ -156,10 +201,43 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		}
 	}
 
+	linker := make(map[string]uint64)
+
+	for i := range p.text {
+		if p.text[i].Label != noLabel {
+			linker[p.text[i].Label] = uint64(i)
+		}
+	}
+
+	for i := range p.text {
+		switch p.text[i].Operation {
+		case call, jmp, je, jne, jl, jle, jg, jge:
+			if address, ok := linker[p.text[i].Operands[0].Label]; ok {
+				p.text[i].Operands[0] = newOperand(addressOperand, address)
+			}
+		}
+	}
+
 	return nil
 }
 
 // Append an instruction to the end of the text section
 func (p *process) appendInstruction(instruction *instruction) {
 	p.text = append(p.text, instruction)
+}
+
+// Validate the data type of the actuals and return an error if the data type is not as expected.
+func validateDataType(expected cod.DataType, actuals ...cod.DataType) error {
+	for _, actual := range actuals {
+		if actual != expected {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperandDataType, actual, nil)
+		}
+	}
+
+	return nil
+}
+
+// Create a new parsing error with the given value and inner error.
+func newParsingError(value any, inner error) error {
+	return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, operandParsingError, value, inner)
 }
