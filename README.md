@@ -5,13 +5,13 @@ This module provides a complete compiler for the programming language PL/0. It p
 * scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree 
-* generator: compiler pass for code generation by traversing the abstract syntax tree to drive the IL/0 emitter
-* emitter: binary output of IL/0 intermediate language, called by code generator during abstract syntax tree traversal
-* emulator: execution of IL/0 intermediate language instructions by running a process on a virtual cpu with stack and registers
+* analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
+* code: compiler pass for intermediate language code generation by traversing the abstract syntax tree
+* emulator: execution of JIT compiled intermediate language code instructions by running a process on a virtual cpu with stack and registers
 * core: core features, token type-system, and error-handling mechanism used by all compiler components
-* compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant IL/0 code
+* compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called Intermediate Language IL/0, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called pseudo-assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
@@ -139,10 +139,11 @@ The programming language PL/0 2024 supports the following features:
 ## Planning
 
 * Q2 2024, Compiler version 2.1.0 2024, provide new emulator backend for the existing compiler frontend
-	* code package implementing an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
-	* new emulation engine that compiles intermediate language code into pseudo-assembler code which the emulator can execute
+	* new package implements an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
+	* new emulation engine that JIT-compiles intermediate language code into pseudo-assembler code which the emulator can execute
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
+	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives
+	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser
-	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi)
-	* implement optimizers documented in compiler construction literature
+	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi, LLVM IR)
