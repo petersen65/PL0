@@ -11,27 +11,27 @@ begin
     { stack overflow }
     {call Recursion;}
 
-    { arithmetic overflow for negation }
+    { arithmetic overflow of negation }
     {a := -9223372036854775808;
     ! -a;}
 
-    { arithmetic overflow for addition }
+    { arithmetic overflow of addition }
     {b := -9223372036854775808 + -1;
     ! b;}
 
-    { arithmetic overflow for subtraction }
+    { arithmetic overflow of subtraction }
     {c := -9223372036854775808 -1;
     ! c;}
 
-    { arithmetic overflow for multiplication }
+    { arithmetic overflow of multiplication }
     {d := 4611686018427387904 * 2;
     ! d;}
 
-    { arithmetic overflow for addition }
+    { arithmetic overflow of addition }
     {e := 9223372036854775807 + 1;
     ! e;}
 
-    { arithmetic overflow for division }
+    { arithmetic overflow of division }
     {f := -9223372036854775808 / -1;
     ! f;}
 end.
