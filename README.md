@@ -145,6 +145,7 @@ The programming language PL/0 2024 supports the following features:
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
 	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
+	* implement closure support for the compiler's intermediate language
 	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser
 	* support for Intel x86_64 assembler generation (e.g. nasm, gcc asm, clib-linkage, bare metal target based on uefi, LLVM IR)
