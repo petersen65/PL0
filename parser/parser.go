@@ -269,12 +269,14 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 
 // An assignment is an identifier followed by becomes followed by an expression.
 func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
+	var becomesIndex int
 	name := p.lastTokenValue()
 	nameIndex := p.lastTokenIndex()
 
 	p.nextToken()
 
 	if p.lastToken() == cor.Becomes {
+		becomesIndex = p.lastTokenIndex()
 		p.nextToken()
 	} else {
 		p.appendError(expectedBecomes, p.lastTokenName())
@@ -291,7 +293,7 @@ func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement 
 	// the left side of an assignment is an identifier
 	left := ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex)
 
-	return ast.NewAssignmentStatement(left, right)
+	return ast.NewAssignmentStatement(left, right, becomesIndex)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
@@ -299,6 +301,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	var name string
 	var nameIndex int
 
+	readIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	if p.lastToken() != cor.Identifier {
@@ -315,14 +318,15 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	}
 
 	// a read statement that uses a variable identifier
-	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex))
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex), readIndex)
 }
 
 // A write statement is the write operator followed by an expression.
 func (p *parser) write(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
+	writeIndex := p.lastTokenIndex()
 	p.nextToken()
 	expression := p.expression(scope, anchors)
-	return ast.NewWriteStatement(expression)
+	return ast.NewWriteStatement(expression, writeIndex)
 }
 
 // A call statement is the call word followed by a procedure identifier.
@@ -330,6 +334,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	var name string
 	var nameIndex int
 
+	callIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	if p.lastToken() != cor.Identifier {
@@ -345,11 +350,12 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	}
 
 	// a call statement that uses a procedure identifier
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.Procedure, nameIndex))
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.Procedure, nameIndex), callIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
 func (p *parser) ifWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
+	ifIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
@@ -369,11 +375,12 @@ func (p *parser) ifWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 		statement = ast.NewEmptyStatement()
 	}
 
-	return ast.NewIfStatement(condition, statement)
+	return ast.NewIfStatement(condition, statement, ifIndex)
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
 func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
+	whileIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
@@ -393,7 +400,7 @@ func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 		statement = ast.NewEmptyStatement()
 	}
 
-	return ast.NewWhileStatement(condition, statement)
+	return ast.NewWhileStatement(condition, statement, whileIndex)
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
@@ -572,9 +579,10 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 	operation := ast.NewEmptyExpression()
 
 	if p.lastToken() == cor.OddWord {
+		oddIndex := p.lastTokenIndex()
 		p.nextToken()
 		operand := p.expression(scope, anchors)
-		operation = ast.NewUnaryOperation(ast.Odd, operand)
+		operation = ast.NewUnaryOperation(ast.Odd, operand, oddIndex)
 	} else {
 		// handle left expression of a relational operator
 		left := p.expression(scope, set(anchors, cor.Equal, cor.NotEqual, cor.Less, cor.LessEqual, cor.Greater, cor.GreaterEqual))
@@ -583,6 +591,7 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 			p.appendError(expectedRelationalOperator, p.lastTokenName())
 		} else {
 			relationalOperator := p.lastToken()
+			relationalOperatorIndex := p.lastTokenIndex()
 			p.nextToken()
 
 			// handle right expression of a relational operator
@@ -590,22 +599,22 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 
 			switch relationalOperator {
 			case cor.Equal:
-				operation = ast.NewConditionalOperation(ast.Equal, left, right)
+				operation = ast.NewConditionalOperation(ast.Equal, left, right, relationalOperatorIndex)
 
 			case cor.NotEqual:
-				operation = ast.NewConditionalOperation(ast.NotEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.NotEqual, left, right, relationalOperatorIndex)
 
 			case cor.Less:
-				operation = ast.NewConditionalOperation(ast.Less, left, right)
+				operation = ast.NewConditionalOperation(ast.Less, left, right, relationalOperatorIndex)
 
 			case cor.LessEqual:
-				operation = ast.NewConditionalOperation(ast.LessEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.LessEqual, left, right, relationalOperatorIndex)
 
 			case cor.Greater:
-				operation = ast.NewConditionalOperation(ast.Greater, left, right)
+				operation = ast.NewConditionalOperation(ast.Greater, left, right, relationalOperatorIndex)
 
 			case cor.GreaterEqual:
-				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right)
+				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right, relationalOperatorIndex)
 
 			default:
 				p.appendError(expectedRelationalOperator, p.lastTokenName())
@@ -626,15 +635,16 @@ func (p *parser) expression(scope *ast.Scope, anchors cor.Tokens) ast.Expression
 
 	for p.lastToken() == cor.Plus || p.lastToken() == cor.Minus {
 		plusOrMinus := p.lastToken()
+		plusOrMinusIndex := p.lastTokenIndex()
 		p.nextToken()
 
 		// handle right term of a plus or minus operator
 		right := p.term(scope, set(anchors, cor.Plus, cor.Minus))
 
 		if plusOrMinus == cor.Plus {
-			operation = ast.NewBinaryOperation(ast.Plus, left, right)
+			operation = ast.NewBinaryOperation(ast.Plus, left, right, plusOrMinusIndex)
 		} else {
-			operation = ast.NewBinaryOperation(ast.Minus, left, right)
+			operation = ast.NewBinaryOperation(ast.Minus, left, right, plusOrMinusIndex)
 		}
 
 		left = operation
@@ -657,16 +667,17 @@ func (p *parser) term(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 
 	for p.lastToken() == cor.Times || p.lastToken() == cor.Divide {
 		timesOrDevide := p.lastToken()
+		timesOrDevideIndex := p.lastTokenIndex()
 		p.nextToken()
 
 		// handle right factor of a times or divide operator
 		right := p.factor(scope, set(anchors, cor.Times, cor.Divide))
 
 		if timesOrDevide == cor.Times {
-			operation = ast.NewBinaryOperation(ast.Times, left, right)
+			operation = ast.NewBinaryOperation(ast.Times, left, right, timesOrDevideIndex)
 
 		} else {
-			operation = ast.NewBinaryOperation(ast.Divide, left, right)
+			operation = ast.NewBinaryOperation(ast.Divide, left, right, timesOrDevideIndex)
 		}
 
 		left = operation
@@ -683,6 +694,7 @@ func (p *parser) term(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
 func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	var sign cor.Token
+	var signIndex int
 
 	// in case of a parsing error, return an empty declaration
 	operand := ast.NewEmptyExpression()
@@ -690,6 +702,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	// handle leading plus or minus sign of a factor
 	if p.lastToken() == cor.Plus || p.lastToken() == cor.Minus {
 		sign = p.lastToken()
+		signIndex = p.lastTokenIndex()
 		p.nextToken()
 	}
 
@@ -704,7 +717,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == cor.Number {
-			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64, scope)
+			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64, scope, p.lastTokenIndex())
 			sign = cor.Unknown
 			p.nextToken()
 		} else if p.lastToken() == cor.LeftParenthesis {
@@ -729,7 +742,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 
 	// negate the factor if a leading minus sign is present
 	if sign == cor.Minus {
-		operand = ast.NewUnaryOperation(ast.Negate, operand)
+		operand = ast.NewUnaryOperation(ast.Negate, operand, signIndex)
 	}
 
 	return operand

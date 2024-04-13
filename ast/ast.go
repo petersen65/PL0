@@ -95,12 +95,13 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, scope *Scope) Expression {
+func newLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
 	return &LiteralNode{
-		TypeName: NodeTypeNames[LiteralType],
-		Value:    value,
-		DataType: dataType,
-		Scope:    scope,
+		TypeName:         NodeTypeNames[LiteralType],
+		Value:            value,
+		DataType:         dataType,
+		Scope:            scope,
+		TokenStreamIndex: index,
 	}
 }
 
@@ -116,11 +117,12 @@ func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expre
 }
 
 // Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(operation UnaryOperator, operand Expression) Expression {
+func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
 	unary := &UnaryOperationNode{
-		TypeName:  NodeTypeNames[UnaryOperationType],
-		Operation: operation,
-		Operand:   operand,
+		TypeName:         NodeTypeNames[UnaryOperationType],
+		Operation:        operation,
+		Operand:          operand,
+		TokenStreamIndex: index,
 	}
 
 	operand.SetParent(unary)
@@ -128,12 +130,13 @@ func newUnaryOperation(operation UnaryOperator, operand Expression) Expression {
 }
 
 // Create a new binary operation node in the abstract syntax tree.
-func newBinaryOperation(operation BinaryOperator, left, right Expression) Expression {
+func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
 	binary := &BinaryOperationNode{
-		TypeName:  NodeTypeNames[BinaryOperationType],
-		Operation: operation,
-		Left:      left,
-		Right:     right,
+		TypeName:         NodeTypeNames[BinaryOperationType],
+		Operation:        operation,
+		Left:             left,
+		Right:            right,
+		TokenStreamIndex: index,
 	}
 
 	left.SetParent(binary)
@@ -142,12 +145,13 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression) Expres
 }
 
 // Create a new conditional operation node in the abstract syntax tree.
-func newConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
+func newConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
 	conditional := &ConditionalOperationNode{
-		TypeName:  NodeTypeNames[ConditionalOperationType],
-		Operation: operation,
-		Left:      left,
-		Right:     right,
+		TypeName:         NodeTypeNames[ConditionalOperationType],
+		Operation:        operation,
+		Left:             left,
+		Right:            right,
+		TokenStreamIndex: index,
 	}
 
 	left.SetParent(conditional)
@@ -156,11 +160,12 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(variable, expression Expression) Statement {
+func newAssignmentStatement(variable, expression Expression, index int) Statement {
 	assignment := &AssignmentStatementNode{
-		TypeName:   NodeTypeNames[AssignmentStatementType],
-		Variable:   variable,
-		Expression: expression,
+		TypeName:         NodeTypeNames[AssignmentStatementType],
+		Variable:         variable,
+		Expression:       expression,
+		TokenStreamIndex: index,
 	}
 
 	variable.SetParent(assignment)
@@ -169,10 +174,11 @@ func newAssignmentStatement(variable, expression Expression) Statement {
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(variable Expression) Statement {
+func newReadStatement(variable Expression, index int) Statement {
 	read := &ReadStatementNode{
-		TypeName: NodeTypeNames[ReadStatementType],
-		Variable: variable,
+		TypeName:         NodeTypeNames[ReadStatementType],
+		Variable:         variable,
+		TokenStreamIndex: index,
 	}
 
 	variable.SetParent(read)
@@ -180,10 +186,11 @@ func newReadStatement(variable Expression) Statement {
 }
 
 // Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(expression Expression) Statement {
+func newWriteStatement(expression Expression, index int) Statement {
 	write := &WriteStatementNode{
-		TypeName:   NodeTypeNames[WriteStatementType],
-		Expression: expression,
+		TypeName:         NodeTypeNames[WriteStatementType],
+		Expression:       expression,
+		TokenStreamIndex: index,
 	}
 
 	expression.SetParent(write)
@@ -191,10 +198,11 @@ func newWriteStatement(expression Expression) Statement {
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(procedure Expression) Statement {
+func newCallStatement(procedure Expression, index int) Statement {
 	call := &CallStatementNode{
-		TypeName:  NodeTypeNames[CallStatementType],
-		Procedure: procedure,
+		TypeName:         NodeTypeNames[CallStatementType],
+		Procedure:        procedure,
+		TokenStreamIndex: index,
 	}
 
 	procedure.SetParent(call)
@@ -202,11 +210,12 @@ func newCallStatement(procedure Expression) Statement {
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
-func newIfStatement(condition Expression, statement Statement) Statement {
+func newIfStatement(condition Expression, statement Statement, index int) Statement {
 	ifStmt := &IfStatementNode{
-		TypeName:  NodeTypeNames[IfStatementType],
-		Condition: condition,
-		Statement: statement,
+		TypeName:         NodeTypeNames[IfStatementType],
+		Condition:        condition,
+		Statement:        statement,
+		TokenStreamIndex: index,
 	}
 
 	condition.SetParent(ifStmt)
@@ -215,11 +224,12 @@ func newIfStatement(condition Expression, statement Statement) Statement {
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
-func newWhileStatement(condition Expression, statement Statement) Statement {
+func newWhileStatement(condition Expression, statement Statement, index int) Statement {
 	whileStmt := &WhileStatementNode{
-		TypeName:  NodeTypeNames[WhileStatementType],
-		Condition: condition,
-		Statement: statement,
+		TypeName:         NodeTypeNames[WhileStatementType],
+		Condition:        condition,
+		Statement:        statement,
+		TokenStreamIndex: index,
 	}
 
 	condition.SetParent(whileStmt)

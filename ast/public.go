@@ -238,11 +238,12 @@ type (
 
 	// Literal node represents the usage of a literal value in the AST.
 	LiteralNode struct {
-		TypeName   string   `json:"type"`      // type name of the literal node
-		ParentNode Node     `json:"-"`         // parent node of the literal
-		Value      any      `json:"value"`     // literal value
-		DataType   DataType `json:"data_type"` // data type of the literal
-		Scope      *Scope   `json:"-"`         // scope of the literal usage
+		TypeName         string   `json:"type"`               // type name of the literal node
+		ParentNode       Node     `json:"-"`                  // parent node of the literal
+		Value            any      `json:"value"`              // literal value
+		DataType         DataType `json:"data_type"`          // data type of the literal
+		Scope            *Scope   `json:"-"`                  // scope of the literal usage
+		TokenStreamIndex int      `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// IdentifierUseNode represents the usage of an identifier in the AST.
@@ -258,73 +259,82 @@ type (
 
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
-		TypeName   string        `json:"type"`      // type name of the unary operation node
-		ParentNode Node          `json:"-"`         // parent node of the unary operation
-		Operation  UnaryOperator `json:"operation"` // unary operation
-		Operand    Expression    `json:"operand"`   // operand of the unary operation
+		TypeName         string        `json:"type"`               // type name of the unary operation node
+		ParentNode       Node          `json:"-"`                  // parent node of the unary operation
+		Operation        UnaryOperator `json:"operation"`          // unary operation
+		Operand          Expression    `json:"operand"`            // operand of the unary operation
+		TokenStreamIndex int           `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// BinaryOperation node represents a binary operation in the AST.
 	BinaryOperationNode struct {
-		TypeName   string         `json:"type"`      // type name of the binary operation node
-		ParentNode Node           `json:"-"`         // parent node of the binary operation
-		Operation  BinaryOperator `json:"operation"` // binary operation
-		Left       Expression     `json:"left"`      // left operand of the binary operation
-		Right      Expression     `json:"right"`     // right operand of the binary operation
+		TypeName         string         `json:"type"`               // type name of the binary operation node
+		ParentNode       Node           `json:"-"`                  // parent node of the binary operation
+		Operation        BinaryOperator `json:"operation"`          // binary operation
+		Left             Expression     `json:"left"`               // left operand of the binary operation
+		Right            Expression     `json:"right"`              // right operand of the binary operation
+		TokenStreamIndex int            `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// ConditionalOperation node represents a conditional operation in the AST.
 	ConditionalOperationNode struct {
-		TypeName   string             `json:"type"`      // type name of the conditional operation node
-		ParentNode Node               `json:"-"`         // parent node of the conditional
-		Operation  RelationalOperator `json:"operation"` // conditional operation
-		Left       Expression         `json:"left"`      // left operand of the conditional operation
-		Right      Expression         `json:"right"`     // right operand of the conditional operation
+		TypeName         string             `json:"type"`               // type name of the conditional operation node
+		ParentNode       Node               `json:"-"`                  // parent node of the conditional
+		Operation        RelationalOperator `json:"operation"`          // conditional operation
+		Left             Expression         `json:"left"`               // left operand of the conditional operation
+		Right            Expression         `json:"right"`              // right operand of the conditional operation
+		TokenStreamIndex int                `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
-		TypeName   string     `json:"type"`       // type name of the assignment statement node
-		ParentNode Node       `json:"-"`          // parent node of the assignment statement
-		Variable   Expression `json:"variable"`   // variable use on the left side of the assignment statement
-		Expression Expression `json:"expression"` // expression on the right side of the assignment statement
+		TypeName         string     `json:"type"`               // type name of the assignment statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the assignment statement
+		Variable         Expression `json:"variable"`           // variable use on the left side of the assignment statement
+		Expression       Expression `json:"expression"`         // expression on the right side of the assignment statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
-		TypeName   string     `json:"type"`     // type name of the read statement node
-		ParentNode Node       `json:"-"`        // parent node of the read statement
-		Variable   Expression `json:"variable"` // variable use of the read statement
+		TypeName         string     `json:"type"`               // type name of the read statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the read statement
+		Variable         Expression `json:"variable"`           // variable use of the read statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// WriteStatement node represents a write statement in the AST.
 	WriteStatementNode struct {
-		TypeName   string     `json:"type"`       // type name of the write statement node
-		ParentNode Node       `json:"-"`          // parent node of the write statement
-		Expression Expression `json:"expression"` // expression of the write statement
+		TypeName         string     `json:"type"`               // type name of the write statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the write statement
+		Expression       Expression `json:"expression"`         // expression of the write statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
-		TypeName   string     `json:"type"`      // type name of the call statement node
-		ParentNode Node       `json:"-"`         // parent node of the call statement
-		Procedure  Expression `json:"procedure"` // procedure use of the call statement
+		TypeName         string     `json:"type"`               // type name of the call statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the call statement
+		Procedure        Expression `json:"procedure"`          // procedure use of the call statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
 	IfStatementNode struct {
-		TypeName   string     `json:"type"`      // type name of the if-then statement node
-		ParentNode Node       `json:"-"`         // parent node of the if-then statement
-		Condition  Expression `json:"condition"` // if-condition of the if-then statement
-		Statement  Statement  `json:"statement"` // then-statement of the if-then statement
+		TypeName         string     `json:"type"`               // type name of the if-then statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the if-then statement
+		Condition        Expression `json:"condition"`          // if-condition of the if-then statement
+		Statement        Statement  `json:"statement"`          // then-statement of the if-then statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	WhileStatementNode struct {
-		TypeName   string     `json:"type"`      // type name of the while-do statement node
-		ParentNode Node       `json:"-"`         // parent node of the while-do statement
-		Condition  Expression `json:"condition"` // while-condition of the while-do statement
-		Statement  Statement  `json:"statement"` // do-statement of the while-do statement
+		TypeName         string     `json:"type"`               // type name of the while-do statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the while-do statement
+		Condition        Expression `json:"condition"`          // while-condition of the while-do statement
+		Statement        Statement  `json:"statement"`          // do-statement of the while-do statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// CompoundStatement node represents a begin-end statement in the AST.
@@ -414,7 +424,7 @@ func NewEmptyDeclaration() Declaration {
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), Integer64, NewEmptyScope())
+	return newLiteral(int64(0), Integer64, NewEmptyScope(), 0)
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
@@ -443,8 +453,8 @@ func NewProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType DataType, scope *Scope) Expression {
-	return newLiteral(value, dataType, scope)
+func NewLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
+	return newLiteral(value, dataType, scope, index)
 }
 
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
@@ -453,48 +463,48 @@ func NewIdentifierUse(name string, scope *Scope, context Entry, index int) Expre
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
-func NewUnaryOperation(operation UnaryOperator, operand Expression) Expression {
-	return newUnaryOperation(operation, operand)
+func NewUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
+	return newUnaryOperation(operation, operand, index)
 }
 
 // NewBinaryOperation creates a new binary operation node in the abstract syntax tree.
-func NewBinaryOperation(operation BinaryOperator, left, right Expression) Expression {
-	return newBinaryOperation(operation, left, right)
+func NewBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
+	return newBinaryOperation(operation, left, right, index)
 }
 
 // NewConditionalOperation creates a new conditional operation node in the abstract syntax tree.
-func NewConditionalOperation(operation RelationalOperator, left, right Expression) Expression {
-	return newConditionalOperation(operation, left, right)
+func NewConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
+	return newConditionalOperation(operation, left, right, index)
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
-func NewAssignmentStatement(variable, expression Expression) Statement {
-	return newAssignmentStatement(variable, expression)
+func NewAssignmentStatement(variable, expression Expression, index int) Statement {
+	return newAssignmentStatement(variable, expression, index)
 }
 
 // NewReadStatement creates a new read statement node in the abstract syntax tree.
-func NewReadStatement(variable Expression) Statement {
-	return newReadStatement(variable)
+func NewReadStatement(variable Expression, index int) Statement {
+	return newReadStatement(variable, index)
 }
 
 // NewWriteStatement creates a new write statement node in the abstract syntax tree.
-func NewWriteStatement(expression Expression) Statement {
-	return newWriteStatement(expression)
+func NewWriteStatement(expression Expression, index int) Statement {
+	return newWriteStatement(expression, index)
 }
 
 // NewCallStatement creates a new call statement node in the abstract syntax tree.
-func NewCallStatement(procedure Expression) Statement {
-	return newCallStatement(procedure)
+func NewCallStatement(procedure Expression, index int) Statement {
+	return newCallStatement(procedure, index)
 }
 
 // NewIfStatement creates a new if-then statement node in the abstract syntax tree.
-func NewIfStatement(condition Expression, statement Statement) Statement {
-	return newIfStatement(condition, statement)
+func NewIfStatement(condition Expression, statement Statement, index int) Statement {
+	return newIfStatement(condition, statement, index)
 }
 
 // NewWhileStatement creates a new while-do statement node in the abstract syntax tree.
-func NewWhileStatement(condition Expression, statement Statement) Statement {
-	return newWhileStatement(condition, statement)
+func NewWhileStatement(condition Expression, statement Statement, index int) Statement {
+	return newWhileStatement(condition, statement, index)
 }
 
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
