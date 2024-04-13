@@ -136,11 +136,12 @@ The programming language PL/0 2024 supports the following features:
 	* export of all intermediate representations of the compiler in Json, Text, and Binary format
 	* new compiler driver now manages the directory tree for all build targets, including normalization and purge
 
-## Planning
-
-* Q2 2024, Compiler version 2.1.0 2024, provide new emulator backend for the existing compiler frontend
+* April 14 2024 - [v2.1.0](https://github.com/petersen65/pl0/releases/tag/v2.1.0)
+	* provide new emulator backend for the existing compiler frontend and introduce intermediate language
 	* new package implements an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
 	* new emulation engine that JIT-compiles intermediate language code into pseudo-assembler code which the emulator can execute
+
+## Planning
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
 	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
