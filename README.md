@@ -144,6 +144,7 @@ The programming language PL/0 2024 supports the following features:
 ## Planning
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
+	* complete abstract syntax tree token handler integration beyond identifier declarations and usage
 	* integrate intermediate language with token handler so that errors can be linked to source code locations
 	* implement closure support for the compiler's intermediate language
 	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
