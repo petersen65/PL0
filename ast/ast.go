@@ -46,6 +46,7 @@ func newBlock(depth int32, scope *Scope, declarations []Declaration, statement S
 		Depth:        depth,
 		Scope:        scope,
 		Declarations: declarations,
+		Closure:      make([]Declaration, 0),
 		Statement:    statement,
 	}
 

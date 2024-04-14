@@ -11,6 +11,7 @@ const (
 	invalidNameAnalysisState
 	declarationValidationFailed
 	usageValidationFailed
+	closureDeterminationFailed
 	unknownSymbolKind
 	identifierNotFound
 	identifierAlreadyDeclared
@@ -27,6 +28,7 @@ var failureMap = map[cor.Failure]string{
 	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
 	declarationValidationFailed: "identifier declaration validation failed",
 	usageValidationFailed:       "identifier usage validation failed",
+	closureDeterminationFailed:  "closure determination failed",
 	unknownSymbolKind:           "unknown symbol kind: %v",
 	identifierNotFound:          "identifier not found: %v",
 	identifierAlreadyDeclared:   "identifier already declared: %v",

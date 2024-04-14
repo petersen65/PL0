@@ -199,6 +199,7 @@ type (
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
+		Closure      []Declaration `json:"closure"`      // all captured variable declarations of the block
 		Statement    Statement     `json:"statement"`    // statement of the block
 	}
 

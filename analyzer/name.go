@@ -4,6 +4,8 @@
 package analyzer
 
 import (
+	"slices"
+
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 )
@@ -39,6 +41,11 @@ func (a *nameAnalysis) Analyze() {
 	// validate the usage of all identifiers
 	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage); err != nil {
 		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, usageValidationFailed, nil, err))
+	}
+
+	// determine the closure of all blocks
+	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
+		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, closureDeterminationFailed, nil, err))
 	}
 }
 
@@ -196,7 +203,7 @@ func (a *nameAnalysis) appendError(code cor.Failure, value any, index int) {
 }
 
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
-func setConstantVariableUsageAsRead(node ast.Node, visitor any) {
+func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == ast.Constant || symbol.Kind == ast.Variable {
@@ -224,6 +231,31 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 	case *ast.ProcedureDeclarationNode:
 		if len(d.Usage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(cor.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
+		}
+	}
+}
+
+// Add all variables that are used in a block to the closure of the block if they are declared in an outer block.
+func addVariableToBlockClosure(node ast.Node, _ any) {
+	if iu, ok := node.(*ast.IdentifierUseNode); ok {
+		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
+			if symbol.Kind == ast.Variable {
+				// determine the block where the variable is declared
+				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Declaration)
+
+				// determine the block where the variable is used
+				useBlock := ast.SearchBlock(ast.CurrentBlock, iu)
+
+				// add the variable to the closure of the block where it is used if it is declared in an outer block
+				if useBlock.Depth-declarationBlock.Depth > 0 {
+					// check if the variable is already in the closure
+					if !slices.ContainsFunc(useBlock.Closure, func(d ast.Declaration) bool {
+						return d == symbol.Declaration
+					}) {
+						useBlock.Closure = append(useBlock.Closure, symbol.Declaration)
+					}
+				}
+			}
 		}
 	}
 }
