@@ -111,9 +111,10 @@ type (
 
 	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {
-		Label           string    // branch-label for any branching operation
-		DepthDifference int32     // block nesting depth difference between variable use and variable declaration
-		Code            Quadruple // three-address code operation
+		Label            string    // branch-label for any branching operation
+		DepthDifference  int32     // block nesting depth difference between variable use and variable declaration
+		TokenStreamIndex int       // index of the token in the token stream
+		Code             Quadruple // three-address code operation
 	}
 
 	// Quadruple represents a single operation in the intermediate code which is based on the three-address code concept.
@@ -128,7 +129,7 @@ type (
 	IntermediateCode interface {
 		Generate()
 		GetModule() Module
-		NewInstruction(operatiom Operation, label string, difference int32, arg1, arg2, result *Address) *Instruction
+		NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction
 		AppendInstruction(instruction *Instruction) *list.Element
 	}
 
