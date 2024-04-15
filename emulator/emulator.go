@@ -77,7 +77,7 @@ const (
 
 const (
 	stackSize           = 16384 // stack entries are 64-bit unsigned integers
-	stackForbiddenZone  = 1024  // stack entries above this address are forbidden to be used
+	stackForbiddenZone  = 1024  // stack entries below this address are forbidden to be used
 	stackDescriptorSize = 3     // size of a stack frame descriptor
 )
 
@@ -154,7 +154,7 @@ type (
 	// Virtual CPU with registers and the stack.
 	cpu struct {
 		registers map[register]uint64 // registers of the CPU
-		stack     []uint64            // stack of the CPU
+		stack     []uint64            // stack of the CPU grows downwards
 	}
 
 	// Virtual machine that can run processes and modules.
@@ -393,31 +393,35 @@ func (m *machine) RunProcess() error {
 	// state of caller is in descriptor of callee (first 3 entries of stack frame)
 	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
 
-	m.cpu.registers[rax] = 0                       // accumulator register
-	m.cpu.registers[rbx] = 0                       // base register
-	m.cpu.registers[rcx] = 0                       // counter register
-	m.cpu.registers[rdx] = 0                       // data register
-	m.cpu.registers[rsi] = 0                       // source index register
-	m.cpu.registers[rdi] = 0                       // destination index register
-	m.cpu.registers[r8] = 0                        // general purpose register
-	m.cpu.registers[r9] = 0                        // general purpose register
-	m.cpu.registers[r10] = 0                       // general purpose register
-	m.cpu.registers[r11] = 0                       // general purpose register
-	m.cpu.registers[r12] = 0                       // general purpose register
-	m.cpu.registers[r13] = 0                       // general purpose register
-	m.cpu.registers[r14] = 0                       // general purpose register
-	m.cpu.registers[r15] = 0                       // general purpose register
-	m.cpu.registers[flags] = 0                     // flags register
-	m.cpu.registers[rip] = 0                       // instruction pointer
-	m.cpu.registers[rsp] = stackDescriptorSize - 1 // stack pointer to top of stack (end of stack frame descriptor)
-	m.cpu.registers[rbp] = 0                       // base pointer to bottom of stack frame
+	m.cpu.registers[rax] = 0   // accumulator register
+	m.cpu.registers[rbx] = 0   // base register
+	m.cpu.registers[rcx] = 0   // counter register
+	m.cpu.registers[rdx] = 0   // data register
+	m.cpu.registers[rsi] = 0   // source index register
+	m.cpu.registers[rdi] = 0   // destination index register
+	m.cpu.registers[r8] = 0    // general purpose register
+	m.cpu.registers[r9] = 0    // general purpose register
+	m.cpu.registers[r10] = 0   // general purpose register
+	m.cpu.registers[r11] = 0   // general purpose register
+	m.cpu.registers[r12] = 0   // general purpose register
+	m.cpu.registers[r13] = 0   // general purpose register
+	m.cpu.registers[r14] = 0   // general purpose register
+	m.cpu.registers[r15] = 0   // general purpose register
+	m.cpu.registers[flags] = 0 // flags register
+	m.cpu.registers[rip] = 0   // instruction pointer
+
+	// // stack pointer to top of stack (end of stack frame descriptor)
+	m.cpu.registers[rsp] = stackSize - 1 - stackDescriptorSize + 1
+
+	// base pointer to bottom of stack frame
+	m.cpu.registers[rbp] = stackSize - 1
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.stack[0] = m.cpu.registers[rip]       // return address (instruction pointer of caller + 1)
-	m.cpu.stack[1] = m.cpu.registers[rbp]       // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[2] = m.cpu.parent(0)            // static link points to direct parent block in block nesting hierarchy
-	m.cpu.registers[rbp] = m.cpu.registers[rsp] // base pointer of callee is pointing to the end of its descriptor
+	m.cpu.stack[stackSize-1] = m.cpu.registers[rip] // return address (instruction pointer of caller + 1)
+	m.cpu.stack[stackSize-2] = m.cpu.registers[rbp] // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.cpu.stack[stackSize-3] = m.cpu.parent(0)      // static link points to direct parent block in block nesting hierarchy
+	m.cpu.registers[rbp] = m.cpu.registers[rsp]     // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -425,7 +429,7 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[rip], nil)
 		}
 
-		if m.cpu.registers[rsp] >= stackSize-stackForbiddenZone || m.cpu.registers[rsp] < (stackDescriptorSize-1) {
+		if m.cpu.registers[rsp] <= stackForbiddenZone || m.cpu.registers[rsp] > (stackSize - 1 - stackDescriptorSize + 1) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[rsp], nil)
 		}
 
@@ -510,7 +514,7 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, alloc, nil)
 			}
 
-			m.cpu.registers[rsp] += instr.Operands[0].Address
+			m.cpu.registers[rsp] -= instr.Operands[0].Address
 
 		case neg: // negate int64 element on top of stack
 			if err := m.cpu.neg(); err != nil {
@@ -563,7 +567,7 @@ func (m *machine) RunProcess() error {
 
 		case ret: // callee procedure returns to caller procedure
 			// restore state of caller procdure from descriptor of callee procedure
-			m.cpu.registers[rsp] = m.cpu.registers[rbp] - 1 // discard stack space and static link
+			m.cpu.registers[rsp] = m.cpu.registers[rbp] + 1 // discard stack space and static link
 			m.cpu.pop(newOperand(registerOperand, rbp))     // restore callers base pointer
 			m.cpu.pop(newOperand(registerOperand, rip))     // restore callers instruction pointer
 
@@ -572,24 +576,24 @@ func (m *machine) RunProcess() error {
 				return nil
 			}
 
-		case loadvar: // copy int64 variable loaded from its base plus offset onto the stack
+		case loadvar: // copy int64 variable loaded from its base minus offset onto the stack
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.DepthDifference) + 1                          // base pointer + 1
+			variablesBase := m.cpu.parent(instr.DepthDifference) - 1                          // base pointer - 1
 			variableOffset := instr.Operands[0].Address                                       // variable offset
-			m.cpu.push(newOperand(addressOperand, m.cpu.stack[variablesBase+variableOffset])) // variables base + variable offset
+			m.cpu.push(newOperand(addressOperand, m.cpu.stack[variablesBase-variableOffset])) // variables base - variable offset
 
-		case storevar: // copy int64 element from top of stack to a variable stored within its base plus offset
+		case storevar: // copy int64 element from top of stack to a variable stored within its base minus offset
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.DepthDifference) + 1         // base pointer + 1
+			variablesBase := m.cpu.parent(instr.DepthDifference) - 1         // base pointer - 1
 			variableOffset := instr.Operands[0].Address                      // variable offset
 			m.cpu.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
-			m.cpu.stack[variablesBase+variableOffset] = m.cpu.registers[rax] // variables base + variable offset
+			m.cpu.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
@@ -636,7 +640,7 @@ func (c *cpu) push(op *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 	}
 
-	c.registers[rsp]++
+	c.registers[rsp]--
 	c.stack[c.registers[rsp]] = arg
 	return nil
 }
@@ -651,8 +655,8 @@ func (c *cpu) pop(op *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, pop, nil)
 	}
 
-	if c.registers[rsp] > 0 {
-		c.registers[rsp]--
+	if c.registers[rsp] < stackSize-1 {
+		c.registers[rsp]++
 	}
 
 	return nil
