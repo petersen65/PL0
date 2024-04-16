@@ -107,7 +107,7 @@ type (
 	Operation int32
 
 	// Enumeration of runtime functions that belong to the external runtime library.
-	RuntimeFunction uint64
+	RuntimeFunction int64
 
 	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {

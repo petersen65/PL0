@@ -64,8 +64,10 @@ const (
 	_                = operandType(iota)
 	registerOperand  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
 	immediateOperand // int64 constant values like 'mov eax, 1'
-	addressOperand   // uint64 destinations for jump instructions or other instructions that require an address
+	memoryOperand    // memory addresses can be specified directly as absolute addresses, or indirectly through registers
 	labelOperand     // labels are used to specify jump targets and must be replaced by absolute addresses before execution
+	jumpOperand      // destinations for jump instructions that are specified as absolute addresses
+	stackOperand     // stack operands represent memory addresses on the stack and are used for stack pointer operations
 )
 
 // Call codes for the programming language runtime library.
@@ -76,6 +78,7 @@ const (
 )
 
 const (
+	memorySize          = 65536 // memory entries are 64-bit unsigned integers
 	stackSize           = 16384 // stack entries are 64-bit unsigned integers
 	stackForbiddenZone  = 1024  // stack entries below this address are forbidden to be used
 	stackDescriptorSize = 3     // size of a stack frame descriptor
@@ -117,18 +120,20 @@ type (
 	operandType int32
 
 	// Type for runtime call codes.
-	runtimeCall uint64
+	runtimeCall int64
 
 	// Text section of the binary target.
 	textSection []*instruction
 
-	// Operand of an operation with a register, address, int64 value, or label.
+	// Operand of an operation.
 	operand struct {
 		Operand  operandType // type of the operand
 		Register register    // register operand for the operation
-		Address  uint64      // jump address or offset of a variable
-		ArgInt   int64       // int64 value argument
+		ArgInt   int64       // int64 immediate value argument
+		Memory   uint64      // memory address operand
 		Label    string      // labels for jump instructions will be replaced by an address
+		Jump     uint64      // destinations for jump instructions are specified as absolute addresses
+		Stack    uint64      // stack address operand
 	}
 
 	// Instruction is the representation of a single operation with all its operands and a depth difference.
@@ -151,16 +156,17 @@ type (
 		text textSection // text section with binary instructions
 	}
 
-	// Virtual CPU with registers and the stack.
+	// Virtual CPU with its registers.
 	cpu struct {
 		registers map[register]uint64 // registers of the CPU
-		stack     []uint64            // stack of the CPU grows downwards
 	}
 
-	// Virtual machine that can run processes and modules.
+	// Virtual machine that can run processes.
 	machine struct {
-		cpu     cpu
-		process process
+		cpu     cpu      // CPU of the virtual machine
+		memory  []uint64 // memory of the virtual machine
+		stack   []uint64 // stack for the CPU (grows downwards)
+		process process  // process running on the virtual machine
 	}
 )
 
@@ -213,13 +219,17 @@ var (
 	}
 )
 
-// Create a new emulation machine with CPU, registers and stack that can run binary processes.
+// Create a new emulation machine with CPU, registers, memory, and stack.
 func newMachine() Machine {
+	memory := make([]uint64, memorySize)   // memory of the virtual machine
+	stack := memory[memorySize-stackSize:] // stack is a part of the memory	and located at the top of the memory
+
 	return &machine{
 		cpu: cpu{
 			registers: make(map[register]uint64),
-			stack:     make([]uint64, stackSize),
 		},
+		memory: memory,
+		stack:  stack,
 		process: process{
 			text: make(textSection, 0),
 		},
@@ -236,7 +246,7 @@ func newInstruction(op operationCode, depthDifference int32, labels []string, op
 	}
 }
 
-// Create a new operand with a register, address, int64 value, or label.
+// Create a new operand for an instruction.
 func newOperand(opType operandType, op any) *operand {
 	switch opType {
 	case registerOperand:
@@ -245,11 +255,17 @@ func newOperand(opType operandType, op any) *operand {
 	case immediateOperand:
 		return &operand{Operand: immediateOperand, ArgInt: op.(int64)}
 
-	case addressOperand:
-		return &operand{Operand: addressOperand, Address: op.(uint64)}
+	case memoryOperand:
+		return &operand{Operand: memoryOperand, Memory: op.(uint64)}
 
 	case labelOperand:
 		return &operand{Operand: labelOperand, Label: op.(string)}
+
+	case jumpOperand:
+		return &operand{Operand: jumpOperand, Jump: op.(uint64)}
+
+	case stackOperand:
+		return &operand{Operand: stackOperand, Stack: op.(uint64)}
 
 	default:
 		return &operand{} // empty operand will generate an error when used
@@ -270,11 +286,17 @@ func (o *operand) String() string {
 	case immediateOperand:
 		return fmt.Sprintf("%v", o.ArgInt)
 
-	case addressOperand:
-		return fmt.Sprintf("%v", o.Address)
+	case memoryOperand:
+		return fmt.Sprintf("%v", o.Memory)
 
 	case labelOperand:
 		return o.Label
+
+	case jumpOperand:
+		return fmt.Sprintf("%v", o.Jump)
+
+	case stackOperand:
+		return fmt.Sprintf("%v", o.Stack)
 
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownInstructionOperand, o.Operand, nil))
@@ -345,7 +367,7 @@ func (m *machine) LoadModule(module cod.Module) error {
 	return nil
 }
 
-// Print an emulator target to the specified writer.
+// Print a process to the specified writer.
 func (m *machine) Print(print io.Writer, args ...any) error {
 	if _, err := fmt.Fprintf(print, "global %v\nsection .text\n%v:\n", defaultStartLabel, defaultStartLabel); err != nil {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
@@ -360,11 +382,11 @@ func (m *machine) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the emulator or binary target that is managed by the virtual machine.
+// Export the process that is managed by the virtual machine.
 func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Text:
-		// print is a convenience function to export the emulator target as a string to the print writer
+		// print is a convenience function to export the process as a string to the print writer
 		return m.Print(print)
 
 	case cor.Binary:
@@ -418,10 +440,10 @@ func (m *machine) RunProcess() error {
 
 	// preserve state of first caller and create descriptor of first callee
 	// first callee is the entrypoint of the program
-	m.cpu.stack[stackSize-1] = m.cpu.registers[rip] // return address (instruction pointer of caller + 1)
-	m.cpu.stack[stackSize-2] = m.cpu.registers[rbp] // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.cpu.stack[stackSize-3] = m.cpu.parent(0)      // static link points to direct parent block in block nesting hierarchy
-	m.cpu.registers[rbp] = m.cpu.registers[rsp]     // base pointer of callee is pointing to the end of its descriptor
+	m.stack[stackSize-1] = m.cpu.registers[rip] // return address (instruction pointer of caller + 1)
+	m.stack[stackSize-2] = m.cpu.registers[rbp] // dynamic link chains base pointers so that each callee knows the base pointer of its caller
+	m.stack[stackSize-3] = m.parent(0)          // static link points to direct parent block in block nesting hierarchy
+	m.cpu.registers[rbp] = m.cpu.registers[rsp] // base pointer of callee is pointing to the end of its descriptor
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -429,7 +451,7 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[rip], nil)
 		}
 
-		if m.cpu.registers[rsp] <= stackForbiddenZone || m.cpu.registers[rsp] > (stackSize - 1 - stackDescriptorSize + 1) {
+		if m.cpu.registers[rsp] <= stackForbiddenZone || m.cpu.registers[rsp] > (stackSize-1-stackDescriptorSize+1) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[rsp], nil)
 		}
 
@@ -442,7 +464,7 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 			}
 
-			if err := m.cpu.push(instr.Operands[0]); err != nil {
+			if err := m.push(instr.Operands[0]); err != nil {
 				return err
 			}
 
@@ -510,11 +532,11 @@ func (m *machine) RunProcess() error {
 			}
 
 		case alloc: // allocate stack space for variables
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, alloc, nil)
 			}
 
-			m.cpu.registers[rsp] -= instr.Operands[0].Address
+			m.cpu.registers[rsp] -= uint64(instr.Operands[0].ArgInt)
 
 		case neg: // negate int64 element on top of stack
 			if err := m.cpu.neg(); err != nil {
@@ -553,9 +575,9 @@ func (m *machine) RunProcess() error {
 			}
 
 			// create descriptor of procedure being called and preserve state of caller in it
-			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rip]))                // return address
-			m.cpu.push(newOperand(addressOperand, m.cpu.registers[rbp]))                // dynamic link
-			m.cpu.push(newOperand(addressOperand, m.cpu.parent(instr.DepthDifference))) // static link
+			m.push(newOperand(jumpOperand, m.cpu.registers[rip]))             // return address
+			m.push(newOperand(stackOperand, m.cpu.registers[rbp]))            // dynamic link
+			m.push(newOperand(stackOperand, m.parent(instr.DepthDifference))) // static link
 
 			// base pointer of procedure being called is pointing to the end of its descriptor
 			m.cpu.registers[rbp] = m.cpu.registers[rsp]
@@ -568,8 +590,8 @@ func (m *machine) RunProcess() error {
 		case ret: // callee procedure returns to caller procedure
 			// restore state of caller procdure from descriptor of callee procedure
 			m.cpu.registers[rsp] = m.cpu.registers[rbp] + 1 // discard stack space and static link
-			m.cpu.pop(newOperand(registerOperand, rbp))     // restore callers base pointer
-			m.cpu.pop(newOperand(registerOperand, rip))     // restore callers instruction pointer
+			m.pop(newOperand(registerOperand, rbp))         // restore callers base pointer
+			m.pop(newOperand(registerOperand, rip))         // restore callers instruction pointer
 
 			// returning from the entrypoint of the program exits the program
 			if m.cpu.registers[rip] == 0 {
@@ -577,31 +599,31 @@ func (m *machine) RunProcess() error {
 			}
 
 		case loadvar: // copy int64 variable loaded from its base minus offset onto the stack
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.DepthDifference) - 1                          // base pointer - 1
-			variableOffset := instr.Operands[0].Address                                       // variable offset
-			m.cpu.push(newOperand(addressOperand, m.cpu.stack[variablesBase-variableOffset])) // variables base - variable offset
+			variablesBase := m.parent(instr.DepthDifference) - 1                               // base pointer - 1
+			variableOffset := uint64(instr.Operands[0].ArgInt)                                 // variable offset
+			m.push(newOperand(immediateOperand, int64(m.stack[variablesBase-variableOffset]))) // variables base - variable offset
 
 		case storevar: // copy int64 element from top of stack to a variable stored within its base minus offset
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
 			}
 
-			variablesBase := m.cpu.parent(instr.DepthDifference) - 1         // base pointer - 1
-			variableOffset := instr.Operands[0].Address                      // variable offset
-			m.cpu.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
-			m.cpu.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
+			variablesBase := m.parent(instr.DepthDifference) - 1         // base pointer - 1
+			variableOffset := uint64(instr.Operands[0].ArgInt)           // variable offset
+			m.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
+			m.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != addressOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, rcall, nil)
 			}
 
 			// call runtime library function via call code
-			if err := m.cpu.runtime(runtimeCall(instr.Operands[0].Address)); err != nil {
+			if err := m.runtime(runtimeCall(instr.Operands[0].ArgInt)); err != nil {
 				return err
 			}
 
@@ -612,51 +634,83 @@ func (m *machine) RunProcess() error {
 }
 
 // Follow static link to parent blocks in compile-time block nesting hierarchy.
-func (c *cpu) parent(difference int32) uint64 {
-	basePointer := c.registers[rbp]
+func (m *machine) parent(difference int32) uint64 {
+	basePointer := m.cpu.registers[rbp]
 
 	for i := int32(0); i < difference; i++ {
-		basePointer = c.stack[basePointer]
+		basePointer = m.stack[basePointer]
 	}
 
 	return basePointer
 }
 
+// Call to programming language runtime library.
+func (m *machine) runtime(code runtimeCall) error {
+	switch code {
+	case readln:
+		// read integer from stdin
+		var input int64
+
+		for {
+			fmt.Print("> ")
+			_, err := fmt.Scanln(&input)
+
+			if err == nil {
+				m.push(newOperand(immediateOperand, input))
+				break
+			}
+		}
+
+	case writeln:
+		// write integer to stdout
+		m.pop(newOperand(registerOperand, rax))
+		fmt.Printf("%v\n", int64(m.cpu.registers[rax]))
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownRuntimeCallCode, code, nil)
+	}
+
+	return nil
+}
+
 // Push operand on top of stack, top of stack points to new operand.
-func (c *cpu) push(op *operand) error {
+func (m *machine) push(op *operand) error {
 	var arg uint64
 
 	switch op.Operand {
 	case registerOperand:
-		arg = c.registers[op.Register]
+		arg = m.cpu.registers[op.Register]
 
 	case immediateOperand:
 		arg = uint64(op.ArgInt)
 
-	case addressOperand:
-		arg = op.Address
+	case jumpOperand:
+		arg = op.Jump
+
+	case stackOperand:
+		arg = op.Stack
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 	}
 
-	c.registers[rsp]--
-	c.stack[c.registers[rsp]] = arg
+	m.cpu.registers[rsp]--
+	m.stack[m.cpu.registers[rsp]] = arg
 	return nil
 }
 
 // Pop element from top of stack into operand, top of stack points to previous element.
-func (c *cpu) pop(op *operand) error {
+func (m *machine) pop(op *operand) error {
 	switch op.Operand {
 	case registerOperand:
-		c.registers[op.Register] = c.stack[c.registers[rsp]]
+		m.cpu.registers[op.Register] = m.stack[m.cpu.registers[rsp]]
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, pop, nil)
 	}
 
-	if c.registers[rsp] < stackSize-1 {
-		c.registers[rsp]++
+	if m.cpu.registers[rsp] < stackSize-1 {
+		m.cpu.registers[rsp]++
 	}
 
 	return nil
@@ -782,8 +836,8 @@ func (c *cpu) cmp() {
 // Unconditionally jump to uint64 address.
 func (c *cpu) jmp(op *operand) error {
 	switch op.Operand {
-	case addressOperand:
-		c.registers[rip] = op.Address
+	case jumpOperand:
+		c.registers[rip] = op.Jump
 
 	case registerOperand:
 		c.registers[rip] = c.registers[op.Register]
@@ -939,33 +993,4 @@ func (c *cpu) test_of() bool {
 // Clear overflow flag.
 func (c *cpu) unset_of() {
 	c.registers[flags] &= ^uint64(of)
-}
-
-// Call to programming language runtime library.
-func (c *cpu) runtime(code runtimeCall) error {
-	switch code {
-	case readln:
-		// read integer from stdin
-		var input int64
-
-		for {
-			fmt.Print("> ")
-			_, err := fmt.Scanln(&input)
-
-			if err == nil {
-				c.push(newOperand(immediateOperand, input))
-				break
-			}
-		}
-
-	case writeln:
-		// write integer to stdout
-		c.pop(newOperand(registerOperand, rax))
-		fmt.Printf("%v\n", int64(c.registers[rax]))
-
-	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownRuntimeCallCode, code, nil)
-	}
-
-	return nil
 }

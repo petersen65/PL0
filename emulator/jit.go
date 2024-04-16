@@ -47,7 +47,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
-					p.appendInstruction(newInstruction(alloc, unusedDifference, l, newOperand(addressOperand, uint64(j+1))))
+					p.appendInstruction(newInstruction(alloc, unusedDifference, l, newOperand(immediateOperand, int64(j+1))))
 					iterator.Skip(j)
 					break
 				}
@@ -71,7 +71,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// load a variable from its runtime CPU stack address onto the top of the stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
-				p.appendInstruction(newInstruction(loadvar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Arg1.Offset)))
+				p.appendInstruction(newInstruction(loadvar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Arg1.Offset))))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
@@ -81,7 +81,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// store the top of the runtime CPU stack into a variable's stack address
 			switch i.Code.Result.DataType {
 			case cod.Integer64:
-				p.appendInstruction(newInstruction(storevar, i.DepthDifference, l, newOperand(addressOperand, i.Code.Result.Offset)))
+				p.appendInstruction(newInstruction(storevar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Result.Offset))))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Result.DataType)
@@ -191,7 +191,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 			// extract direct arguments 1 and 2 from the intermediate code instruction
 			arg, err1 := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize)
-			rtc, err2 := strconv.ParseUint(i.Code.Arg2.Variable, 10, integerBitSize)
+			rtc, err2 := strconv.ParseInt(i.Code.Arg2.Variable, 10, integerBitSize)
 
 			switch {
 			case param.Code.Arg1.DataType != cod.Integer64:
@@ -210,7 +210,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
 
 			default:
-				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(addressOperand, rtc)))
+				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(immediateOperand, rtc)))
 			}
 
 		case cod.Return:
@@ -260,7 +260,7 @@ func (p *process) linker() error {
 			if address, ok := labels[pasm.Operands[0].Label]; !ok {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, pasm.Operands[0].Label, nil)
 			} else {
-				pasm.Operands[0] = newOperand(addressOperand, address)
+				pasm.Operands[0] = newOperand(jumpOperand, address)
 			}
 		}
 	}

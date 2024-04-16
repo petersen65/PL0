@@ -11,7 +11,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Virtual machine that can run processes and modules.
+// Virtual machine that can run processes.
 type Machine interface {
 	Load(raw []byte) error
 	LoadModule(module cod.Module) error
@@ -20,7 +20,7 @@ type Machine interface {
 	Export(format cor.ExportFormat, print io.Writer) error
 }
 
-// Create a new emulation machine with CPU, registers and stack that can run binary processes and modules.
+// Create a new emulation machine with CPU, registers, memory, and stack that can run processes.
 func NewMachine() Machine {
 	return newMachine()
 }
