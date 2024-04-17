@@ -47,7 +47,9 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
-					p.appendInstruction(newInstruction(alloc, unusedDifference, l, newOperand(immediateOperand, int64(j+1))))
+					p.appendInstruction(
+						newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(j+1))))
+
 					iterator.Skip(j)
 					break
 				}
@@ -71,7 +73,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// load a variable from its runtime CPU stack address onto the top of the stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
-				p.appendInstruction(newInstruction(loadvar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Arg1.Offset))))
+				p.appendInstruction(
+					newInstruction(loadvar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Arg1.Offset))))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
@@ -81,7 +84,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// store the top of the runtime CPU stack into a variable's stack address
 			switch i.Code.Result.DataType {
 			case cod.Integer64:
-				p.appendInstruction(newInstruction(storevar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Result.Offset))))
+				p.appendInstruction(
+					newInstruction(storevar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Result.Offset))))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Result.DataType)
@@ -117,16 +121,20 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 			switch i.Code.Operation {
 			case cod.Plus:
-				p.appendInstruction(newInstruction(add, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+				p.appendInstruction(
+					newInstruction(add, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Minus:
-				p.appendInstruction(newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+				p.appendInstruction(
+					newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Times:
-				p.appendInstruction(newInstruction(imul, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+				p.appendInstruction(
+					newInstruction(imul, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Divide:
-				p.appendInstruction(newInstruction(idiv, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+				p.appendInstruction(
+					newInstruction(idiv, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 			}
 
 			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rax)))

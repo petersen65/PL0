@@ -22,10 +22,10 @@ const defaultStartLabel = "_start"
 const (
 	_ = operationCode(iota)
 
-	// stack assembly instructions for stack operations
+	// assembly instructions for data copy operations
 	push
 	pop
-	alloc
+	mov
 
 	// comparison assembly instruction for all relational operators and conditional jumps
 	cmp
@@ -175,6 +175,7 @@ var (
 	operationNames = map[operationCode]string{
 		push:     "push",
 		pop:      "pop",
+		mov:      "mov",
 		cmp:      "cmp",
 		jmp:      "jmp",
 		je:       "je",
@@ -193,7 +194,6 @@ var (
 		ret:      "ret",
 		loadvar:  "loadvar",
 		storevar: "storevar",
-		alloc:    "alloc",
 		rcall:    "rcall",
 	}
 
@@ -477,6 +477,15 @@ func (m *machine) RunProcess() error {
 				return err
 			}
 
+		case mov: // copy second operand to first operand
+			if len(instr.Operands) != 2 {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
+			}
+
+			if err := m.cpu.mov(instr.Operands[0], instr.Operands[1]); err != nil {
+				return err
+			}
+
 		case jmp: // unconditionally jump to uint64 address
 			if len(instr.Operands) != 1 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jmp, nil)
@@ -539,13 +548,6 @@ func (m *machine) RunProcess() error {
 			if err := m.cpu.jge(instr.Operands[0]); err != nil {
 				return err
 			}
-
-		case alloc: // allocate stack space for variables
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, alloc, nil)
-			}
-
-			m.cpu.registers[rsp] -= uint64(instr.Operands[0].ArgInt)
 
 		case neg: // negate int64 element
 			if len(instr.Operands) != 1 {
@@ -725,12 +727,6 @@ func (m *machine) push(op *operand) error {
 	case immediateOperand:
 		arg = uint64(op.ArgInt)
 
-	case jumpOperand:
-		arg = op.Jump
-
-	case stackOperand:
-		arg = op.Stack
-
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 	}
@@ -757,138 +753,160 @@ func (m *machine) pop(op *operand) error {
 	return nil
 }
 
+// Copy second operand to first operand.
+func (c *cpu) mov(a, b *operand) error {
+	switch {
+	case a.Operand == registerOperand && b.Operand == registerOperand:
+		c.registers[a.Register] = c.registers[b.Register]
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		c.registers[a.Register] = uint64(b.ArgInt)
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
+	}
+
+	return nil
+}
+
 // Negate int64 element.
 func (c *cpu) neg(op *operand) error {
-	var reg register
-
 	switch op.Operand {
 	case registerOperand:
-		reg = op.Register
+		c.set_of_neg(int64(c.registers[op.Register]))
+
+		if c.test_of() {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowNegation, c.registers[rip]-1, nil)
+		}
+
+		c.registers[op.Register] = uint64(-int64(c.registers[op.Register]))
+		c.set_zf(int64(c.registers[op.Register]))
+		c.set_sf(int64(c.registers[op.Register]))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, neg, nil)
 	}
 
-	c.set_of_neg(reg)
-
-	if c.test_of() {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowNegation, c.registers[rip]-1, nil)
-	}
-
-	c.registers[reg] = uint64(-int64(c.registers[reg]))
-	c.set_zf(reg)
-	c.set_sf(reg)
 	return nil
 }
 
 // Perform bitwise 'and' operation with uint64 element and uint64 argument.
 func (c *cpu) and(op *operand, arg uint64) error {
-	var reg register
-
 	switch op.Operand {
 	case registerOperand:
-		reg = op.Register
+		c.registers[op.Register] = c.registers[op.Register] & arg
+
+		c.set_zf(int64(c.registers[op.Register]))
+		c.set_sf(int64(c.registers[op.Register]))
+		c.unset_of()
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, and, nil)
 	}
 
-	c.registers[reg] = c.registers[reg] & arg
-
-	c.set_zf(reg)
-	c.set_sf(reg)
-	c.unset_of()
 	return nil
 }
 
 // Add two int64 elements and store the result.
 func (c *cpu) add(a, b *operand) error {
-	var reg1, reg2 register
+	var arg_b int64
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		reg1, reg2 = a.Register, b.Register
+		arg_b = int64(b.Register)
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		arg_b = b.ArgInt
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, add, nil)
 	}
 
-	c.set_of_add(reg1, reg2)
+	c.set_of_add(int64(a.Register), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowAddition, c.registers[rip]-1, nil)
 	}
 
-	c.registers[reg1] = uint64(int64(c.registers[reg1]) + int64(c.registers[reg2]))
-	c.set_zf(reg1)
-	c.set_sf(reg1)
+	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) + arg_b)
+	c.set_zf(int64(c.registers[a.Register]))
+	c.set_sf(int64(c.registers[a.Register]))
 	return nil
 }
 
 // Subtract two int64 elements and store the result.
 func (c *cpu) sub(a, b *operand) error {
-	var reg1, reg2 register
+	var arg_b int64
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		reg1, reg2 = a.Register, b.Register
+		arg_b = int64(b.Register)
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		arg_b = b.ArgInt
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, sub, nil)
 	}
 
-	c.set_of_sub(reg1, reg2)
+	c.set_of_sub(int64(a.Register), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowSubtraction, c.registers[rip]-1, nil)
 
 	}
 
-	c.registers[reg1] = uint64(int64(c.registers[reg1]) - int64(c.registers[reg2]))
-	c.set_zf(reg1)
-	c.set_sf(reg1)
+	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) - arg_b)
+	c.set_zf(int64(c.registers[a.Register]))
+	c.set_sf(int64(c.registers[a.Register]))
 	return nil
 }
 
 // Multiply two int64 elements and store the result.
 func (c *cpu) imul(a, b *operand) error {
-	var reg1, reg2 register
+	var arg_b int64
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		reg1, reg2 = a.Register, b.Register
+		arg_b = int64(b.Register)
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		arg_b = b.ArgInt
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, imul, nil)
 	}
 
-	c.set_of_mul(reg1, reg2)
+	c.set_of_mul(int64(a.Register), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowMultiplication, c.registers[rip]-1, nil)
 	}
 
-	c.registers[reg1] = uint64(int64(c.registers[reg1]) * int64(c.registers[reg2]))
-	c.set_zf(reg1)
-	c.set_sf(reg1)
+	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) * arg_b)
+	c.set_zf(int64(c.registers[a.Register]))
+	c.set_sf(int64(c.registers[a.Register]))
 	return nil
 }
 
 // Divide two int64 elements and store the result.
 func (c *cpu) idiv(a, b *operand) error {
-	var reg1, reg2 register
+	var arg_b int64
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		reg1, reg2 = a.Register, b.Register
+		arg_b = int64(b.Register)
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		arg_b = b.ArgInt
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, idiv, nil)
 	}
 
-	c.set_of_div(reg1, reg2)
+	c.set_of_div(int64(a.Register), arg_b)
 
-	if c.registers[reg2] == 0 {
+	if arg_b == 0 {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, divisionByZero, c.registers[rip]-1, nil)
 	}
 
@@ -896,29 +914,32 @@ func (c *cpu) idiv(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowDivision, c.registers[rip]-1, nil)
 	}
 
-	c.registers[reg1] = uint64(int64(c.registers[reg1]) / int64(c.registers[reg2]))
-	c.set_zf(reg1)
-	c.set_sf(reg1)
+	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) / arg_b)
+	c.set_zf(int64(c.registers[a.Register]))
+	c.set_sf(int64(c.registers[a.Register]))
 	return nil
 }
 
 // Compare two int64 elements from top of stack and set flags register based on result (zero zf, sign sf, overflow of).
 func (c *cpu) cmp(a, b *operand) error {
-	var reg1, reg2 register
+	var arg_b int64
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		reg1, reg2 = a.Register, b.Register
+		arg_b = int64(b.Register)
+
+	case a.Operand == registerOperand && b.Operand == immediateOperand:
+		arg_b = b.ArgInt
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, cmp, nil)
 	}
 
-	c.set_of_sub(reg1, reg2)
+	c.set_of_sub(int64(a.Register), arg_b)
 
-	c.registers[reg1] = uint64(int64(c.registers[reg1]) - int64(c.registers[reg2]))
-	c.set_zf(reg1)
-	c.set_sf(reg1)
+	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) - arg_b)
+	c.set_zf(int64(c.registers[a.Register]))
+	c.set_sf(int64(c.registers[a.Register]))
 	return nil
 }
 
@@ -992,37 +1013,35 @@ func (c *cpu) jge(op *operand) error {
 	return nil
 }
 
-// Set zero flag if int64 element in register reg is zero.
-func (c *cpu) set_zf(reg register) {
-	if int64(c.registers[reg]) == 0 {
+// Set zero flag if int64 element is zero.
+func (c *cpu) set_zf(a int64) {
+	if a == 0 {
 		c.registers[flags] |= uint64(zf)
 	} else {
 		c.registers[flags] &= ^uint64(zf)
 	}
 }
 
-// Set sign flag if int64 element in register reg is negative.
-func (c *cpu) set_sf(reg register) {
-	if int64(c.registers[reg]) < 0 {
+// Set sign flag if int64 element is negative.
+func (c *cpu) set_sf(a int64) {
+	if a < 0 {
 		c.registers[flags] |= uint64(sf)
 	} else {
 		c.registers[flags] &= ^uint64(sf)
 	}
 }
 
-// Set overflow flag if negation of the int64 element in register reg overflows.
-func (c *cpu) set_of_neg(reg register) {
-	if int64(c.registers[reg]) == math.MinInt64 {
+// Set overflow flag if negation of the int64 element overflows.
+func (c *cpu) set_of_neg(a int64) {
+	if a == math.MinInt64 {
 		c.registers[flags] |= uint64(of)
 	} else {
 		c.registers[flags] &= ^uint64(of)
 	}
 }
 
-// Set overflow flag if addition of two int64 elements in registers reg1/reg2 overflows.
-func (c *cpu) set_of_add(reg1, reg2 register) {
-	a := int64(c.registers[reg1])
-	b := int64(c.registers[reg2])
+// Set overflow flag if addition of two int64 elements overflows.
+func (c *cpu) set_of_add(a, b int64) {
 	s := a + b
 
 	if (a > 0 && b > 0 && s < a) || (a < 0 && b < 0 && s > a) {
@@ -1034,10 +1053,8 @@ func (c *cpu) set_of_add(reg1, reg2 register) {
 	}
 }
 
-// Set overflow flag if subtraction of two int64 elements in registers reg1/reg2 overflows.
-func (c *cpu) set_of_sub(reg1, reg2 register) {
-	a := int64(c.registers[reg1])
-	b := int64(c.registers[reg2])
+// Set overflow flag if subtraction of two int64 elements overflows.
+func (c *cpu) set_of_sub(a, b int64) {
 	s := a - b
 
 	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
@@ -1049,10 +1066,8 @@ func (c *cpu) set_of_sub(reg1, reg2 register) {
 	}
 }
 
-// Set overflow flag if multiplication of two int64 elements in registers reg1/reg2 overflows.
-func (c *cpu) set_of_mul(reg1, reg2 register) {
-	a := int64(c.registers[reg1])
-	b := int64(c.registers[reg2])
+// Set overflow flag if multiplication of two int64 elements verflows.
+func (c *cpu) set_of_mul(a, b int64) {
 	s := a * b
 
 	if a != 0 && s/a != b {
@@ -1062,11 +1077,8 @@ func (c *cpu) set_of_mul(reg1, reg2 register) {
 	}
 }
 
-// Set overflow flag if division of two int64 elements in registers reg1/reg2 overflows.
-func (c *cpu) set_of_div(reg1, reg2 register) {
-	a := int64(c.registers[reg1])
-	b := int64(c.registers[reg2])
-
+// Set overflow flag if division of two int64 elements overflows.
+func (c *cpu) set_of_div(a, b int64) {
 	if b == -1 && a == math.MinInt64 {
 		c.registers[flags] |= uint64(of)
 	} else {
