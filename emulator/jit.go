@@ -93,7 +93,9 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return err
 			}
 
-			p.appendInstruction(newInstruction(neg, unusedDifference, l))
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(neg, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rax)))
 
 		case cod.Odd:
 			// check if the top of the runtime CPU stack is an odd number and leave the result in the CPU flags register
@@ -101,7 +103,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return err
 			}
 
-			p.appendInstruction(newInstruction(and, unusedDifference, l))
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(and, unusedDifference, l, newOperand(registerOperand, rax)))
 
 		case cod.Plus, cod.Minus, cod.Times, cod.Divide:
 			// perform an arithmetic operation on the top two elements of the runtime CPU stack and replace them with the result
@@ -109,19 +112,24 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return err
 			}
 
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rbx)))
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
+
 			switch i.Code.Operation {
 			case cod.Plus:
-				p.appendInstruction(newInstruction(add, unusedDifference, l))
+				p.appendInstruction(newInstruction(add, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Minus:
-				p.appendInstruction(newInstruction(sub, unusedDifference, l))
+				p.appendInstruction(newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Times:
-				p.appendInstruction(newInstruction(imul, unusedDifference, l))
+				p.appendInstruction(newInstruction(imul, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Divide:
-				p.appendInstruction(newInstruction(idiv, unusedDifference, l))
+				p.appendInstruction(newInstruction(idiv, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 			}
+
+			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rax)))
 
 		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual:
 			// compare the top two elements of the runtime CPU stack, remove them, and leave the result in the CPU flags register
@@ -129,7 +137,9 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return err
 			}
 
-			p.appendInstruction(newInstruction(cmp, unusedDifference, l))
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rbx)))
+			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(cmp, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 		case cod.Jump:
 			// unconditionally jump to a label that is resolved by the linker
