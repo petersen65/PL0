@@ -17,9 +17,6 @@ const integerBitSize = 64
 // UnusedDifference states that an instruction does not use a block nesting depth difference.
 const unusedDifference = -1
 
-// NoLabel is a constant for an empty label in an instruction.
-const noLabel = ""
-
 // JIT compile a module into the text section of a process and return an error if the module fails to compile.
 func (p *process) jitCompile(module cod.Module) (err error) {
 	p.text = make(textSection, 0)
@@ -47,8 +44,17 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
+					// save caller's base pointer because it is changed
+					// this creates a dynamic link chain of base pointers so that each callee knows the base pointer of its caller
+					p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rbp)))
+
+					// new base pointer points to start of local variables
 					p.appendInstruction(
-						newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(j+1))))
+						newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
+
+					// allocate stack space for all local variables
+					p.appendInstruction(
+						newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(j+1))))
 
 					iterator.Skip(j)
 					break
@@ -98,8 +104,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			}
 
 			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
-			p.appendInstruction(newInstruction(neg, unusedDifference, l, newOperand(registerOperand, rax)))
-			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(neg, unusedDifference, nil, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(push, unusedDifference, nil, newOperand(registerOperand, rax)))
 
 		case cod.Odd:
 			// check if the top of the runtime CPU stack is an odd number and leave the result in the CPU flags register
@@ -108,7 +114,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			}
 
 			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
-			p.appendInstruction(newInstruction(and, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(and, unusedDifference, nil, newOperand(registerOperand, rax)))
 
 		case cod.Plus, cod.Minus, cod.Times, cod.Divide:
 			// perform an arithmetic operation on the top two elements of the runtime CPU stack and replace them with the result
@@ -117,27 +123,27 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			}
 
 			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rbx)))
-			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(pop, unusedDifference, nil, newOperand(registerOperand, rax)))
 
 			switch i.Code.Operation {
 			case cod.Plus:
 				p.appendInstruction(
-					newInstruction(add, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+					newInstruction(add, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Minus:
 				p.appendInstruction(
-					newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+					newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Times:
 				p.appendInstruction(
-					newInstruction(imul, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+					newInstruction(imul, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 			case cod.Divide:
 				p.appendInstruction(
-					newInstruction(idiv, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+					newInstruction(idiv, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 			}
 
-			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(push, unusedDifference, nil, newOperand(registerOperand, rax)))
 
 		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual:
 			// compare the top two elements of the runtime CPU stack, remove them, and leave the result in the CPU flags register
@@ -146,8 +152,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			}
 
 			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rbx)))
-			p.appendInstruction(newInstruction(pop, unusedDifference, l, newOperand(registerOperand, rax)))
-			p.appendInstruction(newInstruction(cmp, unusedDifference, l, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
+			p.appendInstruction(newInstruction(pop, unusedDifference, nil, newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(cmp, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx)))
 
 		case cod.Jump:
 			// unconditionally jump to a label that is resolved by the linker
@@ -202,7 +208,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// the first argument is the number of arguments that the runtime function expects
 			// the second argument is the call code of the runtime function in the programming language's runtime library
 			// current runtime functions expect 1 existing parameter on the runtime CPU stack
-			
+
 			// pop a parameter from the compile-time stack that represents the data type of the expected parameter on the runtime CPU stack
 			param := parameters.Back().Value.(*cod.Instruction)
 			parameters.Remove(parameters.Back())
@@ -239,7 +245,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
 		}
 
-		// collected labels must be used by the directly following instruction 
+		// collected labels must be used by the directly following instruction
 		// one instruction consumes all collected labels before it comes
 		if i.Code.Operation != cod.Branch {
 			l = make([]string, 0)
@@ -262,9 +268,7 @@ func (p *process) linker() error {
 	// create a map of labels and their absolute addresses
 	for i := range p.text {
 		for _, label := range p.text[i].Labels {
-			if label != noLabel {
-				labels[label] = uint64(i)
-			}
+			labels[label] = uint64(i)
 		}
 
 		// set the address of every pseudo-assembly instruction for display purposes

@@ -67,7 +67,6 @@ const (
 	memoryOperand    // memory addresses can be specified directly as absolute addresses, or indirectly through registers
 	labelOperand     // labels are used to specify jump targets and must be replaced by absolute addresses before execution
 	jumpOperand      // destinations for jump instructions that are specified as absolute addresses
-	stackOperand     // stack operands represent memory addresses on the stack and are used for stack pointer operations
 )
 
 // Call codes for the programming language runtime library.
@@ -153,7 +152,8 @@ type (
 
 	// Virtual process that holds instructions of a binary target.
 	process struct {
-		text textSection // text section with binary instructions
+		text         textSection // text section with instructions
+		stackPointer uint64      // memory address of the downward growing stack
 	}
 
 	// Virtual CPU with its registers.
@@ -165,7 +165,6 @@ type (
 	machine struct {
 		cpu     cpu      // CPU of the virtual machine
 		memory  []uint64 // memory of the virtual machine
-		stack   []uint64 // stack for the CPU (grows downwards)
 		process process  // process running on the virtual machine
 	}
 )
@@ -221,17 +220,14 @@ var (
 
 // Create a new emulation machine with CPU, registers, memory, and stack.
 func newMachine() Machine {
-	memory := make([]uint64, memorySize)   // memory of the virtual machine
-	stack := memory[memorySize-stackSize:] // stack is a part of the memory	and located at the top of the memory
-
 	return &machine{
 		cpu: cpu{
 			registers: make(map[register]uint64),
 		},
-		memory: memory,
-		stack:  stack,
+		memory: make([]uint64, memorySize),
 		process: process{
-			text: make(textSection, 0),
+			text:         make(textSection, 0),
+			stackPointer: memorySize - 1, // stack address space is from 'stackPointer' to 'stackPointer - stackSize + 1'
 		},
 	}
 }
@@ -264,9 +260,6 @@ func newOperand(opType operandType, op any) *operand {
 	case jumpOperand:
 		return &operand{Operand: jumpOperand, Jump: op.(uint64)}
 
-	case stackOperand:
-		return &operand{Operand: stackOperand, Stack: op.(uint64)}
-
 	default:
 		return &operand{} // empty operand will generate an error when used
 	}
@@ -295,9 +288,6 @@ func (o *operand) String() string {
 	case jumpOperand:
 		return fmt.Sprintf("%v", o.Jump)
 
-	case stackOperand:
-		return fmt.Sprintf("%v", o.Stack)
-
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownInstructionOperand, o.Operand, nil))
 	}
@@ -313,10 +303,8 @@ func (i *instruction) String() string {
 	var buffer bytes.Buffer
 
 	for _, label := range i.Labels {
-		if label != noLabel {
-			buffer.WriteString(label)
-			buffer.WriteString(":\n")
-		}
+		buffer.WriteString(label)
+		buffer.WriteString(":\n")
 	}
 
 	buffer.WriteString(fmt.Sprintf("%7v", i.Address))
@@ -432,18 +420,9 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[flags] = 0 // flags register
 	m.cpu.registers[rip] = 0   // instruction pointer
 
-	// // stack pointer to top of stack (end of stack frame descriptor)
-	m.cpu.registers[rsp] = stackSize - 1 - stackDescriptorSize + 1
-
-	// base pointer to bottom of stack frame
-	m.cpu.registers[rbp] = stackSize - 1
-
-	// preserve state of first caller and create descriptor of first callee
-	// first callee is the entrypoint of the program
-	m.stack[stackSize-1] = m.cpu.registers[rip] // return address (instruction pointer of caller + 1)
-	m.stack[stackSize-2] = m.cpu.registers[rbp] // dynamic link chains base pointers so that each callee knows the base pointer of its caller
-	m.stack[stackSize-3] = m.parent(0)          // static link points to direct parent block in block nesting hierarchy
-	m.cpu.registers[rbp] = m.cpu.registers[rsp] // base pointer of callee is pointing to the end of its descriptor
+	// base pointer of callee is pointing to the end of its descriptor (external code is caller of callee's entrypoint)
+	m.cpu.registers[rsp] = m.process.stackPointer - stackDescriptorSize + 1
+	m.cpu.registers[rbp] = m.cpu.registers[rsp]
 
 	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
 	for {
@@ -451,7 +430,8 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[rip], nil)
 		}
 
-		if m.cpu.registers[rsp] <= stackForbiddenZone || m.cpu.registers[rsp] > (stackSize-1-stackDescriptorSize+1) {
+		if m.cpu.registers[rsp] <= m.process.stackPointer-stackSize+stackForbiddenZone ||
+			m.cpu.registers[rsp] > m.process.stackPointer-stackDescriptorSize+1 {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[rsp], nil)
 		}
 
@@ -617,13 +597,11 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, call, nil)
 			}
 
-			// create descriptor of procedure being called and preserve state of caller in it
-			m.push(newOperand(jumpOperand, m.cpu.registers[rip]))             // return address
-			m.push(newOperand(stackOperand, m.cpu.registers[rbp]))            // dynamic link
-			m.push(newOperand(stackOperand, m.parent(instr.DepthDifference))) // static link
+			// push return address (instruction pointer of caller + 1)
+			m.push(newOperand(jumpOperand, m.cpu.registers[rip]))
 
-			// base pointer of procedure being called is pointing to the end of its descriptor
-			m.cpu.registers[rbp] = m.cpu.registers[rsp]
+			// static link points to direct parent block in block nesting hierarchy
+			m.push(newOperand(memoryOperand, m.parent(instr.DepthDifference)))
 
 			// jump to procedure at uint64 address
 			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
@@ -646,19 +624,19 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
 			}
 
-			variablesBase := m.parent(instr.DepthDifference) - 1                               // base pointer - 1
-			variableOffset := uint64(instr.Operands[0].ArgInt)                                 // variable offset
-			m.push(newOperand(immediateOperand, int64(m.stack[variablesBase-variableOffset]))) // variables base - variable offset
+			// variablesBase := m.parent(instr.DepthDifference) - 1                               // base pointer - 1
+			// variableOffset := uint64(instr.Operands[0].ArgInt)                                 // variable offset
+			// m.push(newOperand(immediateOperand, int64(m.stack[variablesBase-variableOffset]))) // variables base - variable offset
 
 		case storevar: // copy int64 element from top of stack to a variable stored within its base minus offset
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
 			}
 
-			variablesBase := m.parent(instr.DepthDifference) - 1         // base pointer - 1
-			variableOffset := uint64(instr.Operands[0].ArgInt)           // variable offset
-			m.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
-			m.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
+			// variablesBase := m.parent(instr.DepthDifference) - 1         // base pointer - 1
+			// variableOffset := uint64(instr.Operands[0].ArgInt)           // variable offset
+			// m.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
+			// m.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
@@ -680,9 +658,9 @@ func (m *machine) RunProcess() error {
 func (m *machine) parent(difference int32) uint64 {
 	basePointer := m.cpu.registers[rbp]
 
-	for i := int32(0); i < difference; i++ {
-		basePointer = m.stack[basePointer]
-	}
+	// for i := int32(0); i < difference; i++ {
+	// 	basePointer = m.stack[basePointer]
+	// }
 
 	return basePointer
 }
@@ -727,12 +705,18 @@ func (m *machine) push(op *operand) error {
 	case immediateOperand:
 		arg = uint64(op.ArgInt)
 
+	case memoryOperand:
+		arg = op.Memory
+
+	case jumpOperand:
+		arg = op.Jump
+
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)
 	}
 
 	m.cpu.registers[rsp]--
-	m.stack[m.cpu.registers[rsp]] = arg
+	m.memory[m.cpu.registers[rsp]] = arg
 	return nil
 }
 
@@ -740,16 +724,13 @@ func (m *machine) push(op *operand) error {
 func (m *machine) pop(op *operand) error {
 	switch op.Operand {
 	case registerOperand:
-		m.cpu.registers[op.Register] = m.stack[m.cpu.registers[rsp]]
+		m.cpu.registers[op.Register] = m.memory[m.cpu.registers[rsp]]
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, pop, nil)
 	}
 
-	if m.cpu.registers[rsp] < stackSize-1 {
-		m.cpu.registers[rsp]++
-	}
-
+	m.cpu.registers[rsp]++
 	return nil
 }
 
