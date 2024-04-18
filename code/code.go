@@ -460,6 +460,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
 		codeSymbol := i.module.lookup(blockBegin)
 		codeSymbol.definition = element
+
+		// create prelude for the intermediate code function
+		i.AppendInstruction(i.NewInstruction(Prelude, NoAddress, NoAddress, NoAddress))
 	}
 
 	// all declarations except blocks of nested procedures
@@ -490,7 +493,7 @@ func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDec
 
 // Generate code for a variable declaration.
 func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	// // access intermediate code metadata from abstract syntax scope
+	// access intermediate code metadata from abstract syntax scope
 	scopeMetaData := vd.Scope.Extension[scopeExtension].(*scopeMetaData)
 
 	// determine the intermediate code target name of the abstract syntax variable declaration
@@ -499,11 +502,11 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.module.lookup(target)
 
-	// // set the location of the variable in its logical memory space
+	// set the location of the variable in its logical memory space
 	codeSymbol.offset = scopeMetaData.offsetCounter
 	scopeMetaData.offsetCounter++
 
-	// // allocate memory for the variable in its logical memory space
+	// allocate memory for the variable in its logical memory space
 	instruction := i.NewInstruction(
 		Allocate,
 		NewAddress(codeSymbol.dataType, codeSymbol.offset, vd.Name),
@@ -511,7 +514,7 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
 		vd.TokenStreamIndex)
 
-	// append allocate instruction to the module and set it as definition for intermediate code variable
+	// append allocate instruction to the module and set it as definition for the intermediate code variable
 	codeSymbol.definition = i.AppendInstruction(instruction)
 }
 
@@ -523,7 +526,7 @@ func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 
 // Generate code for a literal.
 func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
-	// // create a value copy instruction to store the literal in an intermediate code result
+	// create a value copy instruction to store the literal in an intermediate code result
 	instruction := i.NewInstruction(
 		ValueCopy,
 		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
@@ -770,7 +773,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		assignmentDepth-declarationDepth,
 		s.TokenStreamIndex)
 
-	// // append the instruction to the module
+	// append the instruction to the module
 	i.AppendInstruction(instruction)
 }
 
@@ -895,7 +898,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 		callDepth-declarationDepth,
 		s.TokenStreamIndex)
 
-	// // append the instruction to the module
+	// append the instruction to the module
 	i.AppendInstruction(call)
 }
 

@@ -44,22 +44,23 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
-					// save caller's base pointer because it is changed
-					// this creates a dynamic link chain of base pointers so that each callee knows the base pointer of its caller
-					p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rbp)))
-
-					// new base pointer points to start of local variables
-					p.appendInstruction(
-						newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
-
 					// allocate stack space for all local variables
 					p.appendInstruction(
-						newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(j+1))))
+						newInstruction(sub, unusedDifference, l, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(j+1))))
 
 					iterator.Skip(j)
 					break
 				}
 			}
+
+		case cod.Prelude:
+			// save caller's base pointer because it is changed
+			// this creates a dynamic link chain of base pointers so that each callee knows the base pointer of its caller
+			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rbp)))
+
+			// new base pointer points to start of local variables
+			p.appendInstruction(
+				newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
 
 		case cod.ValueCopy:
 			// push an immediate value onto the runtime CPU stack
