@@ -658,6 +658,54 @@ func (m *machine) static_link(difference int32) uint64 {
 	return parent
 }
 
+/*
+mov rax, rbp
+mov rcx, difference
+
+loop_start:
+cmp rcx, 0
+je loop_end
+
+mov rax, [rax + 2]
+
+sub rcx, 1
+jmp loop_start
+
+loop_end:
+push rax
+*/
+
+/*
+section .text
+global static_link
+
+f1.static_link:
+    ; Prologue - save old base pointer and set new base pointer
+    push rbp
+    mov rbp, rsp
+
+    ; Get the difference parameter from the stack
+    mov rcx, [rbp + 16]  ; Assuming the function is called with one argument
+
+    ; Initialize rax with the value of rbp
+    mov rax, rbp
+
+l1.sl.1:
+    cmp rcx, 0
+    je l1.sl.2
+
+    mov rax, [rax + 2]
+
+    sub rcx, 1
+    jmp l1.sl.1
+
+l1.sl.2:
+    ; Epilogue - restore old base pointer and return
+    mov rsp, rbp
+    pop rbp
+    ret ; result is in rax
+*/
+
 // Call to programming language runtime library.
 func (m *machine) runtime(code runtimeCall) error {
 	switch code {
