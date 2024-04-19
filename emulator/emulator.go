@@ -132,7 +132,6 @@ type (
 		Memory   uint64      // memory address operand
 		Label    string      // labels for jump instructions will be replaced by an address
 		Jump     uint64      // destinations for jump instructions are specified as absolute addresses
-		Stack    uint64      // stack address operand
 	}
 
 	// Instruction is the representation of a single operation with all its operands and a depth difference.
@@ -593,24 +592,20 @@ func (m *machine) RunProcess() error {
 				return err
 			}
 
-		case call: // caller procedure calls callee procedure
+		case call: // caller function calls callee function
 			if len(instr.Operands) != 1 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, call, nil)
 			}
 
-			// static link provides the compile-time block nesting hierarchy at runtime
-			m.memory[m.cpu.registers[rsp]] = m.static_link(int32(m.cpu.registers[rsp]))
-
-			// push return address (instruction pointer of caller + 1)
-			m.push(newOperand(jumpOperand, m.cpu.registers[rip]))
-
-			// jump to procedure at uint64 address
-			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
+			// call function at uint64 address
+			if err := m.call(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case ret: // callee procedure returns to caller procedure
-			m.pop(newOperand(registerOperand, rip)) // restore callers instruction pointer
+		case ret: // callee function returns to caller function
+			if err := m.ret(); err != nil {
+				return err
+			}
 
 			// returning from the entrypoint of the program exits the program
 			if m.cpu.registers[rip] == 0 {
@@ -660,7 +655,7 @@ func (m *machine) static_link(difference int32) uint64 {
 		parent = m.memory[parent+stackDescriptorSize-1]
 	}
 
-	return parent + stackDescriptorSize - 1
+	return parent
 }
 
 // Call to programming language runtime library.
@@ -732,6 +727,24 @@ func (m *machine) pop(op *operand) error {
 	return nil
 }
 
+// Caller function calls callee function.
+func (m *machine) call(op *operand) error {
+	// static link provides the compile-time block nesting hierarchy at runtime
+	m.memory[m.cpu.registers[rsp]] = m.static_link(int32(m.memory[m.cpu.registers[rsp]]))
+
+	// push return address (instruction pointer of caller + 1)
+	m.push(newOperand(jumpOperand, m.cpu.registers[rip]))
+
+	// jump to function at uint64 address
+	return m.cpu.jmp(op)
+}
+
+// Callee function returns to caller function.
+func (m *machine) ret() error {
+	// restore callers instruction pointer
+	return m.pop(newOperand(registerOperand, rip))
+}
+
 // Copy second operand to first operand.
 func (c *cpu) mov(a, b *operand) error {
 	switch {
@@ -792,7 +805,7 @@ func (c *cpu) add(a, b *operand) error {
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		arg_b = int64(b.Register)
+		arg_b = int64(c.registers[b.Register])
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		arg_b = b.ArgInt
@@ -801,7 +814,7 @@ func (c *cpu) add(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, add, nil)
 	}
 
-	c.set_of_add(int64(a.Register), arg_b)
+	c.set_of_add(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowAddition, c.registers[rip]-1, nil)
@@ -819,7 +832,7 @@ func (c *cpu) sub(a, b *operand) error {
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		arg_b = int64(b.Register)
+		arg_b = int64(c.registers[b.Register])
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		arg_b = b.ArgInt
@@ -828,7 +841,7 @@ func (c *cpu) sub(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, sub, nil)
 	}
 
-	c.set_of_sub(int64(a.Register), arg_b)
+	c.set_of_sub(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowSubtraction, c.registers[rip]-1, nil)
@@ -847,7 +860,7 @@ func (c *cpu) imul(a, b *operand) error {
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		arg_b = int64(b.Register)
+		arg_b = int64(c.registers[b.Register])
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		arg_b = b.ArgInt
@@ -856,7 +869,7 @@ func (c *cpu) imul(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, imul, nil)
 	}
 
-	c.set_of_mul(int64(a.Register), arg_b)
+	c.set_of_mul(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowMultiplication, c.registers[rip]-1, nil)
@@ -874,7 +887,7 @@ func (c *cpu) idiv(a, b *operand) error {
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		arg_b = int64(b.Register)
+		arg_b = int64(c.registers[b.Register])
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		arg_b = b.ArgInt
@@ -883,7 +896,7 @@ func (c *cpu) idiv(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, idiv, nil)
 	}
 
-	c.set_of_div(int64(a.Register), arg_b)
+	c.set_of_div(int64(c.registers[a.Register]), arg_b)
 
 	if arg_b == 0 {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, divisionByZero, c.registers[rip]-1, nil)
@@ -905,7 +918,7 @@ func (c *cpu) cmp(a, b *operand) error {
 
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		arg_b = int64(b.Register)
+		arg_b = int64(c.registers[b.Register])
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		arg_b = b.ArgInt
@@ -914,7 +927,7 @@ func (c *cpu) cmp(a, b *operand) error {
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, cmp, nil)
 	}
 
-	c.set_of_sub(int64(a.Register), arg_b)
+	c.set_of_sub(int64(c.registers[a.Register]), arg_b)
 
 	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) - arg_b)
 	c.set_zf(int64(c.registers[a.Register]))

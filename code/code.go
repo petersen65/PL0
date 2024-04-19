@@ -103,7 +103,7 @@ func newSymbol(target string, kind entry, dataType DataType) *symbol {
 
 // Create metadata for a scope in the abstract syntax tree.
 func newScopeMetaData() *scopeMetaData {
-	return &scopeMetaData{}
+	return &scopeMetaData{offsetCounter: 1}
 }
 
 // Create metadata for a symbol in the abstract syntax tree.
