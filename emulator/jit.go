@@ -54,13 +54,21 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			}
 
 		case cod.Prelude:
-			// save caller's base pointer because it is changed
+			// save caller's base pointer because it will be changed
 			// this creates a dynamic link chain of base pointers so that each callee knows the base pointer of its caller
 			p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(registerOperand, rbp)))
 
 			// new base pointer points to start of local variables
 			p.appendInstruction(
 				newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
+
+		case cod.Epilog:
+			// clean allocated local variables
+			p.appendInstruction(
+				newInstruction(mov, unusedDifference, l, newOperand(registerOperand, rsp), newOperand(registerOperand, rbp)))
+
+			// restore caller's base pointer
+			p.appendInstruction(newInstruction(pop, unusedDifference, nil, newOperand(registerOperand, rbp)))
 
 		case cod.ValueCopy:
 			// push an immediate value onto the runtime CPU stack
@@ -189,8 +197,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			parameters.PushBack(i)
 
 		case cod.Call:
-			// call a function with 0 arguments by jumping to the function's label (intermediate code procedures do not support parameters yet)
-			// intermediate code procedures are named emulator target functions in the pseudo-assembly code
+			// call a function with 0 arguments by jumping to the function's label (intermediate code functions do not support parameters yet)
 			if i.Code.Arg1.DataType != cod.UnsignedInteger64 {
 				return validateDataType(cod.UnsignedInteger64, i.Code.Arg1.DataType)
 			}
@@ -200,8 +207,20 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			} else if arg != 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
 			} else {
-				p.appendInstruction(newInstruction(call, i.DepthDifference, l, newOperand(labelOperand, i.Code.Arg2.Variable)))
+				// push difference between use depth and declaration depth on runtime CPU stack
+				p.appendInstruction(newInstruction(push, unusedDifference, l, newOperand(immediateOperand, int64(i.DepthDifference))))
+
+				// push return address on runtime CPU stack and jump to callee
+				p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, i.Code.Arg2.Variable)))
+
+				// remove difference from runtime CPU stack after return from callee
+				p.appendInstruction(
+					newInstruction(add, unusedDifference, nil, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(1))))
 			}
+
+		case cod.Return:
+			// return from a function to its caller
+			p.appendInstruction(newInstruction(ret, unusedDifference, nil))
 
 		case cod.Runtime:
 			// a runtime function represents a function that is provided by the runtime library of the programming language
@@ -237,10 +256,6 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			default:
 				p.appendInstruction(newInstruction(rcall, unusedDifference, l, newOperand(immediateOperand, rtc)))
 			}
-
-		case cod.Return:
-			// return from a function to its caller
-			p.appendInstruction(newInstruction(ret, unusedDifference, l))
 
 		default:
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)

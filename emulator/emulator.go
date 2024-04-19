@@ -139,7 +139,7 @@ type (
 	instruction struct {
 		Operation       operationCode // operation code of the instruction
 		Operands        []*operand    // operands for the operation
-		DepthDifference int32         // block nesting depth difference between variable use and variable declaration
+		DepthDifference int32         // block nesting depth difference between identifier use and identifier declaration
 		Labels          []string      // labels to whom jump instructions will jump
 		Address         uint64        // absolute address of this instruction in the text section is set during linking
 	}
@@ -227,7 +227,7 @@ func newMachine() Machine {
 		memory: make([]uint64, memorySize),
 		process: process{
 			text:         make(textSection, 0),
-			stackPointer: memorySize - 1, // stack address space is from 'stackPointer' to 'stackPointer - stackSize + 1'
+			stackPointer: memorySize - 1,
 		},
 	}
 }
@@ -399,10 +399,6 @@ func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
-	// state of active callee, which is a running procedure: bp, sp, and ip
-	// state of caller is in descriptor of callee (first 3 entries of stack frame)
-	// if callee calls another procedure, the callee's state is saved in the stack frame of the new callee (its descriptor)
-
 	m.cpu.registers[rax] = 0   // accumulator register
 	m.cpu.registers[rbx] = 0   // base register
 	m.cpu.registers[rcx] = 0   // counter register
@@ -420,18 +416,23 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[flags] = 0 // flags register
 	m.cpu.registers[rip] = 0   // instruction pointer
 
-	// base pointer of callee is pointing to the end of its descriptor (external code is caller of callee's entrypoint)
-	m.cpu.registers[rsp] = m.process.stackPointer - stackDescriptorSize + 1
+	// external code is caller of main block's entrypoint and would push static link and return address
+	m.cpu.registers[rsp] = m.process.stackPointer - 1
 	m.cpu.registers[rbp] = m.cpu.registers[rsp]
 
-	// execute instructions until the the first callee returns to the first caller (entrypoint returns to external code)
+	// initialize stack frame descriptor of main block (simulate external caller side)
+	m.memory[m.cpu.registers[rbp]+1] = 0 // static link (compile-time block nesting hierarchy)
+	m.memory[m.cpu.registers[rbp]] = 0   // return address (to caller)
+
+	// execute instructions until main block return to external code
 	for {
 		if m.cpu.registers[rip] >= uint64(len(m.process.text)) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[rip], nil)
 		}
 
+		// stack address space is from 'stackPointer' down to 'stackPointer - stackSize + 1' excluding a forbidden zone
 		if m.cpu.registers[rsp] <= m.process.stackPointer-stackSize+stackForbiddenZone ||
-			m.cpu.registers[rsp] > m.process.stackPointer-stackDescriptorSize+1 {
+			m.cpu.registers[rsp] > m.process.stackPointer {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[rsp], nil)
 		}
 
@@ -597,11 +598,11 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, call, nil)
 			}
 
+			// static link provides the compile-time block nesting hierarchy at runtime
+			m.memory[m.cpu.registers[rsp]] = m.static_link(int32(m.cpu.registers[rsp]))
+
 			// push return address (instruction pointer of caller + 1)
 			m.push(newOperand(jumpOperand, m.cpu.registers[rip]))
-
-			// static link points to direct parent block in block nesting hierarchy
-			m.push(newOperand(memoryOperand, m.parent(instr.DepthDifference)))
 
 			// jump to procedure at uint64 address
 			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
@@ -609,10 +610,7 @@ func (m *machine) RunProcess() error {
 			}
 
 		case ret: // callee procedure returns to caller procedure
-			// restore state of caller procdure from descriptor of callee procedure
-			m.cpu.registers[rsp] = m.cpu.registers[rbp] + 1 // discard stack space and static link
-			m.pop(newOperand(registerOperand, rbp))         // restore callers base pointer
-			m.pop(newOperand(registerOperand, rip))         // restore callers instruction pointer
+			m.pop(newOperand(registerOperand, rip)) // restore callers instruction pointer
 
 			// returning from the entrypoint of the program exits the program
 			if m.cpu.registers[rip] == 0 {
@@ -624,19 +622,19 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
 			}
 
-			// variablesBase := m.parent(instr.DepthDifference) - 1                               // base pointer - 1
-			// variableOffset := uint64(instr.Operands[0].ArgInt)                                 // variable offset
-			// m.push(newOperand(immediateOperand, int64(m.stack[variablesBase-variableOffset]))) // variables base - variable offset
+			variablesBase := m.static_link(instr.DepthDifference)                               // base pointer
+			variableOffset := uint64(instr.Operands[0].ArgInt)                                  // variable offset
+			m.push(newOperand(immediateOperand, int64(m.memory[variablesBase-variableOffset]))) // variables base - variable offset
 
 		case storevar: // copy int64 element from top of stack to a variable stored within its base minus offset
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
 			}
 
-			// variablesBase := m.parent(instr.DepthDifference) - 1         // base pointer - 1
-			// variableOffset := uint64(instr.Operands[0].ArgInt)           // variable offset
-			// m.pop(newOperand(registerOperand, rax))                      // int64 element to be stored in variable
-			// m.stack[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
+			variablesBase := m.static_link(instr.DepthDifference)         // base pointer
+			variableOffset := uint64(instr.Operands[0].ArgInt)            // variable offset
+			m.pop(newOperand(registerOperand, rax))                       // int64 element to be stored in variable
+			m.memory[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
 
 		case rcall: // call to programming language runtime library based on runtime call code
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
@@ -655,14 +653,14 @@ func (m *machine) RunProcess() error {
 }
 
 // Follow static link to parent blocks in compile-time block nesting hierarchy.
-func (m *machine) parent(difference int32) uint64 {
-	basePointer := m.cpu.registers[rbp]
+func (m *machine) static_link(difference int32) uint64 {
+	parent := m.cpu.registers[rbp]
 
-	// for i := int32(0); i < difference; i++ {
-	// 	basePointer = m.stack[basePointer]
-	// }
+	for i := int32(0); i < difference; i++ {
+		parent = m.memory[parent+stackDescriptorSize-1]
+	}
 
-	return basePointer
+	return parent + stackDescriptorSize - 1
 }
 
 // Call to programming language runtime library.

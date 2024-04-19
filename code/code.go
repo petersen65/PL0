@@ -461,9 +461,10 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		codeSymbol := i.module.lookup(blockBegin)
 		codeSymbol.definition = element
 
-		// create prelude for the intermediate code function
-		i.AppendInstruction(i.NewInstruction(Prelude, NoAddress, NoAddress, NoAddress))
 	}
+
+	// create prelude for the block
+	i.AppendInstruction(i.NewInstruction(Prelude, NoAddress, NoAddress, NoAddress))
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -474,6 +475,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 
 	// statement of the block
 	bn.Statement.Accept(i)
+
+	// create epilog for the block
+	i.AppendInstruction(i.NewInstruction(Epilog, NoAddress, NoAddress, NoAddress))
 
 	// return from the block and mark the end of the block
 	i.AppendInstruction(i.NewInstruction(Return, NoAddress, NoAddress, NoAddress, blockBegin))

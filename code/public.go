@@ -52,6 +52,7 @@ const (
 	Parameter // pass parameter to function
 	Call      // call function
 	Prelude   // prelude inside the body of a function
+	Epilog    // epilog inside the body of a function
 	Return    // return from function
 	Runtime   // call function of the external runtime library
 	Branch    // branch operation for placing a logical branch instruction in the intermediate code
@@ -205,6 +206,7 @@ var (
 		Parameter:        "param",
 		Call:             "call",
 		Prelude:          "prelude",
+		Epilog:           "epilog",
 		Return:           "return",
 		Runtime:          "runtime",
 		Branch:           "branch",
