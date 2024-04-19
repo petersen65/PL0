@@ -15,8 +15,13 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Label for the entry point of the program if none is provided.
-const defaultStartLabel = "_start"
+const (
+	memorySize          = 65536    // memory entries are 64-bit unsigned integers
+	stackSize           = 16384    // stack entries are 64-bit unsigned integers
+	stackForbiddenZone  = 1024     // stack entries below this address are forbidden to be used
+	stackDescriptorSize = 3        // size of a stack frame descriptor
+	defaultStartLabel   = "_start" //  label for the entry point of the program if none is provided
+)
 
 // Operation codes for pseudo-assembly instructions.
 const (
@@ -77,31 +82,25 @@ const (
 )
 
 const (
-	memorySize          = 65536 // memory entries are 64-bit unsigned integers
-	stackSize           = 16384 // stack entries are 64-bit unsigned integers
-	stackForbiddenZone  = 1024  // stack entries below this address are forbidden to be used
-	stackDescriptorSize = 3     // size of a stack frame descriptor
-)
-
-const (
-	rax   = register(iota) // accumulator is used for intermediate results of arithmetic operations
-	rbx                    // base register can be used for addressing variables
-	rcx                    // counter register can be used for counting iterations of loops
-	rdx                    // data register can be used for addressing variables
-	rsi                    // source index register used in string and array operations as a pointer to source data
-	rdi                    // destination index register is used used in string and array operations as a pointer to destination data
-	r8                     // 64-bit general purpose register
-	r9                     // 64-bit general purpose register
-	r10                    // 64-bit general purpose register
-	r11                    // 64-bit general purpose register
-	r12                    // 64-bit general purpose register
-	r13                    // 64-bit general purpose register
-	r14                    // 64-bit general purpose register
-	r15                    // 64-bit general purpose register
-	flags                  // flags register contains the current state of the CPU and reflects the result of arithmetic operations
-	rip                    // instruction pointer is pointing to the next instruction to be executed
-	rsp                    // stack pointer is pointing to the top of the stack
-	rbp                    // base pointer is pointing to the base of the current stack frame
+	_     = register(iota)
+	rax   // accumulator is used for intermediate results of arithmetic operations
+	rbx   // base register can be used for addressing variables
+	rcx   // counter register can be used for counting iterations of loops
+	rdx   // data register can be used for addressing variables
+	rsi   // source index register used in string and array operations as a pointer to source data
+	rdi   // destination index register is used used in string and array operations as a pointer to destination data
+	r8    // 64-bit general purpose register
+	r9    // 64-bit general purpose register
+	r10   // 64-bit general purpose register
+	r11   // 64-bit general purpose register
+	r12   // 64-bit general purpose register
+	r13   // 64-bit general purpose register
+	r14   // 64-bit general purpose register
+	r15   // 64-bit general purpose register
+	flags // flags register contains the current state of the CPU and reflects the result of arithmetic operations
+	rip   // instruction pointer is pointing to the next instruction to be executed
+	rsp   // stack pointer is pointing to the top of the stack
+	rbp   // base pointer is pointing to the base of the current stack frame
 )
 
 const (
@@ -251,6 +250,10 @@ func newOperand(opType operandType, op any) *operand {
 		return &operand{Operand: immediateOperand, ArgInt: op.(int64)}
 
 	case memoryOperand:
+		if _, ok := op.(register); ok {
+			return &operand{Operand: memoryOperand, Register: op.(register)}
+		}
+
 		return &operand{Operand: memoryOperand, Memory: op.(uint64)}
 
 	case labelOperand:
@@ -279,6 +282,10 @@ func (o *operand) String() string {
 		return fmt.Sprintf("%v", o.ArgInt)
 
 	case memoryOperand:
+		if o.Register != 0 {
+			return fmt.Sprintf("[%v]", o.Register)
+		}
+
 		return fmt.Sprintf("%v", o.Memory)
 
 	case labelOperand:
@@ -462,7 +469,7 @@ func (m *machine) RunProcess() error {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
 			}
 
-			if err := m.cpu.mov(instr.Operands[0], instr.Operands[1]); err != nil {
+			if err := m.mov(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
@@ -658,54 +665,6 @@ func (m *machine) static_link(difference int32) uint64 {
 	return parent
 }
 
-/*
-mov rax, rbp
-mov rcx, difference
-
-loop_start:
-cmp rcx, 0
-je loop_end
-
-mov rax, [rax + 2]
-
-sub rcx, 1
-jmp loop_start
-
-loop_end:
-push rax
-*/
-
-/*
-section .text
-global static_link
-
-f1.static_link:
-    ; Prologue - save old base pointer and set new base pointer
-    push rbp
-    mov rbp, rsp
-
-    ; Get the difference parameter from the stack
-    mov rcx, [rbp + 16]  ; Assuming the function is called with one argument
-
-    ; Initialize rax with the value of rbp
-    mov rax, rbp
-
-l1.sl.1:
-    cmp rcx, 0
-    je l1.sl.2
-
-    mov rax, [rax + 2]
-
-    sub rcx, 1
-    jmp l1.sl.1
-
-l1.sl.2:
-    ; Epilogue - restore old base pointer and return
-    mov rsp, rbp
-    pop rbp
-    ret ; result is in rax
-*/
-
 // Call to programming language runtime library.
 func (m *machine) runtime(code runtimeCall) error {
 	switch code {
@@ -745,9 +704,6 @@ func (m *machine) push(op *operand) error {
 
 	case immediateOperand:
 		arg = uint64(op.ArgInt)
-
-	case memoryOperand:
-		arg = op.Memory
 
 	case jumpOperand:
 		arg = op.Jump
@@ -794,13 +750,19 @@ func (m *machine) ret() error {
 }
 
 // Copy second operand to first operand.
-func (c *cpu) mov(a, b *operand) error {
+func (m *machine) mov(a, b *operand) error {
 	switch {
 	case a.Operand == registerOperand && b.Operand == registerOperand:
-		c.registers[a.Register] = c.registers[b.Register]
+		m.cpu.registers[a.Register] = m.cpu.registers[b.Register]
 
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
-		c.registers[a.Register] = uint64(b.ArgInt)
+		m.cpu.registers[a.Register] = uint64(b.ArgInt)
+
+	case a.Operand == registerOperand && b.Operand == memoryOperand && b.Register != 0:
+		m.cpu.registers[a.Register] = m.memory[m.cpu.registers[b.Register]]
+
+	case a.Operand == registerOperand && b.Operand == memoryOperand && b.Register == 0:
+		m.cpu.registers[a.Register] = m.memory[b.Memory]
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
@@ -986,11 +948,11 @@ func (c *cpu) cmp(a, b *operand) error {
 // Unconditionally jump to uint64 address.
 func (c *cpu) jmp(op *operand) error {
 	switch op.Operand {
-	case jumpOperand:
-		c.registers[rip] = op.Jump
-
 	case registerOperand:
 		c.registers[rip] = c.registers[op.Register]
+
+	case jumpOperand:
+		c.registers[rip] = op.Jump
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, jmp, nil)
