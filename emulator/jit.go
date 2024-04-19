@@ -271,7 +271,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	p.appendStaticLink()
 
 	// link the pseudo-assembly instructions
-	return nil//p.linker()
+	return p.linker()
 }
 
 // Append an instruction to the end of the text section of the process.
@@ -280,28 +280,14 @@ func (p *process) appendInstruction(instruction *instruction) {
 }
 
 func (p *process) appendStaticLink() {
-	p.appendInstruction(newInstruction(push, unusedDifference, []string{"f1.static_link"}, newOperand(registerOperand, rbp)))
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
-
-	// mov rcx, [rbp + 16]
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(registerOperand, rbp)))
-	p.appendInstruction(newInstruction(add, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(3))))
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(memoryOperand, rcx)))
-
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbp)))
+	p.appendInstruction(newInstruction(mov, unusedDifference, []string{"f1.static_link"}, newOperand(registerOperand, rax), newOperand(registerOperand, rbp)))
 	p.appendInstruction(newInstruction(cmp, unusedDifference, []string{"l1.sl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0))))
 	p.appendInstruction(newInstruction(je, unusedDifference, nil, newOperand(labelOperand, "l1.sl.2")))
-
-	// mov rax, [rax + 2]
 	p.appendInstruction(newInstruction(add, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(immediateOperand, int64(2))))
 	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(memoryOperand, rax)))
-	
 	p.appendInstruction(newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1))))
 	p.appendInstruction(newInstruction(jmp, unusedDifference, nil, newOperand(labelOperand, "l1.sl.1")))
-
-	p.appendInstruction(newInstruction(mov, unusedDifference, []string{"l1.sl.2"}, newOperand(registerOperand, rsp), newOperand(registerOperand, rbp)))
-	p.appendInstruction(newInstruction(pop, unusedDifference, nil, newOperand(registerOperand, rbp)))
-	p.appendInstruction(newInstruction(ret, unusedDifference, nil))
+	p.appendInstruction(newInstruction(ret, unusedDifference, []string{"l1.sl.2"}))
 }
 
 // The linker resolves jump and call label references to absolut code addresses in emulator target pseudo-assembly code.
