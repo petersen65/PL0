@@ -423,13 +423,11 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[flags] = 0 // flags register
 	m.cpu.registers[rip] = 0   // instruction pointer
 
-	// external code is caller of main block's entrypoint and would push static link and return address
-	m.cpu.registers[rsp] = m.process.stackPointer - 1
-	m.cpu.registers[rbp] = m.cpu.registers[rsp]
-
-	// initialize stack frame descriptor of main block (simulate external caller side)
-	m.memory[m.cpu.registers[rbp]+1] = 0 // static link (compile-time block nesting hierarchy)
-	m.memory[m.cpu.registers[rbp]] = 0   // return address (to caller)
+	// initialize stack frame descriptor of main block
+	m.memory[m.process.stackPointer] = 0              // static link (compile-time block nesting hierarchy)
+	m.memory[m.process.stackPointer-1] = 0            // return address (to caller)
+	m.cpu.registers[rsp] = m.process.stackPointer - 1 // stack pointer points to return address before main block's prelude runs
+	m.cpu.registers[rbp] = 0                          // intentionnaly, there is no valid base pointer (from a caller)
 
 	// execute instructions until main block return to external code
 	for {
@@ -760,10 +758,10 @@ func (m *machine) mov(a, b *operand) error {
 		m.cpu.registers[a.Register] = m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement]
 
 	case a.Operand == memoryOperand && b.Operand == registerOperand:
-		m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement] = m.cpu.registers[b.Register]
+		m.memory[int64(m.cpu.registers[a.Memory])+a.Displacement] = m.cpu.registers[b.Register]
 
 	case a.Operand == memoryOperand && b.Operand == immediateOperand:
-		m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement] = uint64(b.ArgInt)
+		m.memory[int64(m.cpu.registers[a.Memory])+a.Displacement] = uint64(b.ArgInt)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
