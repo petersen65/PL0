@@ -63,12 +63,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp)))
 
 			// static link provides the compile-time block nesting hierarchy at runtime
-			p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.static_link")))
-
-			p.appendInstruction(
-				newInstruction(mov, unusedDifference, nil,
-					newOperand(memoryOperand, rbp, stackDescriptorSize-1),
-					newOperand(registerOperand, rax)))
+			p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.csl")))
 
 		case cod.Epilog:
 			// clean allocated local variables
@@ -289,21 +284,31 @@ func (p *process) appendInstruction(instruction *instruction) {
 
 func (p *process) appendStaticLink() {
 	p.appendInstruction(
-		newInstruction(mov, unusedDifference, []string{"f1.static_link"},
+		newInstruction(mov, unusedDifference, []string{"f1.csl"},
 			newOperand(registerOperand, rcx),
 			newOperand(memoryOperand, rbp, stackDescriptorSize-1)))
 
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbp)))
+	p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.fsl")))
 
-	p.appendInstruction(newInstruction(cmp, unusedDifference, []string{"l1.sl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0))))
-	p.appendInstruction(newInstruction(je, unusedDifference, nil, newOperand(labelOperand, "l1.sl.2")))
+	p.appendInstruction(
+		newInstruction(mov, unusedDifference, nil,
+			newOperand(memoryOperand, rbp, stackDescriptorSize-1),
+			newOperand(registerOperand, rax)))
+
+	p.appendInstruction(newInstruction(ret, unusedDifference, nil))
+
+
+	p.appendInstruction(newInstruction(mov, unusedDifference, []string{"f1.fsl"}, newOperand(registerOperand, rax), newOperand(registerOperand, rbp)))
+
+	p.appendInstruction(newInstruction(cmp, unusedDifference, []string{"l1.fsl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0))))
+	p.appendInstruction(newInstruction(je, unusedDifference, nil, newOperand(labelOperand, "l1.fsl.2")))
 
 	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(memoryOperand, rax, stackDescriptorSize-1)))
 
 	p.appendInstruction(newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1))))
-	p.appendInstruction(newInstruction(jmp, unusedDifference, nil, newOperand(labelOperand, "l1.sl.1")))
-
-	p.appendInstruction(newInstruction(ret, unusedDifference, []string{"l1.sl.2"}))
+	p.appendInstruction(newInstruction(jmp, unusedDifference, nil, newOperand(labelOperand, "l1.fsl.1")))
+	
+	p.appendInstruction(newInstruction(ret, unusedDifference, []string{"l1.fsl.2"}))
 }
 
 // The linker resolves jump and call label references to absolut code addresses in emulator target pseudo-assembly code.
