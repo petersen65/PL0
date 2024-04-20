@@ -69,7 +69,7 @@ const (
 	_                = operandType(iota)
 	registerOperand  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
 	immediateOperand // int64 constant values like 'mov eax, 1'
-	memoryOperand    // memory addresses can be specified directly as absolute addresses, or indirectly through registers
+	memoryOperand    // memory addresses are specified indirectly through registers
 	labelOperand     // labels are used to specify jump targets and must be replaced by absolute addresses before execution
 	jumpOperand      // destinations for jump instructions that are specified as absolute addresses
 )
@@ -125,12 +125,13 @@ type (
 
 	// Operand of an operation.
 	operand struct {
-		Operand  operandType // type of the operand
-		Register register    // register operand for the operation
-		ArgInt   int64       // int64 immediate value argument
-		Memory   uint64      // memory address operand
-		Label    string      // labels for jump instructions will be replaced by an address
-		Jump     uint64      // destinations for jump instructions are specified as absolute addresses
+		Operand      operandType // type of the operand
+		Register     register    // register operand for the operation
+		ArgInt       int64       // int64 immediate value argument
+		Memory       register    // memory address specified indirectly through register
+		Label        string      // labels for jump instructions will be replaced by an address
+		Jump         uint64      // destinations for jump instructions are specified as absolute addresses
+		Displacement int64       // used by the memory operand for "base plus displacement" addressing
 	}
 
 	// Instruction is the representation of a single operation with all its operands and a depth difference.
@@ -241,7 +242,7 @@ func newInstruction(op operationCode, depthDifference int32, labels []string, op
 }
 
 // Create a new operand for an instruction.
-func newOperand(opType operandType, op any) *operand {
+func newOperand(opType operandType, op any, disp ...int64) *operand {
 	switch opType {
 	case registerOperand:
 		return &operand{Operand: registerOperand, Register: op.(register)}
@@ -250,11 +251,11 @@ func newOperand(opType operandType, op any) *operand {
 		return &operand{Operand: immediateOperand, ArgInt: op.(int64)}
 
 	case memoryOperand:
-		if _, ok := op.(register); ok {
-			return &operand{Operand: memoryOperand, Register: op.(register)}
+		if len(disp) > 0 {
+			return &operand{Operand: memoryOperand, Memory: op.(register), Displacement: disp[0]}
 		}
 
-		return &operand{Operand: memoryOperand, Memory: op.(uint64)}
+		return &operand{Operand: memoryOperand, Memory: op.(register)}
 
 	case labelOperand:
 		return &operand{Operand: labelOperand, Label: op.(string)}
@@ -282,11 +283,11 @@ func (o *operand) String() string {
 		return fmt.Sprintf("%v", o.ArgInt)
 
 	case memoryOperand:
-		if o.Register != 0 {
-			return fmt.Sprintf("[%v]", o.Register)
+		if o.Displacement != 0 {
+			return fmt.Sprintf("[%v%+d]", o.Memory, o.Displacement)
 		}
 
-		return fmt.Sprintf("%v", o.Memory)
+		return fmt.Sprintf("[%v]", o.Memory)
 
 	case labelOperand:
 		return o.Label
@@ -733,9 +734,6 @@ func (m *machine) pop(op *operand) error {
 
 // Caller function calls callee function.
 func (m *machine) call(op *operand) error {
-	// static link provides the compile-time block nesting hierarchy at runtime
-	m.memory[m.cpu.registers[rsp]] = m.static_link(int32(m.memory[m.cpu.registers[rsp]]))
-
 	// push return address (instruction pointer of caller + 1)
 	m.push(newOperand(jumpOperand, m.cpu.registers[rip]))
 
@@ -758,11 +756,14 @@ func (m *machine) mov(a, b *operand) error {
 	case a.Operand == registerOperand && b.Operand == immediateOperand:
 		m.cpu.registers[a.Register] = uint64(b.ArgInt)
 
-	case a.Operand == registerOperand && b.Operand == memoryOperand && b.Register != 0:
-		m.cpu.registers[a.Register] = m.memory[m.cpu.registers[b.Register]]
+	case a.Operand == registerOperand && b.Operand == memoryOperand:
+		m.cpu.registers[a.Register] = m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement]
 
-	case a.Operand == registerOperand && b.Operand == memoryOperand && b.Register == 0:
-		m.cpu.registers[a.Register] = m.memory[b.Memory]
+	case a.Operand == memoryOperand && b.Operand == registerOperand:
+		m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement] = m.cpu.registers[b.Register]
+
+	case a.Operand == memoryOperand && b.Operand == immediateOperand:
+		m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement] = uint64(b.ArgInt)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, mov, nil)
