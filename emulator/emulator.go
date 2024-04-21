@@ -58,10 +58,6 @@ const (
 	call
 	ret
 	rcall
-
-	// assembly instructions for loading and storing variables
-	loadvar
-	storevar
 )
 
 // Operand types for instructions.
@@ -171,28 +167,26 @@ type (
 var (
 	// Map operation codes to their string representation.
 	operationNames = map[operationCode]string{
-		push:     "push",
-		pop:      "pop",
-		mov:      "mov",
-		cmp:      "cmp",
-		jmp:      "jmp",
-		je:       "je",
-		jne:      "jne",
-		jl:       "jl",
-		jle:      "jle",
-		jg:       "jg",
-		jge:      "jge",
-		neg:      "neg",
-		and:      "and",
-		add:      "add",
-		sub:      "sub",
-		imul:     "imul",
-		idiv:     "idiv",
-		call:     "call",
-		ret:      "ret",
-		loadvar:  "loadvar",
-		storevar: "storevar",
-		rcall:    "rcall",
+		push:  "push",
+		pop:   "pop",
+		mov:   "mov",
+		cmp:   "cmp",
+		jmp:   "jmp",
+		je:    "je",
+		jne:   "jne",
+		jl:    "jl",
+		jle:   "jle",
+		jg:    "jg",
+		jge:   "jge",
+		neg:   "neg",
+		and:   "and",
+		add:   "add",
+		sub:   "sub",
+		imul:  "imul",
+		idiv:  "idiv",
+		call:  "call",
+		ret:   "ret",
+		rcall: "rcall",
 	}
 
 	// Map registers to their string representation.
@@ -618,25 +612,6 @@ func (m *machine) RunProcess() error {
 				return nil
 			}
 
-		case loadvar: // copy int64 variable loaded from its base minus offset onto the stack
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, loadvar, nil)
-			}
-
-			variablesBase := m.static_link(instr.DepthDifference)                               // base pointer
-			variableOffset := uint64(instr.Operands[0].ArgInt)                                  // variable offset
-			m.push(newOperand(immediateOperand, int64(m.memory[variablesBase-variableOffset]))) // variables base - variable offset
-
-		case storevar: // copy int64 element from top of stack to a variable stored within its base minus offset
-			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand || instr.Operands[0].ArgInt < 0 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, storevar, nil)
-			}
-
-			variablesBase := m.static_link(instr.DepthDifference)         // base pointer
-			variableOffset := uint64(instr.Operands[0].ArgInt)            // variable offset
-			m.pop(newOperand(registerOperand, rax))                       // int64 element to be stored in variable
-			m.memory[variablesBase-variableOffset] = m.cpu.registers[rax] // variables base - variable offset
-
 		case rcall: // call to programming language runtime library based on runtime call code
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, rcall, nil)
@@ -651,17 +626,6 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.registers[rip]-1, nil)
 		}
 	}
-}
-
-// Follow static link to parent blocks in compile-time block nesting hierarchy.
-func (m *machine) static_link(difference int32) uint64 {
-	parent := m.cpu.registers[rbp]
-
-	for i := int32(0); i < difference; i++ {
-		parent = m.memory[parent+stackDescriptorSize-1]
-	}
-
-	return parent
 }
 
 // Call to programming language runtime library.
@@ -706,6 +670,9 @@ func (m *machine) push(op *operand) error {
 
 	case jumpOperand:
 		arg = op.Jump
+
+	case memoryOperand:
+		arg = m.memory[int64(m.cpu.registers[op.Memory])+op.Displacement]
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, push, nil)

@@ -91,8 +91,17 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// load a variable from its runtime CPU stack address onto the top of the stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
+				// put depth difference into register rcx
 				p.appendInstruction(
-					newInstruction(loadvar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Arg1.Offset))))
+					newInstruction(mov, unusedDifference, l,
+						newOperand(registerOperand, rcx),
+						newOperand(immediateOperand, int64(i.DepthDifference))))
+
+				// the 'variables base' pointer is stored in register rbx after the call (base pointer)
+				p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.fsl")))
+
+				// push memory content at 'variables base - variable offset' onto runtime CPU stack
+				p.appendInstruction(newInstruction(push, unusedDifference, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Offset))))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
@@ -102,8 +111,23 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// store the top of the runtime CPU stack into a variable's stack address
 			switch i.Code.Result.DataType {
 			case cod.Integer64:
+				// put depth difference into register rcx
 				p.appendInstruction(
-					newInstruction(storevar, i.DepthDifference, l, newOperand(immediateOperand, int64(i.Code.Result.Offset))))
+					newInstruction(mov, unusedDifference, l,
+						newOperand(registerOperand, rcx),
+						newOperand(immediateOperand, int64(i.DepthDifference))))
+
+				// the 'variables base' pointer is stored in register rbx after the call (base pointer)
+				p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.fsl")))
+
+				// pop content of the variable into register rax
+				p.appendInstruction(newInstruction(pop, unusedDifference, nil, newOperand(registerOperand, rax)))
+				
+				// copy content of register rax into memory location 'variables base - variable offset'
+				p.appendInstruction(
+					newInstruction(mov, unusedDifference, nil,
+						newOperand(memoryOperand, rbx, -int64(i.Code.Result.Offset)), 
+						newOperand(registerOperand, rax)))
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Result.DataType)
@@ -293,21 +317,20 @@ func (p *process) appendStaticLink() {
 	p.appendInstruction(
 		newInstruction(mov, unusedDifference, nil,
 			newOperand(memoryOperand, rbp, stackDescriptorSize-1),
-			newOperand(registerOperand, rax)))
+			newOperand(registerOperand, rbx)))
 
 	p.appendInstruction(newInstruction(ret, unusedDifference, nil))
 
-
-	p.appendInstruction(newInstruction(mov, unusedDifference, []string{"f1.fsl"}, newOperand(registerOperand, rax), newOperand(registerOperand, rbp)))
+	p.appendInstruction(newInstruction(mov, unusedDifference, []string{"f1.fsl"}, newOperand(registerOperand, rbx), newOperand(registerOperand, rbp)))
 
 	p.appendInstruction(newInstruction(cmp, unusedDifference, []string{"l1.fsl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0))))
 	p.appendInstruction(newInstruction(je, unusedDifference, nil, newOperand(labelOperand, "l1.fsl.2")))
 
-	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rax), newOperand(memoryOperand, rax, stackDescriptorSize-1)))
+	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbx, stackDescriptorSize-1)))
 
 	p.appendInstruction(newInstruction(sub, unusedDifference, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1))))
 	p.appendInstruction(newInstruction(jmp, unusedDifference, nil, newOperand(labelOperand, "l1.fsl.1")))
-	
+
 	p.appendInstruction(newInstruction(ret, unusedDifference, []string{"l1.fsl.2"}))
 }
 
