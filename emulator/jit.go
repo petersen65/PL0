@@ -312,7 +312,9 @@ func (p *process) appendStaticLink() {
 			newOperand(registerOperand, rcx),
 			newOperand(memoryOperand, rbp, stackDescriptorSize-1)))
 
-	p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "f1.fsl")))
+	p.appendInstruction(newInstruction(mov, unusedDifference, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbp)))
+	
+	p.appendInstruction(newInstruction(call, unusedDifference, nil, newOperand(labelOperand, "l1.fsl.1")))
 
 	p.appendInstruction(
 		newInstruction(mov, unusedDifference, nil,
