@@ -17,7 +17,7 @@ const (
 	operandParsingError
 	unknownInstructionOperand
 	unexpectedNumberOfFunctionArguments
-	unknownRuntimeCallCode
+	unknownStandardCallCode
 	unresolvedLabelReference
 	unsupportedOperand
 	addressOutOfRange
@@ -42,7 +42,7 @@ var failureMap = map[cor.Failure]string{
 	operandParsingError:                  "value of operand cannot be parsed: %v",
 	unknownInstructionOperand:            "unknown instruction operand: %v",
 	unexpectedNumberOfFunctionArguments:  "unexpected number of arguments for function call",
-	unknownRuntimeCallCode:               "unknown runtime library call code: %v",
+	unknownStandardCallCode:              "unknown standard library call code: %v",
 	unresolvedLabelReference:             "unresolved label reference: %v",
 	unsupportedOperand:                   "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                    "halt - address '%v' out of range",

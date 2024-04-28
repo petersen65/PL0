@@ -59,7 +59,7 @@ const (
 	// subroutine assembly instructions for procedure calls
 	call
 	ret
-	rcall
+	stdcall
 )
 
 // Operand types for instructions.
@@ -72,9 +72,9 @@ const (
 	jumpOperand      // destinations for jump instructions that are specified as absolute addresses
 )
 
-// Call codes for the programming language runtime library.
+// Call codes for the programming language standard library.
 const (
-	_ = runtimeCall(iota)
+	_ = standardCall(iota)
 	readln
 	writeln
 )
@@ -115,8 +115,8 @@ type (
 	// Type of operands.
 	operandType int32
 
-	// Type for runtime call codes.
-	runtimeCall int64
+	// Type for standard library call codes.
+	standardCall int64
 
 	// Text section of the binary target.
 	textSection []*instruction
@@ -168,26 +168,26 @@ type (
 var (
 	// Map operation codes to their string representation.
 	operationNames = map[operationCode]string{
-		push:  "push",
-		pop:   "pop",
-		mov:   "mov",
-		cmp:   "cmp",
-		jmp:   "jmp",
-		je:    "je",
-		jne:   "jne",
-		jl:    "jl",
-		jle:   "jle",
-		jg:    "jg",
-		jge:   "jge",
-		neg:   "neg",
-		and:   "and",
-		add:   "add",
-		sub:   "sub",
-		imul:  "imul",
-		idiv:  "idiv",
-		call:  "call",
-		ret:   "ret",
-		rcall: "rcall",
+		push:    "push",
+		pop:     "pop",
+		mov:     "mov",
+		cmp:     "cmp",
+		jmp:     "jmp",
+		je:      "je",
+		jne:     "jne",
+		jl:      "jl",
+		jle:     "jle",
+		jg:      "jg",
+		jge:     "jge",
+		neg:     "neg",
+		and:     "and",
+		add:     "add",
+		sub:     "sub",
+		imul:    "imul",
+		idiv:    "idiv",
+		call:    "call",
+		ret:     "ret",
+		stdcall: "rcall",
 	}
 
 	// Map registers to their string representation.
@@ -341,32 +341,26 @@ func (p *process) appendInstruction(op operationCode, labels []string, operands 
 	p.text = append(p.text, newInstruction(op, labels, operands...))
 }
 
+// Append a set of instructions to create all runtime library functions.
 func (p *process) appendRuntimeLibrary() {
-	p.appendInstruction(mov, []string{createStaticLinkLabel},
-		newOperand(registerOperand, rcx),
-		newOperand(memoryOperand, rbp, stackDescriptorSize-1))
+	loopCondition := fmt.Sprintf("%v.1", followStaticLinkLabel)
+	behindLoop := fmt.Sprintf("%v.2", followStaticLinkLabel)
 
+	// runtime library function "create_static_link"
+	p.appendInstruction(mov, []string{createStaticLinkLabel}, newOperand(registerOperand, rcx), newOperand(memoryOperand, rbp, stackDescriptorSize-1))
 	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbp))
-
-	p.appendInstruction(call, nil, newOperand(labelOperand, "l1.fsl.1"))
-
-	p.appendInstruction(mov, nil,
-		newOperand(memoryOperand, rbp, stackDescriptorSize-1),
-		newOperand(registerOperand, rbx))
-
+	p.appendInstruction(call, nil, newOperand(labelOperand, loopCondition))
+	p.appendInstruction(mov, nil, newOperand(memoryOperand, rbp, stackDescriptorSize-1), newOperand(registerOperand, rbx))
 	p.appendInstruction(ret, nil)
 
+	// runtime library function "follow_static_link"
 	p.appendInstruction(mov, []string{followStaticLinkLabel}, newOperand(registerOperand, rbx), newOperand(registerOperand, rbp))
-
-	p.appendInstruction(cmp, []string{"l1.fsl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0)))
-	p.appendInstruction(je, nil, newOperand(labelOperand, "l1.fsl.2"))
-
+	p.appendInstruction(cmp, []string{loopCondition}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0)))
+	p.appendInstruction(je, nil, newOperand(labelOperand, behindLoop))
 	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbx, stackDescriptorSize-1))
-
 	p.appendInstruction(sub, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1)))
-	p.appendInstruction(jmp, nil, newOperand(labelOperand, "l1.fsl.1"))
-
-	p.appendInstruction(ret, []string{"l1.fsl.2"})
+	p.appendInstruction(jmp, nil, newOperand(labelOperand, loopCondition))
+	p.appendInstruction(ret, []string{behindLoop})
 }
 
 // The linker resolves jump and call label references to absolut code addresses.
@@ -415,10 +409,10 @@ func (m *machine) LoadModule(module cod.Module) error {
 		return err
 	}
 
-	// append runtime library functions
+	// append all runtime library functions
 	m.process.appendRuntimeLibrary()
 
-	// link all assembly instructions
+	// link all assembly instructions of the JIT compiled module
 	return m.process.linker()
 }
 
@@ -678,13 +672,13 @@ func (m *machine) RunProcess() error {
 				return nil
 			}
 
-		case rcall: // call to programming language runtime library based on runtime call code
+		case stdcall: // call to programming language standard library based on standard call code
 			if len(instr.Operands) != 1 || instr.Operands[0].Operand != immediateOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, rcall, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, stdcall, nil)
 			}
 
-			// call runtime library function via call code
-			if err := m.runtime(runtimeCall(instr.Operands[0].ArgInt)); err != nil {
+			// call standard library function via call code
+			if err := m.standard(standardCall(instr.Operands[0].ArgInt)); err != nil {
 				return err
 			}
 
@@ -694,8 +688,8 @@ func (m *machine) RunProcess() error {
 	}
 }
 
-// Call to programming language runtime library.
-func (m *machine) runtime(code runtimeCall) error {
+// Call a programming language standard library function.
+func (m *machine) standard(code standardCall) error {
 	switch code {
 	case readln:
 		// read integer from stdin
@@ -717,7 +711,7 @@ func (m *machine) runtime(code runtimeCall) error {
 		fmt.Printf("%v\n", int64(m.cpu.registers[rax]))
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownRuntimeCallCode, code, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownStandardCallCode, code, nil)
 	}
 
 	return nil

@@ -821,7 +821,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// call the readln runtime function with 1 parameter
 	readln := i.NewInstruction(
-		Runtime,
+		Standard,
 		NewAddress(UnsignedInteger64, 0, uint64(1)),
 		NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
 		NoAddress,
@@ -867,7 +867,7 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 
 	// call the writeln runtime function with 1 parameter
 	write := i.NewInstruction(
-		Runtime,
+		Standard,
 		NewAddress(UnsignedInteger64, 0, uint64(1)),
 		NewAddress(UnsignedInteger64, 0, uint64(WriteLn)),
 		NoAddress,

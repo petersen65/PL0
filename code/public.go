@@ -54,7 +54,7 @@ const (
 	Prelude   // prelude inside the body of a function
 	Epilog    // epilog inside the body of a function
 	Return    // return from function
-	Runtime   // call function of the external runtime library
+	Standard  // call function of the external standard library
 	Branch    // branch operation for placing a logical branch instruction in the intermediate code
 
 	Allocate      // allocate memory for a variable in its logical memory space
@@ -71,9 +71,9 @@ const (
 	Integer64
 )
 
-// External runtime functions provided for the programming language.
+// External standard functions provided for the programming language.
 const (
-	_ = RuntimeFunction(iota)
+	_ = StandardFunction(iota)
 	ReadLn
 	WriteLn
 )
@@ -108,8 +108,8 @@ type (
 	// Type for intermediate code operations.
 	Operation int32
 
-	// Enumeration of runtime functions that belong to the external runtime library.
-	RuntimeFunction int64
+	// Enumeration of standard functions that belong to the external standard library.
+	StandardFunction int64
 
 	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {
@@ -208,7 +208,7 @@ var (
 		Prelude:          "prelude",
 		Epilog:           "epilog",
 		Return:           "return",
-		Runtime:          "runtime",
+		Standard:         "standard",
 		Branch:           "branch",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
