@@ -16,14 +16,16 @@ import (
 )
 
 const (
-	memorySize          = 65536    // memory entries are 64-bit unsigned integers
-	stackSize           = 16384    // stack entries are 64-bit unsigned integers
-	stackForbiddenZone  = 1024     // stack entries below this address are forbidden to be used
-	stackDescriptorSize = 3        // size of a stack frame descriptor
-	defaultStartLabel   = "_start" //  label for the entry point of the program if none is provided
+	memorySize            = 65536                   // memory entries are 64-bit unsigned integers
+	stackSize             = 16384                   // stack entries are 64-bit unsigned integers
+	stackForbiddenZone    = 1024                    // stack entries below this address are forbidden to be used
+	stackDescriptorSize   = 3                       // size of a stack frame descriptor
+	defaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
+	createStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
+	followStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
 )
 
-// Operation codes for pseudo-assembly instructions.
+// Operation codes for assembly instructions.
 const (
 	_ = operationCode(iota)
 
@@ -130,13 +132,12 @@ type (
 		Displacement int64       // used by the memory operand for "base plus displacement" addressing
 	}
 
-	// Instruction is the representation of a single operation with all its operands and a depth difference.
+	// Instruction is the representation of a single operation with all its operands.
 	instruction struct {
-		Operation       operationCode // operation code of the instruction
-		Operands        []*operand    // operands for the operation
-		DepthDifference int32         // block nesting depth difference between identifier use and identifier declaration
-		Labels          []string      // labels to whom jump instructions will jump
-		Address         uint64        // absolute address of this instruction in the text section is set during linking
+		Operation operationCode // operation code of the instruction
+		Operands  []*operand    // operands for the operation
+		Labels    []string      // labels to whom jump instructions will jump
+		Address   uint64        // absolute address of this instruction in the text section is set during linking
 	}
 
 	// Enumeration of registers of the CPU.
@@ -225,13 +226,12 @@ func newMachine() Machine {
 	}
 }
 
-// Create a new instruction with an operation code, a depth difference, and operands.
-func newInstruction(op operationCode, depthDifference int32, labels []string, operands ...*operand) *instruction {
+// Create a new instruction with an operation code, some labels, and operands.
+func newInstruction(op operationCode, labels []string, operands ...*operand) *instruction {
 	return &instruction{
-		Operation:       op,
-		Operands:        operands,
-		DepthDifference: depthDifference,
-		Labels:          labels,
+		Operation: op,
+		Operands:  operands,
+		Labels:    labels,
 	}
 }
 
@@ -336,6 +336,68 @@ func (p *process) importRaw(raw []byte) error {
 	return nil
 }
 
+// Append an instruction to the end of the text section of the process.
+func (p *process) appendInstruction(op operationCode, labels []string, operands ...*operand) {
+	p.text = append(p.text, newInstruction(op, labels, operands...))
+}
+
+func (p *process) appendRuntimeLibrary() {
+	p.appendInstruction(mov, []string{createStaticLinkLabel},
+		newOperand(registerOperand, rcx),
+		newOperand(memoryOperand, rbp, stackDescriptorSize-1))
+
+	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbp))
+
+	p.appendInstruction(call, nil, newOperand(labelOperand, "l1.fsl.1"))
+
+	p.appendInstruction(mov, nil,
+		newOperand(memoryOperand, rbp, stackDescriptorSize-1),
+		newOperand(registerOperand, rbx))
+
+	p.appendInstruction(ret, nil)
+
+	p.appendInstruction(mov, []string{followStaticLinkLabel}, newOperand(registerOperand, rbx), newOperand(registerOperand, rbp))
+
+	p.appendInstruction(cmp, []string{"l1.fsl.1"}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0)))
+	p.appendInstruction(je, nil, newOperand(labelOperand, "l1.fsl.2"))
+
+	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbx, stackDescriptorSize-1))
+
+	p.appendInstruction(sub, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1)))
+	p.appendInstruction(jmp, nil, newOperand(labelOperand, "l1.fsl.1"))
+
+	p.appendInstruction(ret, []string{"l1.fsl.2"})
+}
+
+// The linker resolves jump and call label references to absolut code addresses.
+func (p *process) linker() error {
+	labels := make(map[string]uint64)
+
+	// create a map of labels and their absolute addresses
+	for i := range p.text {
+		for _, label := range p.text[i].Labels {
+			labels[label] = uint64(i)
+		}
+
+		// set the address of every assembly instruction for display purposes
+		p.text[i].Address = uint64(i)
+	}
+
+	// resolve jump and call label references to absolute code addresses
+	for _, asm := range p.text {
+		switch asm.Operation {
+		case call, jmp, je, jne, jl, jle, jg, jge:
+			if address, ok := labels[asm.Operands[0].Label]; !ok {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unresolvedLabelReference, asm.Operands[0].Label, nil)
+			} else {
+				asm.Operands[0] = newOperand(jumpOperand, address)
+			}
+		}
+	}
+
+	return nil
+}
+
 // Load a binary target and return an error if the target import fails.
 func (m *machine) Load(raw []byte) error {
 	// import a binary target into a process
@@ -353,7 +415,11 @@ func (m *machine) LoadModule(module cod.Module) error {
 		return err
 	}
 
-	return nil
+	// append runtime library functions
+	m.process.appendRuntimeLibrary()
+
+	// link all assembly instructions
+	return m.process.linker()
 }
 
 // Print a process to the specified writer.
