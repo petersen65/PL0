@@ -477,6 +477,10 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 	switch format {
 	case Json:
+		if len(e.errorReport) == 0 {
+			return nil
+		}
+
 		// export the error report as a JSON object and wrap it in a struct to provide a field name for the error report
 		if raw, err := json.MarshalIndent(struct {
 			Report errorReport `json:"error_report"`

@@ -301,14 +301,11 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
-	amtFile, amtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
+	emtFile, emtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
-	// create all Binary files for intermediate representations
-	tsbFile, tsbErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Binary))
-
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, amtErr, ertErr, tsbErr)
+	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -331,9 +328,8 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(tstFile)
 		closeFile(astFile)
 		closeFile(ictFile)
-		closeFile(amtFile)
+		closeFile(emtFile)
 		closeFile(ertFile)
-		closeFile(tsbFile)
 
 		// remove target directory if any error occurred during file creations
 		if anyError != nil {
@@ -349,7 +345,6 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	if translationUnit.TokenStream != nil {
 		tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
 		tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
-		tsbErr = translationUnit.TokenStream.Export(cor.Binary, tsbFile)
 	}
 
 	// export all abstract syntax representations to the target files
@@ -367,8 +362,8 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	if translationUnit.Module != nil {
 		machine := emu.NewMachine()
 
-		if amtErr = machine.LoadModule(translationUnit.Module); amtErr == nil {
-			amtErr = machine.Export(cor.Text, amtFile)
+		if emtErr = machine.LoadModule(translationUnit.Module); emtErr == nil {
+			emtErr = machine.Export(cor.Text, emtFile)
 		}
 	}
 
@@ -379,7 +374,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, amtErr, ertErr, tsbErr)
+	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
 	return anyError
 }
 
