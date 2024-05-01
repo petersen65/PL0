@@ -5,6 +5,7 @@ package code
 
 import (
 	"container/list"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -41,10 +42,10 @@ type (
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	module struct {
-		uniqueId     string             // unique identifier of the module
-		targets      []string           // enable deterministic iteration over the symbol table in the order of past inserts
-		symbolTable  map[string]*symbol // symbol table for intermediate code targets
-		instructions *list.List         // intermediate code instructions as doubly linked list that allows reordering
+		UniqueId     string             `json:"unique_id"`    // unique identifier of the module
+		targets      []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
+		symbolTable  map[string]*symbol `json:"-"`            // symbol table for intermediate code targets
+		Instructions *list.List         `json:"instructions"` // intermediate code instructions as doubly linked list that allows reordering
 	}
 
 	// Metadata for each scope in the abstract syntax tree.
@@ -71,6 +72,7 @@ type (
 		definition *list.Element // instruction where the symbol is defined
 	}
 
+	// Navigation implementation for the module's intermediate code instructions.
 	iterator struct {
 		current      *list.Element
 		instructions *list.List
@@ -89,10 +91,10 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 // Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
 func newModule() Module {
 	return &module{
-		uniqueId:     uuid.NewString(),
+		UniqueId:     uuid.NewString(),
 		targets:      make([]string, 0),
 		symbolTable:  make(map[string]*symbol),
-		instructions: list.New(),
+		Instructions: list.New(),
 	}
 }
 
@@ -305,7 +307,7 @@ func (m *module) update(target, newTargetVersion string) {
 
 // Append an instruction to the intermediate code.
 func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
-	return m.instructions.PushBack(instruction)
+	return m.Instructions.PushBack(instruction)
 }
 
 // Iterate over all instructions in the module.
@@ -313,7 +315,7 @@ func (m *module) IterateInstruction() <-chan *Instruction {
 	instructions := make(chan *Instruction)
 
 	go func() {
-		for e := m.instructions.Front(); e != nil; e = e.Next() {
+		for e := m.Instructions.Front(); e != nil; e = e.Next() {
 			instructions <- e.Value.(*Instruction)
 		}
 
@@ -325,13 +327,59 @@ func (m *module) IterateInstruction() <-chan *Instruction {
 
 // Get an instruction iterator for the module.
 func (m *module) GetIterator() Iterator {
-	return &iterator{current: m.instructions.Front(), instructions: m.instructions}
+	return &iterator{current: m.Instructions.Front(), instructions: m.Instructions}
+}
+
+// Marshal the module to a JSON object.
+func (m *module) MarshalJSON() ([]byte, error) {
+	type Embedded module
+	instructions := make([]Instruction, 0, m.Instructions.Len())
+
+	// copy the doubly linked instruction-list to a slice of instructions
+	for e := m.Instructions.Front(); e != nil; e = e.Next() {
+		instructions = append(instructions, *e.Value.(*Instruction))
+	}
+
+	// replace the doubly linked instruction-list with a slice of instructions
+	mj := &struct {
+		Embedded
+		Instructions []Instruction `json:"instructions"`
+	}{
+		Embedded:     (Embedded)(*m),
+		Instructions: instructions,
+	}
+
+	return json.Marshal(mj)
+}
+
+// Unmarshal the module from a JSON object.
+func (m *module) UnmarshalJSON(raw []byte) error {
+	type Embedded module
+
+	// target struct to unmarshal the JSON object to
+	mj := &struct {
+		Embedded
+		Instructions []Instruction `json:"instructions"`
+	}{
+		Embedded: (Embedded)(*m),
+	}
+
+	if err := json.Unmarshal(raw, mj); err != nil {
+		return err
+	}
+
+	// replace the slice of instructions with a doubly linked instruction-list
+	for _, i := range mj.Instructions {
+		m.AppendInstruction(&i)
+	}
+
+	return nil
 }
 
 // Print the module to the specified writer.
 func (m *module) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the module and print them to the writer
-	for e := m.instructions.Front(); e != nil; e = e.Next() {
+	for e := m.Instructions.Front(); e != nil; e = e.Next() {
 		_, err := fmt.Fprintf(print, "%v\n", e.Value)
 
 		if err != nil {
@@ -345,6 +393,20 @@ func (m *module) Print(print io.Writer, args ...any) error {
 // Export the module of the intermediate code generator.
 func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
+	case cor.Json:
+		// export the module as a JSON object and wrap it in a struct to provide a field name for the module
+		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+		} else {
+			_, err = print.Write(raw)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			}
+
+			return err
+		}
+
 	case cor.Text:
 		// print is a convenience function to export the module as a string to the print writer
 		return m.Print(print)

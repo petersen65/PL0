@@ -100,9 +100,9 @@ type (
 
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
-		DataType DataType // data type of the address
-		Offset   uint64   // variable offset in the logical memory space
-		Variable string   // variable name of the address
+		DataType DataType `json:"data_type"` // data type of the address
+		Offset   uint64   `json:"offset"`    // variable offset in the logical memory space
+		Variable string   `json:"variable"`  // variable name of the address
 	}
 
 	// Type for intermediate code operations.
@@ -113,18 +113,18 @@ type (
 
 	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
 	Instruction struct {
-		Label            string    // branch-label for any branching operation
-		DepthDifference  int32     // block nesting depth difference between variable use and variable declaration
-		TokenStreamIndex int       // index of the token in the token stream
-		Code             Quadruple // three-address code operation
+		Label            string    `json:"label"`              // branch-label for any branching operation
+		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
+		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
+		Code             Quadruple `json:"code"`               // three-address code operation
 	}
 
 	// Quadruple represents a single operation in the intermediate code which is based on the three-address code concept.
 	Quadruple struct {
-		Operation Operation // intermediate code operation
-		Arg1      *Address  // first address (argument 1)
-		Arg2      *Address  // second address (argument 2)
-		Result    *Address  // third address (result)
+		Operation Operation `json:"operation"` // intermediate code operation
+		Arg1      *Address  `json:"arg_1"`     // first address (argument 1)
+		Arg2      *Address  `json:"arg_2"`     // second address (argument 2)
+		Result    *Address  `json:"result"`    // third address (result)
 	}
 
 	// IntermediateCode is the public interface for the intermediate code generation compiler pass.

@@ -295,6 +295,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	// create all Json files for intermediate representations
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
+	icjFile, icjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
 	// create all Text files for intermediate representations
@@ -305,7 +306,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
+	anyError = errors.Join(tsjErr, asjErr, icjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -324,6 +325,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		// safely close all files
 		closeFile(tsjFile)
 		closeFile(asjFile)
+		closeFile(icjFile)
 		closeFile(erjFile)
 		closeFile(tstFile)
 		closeFile(astFile)
@@ -355,6 +357,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 
 	// export all intermediate code representations to the target files
 	if translationUnit.Module != nil {
+		icjErr = translationUnit.Module.Export(cor.Json, icjFile)
 		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
 	}
 
@@ -374,7 +377,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, asjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
+	anyError = errors.Join(tsjErr, asjErr, icjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
 	return anyError
 }
 
