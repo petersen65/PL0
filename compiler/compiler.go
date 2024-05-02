@@ -272,6 +272,10 @@ func PersistModuleToTarget(module cod.Module, target string) error {
 			return err
 		}
 
+		if err = machine.Link(); err != nil {
+			return err
+		}
+
 		if err = machine.Export(cor.Binary, program); err != nil {
 			return err
 		}
@@ -389,6 +393,10 @@ func EmulateModule(module cod.Module) error {
 	machine := emu.NewMachine()
 
 	if err := machine.LoadModule(module); err != nil {
+		return err
+	}
+
+	if err := machine.Link(); err != nil {
 		return err
 	}
 

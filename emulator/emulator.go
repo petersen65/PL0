@@ -138,7 +138,6 @@ type (
 		Operation operationCode `json:"operation"` // operation code of the instruction
 		Operands  []*operand    `json:"operands"`  // operands for the operation
 		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
-		Address   uint64        `json:"address"`   // absolute address of this instruction in the text section is set during linking
 	}
 
 	// Enumeration of registers of the CPU.
@@ -151,6 +150,7 @@ type (
 	process struct {
 		text         textSection // text section with instructions
 		stackPointer uint64      // memory address of the downward growing stack
+		resolved     bool        // flag to indicate if all labels have been resolved
 	}
 
 	// Virtual CPU with its registers.
@@ -309,7 +309,6 @@ func (i *instruction) String() string {
 		buffer.WriteString(":\n")
 	}
 
-	buffer.WriteString(fmt.Sprintf("%7v", i.Address))
 	buffer.WriteString(fmt.Sprintf("  %-12v", i.Operation))
 
 	for _, op := range i.Operands {
@@ -366,6 +365,11 @@ func (p *process) appendRuntimeLibrary() {
 
 // The linker resolves jump and call label references to absolut code addresses.
 func (p *process) linker() error {
+	// return without linking if all labels have already been resolved
+	if p.resolved {
+		return nil
+	}
+
 	labels := make(map[string]uint64)
 
 	// create a map of labels and their absolute addresses
@@ -373,9 +377,6 @@ func (p *process) linker() error {
 		for _, label := range p.text[i].Labels {
 			labels[label] = uint64(i)
 		}
-
-		// set the address of every assembly instruction for display purposes
-		p.text[i].Address = uint64(i)
 	}
 
 	// resolve jump and call label references to absolute code addresses
@@ -390,6 +391,7 @@ func (p *process) linker() error {
 		}
 	}
 
+	p.resolved = true
 	return nil
 }
 
@@ -400,6 +402,8 @@ func (m *machine) Load(raw []byte) error {
 		return err
 	}
 
+	// a binary target has resolved all labels and can be executed
+	m.process.resolved = true
 	return nil
 }
 
@@ -412,9 +416,16 @@ func (m *machine) LoadModule(module cod.Module) error {
 
 	// append all runtime library functions
 	m.process.appendRuntimeLibrary()
+	return nil
+}
 
-	// link all assembly instructions of the JIT compiled module
-	return m.process.linker()
+// Link all assembly instructions of the JIT compiled modules.
+func (m *machine) Link() error {
+	if err := m.process.linker(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Print a process to the specified writer.
@@ -458,6 +469,11 @@ func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 	case cor.Binary:
 		var buffer bytes.Buffer
 
+		// cannot export binary target before a linking step has resolved all labels
+		if !m.process.resolved {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, linkingStepMissing, nil, nil)
+		}
+
 		// encode the text section into a binary buffer
 		if err := gob.NewEncoder(&buffer).Encode(m.process.text); err != nil {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
@@ -477,6 +493,11 @@ func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
+	// cannot run the process before a linking step has resolved all labels
+	if !m.process.resolved {
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, linkingStepMissing, nil, nil)
+	}
+
 	m.cpu.registers[rax] = 0   // accumulator register
 	m.cpu.registers[rbx] = 0   // base register
 	m.cpu.registers[rcx] = 0   // counter register

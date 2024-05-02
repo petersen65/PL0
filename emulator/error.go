@@ -19,6 +19,7 @@ const (
 	unexpectedNumberOfFunctionArguments
 	unknownStandardCallCode
 	unresolvedLabelReference
+	linkingStepMissing
 	unsupportedOperand
 	addressOutOfRange
 	stackOverflow
@@ -44,6 +45,7 @@ var failureMap = map[cor.Failure]string{
 	unexpectedNumberOfFunctionArguments:  "unexpected number of arguments for function call",
 	unknownStandardCallCode:              "unknown standard library call code: %v",
 	unresolvedLabelReference:             "unresolved label reference: %v",
+	linkingStepMissing:                   "text section cannot be executed or exported because linking step is missing",
 	unsupportedOperand:                   "halt - unsupported operand for operation '%v'",
 	addressOutOfRange:                    "halt - address '%v' out of range",
 	stackOverflow:                        "halt - stack overflow at stack pointer '%v'",

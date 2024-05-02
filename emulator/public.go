@@ -15,6 +15,7 @@ import (
 type Machine interface {
 	Load(raw []byte) error
 	LoadModule(module cod.Module) error
+	Link() error
 	RunProcess() error
 	Print(print io.Writer, args ...any) error
 	Export(format cor.ExportFormat, print io.Writer) error
