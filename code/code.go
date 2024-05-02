@@ -342,10 +342,10 @@ func (m *module) MarshalJSON() ([]byte, error) {
 
 	// replace the doubly linked instruction-list with a slice of instructions
 	mj := &struct {
-		Embedded
+		*Embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded:     (Embedded)(*m),
+		Embedded:     (*Embedded)(m),
 		Instructions: instructions,
 	}
 
@@ -358,10 +358,10 @@ func (m *module) UnmarshalJSON(raw []byte) error {
 
 	// target struct to unmarshal the JSON object to
 	mj := &struct {
-		Embedded
+		*Embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded: (Embedded)(*m),
+		Embedded: (*Embedded)(m),
 	}
 
 	if err := json.Unmarshal(raw, mj); err != nil {

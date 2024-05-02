@@ -177,11 +177,11 @@ func (e *generalError) MarshalJSON() ([]byte, error) {
 	// replace the error interfaces with error message strings
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		InnerMessage string `json:"inner_error"`
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (Embedded)(*e),
+		Embedded:     (*Embedded)(e),
 		InnerMessage: e.Inner.Error(),
 	}
 
@@ -195,10 +195,10 @@ func (e *generalError) UnmarshalJSON(raw []byte) error {
 	// target struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		InnerMessage string `json:"inner_error"`
 	}{
-		Embedded: (Embedded)(*e),
+		Embedded: (*Embedded)(e),
 	}
 
 	if err := json.Unmarshal(raw, ej); err != nil {
@@ -228,10 +228,10 @@ func (e *lineColumnError) MarshalJSON() ([]byte, error) {
 	// replace the error interface with an error message string
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (Embedded)(*e),
+		Embedded:     (*Embedded)(e),
 	}
 
 	return json.Marshal(ej)
@@ -244,9 +244,9 @@ func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
 	// target struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 	}{
-		Embedded: (Embedded)(*e),
+		Embedded: (*Embedded)(e),
 	}
 
 	if err := json.Unmarshal(raw, ej); err != nil {
@@ -285,11 +285,11 @@ func (e *sourceError) MarshalJSON() ([]byte, error) {
 	// replace the error interface with an error message string and the source code byte slice with a string of the source code
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		SourceCode string `json:"source_code"`
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (Embedded)(*e),
+		Embedded:     (*Embedded)(e),
 		SourceCode:   string(e.SourceCode),
 	}
 
@@ -303,10 +303,10 @@ func (e *sourceError) UnmarshalJSON(raw []byte) error {
 	// target struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		SourceCode string `json:"source_code"`
 	}{
-		Embedded: (Embedded)(*e),
+		Embedded: (*Embedded)(e),
 	}
 
 	if err := json.Unmarshal(raw, ej); err != nil {
@@ -347,11 +347,11 @@ func (e *tokenError) MarshalJSON() ([]byte, error) {
 	// replace the error interface with an error message string
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		TokenDescription TokenDescription `json:"token_description"`
 	}{
 		ErrorMessage:     e.Err.Error(),
-		Embedded:         (Embedded)(*e),
+		Embedded:         (*Embedded)(e),
 		TokenDescription: e.TokenStream[e.TokenStreamIndex],
 	}
 
@@ -365,10 +365,10 @@ func (e *tokenError) UnmarshalJSON(raw []byte) error {
 	// target struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
-		Embedded
+		*Embedded
 		TokenDescription TokenDescription `json:"token_description"`
 	}{
-		Embedded: (Embedded)(*e),
+		Embedded: (*Embedded)(e),
 	}
 
 	if err := json.Unmarshal(raw, ej); err != nil {

@@ -41,10 +41,10 @@ func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 
 	// replace the current line byte slice with a string of the current line
 	tdj := &struct {
-		Embedded
+		*Embedded
 		CurrentLine string `json:"current_line"`
 	}{
-		Embedded:    (Embedded)(*td),
+		Embedded:    (*Embedded)(td),
 		CurrentLine: string(td.CurrentLine),
 	}
 
@@ -57,10 +57,10 @@ func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
 
 	// target struct to unmarshal the JSON object to
 	tdj := &struct {
-		Embedded
+		*Embedded
 		CurrentLine string `json:"current_line"`
 	}{
-		Embedded: (Embedded)(*td),
+		Embedded: (*Embedded)(td),
 	}
 
 	if err := json.Unmarshal(raw, tdj); err != nil {
