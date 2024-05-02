@@ -394,7 +394,7 @@ func (m *module) Print(print io.Writer, args ...any) error {
 func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
-		// export the module as a JSON object and wrap it in a struct to provide a field name for the module
+		// export the module as a JSON object
 		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {

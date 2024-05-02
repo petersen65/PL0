@@ -6,6 +6,7 @@ package emulator
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -123,21 +124,21 @@ type (
 
 	// Operand of an operation.
 	operand struct {
-		Operand      operandType // type of the operand
-		Register     register    // register operand for the operation
-		ArgInt       int64       // int64 immediate value argument
-		Memory       register    // memory address specified indirectly through register
-		Label        string      // labels for jump instructions will be replaced by an address
-		Jump         uint64      // destinations for jump instructions are specified as absolute addresses
-		Displacement int64       // used by the memory operand for "base plus displacement" addressing
+		Operand      operandType `json:"operand"`      // type of the operand
+		Register     register    `json:"register"`     // register operand for the operation
+		ArgInt       int64       `json:"arg_int"`      // int64 immediate value argument
+		Memory       register    `json:"memory"`       // memory address specified indirectly through register
+		Label        string      `json:"label"`        // labels for jump instructions will be replaced by an address
+		Jump         uint64      `json:"jump"`         // destinations for jump instructions are specified as absolute addresses
+		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
 	// Instruction is the representation of a single operation with all its operands.
 	instruction struct {
-		Operation operationCode // operation code of the instruction
-		Operands  []*operand    // operands for the operation
-		Labels    []string      // labels to whom jump instructions will jump
-		Address   uint64        // absolute address of this instruction in the text section is set during linking
+		Operation operationCode `json:"operation"` // operation code of the instruction
+		Operands  []*operand    `json:"operands"`  // operands for the operation
+		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
+		Address   uint64        `json:"address"`   // absolute address of this instruction in the text section is set during linking
 	}
 
 	// Enumeration of registers of the CPU.
@@ -434,6 +435,22 @@ func (m *machine) Print(print io.Writer, args ...any) error {
 // Export the process that is managed by the virtual machine.
 func (m *machine) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
+	case cor.Json:
+		// export the process as a JSON object and wrap it in a struct to provide a field name for the process sections
+		if raw, err := json.MarshalIndent(struct {
+			Text textSection `json:"text_section"`
+		}{Text: m.process.text}, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+		} else {
+			_, err = print.Write(raw)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionExportFailed, nil, err)
+			}
+
+			return err
+		}
+
 	case cor.Text:
 		// print is a convenience function to export the process as a string to the print writer
 		return m.Print(print)

@@ -415,7 +415,7 @@ func (b *BlockNode) Print(print io.Writer, args ...any) error {
 func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
-		// export the error report as a JSON object and wrap it in a struct to provide a field name for the error report
+		// export the abstract syntax tree as a JSON object
 		if raw, err := json.MarshalIndent(b, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
 		} else {
