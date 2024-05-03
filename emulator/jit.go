@@ -81,16 +81,21 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		case cod.VariableLoad: // load a variable from its runtime CPU stack address onto the top of the stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
-				// block nesting depth difference between variable use and variable declaration
-				p.appendInstruction(mov, l,
-					newOperand(registerOperand, rcx),
-					newOperand(immediateOperand, int64(i.DepthDifference)))
+				if i.DepthDifference == 0 {
+					// push memory content at 'variables base - variable offset' onto runtime CPU stack
+					p.appendInstruction(push, l, newOperand(memoryOperand, rbp, -int64(i.Code.Arg1.Offset)))
+				} else {
+					// block nesting depth difference between variable use and variable declaration
+					p.appendInstruction(mov, l,
+						newOperand(registerOperand, rcx),
+						newOperand(immediateOperand, int64(i.DepthDifference)))
 
-				// call runtime library function to follow static link to determine the 'variables base' pointer
-				p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
+					// call runtime library function to follow static link to determine the 'variables base' pointer
+					p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
 
-				// push memory content at 'variables base - variable offset' onto runtime CPU stack
-				p.appendInstruction(push, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Offset)))
+					// push memory content at 'variables base - variable offset' onto runtime CPU stack
+					p.appendInstruction(push, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Offset)))
+				}
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
@@ -99,21 +104,31 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		case cod.VariableStore: // store the top of the runtime CPU stack into a variable's stack address
 			switch i.Code.Result.DataType {
 			case cod.Integer64:
-				// block nesting depth difference between variable use and variable declaration
-				p.appendInstruction(mov, l,
-					newOperand(registerOperand, rcx),
-					newOperand(immediateOperand, int64(i.DepthDifference)))
+				if i.DepthDifference == 0 {
+					// pop content of the variable
+					p.appendInstruction(pop, l, newOperand(registerOperand, rax))
 
-				// call runtime library function to follow static link to determine the 'variables base' pointer
-				p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
+					// copy content of the variable into memory location 'variables base - variable offset'
+					p.appendInstruction(mov, nil,
+						newOperand(memoryOperand, rbp, -int64(i.Code.Result.Offset)),
+						newOperand(registerOperand, rax))
+				} else {
+					// block nesting depth difference between variable use and variable declaration
+					p.appendInstruction(mov, l,
+						newOperand(registerOperand, rcx),
+						newOperand(immediateOperand, int64(i.DepthDifference)))
 
-				// pop content of the variable
-				p.appendInstruction(pop, nil, newOperand(registerOperand, rax))
+					// call runtime library function to follow static link to determine the 'variables base' pointer
+					p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
 
-				// copy content of the variable into memory location 'variables base - variable offset'
-				p.appendInstruction(mov, nil,
-					newOperand(memoryOperand, rbx, -int64(i.Code.Result.Offset)),
-					newOperand(registerOperand, rax))
+					// pop content of the variable
+					p.appendInstruction(pop, nil, newOperand(registerOperand, rax))
+
+					// copy content of the variable into memory location 'variables base - variable offset'
+					p.appendInstruction(mov, nil,
+						newOperand(memoryOperand, rbx, -int64(i.Code.Result.Offset)),
+						newOperand(registerOperand, rax))
+				}
 
 			default:
 				return validateDataType(cod.Integer64, i.Code.Result.DataType)

@@ -110,14 +110,14 @@ The programming language PL/0 2024 supports the following features:
 
 ## Change Log
 
-* Feb 9th, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
+* Feb 9, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
 	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
 	* single pass parser: recursive descent parser directly calls emitter while analyzing token stream
 	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
-* Mar 3rd 2024 - [v1.1.0](https://github.com/petersen65/pl0/releases/tag/v1.1.0)
+* Mar 3 2024 - [v1.1.0](https://github.com/petersen65/pl0/releases/tag/v1.1.0)
 	* bug fixes, improved documentation
 	* comments for the programming language PL/0
 	* overhaul of the scanner due to non-valid concepts and scanning errors related to end of file conditions
@@ -141,13 +141,15 @@ The programming language PL/0 2024 supports the following features:
 	* new package implements an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
 	* new emulation engine that JIT-compiles intermediate language code into pseudo-assembler code which the emulator can execute
 
+* May 5 2024 - [v2.2.0](https://github.com/petersen65/pl0/releases/tag/v2.2.0)
+	* complete abstract syntax tree token handler integration beyond identifier declarations and usage
+	* integrate intermediate language with token handler so that errors can be linked to source code locations
+	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
+
 ## Planning
 
 * H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
-	* complete abstract syntax tree token handler integration beyond identifier declarations and usage
-	* integrate intermediate language with token handler so that errors can be linked to source code locations
 	* implement closure support for the compiler's intermediate language
-	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
 	* implement constant folding based on abstract syntax tree
 	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
