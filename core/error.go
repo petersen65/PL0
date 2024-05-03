@@ -272,9 +272,15 @@ func (e *sourceError) Error() string {
 	linePrefix := fmt.Sprintf("%5v: ", e.Line)
 	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \t\n\r")
 	trimmedLen := len(string(e.SourceCode)) - len(trimmedLine)
-	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
-	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(e.Column)+len(linePrefix)-trimmedLen-1), message)
+	indentionLen := len(linePrefix) + int(e.Column) - trimmedLen - 1 // valid column numbers are greater than 'trimmedLen'
 
+	// corner cases for errors that have a non-valid column number
+	if indentionLen < 0 {
+		indentionLen = len(linePrefix)
+	}
+
+	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", indentionLen), message)
 	return sourceLine + errorLine
 }
 
@@ -334,9 +340,15 @@ func (e *tokenError) Error() string {
 	linePrefix := fmt.Sprintf("%5v: ", td.Line)
 	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
 	trimmedLen := len(string(td.CurrentLine)) - len(trimmedLine)
-	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
-	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", int(td.Column)+len(linePrefix)-trimmedLen-1), message)
+	indentionLen := len(linePrefix) + int(td.Column) - trimmedLen - 1 // valid column numbers are greater than 'trimmedLen'
 
+	// corner cases for errors that have a non-valid column number
+	if indentionLen < 0 {
+		indentionLen = len(linePrefix)
+	}
+
+	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", indentionLen), message)
 	return sourceLine + errorLine
 }
 
@@ -391,7 +403,7 @@ func (e *errorHandler) AppendError(err error) error {
 	if err != nil {
 		// the general error needs an explicit indentation level to format the error message correctly with other errors in the error report
 		if ge, ok := err.(*generalError); ok {
-			ge.Indent = 7
+			ge.Indent = 7 // equals to the length of the error line prefix which is formatted with "%5v: "
 		}
 
 		e.errorReport = append(e.errorReport, err)

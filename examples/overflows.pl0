@@ -1,6 +1,6 @@
 { demonstrate overflows, uncomment what you want to test }
 
-var a, b, c, d, e, f;
+var a, b, c, d, e, f, g;
 
 procedure Recursion;
 begin
@@ -34,20 +34,28 @@ begin
     { arithmetic overflow of division }
     {f := -9223372036854775808 / -1;
     ! f;}
+
+    { division by zero }
+    {g := 1 / (9223372036854775807 + -9223372036854775808 + 1);
+    ! g;}
 end.
 
 {
     Correct output is:
 
     Warnings:
-        3: var a, b, c, d, e, f;
-                ^ analyzer warning 4011 [3,6]: variable declared but not used: a
-        3: var a, b, c, d, e, f;
-                   ^ analyzer warning 4011 [3,9]: variable declared but not used: b
-        3: var a, b, c, d, e, f;
-                         ^ analyzer warning 4011 [3,15]: variable declared but not used: d
-        3: var a, b, c, d, e, f;
-                            ^ analyzer warning 4011 [3,18]: variable declared but not used: e
-        3: var a, b, c, d, e, f;
-                               ^ analyzer warning 4011 [3,21]: variable declared but not used: f
+        3: var a, b, c, d, e, f, g;
+                ^ analyzer warning 4012 [3,6]: variable declared but not used: a
+        3: var a, b, c, d, e, f, g;
+                   ^ analyzer warning 4012 [3,9]: variable declared but not used: b
+        3: var a, b, c, d, e, f, g;
+                      ^ analyzer warning 4012 [3,12]: variable declared but not used: c
+        3: var a, b, c, d, e, f, g;
+                         ^ analyzer warning 4012 [3,15]: variable declared but not used: d
+        3: var a, b, c, d, e, f, g;
+                            ^ analyzer warning 4012 [3,18]: variable declared but not used: e
+        3: var a, b, c, d, e, f, g;
+                               ^ analyzer warning 4012 [3,21]: variable declared but not used: f
+        3: var a, b, c, d, e, f, g;
+                                  ^ analyzer warning 4012 [3,24]: variable declared but not used: g
 }
