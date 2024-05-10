@@ -15,7 +15,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Display name of entry point only used for informational purposes
+// Display name of entry point only used for informational purposes.
 const entryPointDisplayName = "@main"
 
 // Abstract syntax extension for the scope.
@@ -37,7 +37,7 @@ type (
 	intermediateCode struct {
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for
 		module         *module    // module to store the generated intermediate code
-		results        *list.List // lifo results-list holding intermediate code results from expressions
+		results        *list.List // last-in-first-out results-list holding intermediate code results from expressions
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -61,9 +61,9 @@ type (
 	// Kind of symbol entries.
 	entry int
 
-	// Symbol represents a symbol in the intermediate code that maps its target to where it was defined.
-	// A target is the structured name of any abstract syntax identifier mapped to the intermediate code.
-	// A target is always relativ to a scope where it is defined and is unique accross all definitions within a module.
+	// A symbol represents a target name in the intermediate code that maps the name to additional information.
+	// A target name is the structured name of any abstract syntax identifier mapped to intermediate code.
+	// A target name is always relativ to a scope where it is defined and is unique accross all symbols within a module.
 	symbol struct {
 		target     string        // target name in the intermediate code
 		kind       entry         // kind of symbol entry
