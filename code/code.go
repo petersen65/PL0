@@ -37,7 +37,7 @@ type (
 	intermediateCode struct {
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for
 		module         *module    // module to store the generated intermediate code
-		results        *list.List // lifo stack holding intermediate code results from expressions
+		results        *list.List // lifo results-list holding intermediate code results from expressions
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -600,7 +600,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(Prefix[ResultPrefix])),
 		ln.TokenStreamIndex)
 
-	// push the intermediate code result onto the stack and append the instruction to the module
+	// push the intermediate code result onto the results-list and append the instruction to the module
 	i.pushResult(instruction.Code.Result)
 	i.AppendInstruction(instruction)
 }
@@ -626,7 +626,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])),
 			iu.TokenStreamIndex)
 
-		// push the intermediate code result onto the stack and append the instruction to the module
+		// push the intermediate code result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -655,7 +655,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			useDepth-declarationDepth,
 			iu.TokenStreamIndex)
 
-		// push the intermediate code result onto the stack and append the instruction to the module
+		// push the intermediate code result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -669,7 +669,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Generate code for a unary operation.
 func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// load the intermediate code result of the expression from the stack
+	// load the intermediate code result of the expression from the results-list
 	uo.Operand.Accept(i)
 	result := i.popResult()
 
@@ -684,7 +684,7 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			NoAddress,
 			uo.TokenStreamIndex)
 
-		// append the instruction to the module (boolean results are not stored on the stack)
+		// append the instruction to the module (boolean results are not stored on the results-list)
 		i.AppendInstruction(instruction)
 
 	case ast.Negate:
@@ -696,7 +696,7 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			result, // the intermediate code result is negated in-place (read, negate, write back)
 			uo.TokenStreamIndex)
 
-		// push the intermediate code result onto the stack and append the instruction to the module
+		// push the intermediate code result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -710,7 +710,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// determine block and its scope where the binary operation is located
 	scope := ast.SearchBlock(ast.CurrentBlock, bo).Scope
 
-	// load the intermediate code results of the left and right expressions from the stack
+	// load the intermediate code results of the left and right expressions from the results-list
 	bo.Left.Accept(i)
 	bo.Right.Accept(i)
 	right := i.popResult()
@@ -744,7 +744,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			NewAddress(left.DataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])),
 			bo.TokenStreamIndex)
 
-		// push the intermediate code result result onto the stack and append the instruction to the module
+		// push the intermediate code result result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -755,7 +755,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 // Generate code for a binary relational operation.
 func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// load the intermediate code results of the left and right expressions from the stack
+	// load the intermediate code results of the left and right expressions from the results-list
 	co.Left.Accept(i)
 	co.Right.Accept(i)
 	right := i.popResult()
@@ -795,7 +795,7 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 			NoAddress,
 			co.TokenStreamIndex)
 
-		// append the instruction to the module (boolean results are not stored on the stack)
+		// append the instruction to the module (boolean results are not stored on the results-list)
 		i.AppendInstruction(instruction)
 
 	default:
@@ -1101,12 +1101,12 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 	i.AppendInstruction(jump)
 }
 
-// Push a result onto the stack of intermediate code results.
+// Push a result onto the results-list of intermediate code results.
 func (i *intermediateCode) pushResult(result *Address) {
 	i.results.PushBack(result)
 }
 
-// Pop a result from the stack of intermediate code results.
+// Pop a result from the results-list of intermediate code results.
 func (i *intermediateCode) popResult() *Address {
 	result := i.results.Back()
 

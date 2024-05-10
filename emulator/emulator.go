@@ -18,9 +18,9 @@ import (
 
 const (
 	memorySize            = 65536                   // memory entries are 64-bit unsigned integers
-	stackSize             = 16384                   // stack entries are 64-bit unsigned integers
-	stackForbiddenZone    = 1024                    // stack entries below this address are forbidden to be used
-	stackDescriptorSize   = 3                       // size of a stack frame descriptor
+	stackSize             = 16384                   // control stack entries are 64-bit unsigned integers
+	stackForbiddenZone    = 1024                    // control stack entries below this address are forbidden to be used
+	descriptorSize        = 3                       // size of an activation record descriptor
 	defaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
 	createStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	followStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
@@ -98,8 +98,8 @@ const (
 	r15   // 64-bit general purpose register
 	flags // flags register contains the current state of the CPU and reflects the result of arithmetic operations
 	rip   // instruction pointer is pointing to the next instruction to be executed
-	rsp   // stack pointer is pointing to the top of the stack
-	rbp   // base pointer is pointing to the base of the current stack frame
+	rsp   // stack pointer is pointing to the top of the control stack
+	rbp   // base pointer is pointing to the base of an activation record
 )
 
 const (
@@ -347,17 +347,17 @@ func (p *process) appendRuntimeLibrary() {
 	behindLoop := fmt.Sprintf("%v.2", followStaticLinkLabel)
 
 	// runtime library function "create_static_link"
-	p.appendInstruction(mov, []string{createStaticLinkLabel}, newOperand(registerOperand, rcx), newOperand(memoryOperand, rbp, stackDescriptorSize-1))
+	p.appendInstruction(mov, []string{createStaticLinkLabel}, newOperand(registerOperand, rcx), newOperand(memoryOperand, rbp, descriptorSize-1))
 	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbp))
 	p.appendInstruction(call, nil, newOperand(labelOperand, loopCondition))
-	p.appendInstruction(mov, nil, newOperand(memoryOperand, rbp, stackDescriptorSize-1), newOperand(registerOperand, rbx))
+	p.appendInstruction(mov, nil, newOperand(memoryOperand, rbp, descriptorSize-1), newOperand(registerOperand, rbx))
 	p.appendInstruction(ret, nil)
 
 	// runtime library function "follow_static_link"
 	p.appendInstruction(mov, []string{followStaticLinkLabel}, newOperand(registerOperand, rbx), newOperand(registerOperand, rbp))
 	p.appendInstruction(cmp, []string{loopCondition}, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(0)))
 	p.appendInstruction(je, nil, newOperand(labelOperand, behindLoop))
-	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbx, stackDescriptorSize-1))
+	p.appendInstruction(mov, nil, newOperand(registerOperand, rbx), newOperand(memoryOperand, rbx, descriptorSize-1))
 	p.appendInstruction(sub, nil, newOperand(registerOperand, rcx), newOperand(immediateOperand, int64(1)))
 	p.appendInstruction(jmp, nil, newOperand(labelOperand, loopCondition))
 	p.appendInstruction(ret, []string{behindLoop})
@@ -515,11 +515,11 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[flags] = 0 // flags register
 	m.cpu.registers[rip] = 0   // instruction pointer
 
-	// initialize stack frame descriptor of main block
-	m.memory[m.process.stackPointer] = 0              // static link (compile-time block nesting hierarchy)
+	// initialize activation record descriptor of main block
+	m.memory[m.process.stackPointer] = 0              // static link (access link for compile-time block nesting hierarchy)
 	m.memory[m.process.stackPointer-1] = 0            // return address (to caller)
 	m.cpu.registers[rsp] = m.process.stackPointer - 1 // stack pointer points to return address before main block's prelude runs
-	m.cpu.registers[rbp] = 0                          // intentionnaly, there is no valid base pointer (from a caller)
+	m.cpu.registers[rbp] = 0                          // intentionnaly, there is no valid base pointer yet (from a caller)
 
 	// execute instructions until main block return to external code
 	for {

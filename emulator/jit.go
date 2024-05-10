@@ -19,7 +19,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	p.text = make(textSection, 0)
 	iterator := module.GetIterator()
 
-	// compile-time stack of parameters for standard library function calls (procedures do not support parameters yet)
+	// compile-time parameters list for standard library function calls (procedures do not support parameters yet)
 	parameters := list.New()
 
 	// protect the JIT-compiler against non-valid structured intermediate code
@@ -37,7 +37,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		case cod.Branch:
 			l = append(l, i.Label)
 
-		case cod.Allocate: // allocate stack space for all local variables
+		case cod.Allocate: // allocate space in an activation record for all local variables
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).Code.Operation != cod.Allocate {
@@ -49,23 +49,24 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 		case cod.Prelude: // function body prelude
 			// save caller's base pointer because it will be changed
-			// this creates a dynamic link chain of base pointers so that each callee knows the base pointer of its caller
+			// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
+			// an alternative naming from literature is 'control link' that points to the activation record of the caller
 			p.appendInstruction(push, l, newOperand(registerOperand, rbp))
 
-			// new base pointer points to start of local variables
+			// new base pointer points to start of local variables in the activation record
 			p.appendInstruction(mov, nil, newOperand(registerOperand, rbp), newOperand(registerOperand, rsp))
 
 			// call runtime library function to create static link which provides the compile-time block nesting hierarchy at runtime
 			p.appendInstruction(call, nil, newOperand(labelOperand, createStaticLinkLabel))
 
 		case cod.Epilog: // function body epilog
-			// clean allocated local variables
+			// clean allocated local variables from the activation record
 			p.appendInstruction(mov, l, newOperand(registerOperand, rsp), newOperand(registerOperand, rbp))
 
 			// restore caller's base pointer
 			p.appendInstruction(pop, nil, newOperand(registerOperand, rbp))
 
-		case cod.ValueCopy: // push an immediate value onto the runtime CPU stack
+		case cod.ValueCopy: // push an immediate value onto the runtime control stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
 				if arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize); err != nil {
@@ -78,11 +79,11 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
 			}
 
-		case cod.VariableLoad: // load a variable from its runtime CPU stack address onto the top of the stack
+		case cod.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
 				if i.DepthDifference == 0 {
-					// push memory content at 'variables base - variable offset' onto runtime CPU stack
+					// push memory content at 'variables base - variable offset' onto runtime control stack
 					p.appendInstruction(push, l, newOperand(memoryOperand, rbp, -int64(i.Code.Arg1.Offset)))
 				} else {
 					// block nesting depth difference between variable use and variable declaration
@@ -93,7 +94,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 					// call runtime library function to follow static link to determine the 'variables base' pointer
 					p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
 
-					// push memory content at 'variables base - variable offset' onto runtime CPU stack
+					// push memory content at 'variables base - variable offset' onto runtime control stack
 					p.appendInstruction(push, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Offset)))
 				}
 
@@ -101,7 +102,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return validateDataType(cod.Integer64, i.Code.Arg1.DataType)
 			}
 
-		case cod.VariableStore: // store the top of the runtime CPU stack into a variable's stack address
+		case cod.VariableStore: // store the top of the runtime control stack into a variable's stack address
 			switch i.Code.Result.DataType {
 			case cod.Integer64:
 				if i.DepthDifference == 0 {
@@ -134,7 +135,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return validateDataType(cod.Integer64, i.Code.Result.DataType)
 			}
 
-		case cod.Negate: // negate the top of the runtime CPU stack and leave the result on the stack
+		case cod.Negate: // negate the top of the runtime control stack and leave the result on the stack
 			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType); err != nil {
 				return err
 			}
@@ -143,7 +144,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			p.appendInstruction(neg, nil, newOperand(registerOperand, rax))
 			p.appendInstruction(push, nil, newOperand(registerOperand, rax))
 
-		case cod.Odd: // check if the top of the runtime CPU stack is an odd number and leave the result in the CPU flags register
+		case cod.Odd: // check if the top of the runtime control stack is an odd number and leave the result in the CPU flags register
 			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType); err != nil {
 				return err
 			}
@@ -152,7 +153,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			p.appendInstruction(and, nil, newOperand(registerOperand, rax))
 
 		case cod.Plus, cod.Minus, cod.Times, cod.Divide:
-			// perform an arithmetic operation on the top two elements of the runtime CPU stack and replace them with the result
+			// perform an arithmetic operation on the top two elements of the runtime control stack and replace them with the result
 			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType, i.Code.Arg2.DataType); err != nil {
 				return err
 			}
@@ -177,7 +178,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			p.appendInstruction(push, nil, newOperand(registerOperand, rax))
 
 		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual:
-			// compare the top two elements of the runtime CPU stack, remove them, and leave the result in the CPU flags register
+			// compare the top two elements of the runtime control stack, remove them, and leave the result in the CPU flags register
 			if err := validateDataType(cod.Integer64, i.Code.Arg1.DataType, i.Code.Arg2.DataType); err != nil {
 				return err
 			}
@@ -213,7 +214,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
 			p.appendInstruction(jge, l, newOperand(labelOperand, i.Code.Arg1.Variable))
 
-		case cod.Parameter: // push a parameter onto the compile-time stack for a standard library function call
+		case cod.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			parameters.PushBack(i)
 
 		case cod.Call: // call a function with 0 arguments by jumping to the function's label
@@ -226,13 +227,13 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			} else if arg != 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
 			} else {
-				// push difference between use depth and declaration depth on runtime CPU stack
+				// push difference between use depth and declaration depth on runtime control stack
 				p.appendInstruction(push, l, newOperand(immediateOperand, int64(i.DepthDifference)))
 
-				// push return address on runtime CPU stack and jump to callee
+				// push return address on runtime control stack and jump to callee
 				p.appendInstruction(call, nil, newOperand(labelOperand, i.Code.Arg2.Variable))
 
-				// remove difference from runtime CPU stack after return from callee
+				// remove difference from runtime control stack after return from callee
 				p.appendInstruction(add, nil, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(1)))
 			}
 
@@ -244,9 +245,9 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			// the standard function has 2 direct arguments that are part of the intermediate code instruction at compile-time
 			// the first argument is the number of arguments that the standard function expects
 			// the second argument is the call code of the standard function in the programming language's standard library
-			// current standard library functions expect 1 existing parameter on the runtime CPU stack
+			// current standard library functions expect 1 existing parameter on the runtime control stack
 
-			// pop a parameter from the compile-time stack that represents the data type of the expected parameter on the runtime CPU stack
+			// pop a parameter from the compile-time parameters list that represents the data type of the expected parameter on the runtime control stack
 			param := parameters.Back().Value.(*cod.Instruction)
 			parameters.Remove(parameters.Back())
 
