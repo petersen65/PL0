@@ -69,8 +69,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		case cod.ValueCopy: // push an immediate value onto the runtime control stack
 			switch i.Code.Arg1.DataType {
 			case cod.Integer64:
-				if arg, err := strconv.ParseInt(i.Code.Arg1.Variable, 10, integerBitSize); err != nil {
-					return newParsingError(i.Code.Arg1.Variable, err)
+				if arg, err := strconv.ParseInt(i.Code.Arg1.Name, 10, integerBitSize); err != nil {
+					return newParsingError(i.Code.Arg1.Name, err)
 				} else {
 					p.appendInstruction(push, l, newOperand(immediateOperand, arg))
 				}
@@ -84,7 +84,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			case cod.Integer64:
 				if i.DepthDifference == 0 {
 					// push memory content at 'variables base - variable offset' onto runtime control stack
-					p.appendInstruction(push, l, newOperand(memoryOperand, rbp, -int64(i.Code.Arg1.Offset)))
+					p.appendInstruction(push, l, newOperand(memoryOperand, rbp, -int64(i.Code.Arg1.Location)))
 				} else {
 					// block nesting depth difference between variable use and variable declaration
 					p.appendInstruction(mov, l,
@@ -95,7 +95,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 					p.appendInstruction(call, nil, newOperand(labelOperand, followStaticLinkLabel))
 
 					// push memory content at 'variables base - variable offset' onto runtime control stack
-					p.appendInstruction(push, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Offset)))
+					p.appendInstruction(push, nil, newOperand(memoryOperand, rbx, -int64(i.Code.Arg1.Location)))
 				}
 
 			default:
@@ -111,7 +111,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 					// copy content of the variable into memory location 'variables base - variable offset'
 					p.appendInstruction(mov, nil,
-						newOperand(memoryOperand, rbp, -int64(i.Code.Result.Offset)),
+						newOperand(memoryOperand, rbp, -int64(i.Code.Result.Location)),
 						newOperand(registerOperand, rax))
 				} else {
 					// block nesting depth difference between variable use and variable declaration
@@ -127,7 +127,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 
 					// copy content of the variable into memory location 'variables base - variable offset'
 					p.appendInstruction(mov, nil,
-						newOperand(memoryOperand, rbx, -int64(i.Code.Result.Offset)),
+						newOperand(memoryOperand, rbx, -int64(i.Code.Result.Location)),
 						newOperand(registerOperand, rax))
 				}
 
@@ -188,31 +188,31 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			p.appendInstruction(cmp, nil, newOperand(registerOperand, rax), newOperand(registerOperand, rbx))
 
 		case cod.Jump: // unconditionally jump to a label that is resolved by the linker
-			p.appendInstruction(jmp, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jmp, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpEqual:
 			// jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
-			p.appendInstruction(je, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(je, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpNotEqual:
 			// jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
-			p.appendInstruction(jne, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jne, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpLess:
 			// jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
-			p.appendInstruction(jl, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jl, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpLessEqual:
 			// jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
-			p.appendInstruction(jle, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jle, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpGreater:
 			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
-			p.appendInstruction(jg, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jg, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.JumpGreaterEqual:
 			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
-			p.appendInstruction(jge, l, newOperand(labelOperand, i.Code.Arg1.Variable))
+			p.appendInstruction(jge, l, newOperand(labelOperand, i.Code.Arg1.Name))
 
 		case cod.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			parameters.PushBack(i)
@@ -222,8 +222,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return validateDataType(cod.UnsignedInteger64, i.Code.Arg1.DataType)
 			}
 
-			if arg, err := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize); err != nil {
-				return newParsingError(i.Code.Arg1.Variable, err)
+			if arg, err := strconv.ParseUint(i.Code.Arg1.Name, 10, integerBitSize); err != nil {
+				return newParsingError(i.Code.Arg1.Name, err)
 			} else if arg != 0 {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)
 			} else {
@@ -231,7 +231,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				p.appendInstruction(push, l, newOperand(immediateOperand, int64(i.DepthDifference)))
 
 				// push return address on runtime control stack and jump to callee
-				p.appendInstruction(call, nil, newOperand(labelOperand, i.Code.Arg2.Variable))
+				p.appendInstruction(call, nil, newOperand(labelOperand, i.Code.Arg2.Name))
 
 				// remove difference from runtime control stack after return from callee
 				p.appendInstruction(add, nil, newOperand(registerOperand, rsp), newOperand(immediateOperand, int64(1)))
@@ -252,8 +252,8 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 			parameters.Remove(parameters.Back())
 
 			// extract direct arguments 1 and 2 from the intermediate code instruction
-			arg, err1 := strconv.ParseUint(i.Code.Arg1.Variable, 10, integerBitSize)
-			stdc, err2 := strconv.ParseInt(i.Code.Arg2.Variable, 10, integerBitSize)
+			arg, err1 := strconv.ParseUint(i.Code.Arg1.Name, 10, integerBitSize)
+			stdc, err2 := strconv.ParseInt(i.Code.Arg2.Name, 10, integerBitSize)
 
 			switch {
 			case param.Code.Arg1.DataType != cod.Integer64:
@@ -263,10 +263,10 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 				return validateDataType(cod.UnsignedInteger64, i.Code.Arg1.DataType, i.Code.Arg2.DataType)
 
 			case err1 != nil:
-				return newParsingError(i.Code.Arg1.Variable, err1)
+				return newParsingError(i.Code.Arg1.Name, err1)
 
 			case err2 != nil:
-				return newParsingError(i.Code.Arg2.Variable, err2)
+				return newParsingError(i.Code.Arg2.Name, err2)
 
 			case arg != 1:
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unexpectedNumberOfFunctionArguments, arg, nil)

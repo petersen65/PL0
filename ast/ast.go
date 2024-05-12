@@ -308,12 +308,6 @@ func (s *Scope) NewIdentifierVersion(identifier string) string {
 	return s.NewIdentifier(prefix)
 }
 
-// Create a new compiler-generated unique label name for a scope.
-func (s *Scope) NewLabel() string {
-	s.labelCounter++
-	return fmt.Sprintf("l%v.%v", s.id, s.labelCounter)
-}
-
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
 func (s *Scope) Insert(symbol *Symbol) {
 	if s.LookupCurrent(symbol.Name) == nil {

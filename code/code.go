@@ -43,32 +43,30 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	module struct {
 		UniqueId     string             `json:"unique_id"`    // unique identifier of the module
-		targets      []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
-		symbolTable  map[string]*symbol `json:"-"`            // symbol table for intermediate code targets
+		names        []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
+		symbolTable  map[string]*symbol `json:"-"`            // symbol table for intermediate code flattened names
 		Instructions *list.List         `json:"instructions"` // intermediate code instructions as doubly linked list that allows reordering
 	}
 
 	// Metadata for each scope in the abstract syntax tree.
 	scopeMetaData struct {
-		offsetCounter uint64 // offset counter for all variables of a scope
+		counter uint64 // counter for all variables in an abstract syntax scope
 	}
 
 	// Metadata for each symbol in the abstract syntax tree.
 	symbolMetaData struct {
-		target string // target name in the intermediate code
+		name string // intermediate code flattened name created from a scoped abstract syntax symbol
 	}
 
 	// Kind of symbol entries.
 	entry int
 
-	// A symbol represents a target name in the intermediate code that maps the name to additional information.
-	// A target name is the structured name of any abstract syntax identifier mapped to intermediate code.
-	// A target name is always relativ to a scope where it is defined and is unique accross all symbols within a module.
+	// A symbol represents a flattened name in the intermediate code that was created from a scoped abstract syntax symbol.
 	symbol struct {
-		target     string        // target name in the intermediate code
+		name       string        // flattened name in the intermediate code
 		kind       entry         // kind of symbol entry
 		dataType   DataType      // data type of the symbol
-		offset     uint64        // variable offset in the logical memory space
+		location   uint64        // location in the logical memory space
 		definition *list.Element // instruction where the symbol is defined
 	}
 
@@ -88,11 +86,11 @@ func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	}
 }
 
-// Create a new intermediate code module and initialize it with a unique identifier based on a UUID.
+// Create a new intermediate code module and initialize it with a unique identifier.
 func newModule() Module {
 	return &module{
 		UniqueId:     uuid.NewString(),
-		targets:      make([]string, 0),
+		names:        make([]string, 0),
 		symbolTable:  make(map[string]*symbol),
 		Instructions: list.New(),
 	}
@@ -100,17 +98,17 @@ func newModule() Module {
 
 // create new symbol for the intermediate code
 func newSymbol(target string, kind entry, dataType DataType) *symbol {
-	return &symbol{target: target, kind: kind, dataType: dataType}
+	return &symbol{name: target, kind: kind, dataType: dataType}
 }
 
 // Create metadata for a scope in the abstract syntax tree.
 func newScopeMetaData() *scopeMetaData {
-	return &scopeMetaData{offsetCounter: 1}
+	return &scopeMetaData{counter: 1}
 }
 
 // Create metadata for a symbol in the abstract syntax tree.
 func newSymbolMetaData(target string) *symbolMetaData {
-	return &symbolMetaData{target: target}
+	return &symbolMetaData{name: target}
 }
 
 // String representation of a data type.
@@ -131,7 +129,7 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v:%v:%v", a.DataType, a.Offset, a.Variable)
+	representation := fmt.Sprintf("%v:%v:%v", a.DataType, a.Location, a.Name)
 
 	if len(representation) > 20 {
 		return representation[:20]
@@ -147,10 +145,16 @@ func (o Operation) String() string {
 
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
+	var depthDifference any = i.DepthDifference
+
+	if i.DepthDifference == UnusedDifference {
+		depthDifference = ""
+	}
+
 	return fmt.Sprintf(
 		"%-8v %4v    %-12v    %-20v    %-20v    %-20v",
 		i.Label,
-		i.DepthDifference,
+		depthDifference,
 		i.Code.Operation,
 		i.Code.Arg1,
 		i.Code.Arg2,
@@ -158,16 +162,16 @@ func (i *Instruction) String() string {
 }
 
 // Update symbol metadata in the abstract syntax tree.
-func (s *symbolMetaData) update(newTargetVersion string) {
-	targetParts := strings.Split(s.target, ".")
-	newTargetVersionParts := strings.Split(newTargetVersion, ".")
+func (s *symbolMetaData) update(newVersion string) {
+	nameParts := strings.Split(s.name, ".")
+	newVersionParts := strings.Split(newVersion, ".")
 
-	if s.target == newTargetVersion ||
-		len(targetParts) != 2 || len(newTargetVersionParts) != 2 || targetParts[0] != newTargetVersionParts[0] {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolMetaDataUpdateFailed, s.target, nil))
+	if s.name == newVersion ||
+		len(nameParts) != 2 || len(newVersionParts) != 2 || nameParts[0] != newVersionParts[0] {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolMetaDataUpdateFailed, s.name, nil))
 	}
 
-	s.target = newTargetVersion
+	s.name = newVersion
 }
 
 // Get the instruction at the current position in the list.
@@ -261,11 +265,11 @@ func (i *iterator) Peek(offset int) *Instruction {
 
 // Insert a symbol into the symbol table of the module. If the symbol already exists, it will be overwritten.
 func (m *module) insert(symbol *symbol) {
-	if m.lookup(symbol.target) == nil {
-		m.targets = append(m.targets, symbol.target)
+	if m.lookup(symbol.name) == nil {
+		m.names = append(m.names, symbol.name)
 	}
 
-	m.symbolTable[symbol.target] = symbol
+	m.symbolTable[symbol.name] = symbol
 }
 
 // Lookup a symbol in the symbol table of the module. If the symbol is not found, nil is returned.
@@ -277,32 +281,32 @@ func (m *module) lookup(target string) *symbol {
 	return nil
 }
 
-// Update symbol table from target with new version from that target
-func (m *module) update(target, newTargetVersion string) {
+// Update flattened name in the symbol table of the module with a new version.
+func (m *module) update(name, newVersion string) {
 	var found bool
 
-	for i := 0; i < len(m.targets); i++ {
-		if m.targets[i] == target {
-			m.targets[i] = newTargetVersion
+	for i := 0; i < len(m.names); i++ {
+		if m.names[i] == name {
+			m.names[i] = newVersion
 			found = true
 			break
 		}
 	}
 
-	if target == newTargetVersion || !found {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, target, nil))
+	if name == newVersion || !found {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, name, nil))
 	}
 
-	targetParts := strings.Split(target, ".")
-	newTargetVersionParts := strings.Split(newTargetVersion, ".")
+	nameParts := strings.Split(name, ".")
+	newVersionParts := strings.Split(newVersion, ".")
 
-	if len(targetParts) != 2 || len(newTargetVersionParts) != 2 || targetParts[0] != newTargetVersionParts[0] {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, target, nil))
+	if len(nameParts) != 2 || len(newVersionParts) != 2 || nameParts[0] != newVersionParts[0] {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, name, nil))
 	}
 
-	m.symbolTable[newTargetVersion] = m.symbolTable[target]
-	m.symbolTable[newTargetVersion].target = newTargetVersion
-	delete(m.symbolTable, target)
+	m.symbolTable[newVersion] = m.symbolTable[name]
+	m.symbolTable[newVersion].name = newVersion
+	delete(m.symbolTable, name)
 }
 
 // Append an instruction to the intermediate code.
@@ -426,7 +430,7 @@ func (i *intermediateCode) Generate() {
 	i.abstractSyntax.Accept(i)
 }
 
-// Configure abstract syntax extensions and fill the symbol table of the intermediate code
+// Configure abstract syntax extensions and fill the symbol table of the module.
 func configureSymbols(node ast.Node, code any) {
 	module := code.(*intermediateCode).module
 
@@ -435,19 +439,19 @@ func configureSymbols(node ast.Node, code any) {
 		n.Scope.Extension[scopeExtension] = newScopeMetaData()
 
 	case *ast.ConstantDeclarationNode:
-		target := n.Scope.NewIdentifier(Prefix[ConstantPrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
-		module.insert(newSymbol(target, constant, DataTypeMap[n.DataType]))
+		name := n.Scope.NewIdentifier(Prefix[ConstantPrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
+		module.insert(newSymbol(name, constant, DataTypeMap[n.DataType]))
 
 	case *ast.VariableDeclarationNode:
-		target := n.Scope.NewIdentifier(Prefix[VariablePrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
-		module.insert(newSymbol(target, variable, DataTypeMap[n.DataType]))
+		name := n.Scope.NewIdentifier(Prefix[VariablePrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
+		module.insert(newSymbol(name, variable, DataTypeMap[n.DataType]))
 
 	case *ast.ProcedureDeclarationNode:
-		target := n.Block.(*ast.BlockNode).Scope.NewIdentifier(Prefix[FunctionPrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(target)
-		module.insert(newSymbol(target, function, Void))
+		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(Prefix[FunctionPrefix])
+		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
+		module.insert(newSymbol(name, function, Void))
 	}
 }
 
@@ -507,7 +511,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		i.AppendInstruction(instruction)
 	} else {
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
-		blockBegin = astSymbol.Extension[symbolExtension].(*symbolMetaData).target
+		blockBegin = astSymbol.Extension[symbolExtension].(*symbolMetaData).name
 
 		// append a branch instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
@@ -563,21 +567,21 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	scopeMetaData := vd.Scope.Extension[scopeExtension].(*scopeMetaData)
 
 	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).target
+	target := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.module.lookup(target)
 
 	// set the location of the variable in its logical memory space
-	codeSymbol.offset = scopeMetaData.offsetCounter
-	scopeMetaData.offsetCounter++
+	codeSymbol.location = scopeMetaData.counter
+	scopeMetaData.counter++
 
 	// allocate memory for the variable in its logical memory space
 	instruction := i.NewInstruction(
 		Allocate,
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, vd.Name),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, vd.Name),
 		NoAddress,
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
 		vd.TokenStreamIndex)
 
 	// append allocate instruction to the module and set it as definition for the intermediate code variable
@@ -613,7 +617,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
 		// determine the intermediate code target name of the abstract syntax constant declaration
-		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).target
+		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
 		codeSymbol := i.module.lookup(target)
@@ -641,7 +645,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
 		// determine the intermediate code target name of the abstract syntax variable declaration
-		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).target
+		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
 		codeSymbol := i.module.lookup(target)
@@ -649,7 +653,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// create a variable load instruction to load the variable value into an intermediate code result
 		instruction := i.NewInstruction(
 			VariableLoad,
-			NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+			NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
 			NoAddress,
 			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])),
 			useDepth-declarationDepth,
@@ -820,7 +824,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
 	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).target
+	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// variables are immutable and hence a new version is created every time a variable is assigned a new value
 	newTargetVersion := variableDeclaration.Scope.NewIdentifierVersion(target)
@@ -834,8 +838,8 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	instruction := i.NewInstruction(
 		VariableStore,
 		right,
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, target),
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
 		assignmentDepth-declarationDepth,
 		s.TokenStreamIndex)
 
@@ -859,7 +863,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
 	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).target
+	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.module.lookup(target)
@@ -867,7 +871,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// create a variable load instruction to load the variable value into an intermediate code result
 	load := i.NewInstruction(
 		VariableLoad,
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
 		NoAddress,
 		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])),
 		readDepth-declarationDepth,
@@ -901,8 +905,8 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	store := i.NewInstruction(
 		VariableStore,
 		param.Code.Arg1,
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, target),
-		NewAddress(codeSymbol.dataType, codeSymbol.offset, codeSymbol.target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, target),
+		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
 		readDepth-declarationDepth,
 		s.TokenStreamIndex)
 
@@ -953,7 +957,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 	callDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
 	// determine the intermediate code target name of the abstract syntax procedure declaration
-	target := procedureUse.Scope.Lookup(procedureUse.Name).Extension[symbolExtension].(*symbolMetaData).target
+	target := procedureUse.Scope.Lookup(procedureUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// call the function with 0 parameters
 	call := i.NewInstruction(

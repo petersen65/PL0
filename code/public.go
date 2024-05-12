@@ -78,10 +78,11 @@ const (
 	WriteLn
 )
 
-// Prefixes for variable names of addresses.
+// Prefixes for address names.
 const (
 	_ = PrefixType(iota)
 	BranchPrefix
+	LabelPrefix
 	ResultPrefix
 	ConstantPrefix
 	VariablePrefix
@@ -95,14 +96,14 @@ type (
 	// String representation of a data type.
 	DataTypeRepresentation string
 
-	// Enumeration of prefixes used for variable names of addresses
+	// Enumeration of prefixes used for names of addresses.
 	PrefixType int
 
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
+		Name     string   `json:"name"`      // name of an address
 		DataType DataType `json:"data_type"` // data type of the address
-		Offset   uint64   `json:"offset"`    // variable offset in the logical memory space
-		Variable string   `json:"variable"`  // variable name of the address
+		Location uint64   `json:"location"`  // location of an address in the logical memory space
 	}
 
 	// Type for intermediate code operations.
@@ -170,9 +171,10 @@ var (
 		Integer64:         "int64",
 	}
 
-	// Prefixes used for variable names of addresses.
+	// Prefixes used for names of addresses.
 	Prefix = map[PrefixType]rune{
 		BranchPrefix:   'b',
+		LabelPrefix:    'l',
 		ResultPrefix:   't',
 		ConstantPrefix: 'c',
 		VariablePrefix: 'v',
@@ -180,7 +182,7 @@ var (
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
-	NoAddress = &Address{DataType: Void, Offset: 0, Variable: "-"}
+	NoAddress = &Address{DataType: Void, Location: 0, Name: "-"}
 
 	// OperationNames is a map of operation names for the intermediate code.
 	OperationNames = map[Operation]string{
@@ -228,6 +230,6 @@ func NewModule() Module {
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(dataType DataType, offset uint64, variable any) *Address {
-	return &Address{DataType: dataType, Offset: offset, Variable: fmt.Sprintf("%v", variable)}
+func NewAddress(name any, dataType DataType, location uint64) *Address {
+	return &Address{Name: fmt.Sprintf("%v", name), DataType: dataType, Location: location}
 }
