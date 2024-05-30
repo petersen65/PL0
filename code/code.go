@@ -503,9 +503,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		// append a branch instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
 			Branch,
-			NewAddress(Void, 0, entryPointDisplayName),
+			NewAddress(entryPointDisplayName, Void, 0),
 			NoAddress,
-			NewAddress(Void, 0, blockBegin),
+			NewAddress(blockBegin, Void, 0),
 			blockBegin)
 
 		i.AppendInstruction(instruction)
@@ -516,9 +516,9 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		// append a branch instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
 			Branch,
-			NewAddress(Void, 0, astSymbol.Name),
+			NewAddress(astSymbol.Name, Void, 0),
 			NoAddress,
-			NewAddress(Void, 0, blockBegin),
+			NewAddress(blockBegin, Void, 0),
 			blockBegin)
 
 		element := i.AppendInstruction(instruction)
@@ -526,7 +526,6 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
 		codeSymbol := i.module.lookup(blockBegin)
 		codeSymbol.definition = element
-
 	}
 
 	// create prelude for the block
@@ -579,9 +578,9 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	// allocate memory for the variable in its logical memory space
 	instruction := i.NewInstruction(
 		Allocate,
-		NewAddress(codeSymbol.dataType, codeSymbol.location, vd.Name),
+		NewAddress(vd.Name, codeSymbol.dataType, codeSymbol.location),
 		NoAddress,
-		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
+		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		vd.TokenStreamIndex)
 
 	// append allocate instruction to the module and set it as definition for the intermediate code variable
@@ -599,9 +598,9 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 	// create a value copy instruction to store the literal in an intermediate code result
 	instruction := i.NewInstruction(
 		ValueCopy,
-		NewAddress(DataTypeMap[ln.DataType], 0, ln.Value),
+		NewAddress(ln.Value, DataTypeMap[ln.DataType], 0),
 		NoAddress,
-		NewAddress(DataTypeMap[ln.DataType], 0, ln.Scope.NewIdentifier(Prefix[ResultPrefix])),
+		NewAddress(ln.Scope.NewIdentifier(Prefix[ResultPrefix]), DataTypeMap[ln.DataType], 0),
 		ln.TokenStreamIndex)
 
 	// push the intermediate code result onto the results-list and append the instruction to the module
@@ -625,9 +624,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// create a value copy instruction to store the constant value in an intermediate code result
 		instruction := i.NewInstruction(
 			ValueCopy,
-			NewAddress(DataTypeMap[constantDeclaration.DataType], 0, constantDeclaration.Value),
+			NewAddress(constantDeclaration.Value, DataTypeMap[constantDeclaration.DataType], 0),
 			NoAddress,
-			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])),
+			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
 			iu.TokenStreamIndex)
 
 		// push the intermediate code result onto the results-list and append the instruction to the module
@@ -653,9 +652,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// create a variable load instruction to load the variable value into an intermediate code result
 		instruction := i.NewInstruction(
 			VariableLoad,
-			NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
+			NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 			NoAddress,
-			NewAddress(codeSymbol.dataType, 0, iu.Scope.NewIdentifier(Prefix[ResultPrefix])),
+			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
 			useDepth-declarationDepth,
 			iu.TokenStreamIndex)
 
@@ -745,7 +744,7 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			operation,
 			left,
 			right,
-			NewAddress(left.DataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])),
+			NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), left.DataType, 0),
 			bo.TokenStreamIndex)
 
 		// push the intermediate code result result onto the results-list and append the instruction to the module
@@ -838,8 +837,8 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	instruction := i.NewInstruction(
 		VariableStore,
 		right,
-		NewAddress(codeSymbol.dataType, codeSymbol.location, target),
-		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
+		NewAddress(target, codeSymbol.dataType, codeSymbol.location),
+		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		assignmentDepth-declarationDepth,
 		s.TokenStreamIndex)
 
@@ -871,9 +870,9 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// create a variable load instruction to load the variable value into an intermediate code result
 	load := i.NewInstruction(
 		VariableLoad,
-		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
+		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		NoAddress,
-		NewAddress(codeSymbol.dataType, 0, scope.NewIdentifier(Prefix[ResultPrefix])),
+		NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
 		readDepth-declarationDepth,
 		s.TokenStreamIndex)
 
@@ -905,8 +904,8 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	store := i.NewInstruction(
 		VariableStore,
 		param.Code.Arg1,
-		NewAddress(codeSymbol.dataType, codeSymbol.location, target),
-		NewAddress(codeSymbol.dataType, codeSymbol.location, codeSymbol.name),
+		NewAddress(target, codeSymbol.dataType, codeSymbol.location),
+		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		readDepth-declarationDepth,
 		s.TokenStreamIndex)
 
@@ -963,7 +962,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 	call := i.NewInstruction(
 		Call,
 		NewAddress(UnsignedInteger64, 0, uint64(0)),
-		NewAddress(Label, 0, target),
+		NewAddress(target, Label, 0),
 		NoAddress,
 		callDepth-declarationDepth,
 		s.TokenStreamIndex)
@@ -976,7 +975,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	// determine block and its scope where the if-then statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
-	behindStatement := scope.NewLabel()
+	behindStatement := scope.NewIdentifier(Prefix[LabelPrefix])
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(i)
@@ -995,8 +994,8 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// determine block and its scope where the while-do statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
-	beforeCondition := scope.NewLabel()
-	behindStatement := scope.NewLabel()
+	beforeCondition := scope.NewIdentifier(Prefix[LabelPrefix])
+	behindStatement := scope.NewIdentifier(Prefix[LabelPrefix])
 
 	// append a branch instruction before the conditional expression instructions
 	i.AppendInstruction(i.NewInstruction(Branch, NoAddress, NoAddress, NoAddress, beforeCondition, s.TokenStreamIndex))
@@ -1011,7 +1010,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a jump instruction to jump back to the conditional expression instructions
-	beforeConditionAddress := NewAddress(Label, 0, beforeCondition)
+	beforeConditionAddress := NewAddress(beforeCondition, Label, 0)
 	i.AppendInstruction(i.NewInstruction(Jump, beforeConditionAddress, NoAddress, NoAddress, s.TokenStreamIndex))
 
 	// append a branch instruction behind the statement instructions
@@ -1029,7 +1028,7 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
 func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, target string) {
 	var jump *Instruction
-	address := NewAddress(Label, 0, target)
+	address := NewAddress(target, Label, 0)
 
 	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {
