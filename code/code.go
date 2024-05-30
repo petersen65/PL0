@@ -97,8 +97,8 @@ func newModule() Module {
 }
 
 // create new symbol for the intermediate code
-func newSymbol(target string, kind entry, dataType DataType) *symbol {
-	return &symbol{name: target, kind: kind, dataType: dataType}
+func newSymbol(name string, kind entry, dataType DataType) *symbol {
+	return &symbol{name: name, kind: kind, dataType: dataType}
 }
 
 // Create metadata for a scope in the abstract syntax tree.
@@ -107,8 +107,8 @@ func newScopeMetaData() *scopeMetaData {
 }
 
 // Create metadata for a symbol in the abstract syntax tree.
-func newSymbolMetaData(target string) *symbolMetaData {
-	return &symbolMetaData{name: target}
+func newSymbolMetaData(name string) *symbolMetaData {
+	return &symbolMetaData{name: name}
 }
 
 // String representation of a data type.
@@ -263,7 +263,7 @@ func (i *iterator) Peek(offset int) *Instruction {
 	return element.Value.(*Instruction)
 }
 
-// Insert a symbol into the symbol table of the module. If the symbol already exists, it will be overwritten.
+// Insert a symbol into the intermediate code symbol table. If the symbol already exists, it will be overwritten.
 func (m *module) insert(symbol *symbol) {
 	if m.lookup(symbol.name) == nil {
 		m.names = append(m.names, symbol.name)
@@ -272,16 +272,16 @@ func (m *module) insert(symbol *symbol) {
 	m.symbolTable[symbol.name] = symbol
 }
 
-// Lookup a symbol in the symbol table of the module. If the symbol is not found, nil is returned.
-func (m *module) lookup(target string) *symbol {
-	if symbol, ok := m.symbolTable[target]; ok {
+// Lookup a symbol in the the intermediate code symbol table. If the symbol is not found, nil is returned.
+func (m *module) lookup(name string) *symbol {
+	if symbol, ok := m.symbolTable[name]; ok {
 		return symbol
 	}
 
 	return nil
 }
 
-// Update flattened name in the symbol table of the module with a new version.
+// Update flattened name in the the intermediate code symbol table with a new version.
 func (m *module) update(name, newVersion string) {
 	var found bool
 
@@ -360,7 +360,7 @@ func (m *module) MarshalJSON() ([]byte, error) {
 func (m *module) UnmarshalJSON(raw []byte) error {
 	type Embedded module
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	mj := &struct {
 		*Embedded
 		Instructions []Instruction `json:"instructions"`
@@ -565,11 +565,11 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	// access intermediate code metadata from abstract syntax scope
 	scopeMetaData := vd.Scope.Extension[scopeExtension].(*scopeMetaData)
 
-	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
+	// determine the intermediate code name of the abstract syntax variable declaration
+	codeName := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(target)
+	codeSymbol := i.module.lookup(codeName)
 
 	// set the location of the variable in its logical memory space
 	codeSymbol.location = scopeMetaData.counter
@@ -615,11 +615,11 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get constant declaration of the constant to load
 		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
-		// determine the intermediate code target name of the abstract syntax constant declaration
-		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
+		// determine the intermediate code name of the abstract syntax constant declaration
+		codeName := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
-		codeSymbol := i.module.lookup(target)
+		codeSymbol := i.module.lookup(codeName)
 
 		// create a value copy instruction to store the constant value in an intermediate code result
 		instruction := i.NewInstruction(
@@ -643,11 +643,11 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// determine the block nesting depth of the variable use from inside an expression or statement
 		useDepth := ast.SearchBlock(ast.CurrentBlock, iu).Depth
 
-		// determine the intermediate code target name of the abstract syntax variable declaration
-		target := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
+		// determine the intermediate code name of the abstract syntax variable declaration
+		codeName := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
-		codeSymbol := i.module.lookup(target)
+		codeSymbol := i.module.lookup(codeName)
 
 		// create a variable load instruction to load the variable value into an intermediate code result
 		instruction := i.NewInstruction(
@@ -822,22 +822,22 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	// determine the block nesting depth of the assignment statement where the variable is used
 	assignmentDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
+	// determine the intermediate code name of the abstract syntax variable declaration
+	codeName := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// variables are immutable and hence a new version is created every time a variable is assigned a new value
-	newTargetVersion := variableDeclaration.Scope.NewIdentifierVersion(target)
-	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newTargetVersion)
-	i.module.update(target, newTargetVersion)
+	newVersion := variableDeclaration.Scope.NewIdentifierVersion(codeName)
+	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newVersion)
+	i.module.update(codeName, newVersion)
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(newTargetVersion)
+	codeSymbol := i.module.lookup(newVersion)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := i.NewInstruction(
 		VariableStore,
 		right,
-		NewAddress(target, codeSymbol.dataType, codeSymbol.location),
+		NewAddress(codeName, codeSymbol.dataType, codeSymbol.location),
 		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		assignmentDepth-declarationDepth,
 		s.TokenStreamIndex)
@@ -861,11 +861,11 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// determine the block nesting depth of the read statement where the variable is used
 	readDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// determine the intermediate code target name of the abstract syntax variable declaration
-	target := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
+	// determine the intermediate code name of the abstract syntax variable declaration
+	codeName := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(target)
+	codeSymbol := i.module.lookup(codeName)
 
 	// create a variable load instruction to load the variable value into an intermediate code result
 	load := i.NewInstruction(
@@ -893,18 +893,18 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		s.TokenStreamIndex)
 
 	// variables are immutable and hence a new version is created every time a variable is assigned a new value
-	newTargetVersion := variableDeclaration.Scope.NewIdentifierVersion(target)
-	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newTargetVersion)
-	i.module.update(target, newTargetVersion)
+	newVersion := variableDeclaration.Scope.NewIdentifierVersion(codeName)
+	variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newVersion)
+	i.module.update(codeName, newVersion)
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol = i.module.lookup(newTargetVersion)
+	codeSymbol = i.module.lookup(newVersion)
 
 	// store the resultant value into the variable used by the read statement
 	store := i.NewInstruction(
 		VariableStore,
 		param.Code.Arg1,
-		NewAddress(target, codeSymbol.dataType, codeSymbol.location),
+		NewAddress(codeName, codeSymbol.dataType, codeSymbol.location),
 		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		readDepth-declarationDepth,
 		s.TokenStreamIndex)
@@ -955,14 +955,14 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 	// determine the block nesting depth of the call statement where the procedure is called
 	callDepth := ast.SearchBlock(ast.CurrentBlock, s).Depth
 
-	// determine the intermediate code target name of the abstract syntax procedure declaration
-	target := procedureUse.Scope.Lookup(procedureUse.Name).Extension[symbolExtension].(*symbolMetaData).name
+	// determine the intermediate code name of the abstract syntax procedure declaration
+	codeName := procedureUse.Scope.Lookup(procedureUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// call the function with 0 parameters
 	call := i.NewInstruction(
 		Call,
 		NewAddress(0, UnsignedInteger64, 0),
-		NewAddress(target, Label, 0),
+		NewAddress(codeName, Label, 0),
 		NoAddress,
 		callDepth-declarationDepth,
 		s.TokenStreamIndex)
@@ -1026,9 +1026,9 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 }
 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
-func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, target string) {
+func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *Instruction
-	address := NewAddress(target, Label, 0)
+	address := NewAddress(label, Label, 0)
 
 	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {

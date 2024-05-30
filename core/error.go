@@ -192,7 +192,7 @@ func (e *generalError) MarshalJSON() ([]byte, error) {
 func (e *generalError) UnmarshalJSON(raw []byte) error {
 	type Embedded generalError
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
 		*Embedded
@@ -241,7 +241,7 @@ func (e *lineColumnError) MarshalJSON() ([]byte, error) {
 func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
 	type Embedded lineColumnError
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
 		*Embedded
@@ -306,7 +306,7 @@ func (e *sourceError) MarshalJSON() ([]byte, error) {
 func (e *sourceError) UnmarshalJSON(raw []byte) error {
 	type Embedded sourceError
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
 		*Embedded
@@ -374,7 +374,7 @@ func (e *tokenError) MarshalJSON() ([]byte, error) {
 func (e *tokenError) UnmarshalJSON(raw []byte) error {
 	type Embedded tokenError
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	ej := &struct {
 		ErrorMessage string `json:"error"`
 		*Embedded

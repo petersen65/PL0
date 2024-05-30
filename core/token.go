@@ -55,7 +55,7 @@ func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
 	type Embedded TokenDescription
 
-	// target struct to unmarshal the JSON object to
+	// struct to unmarshal the JSON object to
 	tdj := &struct {
 		*Embedded
 		CurrentLine string `json:"current_line"`
