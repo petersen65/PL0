@@ -887,8 +887,8 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// call the readln runtime function with 1 parameter
 	readln := i.NewInstruction(
 		Standard,
-		NewAddress(UnsignedInteger64, 0, uint64(1)),
-		NewAddress(UnsignedInteger64, 0, uint64(ReadLn)),
+		NewAddress(1, UnsignedInteger64, 0),
+		NewAddress(ReadLn, UnsignedInteger64, 0),
 		NoAddress,
 		s.TokenStreamIndex)
 
@@ -933,8 +933,8 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// call the writeln runtime function with 1 parameter
 	write := i.NewInstruction(
 		Standard,
-		NewAddress(UnsignedInteger64, 0, uint64(1)),
-		NewAddress(UnsignedInteger64, 0, uint64(WriteLn)),
+		NewAddress(1, UnsignedInteger64, 0),
+		NewAddress(WriteLn, UnsignedInteger64, 0),
 		NoAddress,
 		s.TokenStreamIndex)
 
@@ -961,7 +961,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 	// call the function with 0 parameters
 	call := i.NewInstruction(
 		Call,
-		NewAddress(UnsignedInteger64, 0, uint64(0)),
+		NewAddress(0, UnsignedInteger64, 0),
 		NewAddress(target, Label, 0),
 		NoAddress,
 		callDepth-declarationDepth,

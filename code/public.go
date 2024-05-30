@@ -101,7 +101,7 @@ type (
 
 	// Address is the representation of an address in the three-address code concept.
 	Address struct {
-		Name     string   `json:"name"`      // name of an address
+		Name     string   `json:"name"`      // name or value of an address (any value needs to be converted to a string)
 		DataType DataType `json:"data_type"` // data type of the address
 		Location uint64   `json:"location"`  // location of an address in the logical memory space
 	}
