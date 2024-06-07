@@ -24,18 +24,78 @@ type Edge struct {
 func NewControlFlowGraph(module cod.Module) *ControlFlowGraph {
 	return &ControlFlowGraph{
 		module: module,
+		blocks: make([]*BasicBlock, 0),
+		edges:  make([]*Edge, 0),
+	}
+}
+
+func NewBasicBlock() *BasicBlock {
+	return &BasicBlock{
+		instructions: make([]*cod.Instruction, 0),
+	}
+}
+
+func NewEdge(from, to *BasicBlock) *Edge {
+	return &Edge{
+		from: from,
+		to:   to,
 	}
 }
 
 func (cfg *ControlFlowGraph) Build() {
-	// Create a new basic block.
-	// bb := &BasicBlock{
-	// 	instructions: make([]*cod.Instruction, 0),
-	// }
+	var basicBlock *BasicBlock
+	iterator := cfg.module.GetIterator()
 
-	// Iterate over the module instructions.
-	// for _, inst := range cfg.module.Instructions {
-	// 	// Append the instruction to the basic block.
-	// 	bb.instructions = append(bb.instructions, inst)
-	// }
+	// partition three-address code operations in the intermediate language code into basic blocks
+	for i := iterator.First(); i != nil; i = iterator.Next() {
+		switch {
+		// the first three-address code instruction in the intermediate language code is a leader
+		case basicBlock == nil:
+			fallthrough
+
+		// any instruction that is the target of a conditional or unconditional jump is a leader
+		case i.Label != "":
+			// append the previous basic block to the control flow graph if it is not nil
+			cfg.AppendBasicBlock(basicBlock)
+
+			// create a new basic block and append the current instruction to it
+			basicBlock = NewBasicBlock()
+			basicBlock.AppendInstruction(i)
+
+		// any instruction that immediately follows a conditional or unconditional jump is a leader
+		case i.Code.Operation == cod.Jump ||
+			i.Code.Operation == cod.JumpEqual ||
+			i.Code.Operation == cod.JumpNotEqual ||
+			i.Code.Operation == cod.JumpLess ||
+			i.Code.Operation == cod.JumpLessEqual ||
+			i.Code.Operation == cod.JumpGreater ||
+			i.Code.Operation == cod.JumpGreaterEqual:
+
+			// append the current instruction to the current basic block
+			basicBlock.AppendInstruction(i)
+			cfg.AppendBasicBlock(basicBlock)
+			basicBlock = nil
+
+		// remaining instructions in the intermediate language code are appended to the current basic block
+		default:
+			basicBlock.AppendInstruction(i)
+		}
+	}
+
+	// append the last basic block to the control flow graph if it is not nil
+	cfg.AppendBasicBlock(basicBlock)
+}
+
+// Append a basic block to the control flow graph if it is not nil.
+func (cfg *ControlFlowGraph) AppendBasicBlock(bb *BasicBlock) {
+	if bb != nil {
+		cfg.blocks = append(cfg.blocks, bb)
+	}
+}
+
+// Append an instruction to a basic block if it is not nil.
+func (bb *BasicBlock) AppendInstruction(i *cod.Instruction) {
+	if i != nil {
+		bb.instructions = append(bb.instructions, i)
+	}
 }
