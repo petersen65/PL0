@@ -2,13 +2,14 @@
 
 This module provides a complete compiler for the programming language PL/0. It provides several packages that can be used independently of its command line interface.
 
+* core: core features, token type-system, and error-handling mechanism used by all compiler components
 * scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
-* ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree 
+* ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
 * analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
-* code: compiler pass for intermediate language code generation by traversing the abstract syntax tree
-* emulator: execution of JIT compiled intermediate language code instructions by running a process on a virtual cpu with stack and registers
-* core: core features, token type-system, and error-handling mechanism used by all compiler components
+* code: compiler pass for intermediate code generation by traversing the abstract syntax tree
+* cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
+* emulator: execution of JIT compiled intermediate code instructions by running a process on a virtual cpu with stack and registers
 * compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
 
 The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called pseudo-assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
@@ -138,8 +139,8 @@ The programming language PL/0 2024 supports the following features:
 
 * April 14 2024 - [v2.1.0](https://github.com/petersen65/pl0/releases/tag/v2.1.0)
 	* provide new emulator backend for the existing compiler frontend and introduce intermediate language
-	* new package implements an intermediate language code that provides an additional intermediate representation on top of the abstract syntax tree
-	* new emulation engine that JIT-compiles intermediate language code into pseudo-assembler code which the emulator can execute
+	* new package implements an intermediate code that provides an additional intermediate representation on top of the abstract syntax tree
+	* new emulation engine that JIT-compiles intermediate code into pseudo-assembler code which the emulator can execute
 
 * May 5 2024 - [v2.2.0](https://github.com/petersen65/pl0/releases/tag/v2.2.0)
 	* complete abstract syntax tree token handler integration beyond identifier declarations and usage

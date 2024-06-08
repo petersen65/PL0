@@ -1,20 +1,28 @@
 // Copyright 2024 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package cfg implements the control graph representation (CFG) of intermediate language code.
+// Package cfg implements the control graph representation (CFG) of intermediate code.
 package cfg
 
-import cod "github.com/petersen65/PL0/v2/code"
+import (
+	"io"
+
+	cod "github.com/petersen65/PL0/v2/code"
+	cor "github.com/petersen65/PL0/v2/core"
+)
 
 type (
-	// ControlFlowGraph represents the control flow graph of an intermediate language code module.
+	// ControlFlowGraph represents the control flow graph of an intermediate code module.
 	ControlFlowGraph interface {
 		Build()
 		AppendBasicBlock(basicBlock *basicBlock)
+		Print(print io.Writer, args ...any) error
+		Export(format cor.ExportFormat, print io.Writer) error
 	}
 
 	// Basic blocks are maximal sequences of consecutive instructions that execute without branching.
 	BasicBlock interface {
+		String() string
 		AppendInstruction(instruction *cod.Instruction)
 	}
 

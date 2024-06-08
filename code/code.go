@@ -394,7 +394,7 @@ func (m *module) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the module of the intermediate code generator.
+// Export the module to the specified writer in the specified format.
 func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:

@@ -3,7 +3,13 @@
 
 package cfg
 
-import cod "github.com/petersen65/PL0/v2/code"
+import (
+	"io"
+	"strings"
+
+	cod "github.com/petersen65/PL0/v2/code"
+	cor "github.com/petersen65/PL0/v2/core"
+)
 
 type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
@@ -17,7 +23,7 @@ type (
 	basicBlock struct {
 		instructions []*cod.Instruction
 	}
-	
+
 	// An edge connects two basic blocks in the control flow graph.
 	edge struct {
 		from *basicBlock
@@ -49,15 +55,15 @@ func newEdge(from, to *basicBlock) Edge {
 	}
 }
 
-// Build the control flow graph by partitioning the intermediate language code into basic blocks.
+// Build the control flow graph by partitioning the intermediate code into basic blocks.
 func (cfg *controlFlowGraph) Build() {
 	var block *basicBlock
 	iterator := cfg.module.GetIterator()
 
-	// partition three-address code operations in the intermediate language code into basic blocks
+	// partition three-address code operations in the intermediate code into basic blocks
 	for i := iterator.First(); i != nil; i = iterator.Next() {
 		switch {
-		// the first three-address code instruction in the intermediate language code is a leader
+		// the first three-address code instruction in the intermediate code is a leader
 		case block == nil:
 			fallthrough
 
@@ -84,7 +90,7 @@ func (cfg *controlFlowGraph) Build() {
 			cfg.AppendBasicBlock(block)
 			block = nil
 
-		// remaining instructions in the intermediate language code are appended to the current basic block
+		// remaining instructions in the intermediate code are appended to the current basic block
 		default:
 			block.AppendInstruction(i)
 		}
@@ -99,6 +105,28 @@ func (cfg *controlFlowGraph) AppendBasicBlock(basicBlock *basicBlock) {
 	if basicBlock != nil {
 		cfg.blocks = append(cfg.blocks, basicBlock)
 	}
+}
+
+// Print the control flow graph to the specified writer.
+func (cfg *controlFlowGraph) Print(print io.Writer, args ...any) error {
+	return nil
+}
+
+// Export the control flow graph to the specified writer in the specified format.
+func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) error {
+	return nil
+}
+
+// String representation of a basic block.
+func (bb *basicBlock) String() string {
+	var builder strings.Builder
+
+	// enumerate all instructions in the basic block and print them to the writer
+	for _, instruction := range bb.instructions {
+		builder.WriteString(instruction.String())
+	}
+
+	return builder.String()
 }
 
 // Append an instruction to a basic block if it is not nil.
