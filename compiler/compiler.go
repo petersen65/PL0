@@ -14,6 +14,7 @@ import (
 
 	ana "github.com/petersen65/PL0/v2/analyzer"
 	ast "github.com/petersen65/PL0/v2/ast"
+	cfg "github.com/petersen65/PL0/v2/cfg"
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 	emu "github.com/petersen65/PL0/v2/emulator"
@@ -56,11 +57,12 @@ const (
 // File extensions for all generated files.
 const (
 	_ Extension = iota
-	Emulator
+	Error
 	Token
 	Tree
-	Error
 	Intermediate
+	Control
+	Emulator
 	Json
 	Text
 	Binary
@@ -76,21 +78,23 @@ type (
 
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
-		SourceContent  []byte           // PL/0 utf-8 source content
-		TokenStream    cor.TokenStream  // token stream of the PL/0 source content
-		AbstractSyntax ast.Block        // abstract syntax tree of the PL/0 source code
-		Module         cod.Module       // intermediate code module
-		ErrorHandler   cor.ErrorHandler // error handler of the compilation process
+		SourceContent  []byte               // PL/0 utf-8 source content
+		ErrorHandler   cor.ErrorHandler     // error handler of the compilation process
+		TokenStream    cor.TokenStream      // token stream of the PL/0 source content
+		AbstractSyntax ast.Block            // abstract syntax tree of the token stream
+		Module         cod.Module           // intermediate code module of the abstract syntax tree
+		ControlFlow    cfg.ControlFlowGraph // control flow graph of the intermediate code module
 	}
 )
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	Emulator:     ".emu",
+	Error:        ".err",
 	Token:        ".tok",
 	Tree:         ".ast",
-	Error:        ".err",
 	Intermediate: ".ilc",
+	Control:      ".cfg",
+	Emulator:     ".emu",
 	Json:         ".json",
 	Text:         ".txt",
 	Binary:       ".bin",
@@ -297,21 +301,23 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// create all Json files for intermediate representations
+	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
 	icjFile, icjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
+	cfjFile, cfjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Json))
 	emjFile, emjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Json))
-	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 
 	// create all Text files for intermediate representations
+	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	cftFile, cftErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Text))
 	emtFile, emtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
-	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(tsjErr, asjErr, icjErr, emjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
+	anyError = errors.Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, emjErr, ertErr, tstErr, astErr, ictErr, cftErr, emtErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -328,16 +334,18 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		}
 
 		// safely close all files
+		closeFile(erjFile)
 		closeFile(tsjFile)
 		closeFile(asjFile)
 		closeFile(icjFile)
+		closeFile(cfjFile)
 		closeFile(emjFile)
-		closeFile(erjFile)
+		closeFile(ertFile)
 		closeFile(tstFile)
 		closeFile(astFile)
 		closeFile(ictFile)
+		closeFile(cftFile)
 		closeFile(emtFile)
-		closeFile(ertFile)
 
 		// remove target directory if any error occurred during file creations
 		if anyError != nil {
@@ -349,13 +357,19 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		return anyError
 	}
 
+	// export all error handler representations to the target files
+	if translationUnit.ErrorHandler != nil {
+		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
+		ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
+	}
+
 	// export all token stream representations to the target files
 	if translationUnit.TokenStream != nil {
 		tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
 		tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
 	}
 
-	// export all abstract syntax representations to the target files
+	// export all abstract syntax tree representations to the target files
 	if translationUnit.AbstractSyntax != nil {
 		asjErr = translationUnit.AbstractSyntax.Export(cor.Json, asjFile)
 		astErr = translationUnit.AbstractSyntax.Export(cor.Text, astFile)
@@ -365,6 +379,12 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	if translationUnit.Module != nil {
 		icjErr = translationUnit.Module.Export(cor.Json, icjFile)
 		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
+	}
+
+	// export all control flow graph representations to the target files
+	if translationUnit.ControlFlow != nil {
+		cfjErr = translationUnit.ControlFlow.Export(cor.Json, cfjFile)
+		cftErr = translationUnit.ControlFlow.Export(cor.Text, cftFile)
 	}
 
 	// export all emulator representations to the target files
@@ -377,14 +397,8 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		}
 	}
 
-	// export all error handler representations to the target files
-	if translationUnit.ErrorHandler != nil {
-		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
-		ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
-	}
-
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(tsjErr, asjErr, icjErr, emjErr, erjErr, tstErr, astErr, ictErr, emtErr, ertErr)
+	anyError = errors.Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, emjErr, ertErr, tstErr, astErr, ictErr, cftErr, emtErr)
 	return anyError
 }
 
@@ -450,7 +464,7 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, nil, nil, errorHandler}
+		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil}
 	}
 
 	// intermediate code generation based on the abstract syntax tree results in a module
@@ -458,11 +472,10 @@ func CompileContent(content []byte) TranslationUnit {
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
-	// return if any fatal or error errors occurred during code generation
-	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, tokenStream, abstractSyntax, nil, errorHandler}
-	}
+	// build control flow graph of an intermediate code module
+	controlFlow := cfg.NewControlFlowGraph(module)
+	controlFlow.Build()
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, tokenStream, abstractSyntax, module, errorHandler}
+	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, module, controlFlow}
 }

@@ -4,6 +4,7 @@
 package cfg
 
 import (
+	"encoding/json"
 	"io"
 	"strings"
 
@@ -14,14 +15,14 @@ import (
 type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
 	controlFlowGraph struct {
-		module cod.Module
-		blocks []*basicBlock
-		edges  []*edge
+		module cod.Module    `json:"-"`
+		Blocks []*basicBlock `json:"blocks"`
+		edges  []*edge       `json:"-"`
 	}
 
 	// Implementation of the basic block interface that holds instructions of the block.
 	basicBlock struct {
-		instructions []*cod.Instruction
+		Instructions []*cod.Instruction `json:"instructions"`
 	}
 
 	// An edge connects two basic blocks in the control flow graph.
@@ -35,7 +36,7 @@ type (
 func newControlFlowGraph(module cod.Module) ControlFlowGraph {
 	return &controlFlowGraph{
 		module: module,
-		blocks: make([]*basicBlock, 0),
+		Blocks: make([]*basicBlock, 0),
 		edges:  make([]*edge, 0),
 	}
 }
@@ -43,7 +44,7 @@ func newControlFlowGraph(module cod.Module) ControlFlowGraph {
 // Create a new basic block for storing consecutive instructions.
 func newBasicBlock() BasicBlock {
 	return &basicBlock{
-		instructions: make([]*cod.Instruction, 0),
+		Instructions: make([]*cod.Instruction, 0),
 	}
 }
 
@@ -68,7 +69,7 @@ func (cfg *controlFlowGraph) Build() {
 			fallthrough
 
 		// any instruction that is the target of a conditional or unconditional jump is a leader
-		case i.Label != "":
+		case i.Code.Operation == cod.Branch:
 			// append the previous basic block to the control flow graph if it is not nil
 			cfg.AppendBasicBlock(block)
 
@@ -103,27 +104,64 @@ func (cfg *controlFlowGraph) Build() {
 // Append a basic block to the control flow graph if it is not nil.
 func (cfg *controlFlowGraph) AppendBasicBlock(basicBlock *basicBlock) {
 	if basicBlock != nil {
-		cfg.blocks = append(cfg.blocks, basicBlock)
+		cfg.Blocks = append(cfg.Blocks, basicBlock)
 	}
 }
 
 // Print the control flow graph to the specified writer.
 func (cfg *controlFlowGraph) Print(print io.Writer, args ...any) error {
+	// enumerate all basic blocks of the control flow graph and print them to the writer
+	for i, block := range cfg.Blocks {
+		// print the basic block to the writer
+		if _, err := print.Write([]byte(block.String())); err != nil {
+			return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+		}
+
+		// print a newline character between basic blocks
+		if i < len(cfg.Blocks)-1 {
+			if _, err := print.Write([]byte("\n")); err != nil {
+				return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+			}
+		}
+	}
+
 	return nil
 }
 
 // Export the control flow graph to the specified writer in the specified format.
 func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) error {
-	return nil
+	switch format {
+	case cor.Json:
+		// export the control flow graph as a JSON object
+		if raw, err := json.MarshalIndent(cfg, "", "  "); err != nil {
+			return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+		} else {
+			_, err = print.Write(raw)
+
+			if err != nil {
+				err = cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+			}
+
+			return err
+		}
+
+	case cor.Text:
+		// print is a convenience function to export the control flow grpah as a string to the print writer
+		return cfg.Print(print)
+
+	default:
+		panic(cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
 }
 
 // String representation of a basic block.
 func (bb *basicBlock) String() string {
 	var builder strings.Builder
 
-	// enumerate all instructions in the basic block and print them to the writer
-	for _, instruction := range bb.instructions {
+	// enumerate all instructions in the basic block and write them to the string builder
+	for _, instruction := range bb.Instructions {
 		builder.WriteString(instruction.String())
+		builder.WriteString("\n")
 	}
 
 	return builder.String()
@@ -132,6 +170,6 @@ func (bb *basicBlock) String() string {
 // Append an instruction to a basic block if it is not nil.
 func (bb *basicBlock) AppendInstruction(instruction *cod.Instruction) {
 	if instruction != nil {
-		bb.instructions = append(bb.instructions, instruction)
+		bb.Instructions = append(bb.Instructions, instruction)
 	}
 }

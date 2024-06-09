@@ -61,6 +61,7 @@ const (
 	AbstractSyntaxTree
 	Analyzer
 	Intermediate
+	ControlFlowGraph
 	Emulator
 	AllComponents = Component(^uint64(0))
 )

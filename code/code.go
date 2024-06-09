@@ -384,9 +384,7 @@ func (m *module) UnmarshalJSON(raw []byte) error {
 func (m *module) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the module and print them to the writer
 	for e := m.Instructions.Front(); e != nil; e = e.Next() {
-		_, err := fmt.Fprintf(print, "%v\n", e.Value)
-
-		if err != nil {
+		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		}
 	}

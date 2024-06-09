@@ -106,6 +106,7 @@ var (
 		AbstractSyntaxTree: "ast",
 		Analyzer:           "analyzer",
 		Intermediate:       "intermediate",
+		ControlFlowGraph:   "cfg",
 		Emulator:           "emulator",
 	}
 )
