@@ -468,7 +468,7 @@ func CompileContent(content []byte) TranslationUnit {
 	}
 
 	// intermediate code generation based on the abstract syntax tree results in a module
-	intermediate := cod.NewIntermediateCode(abstractSyntax)
+	intermediate := cod.NewIntermediateCode(abstractSyntax, false)
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
