@@ -16,10 +16,8 @@ RUN apt update && apt install -y \
     wget \
     git \
     apt-transport-https \
-    jq \
-    uuid-runtime \
-    unzip \
-    zip
+    zip \
+    unzip
 
 # Tools for building software with Go
 ARG GO_VERSION
