@@ -9,7 +9,7 @@
         "args": {
             "BASE_IMG": "ubuntu:24.04",
             "TARGET_USER": "vscode",
-            "GO_VERSION": "1.22.4"
+            "GO_VERSION": "1.23.0"
         }
     },
     "customizations": {
