@@ -61,6 +61,5 @@
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false
         }
-
     ]
 }
