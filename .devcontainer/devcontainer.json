@@ -15,9 +15,15 @@
     "customizations": {
         "vscode": {
             "extensions": [
+                "vscode-icons-team.vscode-icons",
+                "github.vscode-github-actions",
+                "github.codespaces",
+                "github.copilot",
+                "github.copilot-chat",
+                "github.vscode-pull-request-github",
                 "golang.go",
-                "foxundermoon.shell-format",
-                "vscode-icons-team.vscode-icons"
+                "rogalmic.bash-debug",
+                "mads-hartmann.bash-ide-vscode"
             ]
         }
     }

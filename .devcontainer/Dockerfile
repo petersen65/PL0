@@ -1,9 +1,9 @@
 # Configures the development container for the project
 # syntax=docker/dockerfile:1
 
-# Start from a given base image
+# Start from a given base image with CPU architecture 'amd64' because the PL0 compiler only supports 'amd64'
 ARG BASE_IMG
-FROM ${BASE_IMG}
+FROM --platform=linux/amd64 ${BASE_IMG}
 
 # Ensure that the system is up to date, and the prerequisites are installed
 RUN apt update && apt install -y \
@@ -24,7 +24,7 @@ ARG GO_VERSION
 RUN curl -fsSL -o /tmp/go${GO_VERSION}.linux-amd64.tar.gz https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf /tmp/go${GO_VERSION}.linux-amd64.tar.gz
 
-# Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
+# Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user
 ARG TARGET_USER
 RUN useradd -s /bin/bash -m ${TARGET_USER} \
     && echo ${TARGET_USER} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${TARGET_USER} \
