@@ -7,11 +7,16 @@
     "context": ".",
     "build": {
         "args": {
-            "BASE_IMG": "ubuntu:24.04",
+            "ARCHITECTURE": "linux/amd64",
+            "BASE_IMG": "ubuntu:24.10",
             "TARGET_USER": "vscode",
             "GO_VERSION": "1.23.4"
         }
     },
+    "runArgs": [
+        "-e",
+        "TZ=Europe/Berlin"
+    ],
     "customizations": {
         "vscode": {
             "extensions": [

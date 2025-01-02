@@ -2,8 +2,9 @@
 # syntax=docker/dockerfile:1
 
 # Start from a given base image with CPU architecture 'amd64' because the PL0 compiler only supports 'amd64'
-ARG BASE_IMG
-FROM --platform=linux/amd64 ${BASE_IMG}
+ARG ARCHITECTURE=linux/amd64
+ARG BASE_IMG=ubuntu:latest
+FROM --platform=${ARCHITECTURE} ${BASE_IMG}
 
 # Ensure that the system is up to date, and the prerequisites are installed
 RUN apt update && apt install -y \
@@ -17,7 +18,9 @@ RUN apt update && apt install -y \
     git \
     apt-transport-https \
     zip \
-    unzip
+    unzip \
+    shellcheck \
+    tzdata
 
 # Tools for building software with Go
 ARG GO_VERSION
@@ -39,7 +42,10 @@ ENV GOPATH=/home/${TARGET_USER}/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH
 
 # Set the default shell to bash rather than sh
-ENV SHELL /bin/bash
+ENV SHELL=/bin/bash
 
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
+
+# Install linter for shell programs
+RUN go install mvdan.cc/sh/v3/cmd/shfmt@latest
