@@ -28,7 +28,7 @@ The complete compiler source code is licensed under Apache License v2.0.
 
 PL/0 in its original version from 1976 is an educational programming language, that is similar to but much simpler than Pascal, a well-known general-purpose programming language. It serves as an example of how to construct a compiler. It was originally introduced in the book, Algorithms + Data Structures = Programs, by Niklaus Wirth in 1976. It featured quite limited language constructs: there are no real numbers, very few basic arithmetic operations and no control-flow constructs other than "if" and "while" blocks. While these limitations made writing real applications in this language impractical, it helped the compiler remain compact and simple.
 
-Beginning with version 1.1.0 of my compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2024. The programming language PL/0 2024 will be aligned to Pascal syntax and language features.
+Beginning with version 1.1.0 of my compiler, I will start to extend the 1986 version of PL/0 and hence name it PL/0 2025. The programming language PL/0 2025 will be aligned to Pascal syntax and language features.
 
 ## Grammar
 
@@ -80,7 +80,7 @@ For PL/0, tokens define the set of accepting states of a finite automaton. There
 
 ## Features
 
-The programming language PL/0 2024 supports the following features:
+The programming language PL/0 2025 supports the following features:
 
 | Feature                       | Value
 |-------------------------------|-------------------------------------------
@@ -149,7 +149,7 @@ The programming language PL/0 2024 supports the following features:
 
 ## Planning
 
-* H2 2024, Compiler version 3.0.0 2024, enhance programming language and generate assembler
+* 2025, Compiler version 3.0.0 2025, enhance programming language and generate assembler
 	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
 	* integration of emulator with external c-libraries

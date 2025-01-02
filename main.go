@@ -1,4 +1,4 @@
-// Copyright 2024 Michael Petersen. All rights reserved.
+// Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
 // Package main implements the PL/0 compiler command line interface.
@@ -15,8 +15,8 @@ import (
 // Text messages for the compiler command line interface.
 const (
 	textTitle         = "PL/0 Compiler"
-	textVersion       = "Version 2.3.0 2024"
-	textCopyright     = "Copyright (c) 2024, Michael Petersen. All rights reserved."
+	textVersion       = "Version 2.3.0 2025"
+	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
 	textCompileUsage  = "compile source code file to binary target file"

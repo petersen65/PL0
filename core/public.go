@@ -1,4 +1,4 @@
-// Copyright 2024 Michael Petersen. All rights reserved.
+// Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
 // Package core provides foundation features, the token type-system, and the error handling mechanism for the PL/0 compiler. This combination enables the error handler to connect an error to a location in the token stream. Package core is required to depend on Go standard library packages only.

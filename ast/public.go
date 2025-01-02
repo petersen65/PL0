@@ -1,4 +1,4 @@
-// Copyright 2024 Michael Petersen. All rights reserved.
+// Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
 // Package ast implements the abstract syntax tree (AST) for the PL/0 parser.
