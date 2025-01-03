@@ -92,7 +92,7 @@ var ExtensionMap = map[Extension]string{
 	Error:        ".err",
 	Token:        ".tok",
 	Tree:         ".ast",
-	Intermediate: ".ilc",
+	Intermediate: ".int",
 	Control:      ".cfg",
 	Emulator:     ".emu",
 	Json:         ".json",

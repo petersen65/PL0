@@ -98,7 +98,7 @@ func newModule() Module {
 	}
 }
 
-// create new symbol for the intermediate code
+// Create new symbol for the intermediate code.
 func newSymbol(name string, kind entry, dataType DataType) *symbol {
 	return &symbol{name: name, kind: kind, dataType: dataType}
 }
@@ -140,7 +140,7 @@ func (a *Address) String() string {
 	return representation
 }
 
-// String representation of an intermediate code operation.
+// String representation of an three-address code operation.
 func (o Operation) String() string {
 	return OperationNames[o]
 }

@@ -158,3 +158,5 @@ The programming language PL/0 2025 supports the following features:
 	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
 	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
+	* design or redesign of public APIs for all packages of the compiler
+	* unit tests for all public APIs
