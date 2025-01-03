@@ -7,7 +7,7 @@ This module provides a complete compiler for the programming language PL/0. It p
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
 * analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
-* code: compiler pass for intermediate code generation by traversing the abstract syntax tree
+* code: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
 * emulator: execution of JIT compiled intermediate code instructions by running a process on a virtual cpu with stack and registers
 * compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
@@ -114,8 +114,8 @@ The programming language PL/0 2025 supports the following features:
 * Feb 9, 2024 - [v1.0.0](https://github.com/petersen65/pl0/releases/tag/v1.0.0)
 	* initial version of scanner, parser, emitter, emulator, and compiler
 	* generation and emulation of IL/0 code from PL/0 source code
-	* two pass scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
-	* single pass parser: recursive descent parser directly calls emitter while analyzing token stream
+	* two phase scanner: basic and sliding scanning to cover more complex scenarios with multiple characters per token
+	* single phase parser: recursive descent parser directly calls emitter while analyzing token stream
 	* intel like emulator: the generated IL/0 code can be executed with the emulator that looks a little bit like a x86_64 cpu
 
 * Mar 3 2024 - [v1.1.0](https://github.com/petersen65/pl0/releases/tag/v1.1.0)
@@ -129,10 +129,10 @@ The programming language PL/0 2025 supports the following features:
 	* make core engine more mature
 	* build scripts with Git commit hash inclusion into the compiler version output
 	* migration to an abstract syntax tree and code generator as interface between parser and emitter
-	* introduce first semantic analysis compiler pass (symbol declaration check, symbol usage check)
+	* introduce first semantic analysis compiler phase (symbol declaration check, symbol usage check)
 	* integrate error handling accross all compiler components and enable error messages with source code markers
 	* draft introduction of a translation unit for 1 PL/0 source file
-	* new compiler driver controls the new multi-pass compiler: lexical analysis, syntax analysis, semantic analysis, code generation
+	* new compiler driver controls the new multi-phase compiler: lexical analysis, syntax analysis, semantic analysis, code generation
 	* new and more powerful command line interface that can grow in the future
 	* export of all intermediate representations of the compiler in Json, Text, and Binary format
 	* new compiler driver now manages the directory tree for all build targets, including normalization and purge

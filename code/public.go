@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package code implements the intermediate code generation compiler pass by traversing the abstract syntax tree.
+// Package code implements the intermediate code generation compiler phase by traversing the abstract syntax tree.
 package code
 
 import (
@@ -128,7 +128,7 @@ type (
 		Result    *Address  `json:"result"`    // third address (result)
 	}
 
-	// IntermediateCode is the public interface for the intermediate code generation compiler pass.
+	// IntermediateCode is the public interface for the intermediate code generation compiler phase.
 	IntermediateCode interface {
 		Generate()
 		GetModule() Module

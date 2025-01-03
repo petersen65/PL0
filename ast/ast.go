@@ -15,7 +15,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation passes.
+// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
 func newScope(uniqueId int32, outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
 

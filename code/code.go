@@ -33,7 +33,7 @@ const (
 )
 
 type (
-	// Intermediate code generation compiler pass. It implements the Visitor interface to traverse the AST and generate code.
+	// Intermediate code generation compiler phase. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
 		immutable      bool       // support for immutable variables in intermediate code
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for

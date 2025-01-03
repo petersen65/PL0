@@ -13,7 +13,7 @@ import (
 // Empty scopes are required to use this number as their scope id
 const EmptyScopeId = -1
 
-// EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler passes.
+// EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
 const EmptyConstantName = "@constant"
 
 // Types of nodes in the abstract syntax tree.
@@ -131,7 +131,7 @@ type (
 	// Usage mode of an identifier.
 	Usage uint64
 
-	// Support for symbol table extensions of compiler passes
+	// Support for symbol table extensions of compiler phases
 	ExtensionType int32
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
@@ -139,7 +139,7 @@ type (
 		Name        string                // name of the symbol
 		Kind        Entry                 // kind of the symbol
 		Declaration Declaration           // declaration node of the symbol
-		Extension   map[ExtensionType]any // extensions for compiler passes
+		Extension   map[ExtensionType]any // extensions for compiler phases
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
@@ -148,7 +148,7 @@ type (
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
 		Outer             *Scope                // outer scope or nil if this is the outermost scope
-		Extension         map[ExtensionType]any // extensions for compiler passes
+		Extension         map[ExtensionType]any // extensions for compiler phases
 		id                int32                 // each scope has a unique identifier
 		identifierCounter map[rune]uint64       // counter for compiler-generated unique identifier names
 		names             []string              // enable deterministic iteration over the symbol table
@@ -344,8 +344,8 @@ type (
 		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
 	}
 
-	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser pass to be grouped in a single visitor struct.
-	// The visitor design pattern allows implementing double dispatch for traversing the abstract syntax tree. Each parser pass method is chosen based on:
+	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser phase to be grouped in a single visitor struct.
+	// The visitor design pattern allows implementing double dispatch for traversing the abstract syntax tree. Each parser phase method is chosen based on:
 	//   the dynamic type of the object (the AST node) determines the method to be called, and
 	//   the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
@@ -402,7 +402,7 @@ var (
 	}
 )
 
-// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation passes.
+// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
 func NewScope(uniqueId int32, outer *Scope) *Scope {
 	return newScope(uniqueId, outer)
 }
