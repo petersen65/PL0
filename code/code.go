@@ -316,21 +316,6 @@ func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
 	return m.Instructions.PushBack(instruction)
 }
 
-// Iterate over all instructions in the module.
-func (m *module) IterateInstruction() <-chan *Instruction {
-	instructions := make(chan *Instruction)
-
-	go func() {
-		for e := m.Instructions.Front(); e != nil; e = e.Next() {
-			instructions <- e.Value.(*Instruction)
-		}
-
-		close(instructions)
-	}()
-
-	return instructions
-}
-
 // Get an instruction iterator for the module.
 func (m *module) GetIterator() Iterator {
 	return &iterator{current: m.Instructions.Front(), instructions: m.Instructions}

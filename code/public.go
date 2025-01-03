@@ -19,7 +19,7 @@ const UnusedDifference = -1
 // NoLabel is a constant for an empty label in an intermediate code instruction.
 const NoLabel = ""
 
-// Three-address code operations for the intermediate code.
+// Three-address code operations of the intermediate code.
 const (
 	_ = Operation(iota)
 
@@ -63,7 +63,7 @@ const (
 	VariableStore // store variable value from an address into its location in the logical memory space
 )
 
-// Data types of values and variables in the three-address code concept.
+// Data types supported for an address of the three-address code concept.
 const (
 	Void = DataType(iota)
 	Label
@@ -71,14 +71,7 @@ const (
 	Integer64
 )
 
-// External standard functions provided for the programming language.
-const (
-	_ = StandardFunction(iota)
-	ReadLn
-	WriteLn
-)
-
-// Prefixes for address names.
+// Prefixes for address names define what an address in the three-address code concept represents.
 const (
 	_ = PrefixType(iota)
 	BranchPrefix
@@ -87,6 +80,13 @@ const (
 	ConstantPrefix
 	VariablePrefix
 	FunctionPrefix
+)
+
+// External standard functions provided for the programming language.
+const (
+	_ = StandardFunction(iota)
+	ReadLn
+	WriteLn
 )
 
 type (
@@ -99,20 +99,20 @@ type (
 	// Enumeration of prefixes used for names of addresses.
 	PrefixType int
 
-	// Address is the representation of an address in the three-address code concept.
+	// Address is the data structure of an address in the three-address code concept.
 	Address struct {
-		Name     string   `json:"name"`      // name or value of an address (any value needs to be converted to a string)
+		Name     string   `json:"name"`      // name or value of an address (values need to be converted to a string)
 		DataType DataType `json:"data_type"` // data type of the address
 		Location uint64   `json:"location"`  // location of an address in the logical memory space
 	}
 
-	// Type for intermediate code operations.
+	// Type for three-address code operations.
 	Operation int32
 
 	// Enumeration of standard functions that belong to the external standard library.
 	StandardFunction int64
 
-	// Instruction represents a single operation in the intermediate code that has a label and a block nesting depth difference.
+	// Instruction represents a single three-address code operation with its required metadata (e.g. label, block nesting depth difference).
 	Instruction struct {
 		Label            string    `json:"label"`              // branch-label for any branching operation
 		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
@@ -120,9 +120,9 @@ type (
 		Code             Quadruple `json:"code"`               // three-address code operation
 	}
 
-	// Quadruple represents a single operation in the intermediate code which is based on the three-address code concept.
+	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
 	Quadruple struct {
-		Operation Operation `json:"operation"` // intermediate code operation
+		Operation Operation `json:"operation"` // three-address code operation
 		Arg1      *Address  `json:"arg_1"`     // first address (argument 1)
 		Arg2      *Address  `json:"arg_2"`     // second address (argument 2)
 		Result    *Address  `json:"result"`    // third address (result)
@@ -139,7 +139,6 @@ type (
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
 		AppendInstruction(instruction *Instruction) *list.Element
-		IterateInstruction() <-chan *Instruction
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
@@ -184,7 +183,7 @@ var (
 	// NoAddress represents an unused address in the three-address code concept.
 	NoAddress = &Address{DataType: Void, Location: 0, Name: "-"}
 
-	// OperationNames is a map of operation names for the intermediate code.
+	// Map three-address code operations of the intermediate code to their string representation.
 	OperationNames = map[Operation]string{
 		Odd:              "odd",
 		Negate:           "negate",
