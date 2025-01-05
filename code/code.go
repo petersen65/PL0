@@ -36,7 +36,7 @@ type (
 	intermediateCode struct {
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for
 		module         *module    // module to store the generated intermediate code
-		results        *list.List // last-in-first-out results-list holding intermediate code results from expressions
+		results        *list.List // last-in-first-out results-list holding temporary results from expressions
 	}
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
@@ -435,32 +435,30 @@ func (i *intermediateCode) NewInstruction(operatiom Operation, arg1, arg2, resul
 
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
-	var blockBegin string
-
 	// only main block has no parent procedure declaration
 	if bn.ParentNode == nil {
-		blockBegin = bn.Scope.NewIdentifier(Prefix[FunctionPrefix])
+		blockBegin := bn.Scope.NewIdentifier(Prefix[FunctionPrefix])
 
-		// append a branch instruction with a branch-label to mark the beginning of the block
+		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
-			Branch,
-			NewAddress(entryPointDisplayName, Void, 0),
+			Target, // target for any branching operation
+			NewAddress(entryPointDisplayName, Diagnostic, Void, 0), // for diagnostic purposes only
 			NoAddress,
-			NewAddress(blockBegin, Void, 0),
-			blockBegin)
+			NoAddress,
+			blockBegin) // branch-label as target for any branching operation
 
 		i.AppendInstruction(instruction)
 	} else {
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
-		blockBegin = astSymbol.Extension[symbolExtension].(*symbolMetaData).name
+		blockBegin := astSymbol.Extension[symbolExtension].(*symbolMetaData).name
 
-		// append a branch instruction with a branch-label to mark the beginning of the block
+		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := i.NewInstruction(
-			Branch,
-			NewAddress(astSymbol.Name, Void, 0),
+			Target, // target for any branching operation
+			NewAddress(astSymbol.Name, Diagnostic, Void, 0), // for diagnostic purposes only
 			NoAddress,
-			NewAddress(blockBegin, Void, 0),
-			blockBegin)
+			NoAddress,
+			blockBegin) // branch-label as target for any branching operation
 
 		element := i.AppendInstruction(instruction)
 
@@ -486,7 +484,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	i.AppendInstruction(i.NewInstruction(Epilog, NoAddress, NoAddress, NoAddress))
 
 	// return from the block and mark the end of the block
-	i.AppendInstruction(i.NewInstruction(Return, NoAddress, NoAddress, NoAddress, blockBegin))
+	i.AppendInstruction(i.NewInstruction(Return, NoAddress, NoAddress, NoAddress, NoAddress))
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
@@ -518,11 +516,11 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 
 	// allocate memory for the variable in its logical memory space
 	instruction := i.NewInstruction(
-		Allocate,
-		NewAddress(vd.Name, codeSymbol.dataType, codeSymbol.location),
+		Allocate, // allocate memory based on a location
+		NewAddress(vd.Name, Diagnostic, codeSymbol.dataType, codeSymbol.location), // for diagnostic purposes only
 		NoAddress,
-		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
-		vd.TokenStreamIndex)
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // location for the variable
+		vd.TokenStreamIndex) // variable declaration in the token stream
 
 	// append allocate instruction to the module and set it as definition for the intermediate code variable
 	codeSymbol.definition = i.AppendInstruction(instruction)
@@ -536,15 +534,15 @@ func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 
 // Generate code for a literal.
 func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
-	// create a value copy instruction to store the literal in an intermediate code result
+	// create a value copy instruction to store the literal in an temporary result
 	instruction := i.NewInstruction(
-		ValueCopy,
-		NewAddress(ln.Value, DataTypeMap[ln.DataType], 0),
+		ValueCopy, // copy the value of the literal to a temporary result
+		NewAddress(ln.Value, Literal, DataTypeMap[ln.DataType], 0), // literal value
 		NoAddress,
-		NewAddress(ln.Scope.NewIdentifier(Prefix[ResultPrefix]), DataTypeMap[ln.DataType], 0),
-		ln.TokenStreamIndex)
+		NewAddress(ln.Scope.NewIdentifier(Prefix[ResultPrefix]), Temporary, DataTypeMap[ln.DataType], 0), // temporary result
+		ln.TokenStreamIndex) // literal use in the token stream
 
-	// push the intermediate code result onto the results-list and append the instruction to the module
+	// push the temporary result onto the results-list and append the instruction to the module
 	i.pushResult(instruction.Code.Result)
 	i.AppendInstruction(instruction)
 }
@@ -562,15 +560,15 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
 		codeSymbol := i.module.lookup(codeName)
 
-		// create a value copy instruction to store the constant value in an intermediate code result
+		// create a value copy instruction to store the constant value in an temporary result
 		instruction := i.NewInstruction(
-			ValueCopy,
-			NewAddress(constantDeclaration.Value, DataTypeMap[constantDeclaration.DataType], 0),
+			ValueCopy, // copy the value of the constant to a temporary result
+			NewAddress(constantDeclaration.Value, Literal, DataTypeMap[constantDeclaration.DataType], 0), // literal value
 			NoAddress,
-			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
-			iu.TokenStreamIndex)
+			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
+			iu.TokenStreamIndex) // constant use in the token stream
 
-		// push the intermediate code result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -590,16 +588,16 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
 		codeSymbol := i.module.lookup(codeName)
 
-		// create a variable load instruction to load the variable value into an intermediate code result
+		// create a variable load instruction to load the variable value into an temporary result
 		instruction := i.NewInstruction(
-			VariableLoad,
-			NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
+			VariableLoad, // load the value of the variable from its location into a temporary result
+			NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
 			NoAddress,
-			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
-			useDepth-declarationDepth,
-			iu.TokenStreamIndex)
+			NewAddress(iu.Scope.NewIdentifier(Prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
+			useDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
+			iu.TokenStreamIndex)       // variable use in the token stream
 
-		// push the intermediate code result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -613,34 +611,34 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Generate code for a unary operation.
 func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// load the intermediate code result of the expression from the results-list
+	// load the temporary result of the expression from the results-list
 	uo.Operand.Accept(i)
 	result := i.popResult()
 
-	// perform the unary operation on the intermediate code result
+	// perform the unary operation on the temporary result
 	switch uo.Operation {
 	case ast.Odd:
-		// create an odd instruction to check if the intermediate code result is odd
+		// create an odd instruction to check if the temporary result is odd
 		instruction := i.NewInstruction(
 			Odd,
-			result,
+			result, // consumed temporary result
 			NoAddress,
-			NoAddress,
-			uo.TokenStreamIndex)
+			NoAddress,           // consumed temporary result is checked in-place, boolean result must be hold externally
+			uo.TokenStreamIndex) // unary operation in the token stream
 
 		// append the instruction to the module (boolean results are not stored on the results-list)
 		i.AppendInstruction(instruction)
 
 	case ast.Negate:
-		// create a negate instruction to negate the intermediate code result
+		// create a negate instruction to negate the temporary result
 		instruction := i.NewInstruction(
 			Negate,
-			result,
+			result, // consumed temporary result
 			NoAddress,
-			result, // the intermediate code result is negated in-place (read, negate, write back)
-			uo.TokenStreamIndex)
+			result,              // consumed temporary result is negated in-place (read, negate, write back negated result)
+			uo.TokenStreamIndex) // unary operation in the token stream
 
-		// push the intermediate code result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -654,13 +652,13 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// determine block and its scope where the binary operation is located
 	scope := ast.SearchBlock(ast.CurrentBlock, bo).Scope
 
-	// load the intermediate code results of the left and right expressions from the results-list
+	// load the temporary results of the left and right expressions from the results-list
 	bo.Left.Accept(i)
 	bo.Right.Accept(i)
 	right := i.popResult()
 	left := i.popResult()
 
-	// perform the binary arithmetic operation on the left- and right-hand-side intermediate code results
+	// perform the binary arithmetic operation on the left- and right-hand-side temporary results
 	switch bo.Operation {
 	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
 		var operation Operation
@@ -683,12 +681,12 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side results
 		instruction := i.NewInstruction(
 			operation,
-			left,
-			right,
-			NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), left.DataType, 0),
-			bo.TokenStreamIndex)
+			left,  // consumed left-hand-side temporary result
+			right, // consumed right-hand-side temporary result
+			NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), Temporary, left.DataType, 0), // arithmetic operation result
+			bo.TokenStreamIndex) // arithmetic operation in the token stream
 
-		// push the intermediate code result result onto the results-list and append the instruction to the module
+		// push the temporary result result onto the results-list and append the instruction to the module
 		i.pushResult(instruction.Code.Result)
 		i.AppendInstruction(instruction)
 
@@ -699,13 +697,13 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 // Generate code for a binary relational operation.
 func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// load the intermediate code results of the left and right expressions from the results-list
+	// load the temporary results of the left and right expressions from the results-list
 	co.Left.Accept(i)
 	co.Right.Accept(i)
 	right := i.popResult()
 	left := i.popResult()
 
-	// perform the binary relational operation on the left- and right-hand-side intermediate code results
+	// perform the binary relational operation on the left- and right-hand-side temporary results
 	switch co.Operation {
 	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
 		var operation Operation
@@ -734,10 +732,10 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
 		instruction := i.NewInstruction(
 			operation,
-			left,
-			right,
-			NoAddress,
-			co.TokenStreamIndex)
+			left,                // consumed left-hand-side temporary result
+			right,               // consumed right-hand-side temporary result
+			NoAddress,           // consumed temporary results are checked in-place, boolean result must be hold externally
+			co.TokenStreamIndex) // conditional operation in the token stream
 
 		// append the instruction to the module (boolean results are not stored on the results-list)
 		i.AppendInstruction(instruction)
@@ -749,7 +747,7 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 
 // Generate code for an assignment statement.
 func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
-	// load the value from the intermediate code result of the right-hand-side expression of the assignment
+	// load the value from the temporary result of the right-hand-side expression of the assignment
 	s.Expression.Accept(i)
 	right := i.popResult()
 
@@ -771,12 +769,12 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := i.NewInstruction(
-		VariableStore,
-		right,
+		VariableStore, // store the value of the temporary result into the location of a variable
+		right,         // consumed right-hand-side temporary result
 		NoAddress,
-		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
-		assignmentDepth-declarationDepth,
-		s.TokenStreamIndex)
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location),
+		assignmentDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
+		s.TokenStreamIndex)               // assignment statement in the token stream
 
 	// append the instruction to the module
 	i.AppendInstruction(instruction)
@@ -917,8 +915,8 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	// execute statement if the condition is true
 	s.Statement.Accept(i)
 
-	// append a branch instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Branch, NoAddress, NoAddress, NoAddress, behindStatement, s.TokenStreamIndex))
+	// append a target instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Target, NoAddress, NoAddress, NoAddress, behindStatement, s.TokenStreamIndex))
 }
 
 // Generate code for a while-do statement.
@@ -928,8 +926,8 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	beforeCondition := scope.NewIdentifier(Prefix[LabelPrefix])
 	behindStatement := scope.NewIdentifier(Prefix[LabelPrefix])
 
-	// append a branch instruction before the conditional expression instructions
-	i.AppendInstruction(i.NewInstruction(Branch, NoAddress, NoAddress, NoAddress, beforeCondition, s.TokenStreamIndex))
+	// append a target instruction before the conditional expression instructions
+	i.AppendInstruction(i.NewInstruction(Target, NoAddress, NoAddress, NoAddress, beforeCondition, s.TokenStreamIndex))
 
 	// calculate the result of the conditional expression
 	s.Condition.Accept(i)
@@ -944,8 +942,8 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	beforeConditionAddress := NewAddress(beforeCondition, Label, 0)
 	i.AppendInstruction(i.NewInstruction(Jump, beforeConditionAddress, NoAddress, NoAddress, s.TokenStreamIndex))
 
-	// append a branch instruction behind the statement instructions
-	i.AppendInstruction(i.NewInstruction(Branch, NoAddress, NoAddress, NoAddress, behindStatement, s.TokenStreamIndex))
+	// append a target instruction behind the statement instructions
+	i.AppendInstruction(i.NewInstruction(Target, NoAddress, NoAddress, NoAddress, behindStatement, s.TokenStreamIndex))
 }
 
 // Generate code for a compound begin-end statement.
@@ -1035,12 +1033,12 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 	i.AppendInstruction(jump)
 }
 
-// Push a result onto the results-list of intermediate code results.
+// Push a result onto the results-list of temporary results.
 func (i *intermediateCode) pushResult(result *Address) {
 	i.results.PushBack(result)
 }
 
-// Pop a result from the results-list of intermediate code results.
+// Pop a result from the results-list of temporary results.
 func (i *intermediateCode) popResult() *Address {
 	result := i.results.Back()
 

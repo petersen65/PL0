@@ -55,12 +55,22 @@ const (
 	Epilog    // epilog inside the body of a function
 	Return    // return from function
 	Standard  // call function of the external standard library
-	Branch    // branch operation for placing a logical branch instruction in the intermediate code
+	Target    // target for any branching operation
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into an address
 	VariableLoad  // load variable value from its location in the logical memory space into an address
 	VariableStore // store variable value from an address into its location in the logical memory space
+)
+
+// Variants of an address in the three-address code concept.
+const (
+	Empty = Variant(iota)
+	Diagnostic
+	Temporary
+	Literal
+	Variable
+	Function
 )
 
 // Data types supported for an address of the three-address code concept.
@@ -71,11 +81,9 @@ const (
 	Integer64
 )
 
-// Prefixes for address names define what an address in the three-address code concept represents.
+// Prefixes for address names in the three-address code concept if they are not a value.
 const (
-	_ = PrefixType(iota)
-	BranchPrefix
-	LabelPrefix
+	LabelPrefix = PrefixType(iota)
 	ResultPrefix
 	ConstantPrefix
 	VariablePrefix
@@ -84,12 +92,14 @@ const (
 
 // External standard functions provided for the programming language.
 const (
-	_ = StandardFunction(iota)
-	ReadLn
+	ReadLn = StandardFunction(iota)
 	WriteLn
 )
 
 type (
+	// The variant type is used to distinguish between different kinds of addresses in the three-address code concept.
+	Variant int
+
 	// The data type of an address in the three-address code concept.
 	DataType int
 
@@ -102,6 +112,7 @@ type (
 	// Address is the data structure of an address in the three-address code concept.
 	Address struct {
 		Name     string   `json:"name"`      // name or value of an address (values need to be converted to a string)
+		Variant  Variant  `json:"variant"`   // variant of what the address represents
 		DataType DataType `json:"data_type"` // data type of the address
 		Location uint64   `json:"location"`  // location of an address in the logical memory space
 	}
@@ -172,7 +183,6 @@ var (
 
 	// Prefixes used for names of addresses.
 	Prefix = map[PrefixType]rune{
-		BranchPrefix:   'b',
 		LabelPrefix:    'l',
 		ResultPrefix:   't',
 		ConstantPrefix: 'c',
@@ -181,7 +191,7 @@ var (
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
-	NoAddress = &Address{DataType: Void, Location: 0, Name: "-"}
+	NoAddress = &Address{Name: "-", Variant: Empty, DataType: Void, Location: 0}
 
 	// Map three-address code operations of the intermediate code to their string representation.
 	OperationNames = map[Operation]string{
@@ -210,7 +220,7 @@ var (
 		Epilog:           "epilog",
 		Return:           "return",
 		Standard:         "standard",
-		Branch:           "branch",
+		Target:           "target",
 		Allocate:         "alloc",
 		ValueCopy:        "valCopy",
 		VariableLoad:     "varLoad",
@@ -229,6 +239,6 @@ func NewModule() Module {
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(name any, dataType DataType, location uint64) *Address {
-	return &Address{Name: fmt.Sprintf("%v", name), DataType: dataType, Location: location}
+func NewAddress(name any, variant Variant, dataType DataType, location uint64) *Address {
+	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Location: location}
 }
