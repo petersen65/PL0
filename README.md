@@ -149,7 +149,7 @@ The programming language PL/0 2025 supports the following features:
 
 ## Planning
 
-* 2025, Compiler version 3.0.0 2025, enhance programming language and generate assembler
+* 2025, enhance programming language and generate assembler
 	* implemention of control flow graph (CFG) with lifeness and use information for variables
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
 	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)
