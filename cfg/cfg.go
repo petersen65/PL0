@@ -15,20 +15,28 @@ import (
 type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
 	controlFlowGraph struct {
-		module cod.Module    `json:"-"`
-		Blocks []*basicBlock `json:"blocks"`
-		edges  []*edge       `json:"-"`
+		module cod.Module    `json:"-"`      // intermediate code module that the control flow graph is built from
+		Blocks []*basicBlock `json:"blocks"` // basic blocks of the control flow graph
+		edges  []*edge       `json:"-"`      // edges of the control flow graph
 	}
 
 	// Implementation of the basic block interface that holds instructions of the block.
 	basicBlock struct {
-		Instructions []*cod.Instruction `json:"instructions"`
+		Instructions []*cod.Instruction   `json:"instructions"` // instructions of the basic block
+		variables    map[string]*variable `json:"-"`            // nontemporary variables in the basic block
 	}
 
 	// An edge connects two basic blocks in the control flow graph.
 	edge struct {
-		from *basicBlock
-		to   *basicBlock
+		from *basicBlock // source basic block
+		to   *basicBlock // destination basic block
+	}
+
+	// A nontemporary variable in the control flow graph.
+	variable struct {
+		name     string           // flattened name in the intermediate code
+		liveness bool             // true if the variable is live at the current instruction
+		nextUse  *cod.Instruction // next instruction that uses the variable
 	}
 )
 
@@ -45,6 +53,7 @@ func newControlFlowGraph(module cod.Module) ControlFlowGraph {
 func newBasicBlock() BasicBlock {
 	return &basicBlock{
 		Instructions: make([]*cod.Instruction, 0),
+		variables:    make(map[string]*variable),
 	}
 }
 
