@@ -219,8 +219,8 @@ var (
 )
 
 // Return the public interface of the private intermediate code implementation.
-func NewIntermediateCode(abstractSyntax ast.Block, immutable bool) IntermediateCode {
-	return newIntermediateCode(abstractSyntax, immutable)
+func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
+	return newIntermediateCode(abstractSyntax)
 }
 
 // Return the public interface of the private intermediate code module implementation.

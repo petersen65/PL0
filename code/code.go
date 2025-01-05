@@ -35,7 +35,6 @@ const (
 type (
 	// Intermediate code generation compiler phase. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
-		immutable      bool       // support for immutable variables in intermediate code
 		abstractSyntax ast.Block  // abstract syntax tree to generate code for
 		module         *module    // module to store the generated intermediate code
 		results        *list.List // last-in-first-out results-list holding intermediate code results from expressions
@@ -79,9 +78,8 @@ type (
 )
 
 // Create a new intermediate code generator.
-func newIntermediateCode(abstractSyntax ast.Block, immutable bool) IntermediateCode {
+func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return &intermediateCode{
-		immutable:      immutable,
 		abstractSyntax: abstractSyntax,
 		module:         NewModule().(*module),
 		results:        list.New(),
@@ -810,30 +808,14 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	// determine the intermediate code name of the abstract syntax variable declaration
 	codeName := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
-	// default to mutable variables
-	newVersion := codeName
-	oldVersion := NoAddress
-
-	// treat variables as immutable and hence a new version is created every time a variable is assigned a new value
-	if i.immutable {
-		newVersion = variableDeclaration.Scope.NewIdentifierVersion(codeName)
-		variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newVersion)
-		i.module.update(codeName, newVersion)
-	}
-
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(newVersion)
-
-	// provide the old version of variables if they are immutable
-	if i.immutable {
-		oldVersion = NewAddress(codeName, codeSymbol.dataType, codeSymbol.location)
-	}
+	codeSymbol := i.module.lookup(codeName)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := i.NewInstruction(
 		VariableStore,
 		right,
-		oldVersion,
+		NoAddress,
 		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		assignmentDepth-declarationDepth,
 		s.TokenStreamIndex)
@@ -888,30 +870,14 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		NoAddress,
 		s.TokenStreamIndex)
 
-	// default to mutable variables
-	newVersion := codeName
-	oldVersion := NoAddress
-
-	// treat variables as immutable and hence a new version is created every time a variable is assigned a new value
-	if i.immutable {
-		newVersion = variableDeclaration.Scope.NewIdentifierVersion(codeName)
-		variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).update(newVersion)
-		i.module.update(codeName, newVersion)
-	}
-
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol = i.module.lookup(newVersion)
-
-	// provide the old version of variables if they are immutable
-	if i.immutable {
-		oldVersion = NewAddress(codeName, codeSymbol.dataType, codeSymbol.location)
-	}
+	codeSymbol = i.module.lookup(codeName)
 
 	// store the resultant value into the variable used by the read statement
 	store := i.NewInstruction(
 		VariableStore,
 		param.Code.Arg1,
-		oldVersion,
+		NoAddress,
 		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
 		readDepth-declarationDepth,
 		s.TokenStreamIndex)
