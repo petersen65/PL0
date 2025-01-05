@@ -188,7 +188,7 @@ var (
 		idiv:    "idiv",
 		call:    "call",
 		ret:     "ret",
-		stdcall: "rcall",
+		stdcall: "stdcall",
 	}
 
 	// Map registers to their string representation.

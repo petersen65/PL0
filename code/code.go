@@ -862,7 +862,7 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 		s.TokenStreamIndex)
 
 	// call the writeln runtime function with 1 parameter
-	write := i.NewInstruction(
+	writeln := i.NewInstruction(
 		Standard,
 		NewAddress(1, UnsignedInteger64, 0),
 		NewAddress(WriteLn, UnsignedInteger64, 0),
@@ -871,7 +871,7 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 
 	// append the instructions to the module
 	i.AppendInstruction(param)
-	i.AppendInstruction(write)
+	i.AppendInstruction(writeln)
 }
 
 // Generate code for a call statement.
