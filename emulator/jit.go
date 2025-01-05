@@ -34,7 +34,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		switch i.Code.Operation {
 		// append labels for the directly following instruction
-		case cod.Branch:
+		case cod.Target:
 			l = append(l, i.Label)
 
 		case cod.Allocate: // allocate space in an activation record for all local variables
@@ -280,7 +280,7 @@ func (p *process) jitCompile(module cod.Module) (err error) {
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
-		if i.Code.Operation != cod.Branch {
+		if i.Code.Operation != cod.Target {
 			l = make([]string, 0)
 		}
 	}

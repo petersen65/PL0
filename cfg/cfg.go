@@ -78,7 +78,7 @@ func (cfg *controlFlowGraph) Build() {
 			fallthrough
 
 		// any instruction that is the target of a conditional or unconditional jump is a leader
-		case i.Code.Operation == cod.Branch:
+		case i.Code.Operation == cod.Target:
 			// append the previous basic block to the control flow graph if it is not nil
 			cfg.AppendBasicBlock(block)
 
@@ -179,6 +179,7 @@ func (bb *basicBlock) String() string {
 // Append an instruction to a basic block if it is not nil.
 func (bb *basicBlock) AppendInstruction(instruction *cod.Instruction) {
 	if instruction != nil {
+
 		bb.Instructions = append(bb.Instructions, instruction)
 	}
 }
