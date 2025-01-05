@@ -150,13 +150,14 @@ The programming language PL/0 2025 supports the following features:
 ## Planning
 
 * 2025, Compiler version 3.0.0 2025, enhance programming language and generate assembler
-	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
+	* implemention of control flow graph (CFG) with lifeness and use information for variables
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
-	* integration of emulator with external c-libraries
-	* implement closure support for the compiler's intermediate language
-	* implement constant folding based on abstract syntax tree
-	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
-	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
-	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
+	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)
+	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
 	* design or redesign of public APIs for all packages of the compiler
 	* unit tests for all public APIs
+	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
+	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
+	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
+	* implement constant folding based on abstract syntax tree
+	* implement closure support for the compiler's intermediate language
