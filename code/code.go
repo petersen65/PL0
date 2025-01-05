@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/google/uuid"
 	ast "github.com/petersen65/PL0/v2/ast"
@@ -161,19 +160,6 @@ func (i *Instruction) String() string {
 		i.Code.Result)
 }
 
-// Update symbol metadata in the abstract syntax tree.
-func (s *symbolMetaData) update(newVersion string) {
-	nameParts := strings.Split(s.name, ".")
-	newVersionParts := strings.Split(newVersion, ".")
-
-	if s.name == newVersion ||
-		len(nameParts) != 2 || len(newVersionParts) != 2 || nameParts[0] != newVersionParts[0] {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolMetaDataUpdateFailed, s.name, nil))
-	}
-
-	s.name = newVersion
-}
-
 // Get the instruction at the current position in the list.
 func (i *iterator) Current() *Instruction {
 	return i.Peek(0)
@@ -279,34 +265,6 @@ func (m *module) lookup(name string) *symbol {
 	}
 
 	return nil
-}
-
-// Update flattened name in the the intermediate code symbol table with a new version.
-func (m *module) update(name, newVersion string) {
-	var found bool
-
-	for i := 0; i < len(m.names); i++ {
-		if m.names[i] == name {
-			m.names[i] = newVersion
-			found = true
-			break
-		}
-	}
-
-	if name == newVersion || !found {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, name, nil))
-	}
-
-	nameParts := strings.Split(name, ".")
-	newVersionParts := strings.Split(newVersion, ".")
-
-	if len(nameParts) != 2 || len(newVersionParts) != 2 || nameParts[0] != newVersionParts[0] {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, symbolTableUpdateFailed, name, nil))
-	}
-
-	m.symbolTable[newVersion] = m.symbolTable[name]
-	m.symbolTable[newVersion].name = newVersion
-	delete(m.symbolTable, name)
 }
 
 // Append an instruction to the intermediate code.
