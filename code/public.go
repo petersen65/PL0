@@ -70,13 +70,15 @@ const (
 	Temporary
 	Literal
 	Variable
-	Function
+	Label
+	Count
+	Code
 )
 
 // Data types supported for an address of the three-address code concept.
 const (
 	Void = DataType(iota)
-	Label
+	String
 	UnsignedInteger64
 	Integer64
 )
@@ -173,10 +175,22 @@ var (
 		ast.Integer64: Integer64,
 	}
 
+	// VariantNames maps an address variant to its string representation.
+	VariantNames = map[Variant]string{
+		Empty:      "empty",
+		Diagnostic: "diagnostic",
+		Temporary:  "temporary",
+		Literal:    "literal",
+		Variable:   "variable",
+		Label:      "label",
+		Count:      "count",
+		Code:       "code",
+	}
+
 	// DataTypeNames maps an address data type to its string representation.
 	DataTypeNames = map[DataType]string{
 		Void:              "void",
-		Label:             "label",
+		String:            "string",
 		UnsignedInteger64: "uint64",
 		Integer64:         "int64",
 	}

@@ -110,6 +110,11 @@ func newSymbolMetaData(name string) *symbolMetaData {
 	return &symbolMetaData{name: name}
 }
 
+// String representation of a variant.
+func (v Variant) String() string {
+	return VariantNames[v]
+}
+
 // String representation of a data type.
 func (dt DataType) String() string {
 	return DataTypeNames[dt]
@@ -128,7 +133,7 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v:%v:%v", a.DataType, a.Location, a.Name)
+	representation := fmt.Sprintf("%v:%v:%v:%v", a.Variant, a.DataType, a.Location, a.Name)
 
 	if len(representation) > 20 {
 		return representation[:20]
@@ -588,7 +593,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
 		codeSymbol := i.module.lookup(codeName)
 
-		// create a variable load instruction to load the variable value into an temporary result
+		// create a variable load instruction to load the variable value into a temporary result
 		instruction := i.NewInstruction(
 			VariableLoad, // load the value of the variable from its location into a temporary result
 			NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
@@ -801,42 +806,42 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.module.lookup(codeName)
 
-	// create a variable load instruction to load the variable value into an intermediate code result
+	// create a variable load instruction to load the variable value into a temporary result
 	load := i.NewInstruction(
-		VariableLoad,
-		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
+		VariableLoad, // load the value of the variable from its location into a temporary result
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
 		NoAddress,
-		NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), codeSymbol.dataType, 0),
-		readDepth-declarationDepth,
-		s.TokenStreamIndex)
+		NewAddress(scope.NewIdentifier(Prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
+		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
+		s.TokenStreamIndex)         // read statement in the token stream
 
-	// parameter 1 for the readln runtime function
+	// parameter 1 for the readln standard function
 	param := i.NewInstruction(
-		Parameter,
-		load.Code.Result,
+		Parameter,        // parameter for a standard function
+		load.Code.Result, // temporary result will be replaced by the standard function resultant value
 		NoAddress,
 		NoAddress,
-		s.TokenStreamIndex)
+		s.TokenStreamIndex) // read statement in the token stream
 
-	// call the readln runtime function with 1 parameter
+	// call the readln standard function with 1 parameter
 	readln := i.NewInstruction(
-		Standard,
-		NewAddress(1, UnsignedInteger64, 0),
-		NewAddress(ReadLn, UnsignedInteger64, 0),
+		Standard, // function call to the external standard library
+		NewAddress(1, Count, UnsignedInteger64, 0),     // number of parameters for the standard function
+		NewAddress(ReadLn, Code, UnsignedInteger64, 0), // code of standard function to call
 		NoAddress,
-		s.TokenStreamIndex)
+		s.TokenStreamIndex) // read statement in the token stream
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol = i.module.lookup(codeName)
 
 	// store the resultant value into the variable used by the read statement
 	store := i.NewInstruction(
-		VariableStore,
-		param.Code.Arg1,
+		VariableStore,   // store the value of the standard function result into the location of a variable
+		param.Code.Arg1, // standard function resultant value
 		NoAddress,
-		NewAddress(codeSymbol.name, codeSymbol.dataType, codeSymbol.location),
-		readDepth-declarationDepth,
-		s.TokenStreamIndex)
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
+		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
+		s.TokenStreamIndex)         // read statement in the token stream
 
 	// append the instructions to the module
 	i.AppendInstruction(load)
@@ -851,21 +856,21 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 	s.Expression.Accept(i)
 	right := i.popResult()
 
-	// parameter 1 for the writeln runtime function
+	// parameter 1 for the writeln standard function
 	param := i.NewInstruction(
-		Parameter,
-		right,
+		Parameter, // parameter for a standard function
+		right,     // consumed right-hand-side temporary result
 		NoAddress,
 		NoAddress,
-		s.TokenStreamIndex)
+		s.TokenStreamIndex) // write statement in the token stream
 
-	// call the writeln runtime function with 1 parameter
+	// call the writeln standard function with 1 parameter
 	writeln := i.NewInstruction(
-		Standard,
-		NewAddress(1, UnsignedInteger64, 0),
-		NewAddress(WriteLn, UnsignedInteger64, 0),
+		Standard, // function call to the external standard library
+		NewAddress(1, Count, UnsignedInteger64, 0),      // number of parameters for the standard function
+		NewAddress(WriteLn, Code, UnsignedInteger64, 0), // code of standard function to call
 		NoAddress,
-		s.TokenStreamIndex)
+		s.TokenStreamIndex) // write statement in the token stream
 
 	// append the instructions to the module
 	i.AppendInstruction(param)
@@ -887,14 +892,14 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 	// determine the intermediate code name of the abstract syntax procedure declaration
 	codeName := procedureUse.Scope.Lookup(procedureUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
-	// call the function with 0 parameters
+	// call the intermediate code function with 0 parameters
 	call := i.NewInstruction(
-		Call,
-		NewAddress(0, UnsignedInteger64, 0),
-		NewAddress(codeName, Label, 0),
+		Call, // call to an intermediate code function
+		NewAddress(0, Count, UnsignedInteger64, 0), // number of parameters for the function
+		NewAddress(codeName, Label, String, 0),     // label of intermediate code function to call
 		NoAddress,
-		callDepth-declarationDepth,
-		s.TokenStreamIndex)
+		callDepth-declarationDepth, // block nesting depth difference between procedure call and procedure declaration
+		s.TokenStreamIndex)         // call statement in the token stream
 
 	// append the instruction to the module
 	i.AppendInstruction(call)
@@ -939,7 +944,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a jump instruction to jump back to the conditional expression instructions
-	beforeConditionAddress := NewAddress(beforeCondition, Label, 0)
+	beforeConditionAddress := NewAddress(beforeCondition, Label, String, 0)
 	i.AppendInstruction(i.NewInstruction(Jump, beforeConditionAddress, NoAddress, NoAddress, s.TokenStreamIndex))
 
 	// append a target instruction behind the statement instructions
@@ -957,7 +962,7 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
 func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *Instruction
-	address := NewAddress(label, Label, 0)
+	address := NewAddress(label, Label, String, 0)
 
 	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {
