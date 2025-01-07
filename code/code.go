@@ -489,7 +489,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	i.AppendInstruction(i.NewInstruction(Epilog, NoAddress, NoAddress, NoAddress))
 
 	// return from the block and mark the end of the block
-	i.AppendInstruction(i.NewInstruction(Return, NoAddress, NoAddress, NoAddress, NoAddress))
+	i.AppendInstruction(i.NewInstruction(Return, NoAddress, NoAddress, NoAddress))
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
