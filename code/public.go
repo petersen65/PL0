@@ -94,7 +94,8 @@ const (
 
 // External standard functions provided for the programming language.
 const (
-	ReadLn = StandardFunction(iota)
+	_ = StandardFunction(iota) // needs to be alligned with call codes for the programming language standard library
+	ReadLn
 	WriteLn
 )
 

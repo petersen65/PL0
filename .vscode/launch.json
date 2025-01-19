@@ -21,7 +21,8 @@
                 "build"
             ],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
         },
         {
             "name": "Launch Nesting",
@@ -40,7 +41,8 @@
                 "build"
             ],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
         },
         {
             "name": "Launch Procedures",
@@ -59,7 +61,8 @@
                 "build"
             ],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
         }
     ]
 }
