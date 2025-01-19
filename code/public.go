@@ -65,22 +65,22 @@ const (
 
 // Variants of an address in the three-address code concept.
 const (
-	Empty = Variant(iota)
-	Diagnostic
-	Temporary
-	Literal
-	Variable
-	Label
-	Count
-	Code
+	Empty      = Variant(iota) // empty address holds no address
+	Diagnostic                 // diagnostic address for debugging purposes
+	Temporary                  // temporary variables for results of operations stored in the logical memory space
+	Literal                    // literal address holds constant or literal values
+	Variable                   // variable address holds the location of a variable in the logical memory space
+	Label                      // label address used as target of jumps and calls is resolved by the linker
+	Count                      // count address used for counting purposes like the number of parameters in a function call
+	Code                       // code address holds a call code for the external standard library (e.g. readln, writeln)
 )
 
 // Data types supported for an address of the three-address code concept.
 const (
-	Void = DataType(iota)
-	String
-	UnsignedInteger64
-	Integer64
+	Void              = DataType(iota) // an address that does not have a data type
+	String                             // the string data type is used for labels in label addresses
+	UnsignedInteger64                  // the unsigned integer data type is used for counting purposes or call codes
+	Integer64                          // the integer data type is used for constants, literals, variables, and temporary variables
 )
 
 // Prefixes for address names in the three-address code concept if they are not a value.
@@ -94,9 +94,9 @@ const (
 
 // External standard functions provided for the programming language.
 const (
-	_ = StandardFunction(iota) // needs to be alligned with call codes for the programming language standard library
-	ReadLn
-	WriteLn
+	_       = StandardFunction(iota) // needs to be alligned with call codes for the programming language standard library
+	ReadLn                           // readln function reads a line from the standard input stream
+	WriteLn                          // writeln function writes a line to the standard output stream
 )
 
 type (
