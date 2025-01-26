@@ -83,13 +83,13 @@ const (
 	Integer64                          // the integer data type is used for constants, literals, variables, and temporary variables
 )
 
-// Prefixes for address names in the three-address code concept if they are not a value.
+// Prefixes for address names in the three-address code concept if a name does not contain a value.
 const (
-	LabelPrefix = PrefixType(iota)
-	ResultPrefix
-	ConstantPrefix
-	VariablePrefix
-	FunctionPrefix
+	LabelPrefix    = PrefixType(iota) // the label prefix is used for instruction labels and the address variant 'Label'
+	ResultPrefix                      // an address variant 'Temporary' always has a name that starts with prefix 'ResultPrefix'
+	ConstantPrefix                    // the constant prefix is used for constance names in the intermediate code
+	VariablePrefix                    // the variable prefix is used for variable names in the intermediate code
+	FunctionPrefix                    // the function prefix is used for function names in the intermediate code
 )
 
 // External standard functions provided for the programming language.
