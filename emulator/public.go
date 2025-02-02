@@ -11,7 +11,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Virtual machine that can run processes.
+// The Machine interface provides methods for loading, linking, and running processes.
 type Machine interface {
 	Load(raw []byte) error
 	LoadModule(module cod.Module) error

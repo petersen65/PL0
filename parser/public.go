@@ -9,12 +9,10 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-type (
-	// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
-	Parser interface {
-		Parse() (ast.Block, cor.TokenHandler)
-	}
-)
+// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
+type Parser interface {
+	Parse() (ast.Block, cor.TokenHandler)
+}
 
 // Return the public interface of the private parser implementation.
 func NewParser(tokenStream cor.TokenStream, errorHandler cor.ErrorHandler) Parser {

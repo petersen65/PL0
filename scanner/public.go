@@ -6,12 +6,10 @@ package scanner
 
 import cor "github.com/petersen65/PL0/v2/core"
 
-type (
-	// The scanner interface provides methods for scanning binary UTF-8 encoded source code into a binary token stream.
-	Scanner interface {
-		Scan(content []byte) (cor.TokenStream, error)
-	}
-)
+// The scanner interface provides methods for scanning binary UTF-8 encoded source code into a binary token stream.
+type Scanner interface {
+	Scan(content []byte) (cor.TokenStream, error)
+}
 
 // Return the public interface of the private scanner implementation.
 func NewScanner() Scanner {
