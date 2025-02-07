@@ -107,6 +107,7 @@ var (
 		Analyzer:           "analyzer",
 		Intermediate:       "intermediate",
 		ControlFlowGraph:   "cfg",
+		Emitter:            "emitter",
 		Emulator:           "emulator",
 	}
 )

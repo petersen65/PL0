@@ -62,6 +62,7 @@ const (
 	Analyzer
 	Intermediate
 	ControlFlowGraph
+	Emitter
 	Emulator
 	AllComponents = Component(^uint64(0))
 )

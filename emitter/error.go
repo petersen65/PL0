@@ -14,6 +14,8 @@ const (
 	unsupportedOperandDataType
 	operandParsingError
 	unknownInstructionOperand
+	unresolvedLabelReference
+	unsupportedOperandVariant
 )
 
 // Map failure codes to error messages.
@@ -24,4 +26,6 @@ var failureMap = map[cor.Failure]string{
 	unsupportedOperandDataType:           "datatype not supported for an operand: %v",
 	operandParsingError:                  "value of operand cannot be parsed: %v",
 	unknownInstructionOperand:            "unknown instruction operand: %v",
+	unresolvedLabelReference:             "unresolved label reference: %v",
+	unsupportedOperandVariant:            "unsupported operand variant: %v",
 }
