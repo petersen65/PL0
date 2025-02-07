@@ -71,9 +71,9 @@ const (
 	Rbp   // base pointer is pointing to the base of an activation record
 )
 
-// Operand types for instructions.
+// Operand kinds for instructions.
 const (
-	_                = OperandType(iota)
+	_                = OperandKind(iota)
 	RegisterOperand  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
 	ImmediateOperand // int64 constant values like 'mov eax, 1'
 	MemoryOperand    // memory addresses are specified indirectly through registers
@@ -89,14 +89,14 @@ const (
 )
 
 type (
-	// Type of CPU targets.
+	// Type for CPU targets.
 	CentralProcessingUnit int
 
-	// Type for operation codes.
+	// Type for CPU operation codes.
 	OperationCode int32
 
-	// Type of operands.
-	OperandType int32
+	// Type for operand kinds of CPU operations.
+	OperandKind int32
 
 	// Enumeration of registers of the CPU.
 	Register int32
@@ -107,9 +107,9 @@ type (
 	// A text section holds assembly instructions.
 	TextSection []*Instruction
 
-	// Operand of a CPU operation.
+	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
-		Operand      OperandType `json:"operand"`      // type of the operand
+		OperandKind  OperandKind `json:"operand"`      // kind of the operand
 		Register     Register    `json:"register"`     // register operand for the operation
 		ArgInt       int64       `json:"arg_int"`      // int64 immediate value argument
 		Memory       Register    `json:"memory"`       // memory address specified indirectly through register
@@ -118,7 +118,7 @@ type (
 		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
-	// Instruction is the representation of a single CPU operation with all its operands.
+	// Instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
@@ -127,7 +127,7 @@ type (
 
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {
-		Emit(module cod.Module) (TextSection, error)
+		Emit(module cod.Module) TextSection
 	}
 )
 

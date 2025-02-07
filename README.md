@@ -154,7 +154,7 @@ The programming language PL/0 2025 supports the following features:
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
 	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)
 	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
-	* design or redesign of public APIs for all packages of the compiler
+	* design or redesign of public APIs for all packages of the compiler (rethink public/private visibility)
 	* unit tests for all public APIs
 	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)

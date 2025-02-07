@@ -25,7 +25,7 @@ const (
 type emitter struct {
 	target   CentralProcessingUnit // target CPU for the emitter
 	text     TextSection           // text section with assembly instructions
-	resolved bool                  // flag to indicate if all labels have been resolved
+	resolved bool                  // flag to indicate if all labels have been resolved in the text section
 }
 
 var (
@@ -34,7 +34,7 @@ var (
 		Amd64: "amd64",
 	}
 
-	// Map operation codes to their string representation.
+	// Map CPU operation codes to their string representation.
 	operationNames = map[OperationCode]string{
 		Push:    "push",
 		Pop:     "pop",
@@ -58,7 +58,7 @@ var (
 		StdCall: "stdcall",
 	}
 
-	// Map registers to their string representation.
+	// Map CPU registers to their string representation.
 	registerNames = map[Register]string{
 		Rax: "rax",
 		Rbx: "rbx",
@@ -92,7 +92,7 @@ func newEmitter(cpu CentralProcessingUnit) Emitter {
 	}
 }
 
-// Create a new instruction with an operation code, some labels, and operands.
+// Create a new assembly instruction with an operation code, some labels, and operands.
 func newInstruction(op OperationCode, labels []string, operands ...*Operand) *Instruction {
 	return &Instruction{
 		Operation: op,
@@ -101,30 +101,30 @@ func newInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 	}
 }
 
-// Create a new operand for an instruction.
-func newOperand(opType OperandType, op any, disp ...int64) *Operand {
-	switch opType {
+// Create a new operand for an assembly instruction.
+func newOperand(kind OperandKind, value any, displacement ...int64) *Operand {
+	switch kind {
 	case RegisterOperand:
-		return &Operand{Operand: RegisterOperand, Register: op.(Register)}
+		return &Operand{OperandKind: RegisterOperand, Register: value.(Register)}
 
 	case ImmediateOperand:
-		return &Operand{Operand: ImmediateOperand, ArgInt: op.(int64)}
+		return &Operand{OperandKind: ImmediateOperand, ArgInt: value.(int64)}
 
 	case MemoryOperand:
-		if len(disp) > 0 {
-			return &Operand{Operand: MemoryOperand, Memory: op.(Register), Displacement: disp[0]}
+		if len(displacement) > 0 {
+			return &Operand{OperandKind: MemoryOperand, Memory: value.(Register), Displacement: displacement[0]}
 		}
 
-		return &Operand{Operand: MemoryOperand, Memory: op.(Register)}
+		return &Operand{OperandKind: MemoryOperand, Memory: value.(Register)}
 
 	case LabelOperand:
-		return &Operand{Operand: LabelOperand, Label: op.(string)}
+		return &Operand{OperandKind: LabelOperand, Label: value.(string)}
 
 	case JumpOperand:
-		return &Operand{Operand: JumpOperand, Jump: op.(uint64)}
+		return &Operand{OperandKind: JumpOperand, Jump: value.(uint64)}
 
 	default:
-		return &Operand{} // empty operand will generate an error when used
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownInstructionOperand, kind, nil))
 	}
 }
 
@@ -145,7 +145,7 @@ func (r Register) String() string {
 
 // String representation of an operand.
 func (o *Operand) String() string {
-	switch o.Operand {
+	switch o.OperandKind {
 	case RegisterOperand:
 		return o.Register.String()
 
@@ -166,7 +166,7 @@ func (o *Operand) String() string {
 		return fmt.Sprintf("%v", o.Jump)
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownInstructionOperand, o.Operand, nil))
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownInstructionOperand, o.OperandKind, nil))
 	}
 }
 
@@ -190,19 +190,12 @@ func (i *Instruction) String() string {
 }
 
 // Emit assembly code for the CPU target.
-func (e *emitter) Emit(module cod.Module) (text TextSection, err error) {
+func (e *emitter) Emit(module cod.Module) TextSection {
 	e.text = make(TextSection, 0)
 	iterator := module.GetIterator()
 
 	// compile-time parameters list for standard library function calls (procedures do not support parameters yet)
 	parameters := list.New()
-
-	// protect the emitter against non-valid structured intermediate code
-	defer func() {
-		if r := recover(); r != nil {
-			err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, recoveredFromIllegalIntermediateCode, r, nil)
-		}
-	}()
 
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
@@ -269,8 +262,7 @@ func (e *emitter) Emit(module cod.Module) (text TextSection, err error) {
 		}
 	}
 
-	text = e.text
-	return
+	return e.text
 }
 
 // Append an instruction to the end of the text section with the given operation code, labels, and operands.
@@ -301,7 +293,7 @@ func (e *emitter) appendRuntimeLibrary() {
 }
 
 // The linker resolves jump and call label references to absolut code addresses.
-func (e *emitter) linker() error {
+func (e *emitter) link() error {
 	// return without linking if all labels have already been resolved
 	if e.resolved {
 		return nil
@@ -332,11 +324,26 @@ func (e *emitter) linker() error {
 	return nil
 }
 
+// Validate the address variants of the quadruple and panic if they are not as expected.
+func validateVariant(quadruple cod.Quadruple, arg1, arg2, result cod.Variant) {
+	if quadruple.Arg1.Variant != arg1 {
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg1, quadruple.Arg1.Variant, nil))
+	}
+
+	if quadruple.Arg2.Variant != arg2 {
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg2, quadruple.Arg2.Variant, nil))
+	}
+
+	if quadruple.Result.Variant != result {
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForResult, quadruple.Result.Variant, nil))
+	}
+}
+
 // Validate the data type of the actuals and return an error if the data type is not as expected.
 func validateDataType(expected cod.DataType, actuals ...cod.DataType) error {
 	for _, actual := range actuals {
 		if actual != expected {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unsupportedOperandDataType, actual, nil)
+			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unsupportedDataTypeInIntermediateCodeAddress, actual, nil)
 		}
 	}
 
@@ -345,5 +352,5 @@ func validateDataType(expected cod.DataType, actuals ...cod.DataType) error {
 
 // Create a new parsing error with the given value and inner error.
 func newParsingError(value any, inner error) error {
-	return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, operandParsingError, value, inner)
+	return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, intermediateCodeAddressParsingError, value, inner)
 }
