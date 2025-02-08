@@ -12,7 +12,8 @@ const (
 	unknownIntermediateCodeOperation
 	intermediateCodeAddressParsingError
 	unknownKindOfOperandInCpuOperation
-	unresolvedLabelReference
+	unexpectedKindOfOperandInCpuOperation
+	unresolvedLabelReferenceInAssemblyCode
 	unsupportedDataTypeInIntermediateCodeAddress
 	unexpectedIntermediateCodeAddressVariantForArg1
 	unexpectedIntermediateCodeAddressVariantForArg2
@@ -25,7 +26,8 @@ var failureMap = map[cor.Failure]string{
 	unknownIntermediateCodeOperation:                  "unknown intermediate code operation: %v",
 	intermediateCodeAddressParsingError:               "value of intermediate code address cannot be parsed: %v",
 	unknownKindOfOperandInCpuOperation:                "unknown kind of operand in CPU operation: %v",
-	unresolvedLabelReference:                          "unresolved label reference: %v",
+	unexpectedKindOfOperandInCpuOperation:             "unexpected kind of operand in CPU operation: %v",
+	unresolvedLabelReferenceInAssemblyCode:            "unresolved label reference in assembly code: %v",
 	unsupportedDataTypeInIntermediateCodeAddress:      "unsupported data type in intermediate code address: %v",
 	unexpectedIntermediateCodeAddressVariantForArg1:   "unexpected address variant '%v' for arg1 in intermediate code operation: %v",
 	unexpectedIntermediateCodeAddressVariantForArg2:   "unexpected address variant '%v' for arg2 in intermediate code operation: %v",

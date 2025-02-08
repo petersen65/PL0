@@ -6,6 +6,7 @@ package emitter
 import (
 	"bytes"
 	"container/list"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -124,7 +125,7 @@ func newOperand(kind OperandKind, value any, displacement ...int64) *Operand {
 		return &Operand{OperandKind: JumpOperand, Jump: value.(uint64)}
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownInstructionOperand, kind, nil))
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, kind, nil))
 	}
 }
 
@@ -133,17 +134,17 @@ func (cpu CentralProcessingUnit) String() string {
 	return cpuNames[cpu]
 }
 
-// String representation of an operation code.
+// String representation of a CPU operation code.
 func (oc OperationCode) String() string {
 	return operationNames[oc]
 }
 
-// String representation of a register.
+// String representation of a CPU register.
 func (r Register) String() string {
 	return registerNames[r]
 }
 
-// String representation of an operand.
+// String representation of an operand kind of CPU operations.
 func (o *Operand) String() string {
 	switch o.OperandKind {
 	case RegisterOperand:
@@ -166,11 +167,11 @@ func (o *Operand) String() string {
 		return fmt.Sprintf("%v", o.Jump)
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownInstructionOperand, o.OperandKind, nil))
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.OperandKind, nil))
 	}
 }
 
-// String representation of an instruction.
+// String representation of an assembly instruction.
 func (i *Instruction) String() string {
 	var buffer bytes.Buffer
 
@@ -200,7 +201,7 @@ func (e *emitter) Emit(module cod.Module) TextSection {
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		switch i.Code.Operation {
-		// append labels for the directly following instruction
+		// append labels for the directly following non 'Target' instruction
 		case cod.Target:
 			l = append(l, i.Label)
 
@@ -292,7 +293,7 @@ func (e *emitter) appendRuntimeLibrary() {
 	e.appendInstruction(Ret, []string{behindLoop})
 }
 
-// The linker resolves jump and call label references to absolut code addresses.
+// The linker resolves jump and call label references to absolut code addresses in assymbly code of the text section.
 func (e *emitter) link() error {
 	// return without linking if all labels have already been resolved
 	if e.resolved {
@@ -312,8 +313,14 @@ func (e *emitter) link() error {
 	for _, asm := range e.text {
 		switch asm.Operation {
 		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
+			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
+			if asm.Operands[0].OperandKind != LabelOperand {
+				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].OperandKind, nil)
+			}
+
+			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
 			if address, ok := labels[asm.Operands[0].Label]; !ok {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unresolvedLabelReference, asm.Operands[0].Label, nil)
+				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
 			} else {
 				asm.Operands[0] = newOperand(JumpOperand, address)
 			}
@@ -324,19 +331,21 @@ func (e *emitter) link() error {
 	return nil
 }
 
-// Validate the address variants of the quadruple and panic if they are not as expected.
-func validateVariant(quadruple cod.Quadruple, arg1, arg2, result cod.Variant) {
+// Validate the address variants of the quadruple and return an error if they are not as expected.
+func validateQuadruple(quadruple cod.Quadruple, arg1, arg2, result cod.Variant) error {
 	if quadruple.Arg1.Variant != arg1 {
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg1, quadruple.Arg1.Variant, nil))
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg1, quadruple.Arg1.Variant, nil)
 	}
 
 	if quadruple.Arg2.Variant != arg2 {
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg2, quadruple.Arg2.Variant, nil))
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg2, quadruple.Arg2.Variant, nil)
 	}
 
 	if quadruple.Result.Variant != result {
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForResult, quadruple.Result.Variant, nil))
+		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForResult, quadruple.Result.Variant, nil)
 	}
+
+	return nil
 }
 
 // Validate the data type of the actuals and return an error if the data type is not as expected.

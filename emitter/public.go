@@ -118,7 +118,7 @@ type (
 		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
-	// Instruction is the representation of a single CPU operation with all its operands and labels.
+	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
