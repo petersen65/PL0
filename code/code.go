@@ -74,7 +74,20 @@ type (
 		current      *list.Element
 		instructions *list.List
 	}
+
+	// A contract for addresses describes a valid set of address variants for a three-address code operation.
+	addressesContract struct {
+		Arg1   Variant // first address variant
+		Arg2   Variant // second address variant
+		Result Variant // third address variant
+	}
 )
+
+// The intermediate code contract maps all three-address code operations to their address contracts for validation.
+var intermediateCodeContract = map[Operation][]addressesContract{
+	Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+	Negate: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+}
 
 // Create a new intermediate code generator.
 func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
