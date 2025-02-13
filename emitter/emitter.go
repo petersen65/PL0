@@ -6,9 +6,7 @@ package emitter
 import (
 	"bytes"
 	"container/list"
-	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	cod "github.com/petersen65/PL0/v2/code"
@@ -16,7 +14,6 @@ import (
 )
 
 const (
-	integerBitSize        = 64                      // number of bits of a signed integer
 	descriptorSize        = 3                       // size of an activation record descriptor
 	createStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	followStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
@@ -200,9 +197,11 @@ func (e *emitter) Emit(module cod.Module) TextSection {
 
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
+		// panic if the intermediate code instruction has not a valid addresses contract
+		i.Code.ValidateAddressesContract()
+
 		switch i.Code.Operation {
-		// append labels for the directly following non 'Target' instruction
-		case cod.Target:
+		case cod.Target: // append labels for the directly following non 'Target' instruction
 			l = append(l, i.Label)
 
 		case cod.Allocate: // allocate space in an activation record for all local variables
@@ -235,26 +234,95 @@ func (e *emitter) Emit(module cod.Module) TextSection {
 			e.appendInstruction(Pop, nil, newOperand(RegisterOperand, Rbp))
 
 		case cod.ValueCopy: // push an immediate value onto the runtime control stack
-			if i.Code.Arg1.Variant != cod.Literal {
-				err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unsupportedOperandVariant, i.Code.Arg1.Variant, nil)
-				return
+			// panic if parsing of the literal into its value fails (unsupported value or data type)
+			value := i.Code.Arg1.Parse()
+			e.appendInstruction(Push, l, newOperand(ImmediateOperand, value))
+
+		case cod.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
+			// panic if parsing of the variable into its location fails (unsupported data type)
+			location := i.Code.Arg1.Parse().(uint64)
+
+			if i.DepthDifference == 0 {
+				// push memory content at 'variables base - variable offset' onto runtime control stack
+				e.appendInstruction(Push, l, newOperand(MemoryOperand, Rbp, -int64(location)))
+			} else {
+				// block nesting depth difference between variable use and variable declaration
+				e.appendInstruction(Mov, l,
+					newOperand(RegisterOperand, Rcx),
+					newOperand(ImmediateOperand, int64(i.DepthDifference)))
+
+				// call runtime library function to follow static link to determine the 'variables base' pointer
+				e.appendInstruction(Call, nil, newOperand(LabelOperand, followStaticLinkLabel))
+
+				// push memory content at 'variables base - variable offset' onto runtime control stack
+				e.appendInstruction(Push, nil, newOperand(MemoryOperand, Rbx, -int64(location)))
 			}
 
-			switch i.Code.Arg1.DataType {
-			case cod.Integer64:
-				if arg, err := strconv.ParseInt(i.Code.Arg1.Name, 10, integerBitSize); err != nil {
-					return nil, newParsingError(i.Code.Arg1.Name, err)
-				} else {
-					e.appendInstruction(Push, l, newOperand(ImmediateOperand, arg))
-				}
+		case cod.VariableStore: // store the top of the runtime control stack into a variable's stack address
+			// panic if parsing of the variable into its location fails (unsupported data type)
+			location := i.Code.Result.Parse().(uint64)
 
-			default:
-				return nil, validateDataType(cod.Integer64, i.Code.Arg1.DataType)
+			if i.DepthDifference == 0 {
+				// pop content of the variable
+				e.appendInstruction(Pop, l, newOperand(RegisterOperand, Rax))
+
+				// copy content of the variable into memory location 'variables base - variable offset'
+				e.appendInstruction(Mov, nil,
+					newOperand(MemoryOperand, Rbp, -int64(location)),
+					newOperand(RegisterOperand, Rax))
+			} else {
+				// block nesting depth difference between variable use and variable declaration
+				e.appendInstruction(Mov, l,
+					newOperand(RegisterOperand, Rcx),
+					newOperand(ImmediateOperand, int64(i.DepthDifference)))
+
+				// call runtime library function to follow static link to determine the 'variables base' pointer
+				e.appendInstruction(Call, nil, newOperand(LabelOperand, followStaticLinkLabel))
+
+				// pop content of the variable
+				e.appendInstruction(Pop, nil, newOperand(RegisterOperand, Rax))
+
+				// copy content of the variable into memory location 'variables base - variable offset'
+				e.appendInstruction(Mov, nil,
+					newOperand(MemoryOperand, Rbx, -int64(location)),
+					newOperand(RegisterOperand, Rax))
 			}
+
+		case cod.Jump: // unconditionally jump to a label that is resolved by the linker
+			e.appendInstruction(Jmp, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpEqual:
+			// jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
+			e.appendInstruction(Je, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpNotEqual:
+			// jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
+			e.appendInstruction(Jne, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpLess:
+			// jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
+			e.appendInstruction(Jl, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpLessEqual:
+			// jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
+			e.appendInstruction(Jle, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpGreater:
+			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
+			e.appendInstruction(Jg, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.JumpGreaterEqual:
+			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
+			e.appendInstruction(Jge, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+
+		case cod.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
+			parameters.PushBack(i)
+
+		case cod.Return: // return from a function to its caller
+			e.appendInstruction(Ret, nil)
 
 		default:
-			err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil)
-			return
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil))
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
@@ -293,7 +361,7 @@ func (e *emitter) appendRuntimeLibrary() {
 	e.appendInstruction(Ret, []string{behindLoop})
 }
 
-// The linker resolves jump and call label references to absolut code addresses in assymbly code of the text section.
+// The linker resolves jump and call label references to absolut code addresses in assembly code of the text section.
 func (e *emitter) link() error {
 	// return without linking if all labels have already been resolved
 	if e.resolved {
@@ -329,37 +397,4 @@ func (e *emitter) link() error {
 
 	e.resolved = true
 	return nil
-}
-
-// Validate the address variants of the quadruple and return an error if they are not as expected.
-func validateQuadruple(quadruple cod.Quadruple, arg1, arg2, result cod.Variant) error {
-	if quadruple.Arg1.Variant != arg1 {
-		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg1, quadruple.Arg1.Variant, nil)
-	}
-
-	if quadruple.Arg2.Variant != arg2 {
-		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForArg2, quadruple.Arg2.Variant, nil)
-	}
-
-	if quadruple.Result.Variant != result {
-		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedIntermediateCodeAddressVariantForResult, quadruple.Result.Variant, nil)
-	}
-
-	return nil
-}
-
-// Validate the data type of the actuals and return an error if the data type is not as expected.
-func validateDataType(expected cod.DataType, actuals ...cod.DataType) error {
-	for _, actual := range actuals {
-		if actual != expected {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unsupportedDataTypeInIntermediateCodeAddress, actual, nil)
-		}
-	}
-
-	return nil
-}
-
-// Create a new parsing error with the given value and inner error.
-func newParsingError(value any, inner error) error {
-	return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, intermediateCodeAddressParsingError, value, inner)
 }

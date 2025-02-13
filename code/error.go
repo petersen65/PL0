@@ -11,6 +11,9 @@ const (
 	unknownInstructionOption
 	unknownDataTypeRepresentation
 	invalidAddressesContract
+	intermediateCodeAddressParsingError
+	unsupportedDataTypeInIntermediateCodeAddress
+	unexceptedVariantInIntermediateCodeAddress
 	invalidContextInIdentifierUse
 	symbolTableUpdateFailed
 	symbolMetaDataUpdateFailed
@@ -24,16 +27,19 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unknownInstructionOption:         "unknown instruction option: %v",
-	unknownDataTypeRepresentation:    "unknown data type representation: %v",
-	invalidAddressesContract:         "invalid addresses contract: %v",
-	invalidContextInIdentifierUse:    "invalid context in identifier use",
-	symbolTableUpdateFailed:          "error while updating intermediate code symbol table: %v",
-	symbolMetaDataUpdateFailed:       "error while updating symbol metadata from abstract syntax tree: %v",
-	unknownUnaryOperation:            "unknown unary operation",
-	unknownBinaryOperation:           "unknown binary operation",
-	unknownConditionalOperation:      "unknown conditional operation",
-	unexpectedIntermediateCodeResult: "unexpected intermediate code result",
-	unknownExportFormat:              "unknown export format: %v",
-	intermediateCodeExportFailed:     "failed to export intermediate code",
+	unknownInstructionOption:                     "unknown instruction option: %v",
+	unknownDataTypeRepresentation:                "unknown data type representation: %v",
+	invalidAddressesContract:                     "invalid addresses contract: %v",
+	intermediateCodeAddressParsingError:          "value of intermediate code address cannot be parsed: %v",
+	unsupportedDataTypeInIntermediateCodeAddress: "unsupported data type in intermediate code address: %v",
+	unexceptedVariantInIntermediateCodeAddress:   "unexcepted variant in intermediate code address: %v",
+	invalidContextInIdentifierUse:                "invalid context in identifier use",
+	symbolTableUpdateFailed:                      "error while updating intermediate code symbol table: %v",
+	symbolMetaDataUpdateFailed:                   "error while updating symbol metadata from abstract syntax tree: %v",
+	unknownUnaryOperation:                        "unknown unary operation",
+	unknownBinaryOperation:                       "unknown binary operation",
+	unknownConditionalOperation:                  "unknown conditional operation",
+	unexpectedIntermediateCodeResult:             "unexpected intermediate code result",
+	unknownExportFormat:                          "unknown export format: %v",
+	intermediateCodeExportFailed:                 "failed to export intermediate code",
 }

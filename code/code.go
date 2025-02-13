@@ -8,11 +8,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/google/uuid"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 )
+
+// Number of bits of a signed integer.
+const integerBitSize = 64
 
 // Display name of entry point only used for informational purposes.
 const entryPointDisplayName = "@main"
@@ -209,6 +213,36 @@ func (i *Instruction) String() string {
 		i.Code.Arg1,
 		i.Code.Arg2,
 		i.Code.Result)
+}
+
+// Parse a three-address code address into a value based on its variant and data type.
+func (a *Address) Parse() any {
+	switch a.Variant {
+	case Literal:
+		switch a.DataType {
+		case Integer64:
+			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				return arg
+			}
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Variable:
+		switch a.DataType {
+		case Integer64:
+			return a.Location
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
+	}
 }
 
 // Validate the set of address variants for a three-address code operation.
