@@ -85,8 +85,36 @@ type (
 
 // The intermediate code contract maps all three-address code operations to their address contracts for validation.
 var intermediateCodeContract = map[Operation][]addressesContract{
-	Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-	Negate: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+	Odd:              {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+	Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+	Plus:             {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+	Minus:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+	Times:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+	Divide:           {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+	Equal:            {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	NotEqual:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	Less:             {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	LessEqual:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	Greater:          {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	GreaterEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+	Jump:             {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpEqual:        {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpNotEqual:     {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpLess:         {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpLessEqual:    {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpGreater:      {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	JumpGreaterEqual: {{Arg1: Label, Arg2: Empty, Result: Empty}},
+	Parameter:        {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+	Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
+	Prelude:          {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+	Epilog:           {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+	Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+	Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
+	Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Diagnostic, Arg2: Empty, Result: Empty}},
+	Allocate:         {{Arg1: Diagnostic, Arg2: Empty, Result: Variable}},
+	ValueCopy:        {{Arg1: Literal, Arg2: Empty, Result: Temporary}},
+	VariableLoad:     {{Arg1: Variable, Arg2: Empty, Result: Temporary}},
+	VariableStore:    {{Arg1: Temporary, Arg2: Empty, Result: Variable}},
 }
 
 // Create a new intermediate code generator.
@@ -160,6 +188,11 @@ func (o Operation) String() string {
 	return OperationNames[o]
 }
 
+// String representation of a three-address code quadruple.
+func (q *Quadruple) String() string {
+	return fmt.Sprintf("%-12v %-20v %-20v %-20v", q.Operation, q.Arg1, q.Arg2, q.Result)
+}
+
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
 	var depthDifference any = i.DepthDifference
@@ -176,6 +209,19 @@ func (i *Instruction) String() string {
 		i.Code.Arg1,
 		i.Code.Arg2,
 		i.Code.Result)
+}
+
+// Validate the set of address variants for a three-address code operation.
+func (q *Quadruple) ValidateAddressesContract() {
+	contract := intermediateCodeContract[q.Operation]
+
+	for _, addresses := range contract {
+		if addresses.Arg1 == q.Arg1.Variant && addresses.Arg2 == q.Arg2.Variant && addresses.Result == q.Result.Variant {
+			return
+		}
+	}
+
+	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
 }
 
 // Get the instruction at the current position in the list.

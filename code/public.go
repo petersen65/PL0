@@ -112,6 +112,12 @@ type (
 	// Enumeration of prefixes used for names of addresses.
 	PrefixType int
 
+	// Type for three-address code operations.
+	Operation int32
+
+	// Enumeration of standard functions that belong to the external standard library.
+	StandardFunction int64
+
 	// Address is the data structure of an address in the three-address code concept.
 	Address struct {
 		Name     string   `json:"name"`      // name or value of an address (values need to be converted to a string)
@@ -120,11 +126,13 @@ type (
 		Location uint64   `json:"location"`  // location of an address in the logical memory space
 	}
 
-	// Type for three-address code operations.
-	Operation int32
-
-	// Enumeration of standard functions that belong to the external standard library.
-	StandardFunction int64
+	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
+	Quadruple struct {
+		Operation Operation `json:"operation"` // three-address code operation
+		Arg1      *Address  `json:"arg_1"`     // first address (argument 1)
+		Arg2      *Address  `json:"arg_2"`     // second address (argument 2)
+		Result    *Address  `json:"result"`    // third address (result)
+	}
 
 	// Instruction represents a single three-address code operation with its required metadata (e.g. label, block nesting depth difference).
 	Instruction struct {
@@ -132,14 +140,6 @@ type (
 		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
 		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
 		Code             Quadruple `json:"code"`               // three-address code operation
-	}
-
-	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
-	Quadruple struct {
-		Operation Operation `json:"operation"` // three-address code operation
-		Arg1      *Address  `json:"arg_1"`     // first address (argument 1)
-		Arg2      *Address  `json:"arg_2"`     // second address (argument 2)
-		Result    *Address  `json:"result"`    // third address (result)
 	}
 
 	// IntermediateCode is the public interface for the intermediate code generation compiler phase.

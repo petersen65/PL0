@@ -10,6 +10,7 @@ const (
 	_ = cor.Failure(iota + 5000)
 	unknownInstructionOption
 	unknownDataTypeRepresentation
+	invalidAddressesContract
 	invalidContextInIdentifierUse
 	symbolTableUpdateFailed
 	symbolMetaDataUpdateFailed
@@ -25,6 +26,7 @@ const (
 var failureMap = map[cor.Failure]string{
 	unknownInstructionOption:         "unknown instruction option: %v",
 	unknownDataTypeRepresentation:    "unknown data type representation: %v",
+	invalidAddressesContract:         "invalid addresses contract: %v",
 	invalidContextInIdentifierUse:    "invalid context in identifier use",
 	symbolTableUpdateFailed:          "error while updating intermediate code symbol table: %v",
 	symbolMetaDataUpdateFailed:       "error while updating symbol metadata from abstract syntax tree: %v",
