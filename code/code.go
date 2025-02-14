@@ -15,7 +15,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Number of bits of a signed integer.
+// Number of bits of a signed or unsigned integer.
 const integerBitSize = 64
 
 // Display name of entry point only used for informational purposes.
@@ -244,6 +244,41 @@ func (a *Address) Parse() any {
 		switch a.DataType {
 		case Integer64:
 			return nil
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Label:
+		switch a.DataType {
+		case String:
+			return a.Name
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Count:
+		switch a.DataType {
+		case UnsignedInteger64:
+			if arg, err := strconv.ParseUint(a.Name, 10, integerBitSize); err != nil {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				return arg
+			}
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Code:
+		switch a.DataType {
+		case Integer64:
+			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				return arg
+			}
 
 		default:
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))

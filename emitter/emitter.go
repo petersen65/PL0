@@ -327,41 +327,108 @@ func (e *emitter) Emit(module cod.Module) TextSection {
 
 			e.appendInstruction(Push, nil, newOperand(RegisterOperand, Rax))
 
+		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual: // compare the top two elements of the runtime control stack, remove them, and leave the result in the CPU flags register
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = i.Code.Arg1.Parse()
+			_ = i.Code.Arg2.Parse()
+
+			e.appendInstruction(Pop, l, newOperand(RegisterOperand, Rbx))
+			e.appendInstruction(Pop, nil, newOperand(RegisterOperand, Rax))
+			e.appendInstruction(Cmp, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
+
 		case cod.Jump: // unconditionally jump to a label that is resolved by the linker
-			e.appendInstruction(Jmp, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jmp, l, newOperand(LabelOperand, name))
 
-		case cod.JumpEqual:
-			// jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
-			e.appendInstruction(Je, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Je, l, newOperand(LabelOperand, name))
 
-		case cod.JumpNotEqual:
-			// jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
-			e.appendInstruction(Jne, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpNotEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jne, l, newOperand(LabelOperand, name))
 
-		case cod.JumpLess:
-			// jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
-			e.appendInstruction(Jl, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpLess: // jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jl, l, newOperand(LabelOperand, name))
 
-		case cod.JumpLessEqual:
-			// jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
-			e.appendInstruction(Jle, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpLessEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jle, l, newOperand(LabelOperand, name))
 
-		case cod.JumpGreater:
-			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
-			e.appendInstruction(Jg, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpGreater: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jg, l, newOperand(LabelOperand, name))
 
-		case cod.JumpGreaterEqual:
-			// jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
-			e.appendInstruction(Jge, l, newOperand(LabelOperand, i.Code.Arg1.Name))
+		case cod.JumpGreaterEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg1.Parse().(string)
+			e.appendInstruction(Jge, l, newOperand(LabelOperand, name))
 
 		case cod.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = i.Code.Arg1.Parse()
 			parameters.PushBack(i)
+
+		case cod.Call: // call a function with 0 arguments by jumping to the function's label
+			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
+			count := i.Code.Arg1.Parse().(uint64)
+
+			// panic if parsing of the label into a string fails (unsupported data type)
+			name := i.Code.Arg2.Parse().(string)
+
+			if count != 0 {
+				// procedures do not support parameters yet
+				panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unexpectedNumberOfFunctionArguments, nil, nil))
+			} else {
+				// push difference between use depth and declaration depth on runtime control stack
+				e.appendInstruction(Push, l, newOperand(ImmediateOperand, int64(i.DepthDifference)))
+
+				// push return address on runtime control stack and jump to callee
+				e.appendInstruction(Call, nil, newOperand(LabelOperand, name))
+
+				// remove difference from runtime control stack after return from callee
+				e.appendInstruction(Add, nil, newOperand(RegisterOperand, Rsp), newOperand(ImmediateOperand, int64(1)))
+			}
 
 		case cod.Return: // return from a function to its caller
 			e.appendInstruction(Ret, nil)
 
+		case cod.Standard:
+			// a standard function represents a function that is provided by the standard library of the programming language
+			// the standard function has 2 direct parameters that are part of the intermediate code instruction at compile-time
+			// the first parameter holds the number of parameters that the standard function expects
+			// the second parameter holds the call code of the standard function in the programming language's standard library
+
+			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
+			count := i.Code.Arg1.Parse().(uint64)
+			
+			// panic if parsing of the call code into an integer fails (unsupported value or data type)
+			code := i.Code.Arg2.Parse().(int64)
+			
+			// parameter instruction for the standard library function call
+			pi := parameters.Back().Value.(*cod.Instruction)
+			parameters.Remove(parameters.Back())
+
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = pi.Code.Arg1.Parse()
+
+			if count != 1 {
+				// current standard library functions expect 1 parameter on the runtime control stack
+				panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unexpectedNumberOfFunctionArguments, nil, nil))
+			} else {
+				// the top element of the runtime control stack is either consumed or updated by the standard library function
+				e.appendInstruction(StdCall, l, newOperand(ImmediateOperand, code))
+			}
+
 		default:
-			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unknownIntermediateCodeOperation, i.Code.Operation, nil))
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Code.Operation, nil))
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)

@@ -13,6 +13,7 @@ const (
 	unknownKindOfOperandInCpuOperation
 	unexpectedKindOfOperandInCpuOperation
 	unresolvedLabelReferenceInAssemblyCode
+	unexpectedNumberOfFunctionArguments
 )
 
 // Map failure codes to error messages.
@@ -22,4 +23,5 @@ var failureMap = map[cor.Failure]string{
 	unknownKindOfOperandInCpuOperation:     "unknown kind of operand in CPU operation: %v",
 	unexpectedKindOfOperandInCpuOperation:  "unexpected kind of operand in CPU operation: %v",
 	unresolvedLabelReferenceInAssemblyCode: "unresolved label reference in assembly code: %v",
+	unexpectedNumberOfFunctionArguments:    "unexpected number of arguments for function call",
 }
