@@ -67,7 +67,7 @@ const (
 const (
 	Empty      = Variant(iota) // empty address holds no address
 	Diagnostic                 // diagnostic address for debugging purposes
-	Temporary                  // temporary variables for results of operations stored in the logical memory space
+	Temporary                  // temporary results of operations (temporaries are not named and have no location)
 	Literal                    // literal address holds constant or literal values
 	Variable                   // variable address holds the location of a variable in the logical memory space
 	Label                      // label address used as target of jumps and calls is resolved by the linker
@@ -80,7 +80,7 @@ const (
 	Void              = DataType(iota) // an address that does not have a data type
 	String                             // the string data type is used for labels in label addresses
 	UnsignedInteger64                  // the unsigned integer data type is used for counting purposes or call codes
-	Integer64                          // the integer data type is used for constants, literals, variables, and temporary variables
+	Integer64                          // the integer data type is used for constants, literals, variables, and temporaries
 )
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.

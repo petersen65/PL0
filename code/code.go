@@ -240,6 +240,15 @@ func (a *Address) Parse() any {
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
+	case Temporary:
+		switch a.DataType {
+		case Integer64:
+			return nil
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
 	}

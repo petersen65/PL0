@@ -288,6 +288,45 @@ func (e *emitter) Emit(module cod.Module) TextSection {
 					newOperand(RegisterOperand, Rax))
 			}
 
+		case cod.Negate: // negate the top of the runtime control stack and leave the result on the stack
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = i.Code.Arg1.Parse()
+
+			e.appendInstruction(Pop, l, newOperand(RegisterOperand, Rax))
+			e.appendInstruction(Neg, nil, newOperand(RegisterOperand, Rax))
+			e.appendInstruction(Push, nil, newOperand(RegisterOperand, Rax))
+
+		case cod.Odd: // check if the top of the runtime control stack is an odd number and leave the result in the CPU flags register
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = i.Code.Arg1.Parse()
+
+			e.appendInstruction(Pop, l, newOperand(RegisterOperand, Rax))
+			e.appendInstruction(And, nil, newOperand(RegisterOperand, Rax))
+
+		case cod.Plus, cod.Minus, cod.Times, cod.Divide: // perform an arithmetic operation on the top two elements of the runtime control stack and replace them with one result on the stack
+			// panic if parsing of the temporary into nil fails (unsupported data type)
+			_ = i.Code.Arg1.Parse()
+			_ = i.Code.Arg2.Parse()
+
+			e.appendInstruction(Pop, l, newOperand(RegisterOperand, Rbx))
+			e.appendInstruction(Pop, nil, newOperand(RegisterOperand, Rax))
+
+			switch i.Code.Operation {
+			case cod.Plus:
+				e.appendInstruction(Add, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
+
+			case cod.Minus:
+				e.appendInstruction(Sub, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
+
+			case cod.Times:
+				e.appendInstruction(Imul, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
+
+			case cod.Divide:
+				e.appendInstruction(Idiv, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
+			}
+
+			e.appendInstruction(Push, nil, newOperand(RegisterOperand, Rax))
+
 		case cod.Jump: // unconditionally jump to a label that is resolved by the linker
 			e.appendInstruction(Jmp, l, newOperand(LabelOperand, i.Code.Arg1.Name))
 
