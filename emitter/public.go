@@ -4,7 +4,12 @@
 // Package emitter provides the assembly code emitter for the PL0 compiler.
 package emitter
 
-import cod "github.com/petersen65/PL0/v2/code"
+import (
+	"io"
+
+	cod "github.com/petersen65/PL0/v2/code"
+	cor "github.com/petersen65/PL0/v2/core"
+)
 
 // CPU target for the assembly code emitter.
 const (
@@ -128,10 +133,25 @@ type (
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {
 		Emit(module cod.Module) TextSection
+		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
+		AppendRuntimeLibrary()
+		Link() error
+		Print(print io.Writer, args ...any) error
+		Export(format cor.ExportFormat, print io.Writer) error
 	}
 )
 
 // Return the public interface of the private emitter implementation.
 func NewEmitter(cpu CentralProcessingUnit) Emitter {
 	return newEmitter(cpu)
+}
+
+// Create a new assembly instruction with an operation code, some labels, and operands.
+func NewInstruction(op OperationCode, labels []string, operands ...*Operand) *Instruction {
+	return newInstruction(op, labels, operands...)
+}
+
+// Create a new operand for an assembly instruction.
+func NewOperand(kind OperandKind, value any, displacement ...int64) *Operand { 
+	return newOperand(kind, value, displacement...)
 }

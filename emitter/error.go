@@ -14,6 +14,10 @@ const (
 	unexpectedKindOfOperandInCpuOperation
 	unresolvedLabelReferenceInAssemblyCode
 	unexpectedNumberOfFunctionArguments
+	unknownExportFormat
+	textSectionImportFailed
+	textSectionExportFailed
+	linkingStepMissing
 )
 
 // Map failure codes to error messages.
@@ -24,4 +28,8 @@ var failureMap = map[cor.Failure]string{
 	unexpectedKindOfOperandInCpuOperation:  "unexpected kind of operand in CPU operation: %v",
 	unresolvedLabelReferenceInAssemblyCode: "unresolved label reference in assembly code: %v",
 	unexpectedNumberOfFunctionArguments:    "unexpected number of arguments for function call",
+	unknownExportFormat:                    "unknown export format: %v",
+	textSectionImportFailed:                "failed to import raw bytes into the text section",
+	textSectionExportFailed:                "failed to export the text section into raw bytes",
+	linkingStepMissing:                     "text section cannot be exported because linking step is missing",
 }
