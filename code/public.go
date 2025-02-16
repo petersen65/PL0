@@ -152,7 +152,6 @@ type (
 
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
-		AppendInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
@@ -167,79 +166,6 @@ type (
 		Previous() *Instruction
 		Skip(offset int) *Instruction
 		Peek(offset int) *Instruction
-	}
-)
-
-var (
-	// Map abstract syntax data types to intermediate code data types (they have separate type systems)
-	DataTypeMap = map[ast.DataType]DataType{
-		ast.Integer64: Integer64,
-	}
-
-	// VariantNames maps an address variant to its string representation.
-	VariantNames = map[Variant]string{
-		Empty:      "empty",
-		Diagnostic: "diagnostic",
-		Temporary:  "temporary",
-		Literal:    "literal",
-		Variable:   "variable",
-		Label:      "label",
-		Count:      "count",
-		Code:       "code",
-	}
-
-	// DataTypeNames maps an address data type to its string representation.
-	DataTypeNames = map[DataType]string{
-		Void:              "void",
-		String:            "string",
-		UnsignedInteger64: "uint64",
-		Integer64:         "int64",
-	}
-
-	// Prefixes used for names of addresses.
-	Prefix = map[PrefixType]rune{
-		LabelPrefix:    'l',
-		ResultPrefix:   't',
-		ConstantPrefix: 'c',
-		VariablePrefix: 'v',
-		FunctionPrefix: 'f',
-	}
-
-	// NoAddress represents an unused address in the three-address code concept.
-	NoAddress = &Address{Name: "-", Variant: Empty, DataType: Void, Location: 0}
-
-	// Map three-address code operations of the intermediate code to their string representation.
-	OperationNames = map[Operation]string{
-		Odd:              "odd",
-		Negate:           "negate",
-		Plus:             "add",
-		Minus:            "subtract",
-		Times:            "multiply",
-		Divide:           "divide",
-		Equal:            "eq",
-		NotEqual:         "neq",
-		Less:             "lss",
-		LessEqual:        "lssEq",
-		Greater:          "gtr",
-		GreaterEqual:     "gtrEq",
-		Jump:             "jmp",
-		JumpEqual:        "jmpEq",
-		JumpNotEqual:     "jmpNeq",
-		JumpLess:         "jmpLss",
-		JumpLessEqual:    "jmpLssEq",
-		JumpGreater:      "jmpGtr",
-		JumpGreaterEqual: "jmpGtrEq",
-		Parameter:        "param",
-		Call:             "call",
-		Prelude:          "prelude",
-		Epilog:           "epilog",
-		Return:           "return",
-		Standard:         "standard",
-		Target:           "target",
-		Allocate:         "alloc",
-		ValueCopy:        "valCopy",
-		VariableLoad:     "varLoad",
-		VariableStore:    "varStore",
 	}
 )
 
