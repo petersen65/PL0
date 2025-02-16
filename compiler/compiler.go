@@ -86,7 +86,7 @@ type (
 		AbstractSyntax ast.Block            // abstract syntax tree of the token stream
 		Module         cod.Module           // intermediate code module of the abstract syntax tree
 		ControlFlow    cfg.ControlFlowGraph // control flow graph of the intermediate code module
-		AssemblyCode   emi.TextSection      // assembly code of the intermediate code module
+		AssemblyCode   emi.AssemblyCodeUnit // assembly code of the intermediate code module
 	}
 )
 
@@ -468,7 +468,7 @@ func CompileContent(content []byte) TranslationUnit {
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil}
+		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil, nil}
 	}
 
 	// intermediate code generation based on the abstract syntax tree results in a module
@@ -481,9 +481,10 @@ func CompileContent(content []byte) TranslationUnit {
 	controlFlow.Build()
 
 	// emit assembly code from the intermediate code module
-	emitter := emi.NewEmitter(emi.Amd64)
-	emitter.Emit(module)
+	emitter := emi.NewEmitter(emi.Amd64, module)
+	emitter.Emit()
+	assemblyCode := emitter.GetAssemblyCodeUnit()
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, module, controlFlow}
+	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, module, controlFlow, assemblyCode}
 }

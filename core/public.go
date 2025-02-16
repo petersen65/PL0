@@ -86,6 +86,11 @@ type (
 		Export(format ExportFormat, print io.Writer) error
 	}
 
+	// Importer is an interface that provides methods for importing intermediate results.
+	Importer interface {
+		Import(format ExportFormat, scan io.Reader) error
+	}
+
 	// Token is a type that represents a token in the source code.
 	Token int32
 

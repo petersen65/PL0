@@ -4,9 +4,8 @@
 package emulator
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
+	"io"
 	"math"
 
 	cor "github.com/petersen65/PL0/v2/core"
@@ -32,8 +31,8 @@ type (
 
 	// Virtual process that holds instructions of a binary target.
 	process struct {
-		assembly     emi.Assembly // assembly code instructions of the process
-		stackPointer uint64       // memory address of the downward growing stack
+		assemblyCode emi.AssemblyCodeUnit // assembly code instructions of the process
+		stackPointer uint64               // memory address of the downward growing stack
 	}
 
 	// Virtual CPU with its registers.
@@ -57,33 +56,15 @@ func newMachine() Machine {
 		},
 		memory: make([]uint64, memorySize),
 		process: process{
-			text:         make(emi.TextSection, 0),
+			assemblyCode: emi.NewAssemblyCodeUnit(),
 			stackPointer: memorySize - 1,
 		},
 	}
 }
 
-// Import a raw byte slice into the text section of a process.
-func (p *process) importRaw(raw []byte) error {
-	var buffer bytes.Buffer
-
-	// transfer raw bytes into a binary buffer
-	if _, err := buffer.Write(raw); err != nil {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionImportFailed, nil, err)
-	}
-
-	// decode the binary buffer into the text section
-	if err := gob.NewDecoder(&buffer).Decode(&p.text); err != nil {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, textSectionImportFailed, nil, err)
-	}
-
-	return nil
-}
-
-// Load a binary target and return an error if the target import fails.
-func (m *machine) Load(raw []byte) error {
-	// import a binary target into a process
-	if err := m.process.importRaw(raw); err != nil {
+// Load an assembly code unit and return an error if the import fails.
+func (m *machine) Load(scan io.Reader) error {
+	if err := m.process.assemblyCode.Import(cor.Binary, scan); err != nil {
 		return err
 	}
 
@@ -117,7 +98,7 @@ func (m *machine) RunProcess() error {
 
 	// execute instructions until main block return to external code
 	for {
-		if m.cpu.registers[emi.Rip] >= uint64(len(m.process.text)) {
+		if m.cpu.registers[emi.Rip] >= uint64(m.process.assemblyCode.Length()) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[emi.Rip], nil)
 		}
 
@@ -127,7 +108,7 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[emi.Rsp], nil)
 		}
 
-		instr := m.process.text[m.cpu.registers[emi.Rip]]
+		instr := m.process.assemblyCode.Instruction(int(m.cpu.registers[emi.Rip]))
 		m.cpu.registers[emi.Rip]++
 
 		switch instr.Operation {

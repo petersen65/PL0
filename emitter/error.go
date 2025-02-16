@@ -15,8 +15,9 @@ const (
 	unresolvedLabelReferenceInAssemblyCode
 	unexpectedNumberOfFunctionArguments
 	unknownExportFormat
-	textSectionImportFailed
-	textSectionExportFailed
+	unknownImportFormat
+	assemblyCodeExportFailed
+	assemblyCodeImportFailed
 	linkingStepMissing
 )
 
@@ -29,7 +30,8 @@ var failureMap = map[cor.Failure]string{
 	unresolvedLabelReferenceInAssemblyCode: "unresolved label reference in assembly code: %v",
 	unexpectedNumberOfFunctionArguments:    "unexpected number of arguments for function call",
 	unknownExportFormat:                    "unknown export format: %v",
-	textSectionImportFailed:                "failed to import raw bytes into the text section",
-	textSectionExportFailed:                "failed to export the text section into raw bytes",
-	linkingStepMissing:                     "text section cannot be exported because linking step is missing",
+	unknownImportFormat:                    "unknown import format: %v",
+	assemblyCodeExportFailed:               "failed to export assembly code",
+	assemblyCodeImportFailed:               "failed to import assembly code",
+	linkingStepMissing:                     "assembly code cannot be exported because linking step is missing",
 }

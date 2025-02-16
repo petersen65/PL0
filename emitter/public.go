@@ -130,16 +130,19 @@ type (
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {
 		Emit()
-		GetAssembly() Assembly
+		GetAssemblyCodeUnit() AssemblyCodeUnit
 		Link() error
 	}
 
-	// Assembly represents one unit of instructions created from one module so that a program can be linked together from multiple modules.
-	Assembly interface {
+	// AssemblyCodeUnit represents one unit of instructions created from one module so that a program can be linked together from multiple modules.
+	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
+		Length() int
+		Instruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
+		Import(format cor.ExportFormat, scan io.Reader) error
 	}
 )
 
@@ -148,9 +151,9 @@ func NewEmitter(cpu CentralProcessingUnit, module cod.Module) Emitter {
 	return newEmitter(cpu, module)
 }
 
-// Return the public interface of the private assembly implementation.
-func NewAssembly() Assembly {
-	return newAssembly()
+// Return the public interface of the private assembly code unit implementation.
+func NewAssemblyCodeUnit() AssemblyCodeUnit {
+	return newAssemblyCodeUnit()
 }
 
 // Create a new assembly instruction with an operation code, some labels, and operands.
@@ -159,6 +162,6 @@ func NewInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 }
 
 // Create a new operand for an assembly instruction.
-func NewOperand(kind OperandKind, value any, displacement ...int64) *Operand { 
+func NewOperand(kind OperandKind, value any, displacement ...int64) *Operand {
 	return newOperand(kind, value, displacement...)
 }

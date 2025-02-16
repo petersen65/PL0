@@ -1,12 +1,14 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package emulator provides the emulation engine for assembly instructions.
+// Package emulator provides the emulation engine for assembly code instructions.
 package emulator
 
-// The Machine interface provides methods for loading and running processes.
+import "io"
+
+// The Machine interface provides methods for loading assembly code and running processes with it.
 type Machine interface {
-	Load(raw []byte) error
+	Load(scan io.Reader) error
 	RunProcess() error
 }
 
