@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package emitter provides the assembly code emitter for the PL0 compiler.
+// Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code module.
 package emitter
 
 import (
@@ -109,9 +109,6 @@ type (
 	// Type for standard library call codes.
 	StandardCall int64
 
-	// A text section holds assembly instructions.
-	TextSection []*Instruction
-
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
 		OperandKind  OperandKind `json:"operand"`      // kind of the operand
@@ -132,18 +129,28 @@ type (
 
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {
-		Emit(module cod.Module) TextSection
+		Emit()
+		GetAssembly() Assembly
+		Link() error
+	}
+
+	// Assembly represents one unit of instructions created from one module so that a program can be linked together from multiple modules.
+	Assembly interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
-		Link() error
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
 )
 
 // Return the public interface of the private emitter implementation.
-func NewEmitter(cpu CentralProcessingUnit) Emitter {
-	return newEmitter(cpu)
+func NewEmitter(cpu CentralProcessingUnit, module cod.Module) Emitter {
+	return newEmitter(cpu, module)
+}
+
+// Return the public interface of the private assembly implementation.
+func NewAssembly() Assembly {
+	return newAssembly()
 }
 
 // Create a new assembly instruction with an operation code, some labels, and operands.

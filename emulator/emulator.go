@@ -32,8 +32,8 @@ type (
 
 	// Virtual process that holds instructions of a binary target.
 	process struct {
-		text         emi.TextSection // text section with instructions
-		stackPointer uint64          // memory address of the downward growing stack
+		assembly     emi.Assembly // assembly code instructions of the process
+		stackPointer uint64       // memory address of the downward growing stack
 	}
 
 	// Virtual CPU with its registers.
@@ -110,8 +110,8 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[emi.Rip] = 0   // instruction pointer
 
 	// initialize activation record descriptor of main block
-	m.memory[m.process.stackPointer] = 0              // static link (access link for compile-time block nesting hierarchy)
-	m.memory[m.process.stackPointer-1] = 0            // return address (to caller)
+	m.memory[m.process.stackPointer] = 0                  // static link (access link for compile-time block nesting hierarchy)
+	m.memory[m.process.stackPointer-1] = 0                // return address (to caller)
 	m.cpu.registers[emi.Rsp] = m.process.stackPointer - 1 // stack pointer points to return address before main block's prelude runs
 	m.cpu.registers[emi.Rbp] = 0                          // intentionnaly, there is no valid base pointer yet (from a caller)
 

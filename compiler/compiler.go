@@ -17,6 +17,7 @@ import (
 	cfg "github.com/petersen65/PL0/v2/cfg"
 	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
+	emi "github.com/petersen65/PL0/v2/emitter"
 	emu "github.com/petersen65/PL0/v2/emulator"
 	par "github.com/petersen65/PL0/v2/parser"
 	scn "github.com/petersen65/PL0/v2/scanner"
@@ -62,6 +63,7 @@ const (
 	Tree
 	Intermediate
 	Control
+	Emitter
 	Emulator
 	Json
 	Text
@@ -84,6 +86,7 @@ type (
 		AbstractSyntax ast.Block            // abstract syntax tree of the token stream
 		Module         cod.Module           // intermediate code module of the abstract syntax tree
 		ControlFlow    cfg.ControlFlowGraph // control flow graph of the intermediate code module
+		AssemblyCode   emi.TextSection      // assembly code of the intermediate code module
 	}
 )
 
@@ -94,6 +97,7 @@ var ExtensionMap = map[Extension]string{
 	Tree:         ".ast",
 	Intermediate: ".int",
 	Control:      ".cfg",
+	Emitter:      ".asm",
 	Emulator:     ".emu",
 	Json:         ".json",
 	Text:         ".txt",
@@ -472,9 +476,13 @@ func CompileContent(content []byte) TranslationUnit {
 	intermediate.Generate()
 	module := intermediate.GetModule()
 
-	// build control flow graph of an intermediate code module
+	// build control flow graph from an intermediate code module
 	controlFlow := cfg.NewControlFlowGraph(module)
 	controlFlow.Build()
+
+	// emit assembly code from the intermediate code module
+	emitter := emi.NewEmitter(emi.Amd64)
+	emitter.Emit(module)
 
 	// return translation unit with all intermediate results and error handler
 	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, module, controlFlow}

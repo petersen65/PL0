@@ -8,6 +8,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Failure codes for the intermediate code generator.
 const (
 	_ = cor.Failure(iota + 5000)
+	intermediateCodeGenerationFailed
 	unknownInstructionOption
 	unknownDataTypeRepresentation
 	invalidAddressesContract
@@ -27,6 +28,7 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
+	intermediateCodeGenerationFailed:             "intermediate code generation failed",
 	unknownInstructionOption:                     "unknown instruction option: %v",
 	unknownDataTypeRepresentation:                "unknown data type representation: %v",
 	invalidAddressesContract:                     "invalid addresses contract: %v",

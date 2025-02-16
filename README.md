@@ -150,6 +150,9 @@ The programming language PL/0 2025 supports the following features:
 ## Planning
 
 * 2025, enhance programming language and generate assembler
+	* new memory addressing implementation for emulator based on byte boundaries, unsafe pointers and real storage sizes for variables
+	* revisit and review current JSON marshalling and text output implementation, add Marshal/Unmarshal functions to interfaces
+	* check if panic calls in the 'code' module should include the tokenstream in its error messages
 	* implemention of control flow graph (CFG) with lifeness and use information for variables
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
 	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)

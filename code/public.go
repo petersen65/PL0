@@ -146,12 +146,11 @@ type (
 	IntermediateCode interface {
 		Generate()
 		GetModule() Module
-		NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction
-		AppendInstruction(instruction *Instruction) *list.Element
 	}
-
+	
 	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
 	Module interface {
+		AppendInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
@@ -174,9 +173,14 @@ func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return newIntermediateCode(abstractSyntax)
 }
 
-// Return the public interface of the private intermediate code module implementation.
+// Return the public interface of the private module implementation.
 func NewModule() Module {
 	return newModule()
+}
+
+// Create a new three-address code instruction with an operation, two arguments, a result, and some options.
+func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction {
+	return newInstruction(operatiom, arg1, arg2, result, options...)
 }
 
 // Create a new three-address code argument or result address.
