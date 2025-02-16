@@ -108,7 +108,7 @@ func (m *machine) RunProcess() error {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[emi.Rsp], nil)
 		}
 
-		instr := m.process.assemblyCode.Instruction(int(m.cpu.registers[emi.Rip]))
+		instr := m.process.assemblyCode.GetInstruction(int(m.cpu.registers[emi.Rip]))
 		m.cpu.registers[emi.Rip]++
 
 		switch instr.Operation {

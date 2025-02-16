@@ -139,7 +139,7 @@ type (
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
 		Length() int
-		Instruction(index int) *Instruction
+		GetInstruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 		Import(format cor.ExportFormat, scan io.Reader) error

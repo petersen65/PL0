@@ -240,7 +240,7 @@ func (a *assemblyCodeUnit) Length() int {
 }
 
 // Return the instruction at the specified index in the assembly code unit.
-func (a *assemblyCodeUnit) Instruction(index int) *Instruction {
+func (a *assemblyCodeUnit) GetInstruction(index int) *Instruction {
 	return a.textSection[index]
 }
 
