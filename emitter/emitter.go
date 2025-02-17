@@ -234,6 +234,44 @@ func (a *assemblyCodeUnit) AppendRuntimeLibrary() {
 	a.AppendInstruction(Ret, []string{behindLoop})
 }
 
+// The linker resolves jump and call label references to absolut code addresses in the assembly code unit.
+func (a *assemblyCodeUnit) Link() error {
+	// return without linking if all labels have already been resolved
+	if a.resolved {
+		return nil
+	}
+
+	labels := make(map[string]uint64)
+
+	// create a map of labels and their absolute addresses
+	for i := range a.textSection {
+		for _, label := range a.textSection[i].Labels {
+			labels[label] = uint64(i)
+		}
+	}
+
+	// resolve jump and call label references to absolute code addresses
+	for _, asm := range a.textSection {
+		switch asm.Operation {
+		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
+			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
+			if asm.Operands[0].OperandKind != LabelOperand {
+				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].OperandKind, nil)
+			}
+
+			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
+			if address, ok := labels[asm.Operands[0].Label]; !ok {
+				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
+			} else {
+				asm.Operands[0] = newOperand(JumpOperand, address)
+			}
+		}
+	}
+
+	a.resolved = true
+	return nil
+}
+
 // Return the number of instructions in the assembly code unit.
 func (a *assemblyCodeUnit) Length() int {
 	return len(a.textSection)
@@ -579,42 +617,4 @@ func (e *emitter) Emit() {
 // Get access to the generated assembly code.
 func (e *emitter) GetAssemblyCodeUnit() AssemblyCodeUnit {
 	return e.assemblyCode
-}
-
-// The linker resolves jump and call label references to absolut code addresses in the assembly code unit.
-func (e *emitter) Link() error {
-	// return without linking if all labels have already been resolved
-	if e.assemblyCode.resolved {
-		return nil
-	}
-
-	labels := make(map[string]uint64)
-
-	// create a map of labels and their absolute addresses
-	for i := range e.assemblyCode.textSection {
-		for _, label := range e.assemblyCode.textSection[i].Labels {
-			labels[label] = uint64(i)
-		}
-	}
-
-	// resolve jump and call label references to absolute code addresses
-	for _, asm := range e.assemblyCode.textSection {
-		switch asm.Operation {
-		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
-			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
-			if asm.Operands[0].OperandKind != LabelOperand {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].OperandKind, nil)
-			}
-
-			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
-			if address, ok := labels[asm.Operands[0].Label]; !ok {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
-			} else {
-				asm.Operands[0] = newOperand(JumpOperand, address)
-			}
-		}
-	}
-
-	e.assemblyCode.resolved = true
-	return nil
 }

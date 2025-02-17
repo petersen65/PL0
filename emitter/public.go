@@ -131,13 +131,13 @@ type (
 	Emitter interface {
 		Emit()
 		GetAssemblyCodeUnit() AssemblyCodeUnit
-		Link() error
 	}
-
+	
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
+		Link() error
 		Length() int
 		GetInstruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error

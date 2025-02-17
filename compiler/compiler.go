@@ -64,7 +64,6 @@ const (
 	Generator
 	Control
 	Emitter
-	Emulator
 	Json
 	Text
 	Binary
@@ -98,7 +97,6 @@ var ExtensionMap = map[Extension]string{
 	Generator: ".icu",
 	Control:   ".cfg",
 	Emitter:   ".acu",
-	Emulator:  ".emu",
 	Json:      ".json",
 	Text:      ".txt",
 	Binary:    ".bin",
@@ -156,8 +154,8 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
-			// persist module to target and print persistence error message if an error occurred
-			if err = PersistModuleToTarget(translationUnit.IntermediateCode, target); err != nil {
+			// persist assembly code unit to target and print persistence error message if an error occurred
+			if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
 				fmt.Fprintf(print, textErrorPersisting, target, err)
 				return
 			}
@@ -257,8 +255,8 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist a module to the given binary target.
-func PersistModuleToTarget(module gen.IntermediateCodeUnit, target string) error {
+// Persist an assembly code unit to the given binary target.
+func PersistAssemblyCodeUnitToTarget(unit emi.AssemblyCodeUnit, target string) error {
 	var err error
 	var program *os.File
 
@@ -274,19 +272,9 @@ func PersistModuleToTarget(module gen.IntermediateCodeUnit, target string) error
 			}
 		}()
 
-		machine := emu.NewMachine()
-
-		if err = machine.LoadModule(module); err != nil {
-			return err
-		}
-
-		if err = machine.Link(); err != nil {
-			return err
-		}
-
-		if err = machine.Export(cor.Binary, program); err != nil {
-			return err
-		}
+		unit.AppendRuntimeLibrary()
+		unit.Link()
+		unit.Export(cor.Binary, program)
 	}
 
 	return nil
@@ -310,7 +298,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
 	icjFile, icjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Generator, Json))
 	cfjFile, cfjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Json))
-	emjFile, emjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Json))
+	acjFile, acjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emitter, Json))
 
 	// create all Text files for intermediate representations
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
@@ -318,10 +306,11 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
 	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Generator, Text))
 	cftFile, cftErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Text))
-	emtFile, emtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
+	actFile, actErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emitter, Text))
 
 	// check if any error occurred during file creations
-	anyError = errors.Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, emjErr, ertErr, tstErr, astErr, ictErr, cftErr, emtErr)
+	anyError = errors.
+		Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, acjErr, ertErr, tstErr, astErr, ictErr, cftErr, actErr)
 
 	// close all files and remove target directory if any error occurred during file creations
 	defer func() {
@@ -343,13 +332,13 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		closeFile(asjFile)
 		closeFile(icjFile)
 		closeFile(cfjFile)
-		closeFile(emjFile)
+		closeFile(acjFile)
 		closeFile(ertFile)
 		closeFile(tstFile)
 		closeFile(astFile)
 		closeFile(ictFile)
 		closeFile(cftFile)
-		closeFile(emtFile)
+		closeFile(actFile)
 
 		// remove target directory if any error occurred during file creations
 		if anyError != nil {
@@ -391,48 +380,27 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		cftErr = translationUnit.ControlFlow.Export(cor.Text, cftFile)
 	}
 
-	// export all emulator representations to the target files
-	if translationUnit.IntermediateCode != nil {
-		machine := emu.NewMachine()
-
-		if emtErr = machine.LoadModule(translationUnit.IntermediateCode); emtErr == nil {
-			emjErr = machine.Export(cor.Json, emjFile)
-			emtErr = machine.Export(cor.Text, emtFile)
-		}
+	// export all assembly code representations to the target files
+	if translationUnit.AssemblyCode != nil {
+		acjErr = translationUnit.AssemblyCode.Export(cor.Json, acjFile)
+		actErr = translationUnit.AssemblyCode.Export(cor.Text, actFile)
 	}
 
 	// check if any error occurred during export of intermediate representations
-	anyError = errors.Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, emjErr, ertErr, tstErr, astErr, ictErr, cftErr, emtErr)
+	anyError = errors.
+		Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, acjErr, ertErr, tstErr, astErr, ictErr, cftErr, actErr)
+
 	return anyError
-}
-
-// Run module with the emulator.
-func EmulateModule(module gen.IntermediateCodeUnit) error {
-	machine := emu.NewMachine()
-
-	if err := machine.LoadModule(module); err != nil {
-		return err
-	}
-
-	if err := machine.Link(); err != nil {
-		return err
-	}
-
-	if err := machine.RunProcess(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Run binary target with the emulator.
 func EmulateTarget(target string) error {
-	if raw, err := os.ReadFile(target); err != nil {
+	if scan, err := os.Open(target); err != nil {
 		return err
 	} else {
 		machine := emu.NewMachine()
 
-		if err := machine.Load(raw); err != nil {
+		if err := machine.Load(scan); err != nil {
 			return err
 		}
 
