@@ -12,8 +12,8 @@ import (
 	"io"
 	"strings"
 
-	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
+	gen "github.com/petersen65/PL0/v2/generator"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 type (
 	// Private implementation of the assembly code emitter.
 	emitter struct {
-		intermediateCode cod.IntermediateCodeUnit // intermediate code unit to generate assembly code for
+		intermediateCode gen.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 		assemblyCode     *assemblyCodeUnit        // assembly code unit for the CPU target
 		cpu              CentralProcessingUnit    // target CPU for the emitter
 	}
@@ -91,7 +91,7 @@ var (
 )
 
 // Return the public interface of the private emitter implementation.
-func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit cod.IntermediateCodeUnit) Emitter {
+func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit gen.IntermediateCodeUnit) Emitter {
 	if cpu != Amd64 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedCpuTarget, cpu, nil))
 	}
@@ -336,13 +336,13 @@ func (e *emitter) Emit() {
 		i.Code.ValidateAddressesContract()
 
 		switch i.Code.Operation {
-		case cod.Target: // append labels for the directly following non 'Target' instruction
+		case gen.Target: // append labels for the directly following non 'Target' instruction
 			l = append(l, i.Label)
 
-		case cod.Allocate: // allocate space in an activation record for all local variables
+		case gen.Allocate: // allocate space in an activation record for all local variables
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
-				if iterator.Peek(j).Code.Operation != cod.Allocate {
+				if iterator.Peek(j).Code.Operation != gen.Allocate {
 					e.assemblyCode.AppendInstruction(Sub, l,
 						newOperand(RegisterOperand, Rsp),
 						newOperand(ImmediateOperand, int64(j+1)))
@@ -352,7 +352,7 @@ func (e *emitter) Emit() {
 				}
 			}
 
-		case cod.Prelude: // function body prelude
+		case gen.Prelude: // function body prelude
 			// save caller's base pointer because it will be changed
 			// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
 			// an alternative naming from literature is 'control link' that points to the activation record of the caller
@@ -364,19 +364,19 @@ func (e *emitter) Emit() {
 			// call runtime library function to create static link which provides the compile-time block nesting hierarchy at runtime
 			e.assemblyCode.AppendInstruction(Call, nil, newOperand(LabelOperand, createStaticLinkLabel))
 
-		case cod.Epilog: // function body epilog
+		case gen.Epilog: // function body epilog
 			// clean allocated local variables from the activation record
 			e.assemblyCode.AppendInstruction(Mov, l, newOperand(RegisterOperand, Rsp), newOperand(RegisterOperand, Rbp))
 
 			// restore caller's base pointer
 			e.assemblyCode.AppendInstruction(Pop, nil, newOperand(RegisterOperand, Rbp))
 
-		case cod.ValueCopy: // push an immediate value onto the runtime control stack
+		case gen.ValueCopy: // push an immediate value onto the runtime control stack
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
 			value := i.Code.Arg1.Parse()
 			e.assemblyCode.AppendInstruction(Push, l, newOperand(ImmediateOperand, value))
 
-		case cod.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
+		case gen.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
 			// panic if parsing of the variable into its location fails (unsupported data type)
 			location := i.Code.Arg1.Parse().(uint64)
 
@@ -396,7 +396,7 @@ func (e *emitter) Emit() {
 				e.assemblyCode.AppendInstruction(Push, nil, newOperand(MemoryOperand, Rbx, -int64(location)))
 			}
 
-		case cod.VariableStore: // store the top of the runtime control stack into a variable's stack address
+		case gen.VariableStore: // store the top of the runtime control stack into a variable's stack address
 			// panic if parsing of the variable into its location fails (unsupported data type)
 			location := i.Code.Result.Parse().(uint64)
 
@@ -426,7 +426,7 @@ func (e *emitter) Emit() {
 					newOperand(RegisterOperand, Rax))
 			}
 
-		case cod.Negate: // negate the top of the runtime control stack and leave the result on the stack
+		case gen.Negate: // negate the top of the runtime control stack and leave the result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
 			_ = i.Code.Arg1.Parse()
 
@@ -434,14 +434,14 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(Neg, nil, newOperand(RegisterOperand, Rax))
 			e.assemblyCode.AppendInstruction(Push, nil, newOperand(RegisterOperand, Rax))
 
-		case cod.Odd: // check if the top of the runtime control stack is an odd number and leave the result in the CPU flags register
+		case gen.Odd: // check if the top of the runtime control stack is an odd number and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
 			_ = i.Code.Arg1.Parse()
 
 			e.assemblyCode.AppendInstruction(Pop, l, newOperand(RegisterOperand, Rax))
 			e.assemblyCode.AppendInstruction(And, nil, newOperand(RegisterOperand, Rax))
 
-		case cod.Plus, cod.Minus, cod.Times, cod.Divide: // perform an arithmetic operation on the top two elements of the runtime control stack and replace them with one result on the stack
+		case gen.Plus, gen.Minus, gen.Times, gen.Divide: // perform an arithmetic operation on the top two elements of the runtime control stack and replace them with one result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
 			_ = i.Code.Arg1.Parse()
 			_ = i.Code.Arg2.Parse()
@@ -450,22 +450,22 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(Pop, nil, newOperand(RegisterOperand, Rax))
 
 			switch i.Code.Operation {
-			case cod.Plus:
+			case gen.Plus:
 				e.assemblyCode.AppendInstruction(Add, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
 
-			case cod.Minus:
+			case gen.Minus:
 				e.assemblyCode.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
 
-			case cod.Times:
+			case gen.Times:
 				e.assemblyCode.AppendInstruction(Imul, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
 
-			case cod.Divide:
+			case gen.Divide:
 				e.assemblyCode.AppendInstruction(Idiv, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
 			}
 
 			e.assemblyCode.AppendInstruction(Push, nil, newOperand(RegisterOperand, Rax))
 
-		case cod.Equal, cod.NotEqual, cod.Less, cod.LessEqual, cod.Greater, cod.GreaterEqual: // compare the top two elements of the runtime control stack, remove them, and leave the result in the CPU flags register
+		case gen.Equal, gen.NotEqual, gen.Less, gen.LessEqual, gen.Greater, gen.GreaterEqual: // compare the top two elements of the runtime control stack, remove them, and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
 			_ = i.Code.Arg1.Parse()
 			_ = i.Code.Arg2.Parse()
@@ -474,47 +474,47 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(Pop, nil, newOperand(RegisterOperand, Rax))
 			e.assemblyCode.AppendInstruction(Cmp, nil, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rbx))
 
-		case cod.Jump: // unconditionally jump to a label that is resolved by the linker
+		case gen.Jump: // unconditionally jump to a label that is resolved by the linker
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jmp, l, newOperand(LabelOperand, name))
 
-		case cod.JumpEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
+		case gen.JumpEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Je, l, newOperand(LabelOperand, name))
 
-		case cod.JumpNotEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
+		case gen.JumpNotEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jne, l, newOperand(LabelOperand, name))
 
-		case cod.JumpLess: // jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
+		case gen.JumpLess: // jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jl, l, newOperand(LabelOperand, name))
 
-		case cod.JumpLessEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
+		case gen.JumpLessEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jle, l, newOperand(LabelOperand, name))
 
-		case cod.JumpGreater: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
+		case gen.JumpGreater: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jg, l, newOperand(LabelOperand, name))
 
-		case cod.JumpGreaterEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
+		case gen.JumpGreaterEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.Code.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(Jge, l, newOperand(LabelOperand, name))
 
-		case cod.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
+		case gen.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			// panic if parsing of the temporary into nil fails (unsupported data type)
 			_ = i.Code.Arg1.Parse()
 			parameters.PushBack(i)
 
-		case cod.Call: // call a function with 0 arguments by jumping to the function's label
+		case gen.Call: // call a function with 0 arguments by jumping to the function's label
 			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
 			count := i.Code.Arg1.Parse().(uint64)
 
@@ -535,10 +535,10 @@ func (e *emitter) Emit() {
 				e.assemblyCode.AppendInstruction(Add, nil, newOperand(RegisterOperand, Rsp), newOperand(ImmediateOperand, int64(1)))
 			}
 
-		case cod.Return: // return from a function to its caller
+		case gen.Return: // return from a function to its caller
 			e.assemblyCode.AppendInstruction(Ret, nil)
 
-		case cod.Standard:
+		case gen.Standard:
 			// a standard function represents a function that is provided by the standard library of the programming language
 			// the standard function has 2 direct parameters that are part of the intermediate code instruction at compile-time
 			// the first parameter holds the number of parameters that the standard function expects
@@ -551,7 +551,7 @@ func (e *emitter) Emit() {
 			code := i.Code.Arg2.Parse().(int64)
 
 			// parameter instruction for the standard library function call
-			pi := parameters.Back().Value.(*cod.Instruction)
+			pi := parameters.Back().Value.(*gen.Instruction)
 			parameters.Remove(parameters.Back())
 
 			// panic if parsing of the temporary into nil fails (unsupported data type)
@@ -570,7 +570,7 @@ func (e *emitter) Emit() {
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
-		if i.Code.Operation != cod.Target {
+		if i.Code.Operation != gen.Target {
 			l = make([]string, 0)
 		}
 	}

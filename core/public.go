@@ -60,7 +60,7 @@ const (
 	Parser
 	AbstractSyntaxTree
 	Analyzer
-	Intermediate
+	Generator
 	ControlFlowGraph
 	Emitter
 	Emulator

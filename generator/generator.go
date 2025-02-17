@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package code
+package generator
 
 import (
 	"container/list"
@@ -37,7 +37,7 @@ const (
 
 type (
 	// Intermediate code generation compiler phase. It implements the Visitor interface to traverse the AST and generate code.
-	intermediateCode struct {
+	generator struct {
 		abstractSyntax   ast.Block             // abstract syntax tree to generate intermediate code for
 		intermediateCode *intermediateCodeUnit // intermediate code unit to store the generated intermediate code
 		results          *list.List            // last-in-first-out results-list holding temporary results from expressions
@@ -195,8 +195,8 @@ var (
 )
 
 // Create a new intermediate code generator.
-func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return &intermediateCode{
+func newGenerator(abstractSyntax ast.Block) Generator {
+	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: NewIntermediateCodeUnit().(*intermediateCodeUnit),
 		results:          list.New(),
@@ -233,7 +233,7 @@ func newInstruction(operatiom Operation, arg1, arg2, result *Address, options ..
 			instruction.TokenStreamIndex = opt
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownInstructionOption, option, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownInstructionOption, option, nil))
 		}
 	}
 
@@ -273,7 +273,7 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 		}
 	}
 
-	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
 }
 
 // String representation of the three-address code address.
@@ -322,13 +322,13 @@ func (a *Address) Parse() any {
 		switch a.DataType {
 		case Integer64:
 			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return arg
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Variable:
@@ -337,7 +337,7 @@ func (a *Address) Parse() any {
 			return a.Location
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Temporary:
@@ -346,7 +346,7 @@ func (a *Address) Parse() any {
 			return nil
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Label:
@@ -355,37 +355,37 @@ func (a *Address) Parse() any {
 			return a.Name
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Count:
 		switch a.DataType {
 		case UnsignedInteger64:
 			if arg, err := strconv.ParseUint(a.Name, 10, integerBitSize); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return arg
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Code:
 		switch a.DataType {
 		case Integer64:
 			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return arg
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
 	}
 }
 
@@ -399,7 +399,7 @@ func (q *Quadruple) ValidateAddressesContract() {
 		}
 	}
 
-	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
+	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
 }
 
 // Get the instruction at the current position in the list.
@@ -552,7 +552,7 @@ func (m *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the unit and print them to the writer
 	for e := m.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
-			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		}
 	}
 
@@ -565,12 +565,12 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 	case cor.Json:
 		// export the unit as a JSON object
 		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+				err = cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 			}
 
 			return err
@@ -581,7 +581,7 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 		return m.Print(print)
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -605,7 +605,7 @@ func (m *intermediateCodeUnit) lookup(name string) *symbol {
 
 // Configure abstract syntax extensions and fill the symbol table of the intermediate code unit.
 func configureSymbols(node ast.Node, code any) {
-	unit := code.(*intermediateCode).intermediateCode
+	unit := code.(*generator).intermediateCode
 
 	switch n := node.(type) {
 	case *ast.BlockNode:
@@ -630,10 +630,10 @@ func configureSymbols(node ast.Node, code any) {
 
 // Generate intermediate code for the abstract syntax tree.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (i *intermediateCode) Generate() {
+func (i *generator) Generate() {
 	// pre-create symbol table for intermediate code
 	if err := ast.Walk(i.abstractSyntax, ast.PreOrder, i, configureSymbols); err != nil {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
 	// generate intermediate code for the abstract syntax tree
@@ -641,12 +641,12 @@ func (i *intermediateCode) Generate() {
 }
 
 // Get access to the generated intermediate code.
-func (i *intermediateCode) GetIntermediateCodeUnit() IntermediateCodeUnit {
+func (i *generator) GetIntermediateCodeUnit() IntermediateCodeUnit {
 	return i.intermediateCode
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.
-func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
+func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// only main block has no parent procedure declaration
 	if bn.ParentNode == nil {
 		blockBegin := bn.Scope.NewIdentifier(prefix[FunctionPrefix])
@@ -707,12 +707,12 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 }
 
 // Generate code for a constant declaration.
-func (i *intermediateCode) VisitConstantDeclaration(declaration *ast.ConstantDeclarationNode) {
+func (i *generator) VisitConstantDeclaration(declaration *ast.ConstantDeclarationNode) {
 	// not required for code generation
 }
 
 // Generate code for a variable declaration.
-func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	// access intermediate code metadata from abstract syntax scope
 	scopeMetaData := vd.Scope.Extension[scopeExtension].(*scopeMetaData)
 
@@ -739,13 +739,13 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 }
 
 // Generate code for a procedure declaration.
-func (i *intermediateCode) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+func (i *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
 	// generate code for the block of the procedure
 	pd.Block.Accept(i)
 }
 
 // Generate code for a literal.
-func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
+func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
 	// create a value copy instruction to store the literal in an temporary result
 	instruction := newInstruction(
 		ValueCopy, // copy the value of the literal to a temporary result
@@ -760,7 +760,7 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 }
 
 // Generate code for an identifier use.
-func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	switch iu.Context {
 	case ast.Constant:
 		// get constant declaration of the constant to load
@@ -817,12 +817,12 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// not required for code generation
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
 	}
 }
 
 // Generate code for a unary operation.
-func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+func (i *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	// load the temporary result of the expression from the results-list
 	uo.Operand.Accept(i)
 	result := i.popResult()
@@ -855,12 +855,12 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
 	}
 }
 
 // Generate code for a binary arithmetic operation.
-func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// determine block and its scope where the binary operation is located
 	scope := ast.SearchBlock(ast.CurrentBlock, bo).Scope
 
@@ -903,12 +903,12 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
 // Generate code for a binary relational operation.
-func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
 	// load the temporary results of the left and right expressions from the results-list
 	co.Left.Accept(i)
 	co.Right.Accept(i)
@@ -953,12 +953,12 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 	}
 }
 
 // Generate code for an assignment statement.
-func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
+func (i *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 	// load the value from the temporary result of the right-hand-side expression of the assignment
 	s.Expression.Accept(i)
 	right := i.popResult()
@@ -993,7 +993,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 }
 
 // Generate code for a read statement.
-func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
+func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// determine block and its scope where the read statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
 
@@ -1058,7 +1058,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 }
 
 // Generate code for a write statement.
-func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
+func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// load the value from the result of the expression on the right-hand-side of the write statement
 	s.Expression.Accept(i)
 	right := i.popResult()
@@ -1085,7 +1085,7 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 }
 
 // Generate code for a call statement.
-func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
+func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// get the declaration of the procedure to call
 	procedureUse := s.Procedure.(*ast.IdentifierUseNode)
 	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
@@ -1113,7 +1113,7 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 }
 
 // Generate code for an if-then statement.
-func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
+func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
 	// determine block and its scope where the if-then statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
 	behindStatement := scope.NewIdentifier(prefix[LabelPrefix])
@@ -1132,7 +1132,7 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 }
 
 // Generate code for a while-do statement.
-func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
+func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// determine block and its scope where the while-do statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
 	beforeCondition := scope.NewIdentifier(prefix[LabelPrefix])
@@ -1159,7 +1159,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 }
 
 // Generate code for a compound begin-end statement.
-func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) {
+func (i *generator) VisitCompoundStatement(s *ast.CompoundStatementNode) {
 	// generate code for all statements in the compound statement
 	for _, statement := range s.Statements {
 		statement.Accept(i)
@@ -1167,7 +1167,7 @@ func (i *intermediateCode) VisitCompoundStatement(s *ast.CompoundStatementNode) 
 }
 
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
-func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
+func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *Instruction
 	address := NewAddress(label, Label, String, 0)
 
@@ -1182,7 +1182,7 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 				jump = newInstruction(JumpEqual, address, noAddress, noAddress, condition.TokenStreamIndex)
 			}
 		} else {
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
 		}
 
 	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
@@ -1209,7 +1209,7 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 				jump = newInstruction(JumpGreaterEqual, address, noAddress, noAddress, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 			}
 		} else {
 			// jump if the condition is false
@@ -1233,12 +1233,12 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 				jump = newInstruction(JumpLess, address, noAddress, noAddress, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 			}
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 	}
 
 	// append the conditional jump instruction to the intermediate code unit
@@ -1246,16 +1246,16 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 }
 
 // Push a result onto the results-list of temporary results.
-func (i *intermediateCode) pushResult(result *Address) {
+func (i *generator) pushResult(result *Address) {
 	i.results.PushBack(result)
 }
 
 // Pop a result from the results-list of temporary results.
-func (i *intermediateCode) popResult() *Address {
+func (i *generator) popResult() *Address {
 	result := i.results.Back()
 
 	if result == nil {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexpectedIntermediateCodeResult, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unexpectedIntermediateCodeResult, nil, nil))
 	}
 
 	i.results.Remove(result)

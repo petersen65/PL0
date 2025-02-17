@@ -15,10 +15,10 @@ import (
 	ana "github.com/petersen65/PL0/v2/analyzer"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cfg "github.com/petersen65/PL0/v2/cfg"
-	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
 	emu "github.com/petersen65/PL0/v2/emulator"
+	gen "github.com/petersen65/PL0/v2/generator"
 	par "github.com/petersen65/PL0/v2/parser"
 	scn "github.com/petersen65/PL0/v2/scanner"
 )
@@ -61,7 +61,7 @@ const (
 	Error
 	Token
 	Tree
-	Intermediate
+	Generator
 	Control
 	Emitter
 	Emulator
@@ -84,7 +84,7 @@ type (
 		ErrorHandler     cor.ErrorHandler         // error handler of the compilation process
 		TokenStream      cor.TokenStream          // token stream of the PL/0 source content
 		AbstractSyntax   ast.Block                // abstract syntax tree of the token stream
-		IntermediateCode cod.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
+		IntermediateCode gen.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph     // control flow graph of the intermediate code unit
 		AssemblyCode     emi.AssemblyCodeUnit     // assembly code of the intermediate code unit
 	}
@@ -92,17 +92,17 @@ type (
 
 // ExtensionMap maps file extensions to their string representation.
 var ExtensionMap = map[Extension]string{
-	Error:        ".err",
-	Token:        ".tok",
-	Tree:         ".ast",
-	Intermediate: ".int",
-	Control:      ".cfg",
-	Emitter:      ".asm",
-	Emulator:     ".emu",
-	Json:         ".json",
-	Text:         ".txt",
-	Binary:       ".bin",
-	Ensure:       ".ensure",
+	Error:     ".err",
+	Token:     ".tok",
+	Tree:      ".ast",
+	Generator: ".icu",
+	Control:   ".cfg",
+	Emitter:   ".acu",
+	Emulator:  ".emu",
+	Json:      ".json",
+	Text:      ".txt",
+	Binary:    ".bin",
+	Ensure:    ".ensure",
 }
 
 // Driver for the compilation process with the given options, source, target, and print writer.
@@ -258,7 +258,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 }
 
 // Persist a module to the given binary target.
-func PersistModuleToTarget(module cod.IntermediateCodeUnit, target string) error {
+func PersistModuleToTarget(module gen.IntermediateCodeUnit, target string) error {
 	var err error
 	var program *os.File
 
@@ -308,7 +308,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	erjFile, erjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Json))
 	tsjFile, tsjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Json))
 	asjFile, asjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Json))
-	icjFile, icjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Json))
+	icjFile, icjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Generator, Json))
 	cfjFile, cfjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Json))
 	emjFile, emjErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Json))
 
@@ -316,7 +316,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	ertFile, ertErr := os.Create(GetFullPath(targetDirectory, baseFileName, Error, Text))
 	tstFile, tstErr := os.Create(GetFullPath(targetDirectory, baseFileName, Token, Text))
 	astFile, astErr := os.Create(GetFullPath(targetDirectory, baseFileName, Tree, Text))
-	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Intermediate, Text))
+	ictFile, ictErr := os.Create(GetFullPath(targetDirectory, baseFileName, Generator, Text))
 	cftFile, cftErr := os.Create(GetFullPath(targetDirectory, baseFileName, Control, Text))
 	emtFile, emtErr := os.Create(GetFullPath(targetDirectory, baseFileName, Emulator, Text))
 
@@ -407,7 +407,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 }
 
 // Run module with the emulator.
-func EmulateModule(module cod.IntermediateCodeUnit) error {
+func EmulateModule(module gen.IntermediateCodeUnit) error {
 	machine := emu.NewMachine()
 
 	if err := machine.LoadModule(module); err != nil {
@@ -471,20 +471,20 @@ func CompileContent(content []byte) TranslationUnit {
 		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil, nil}
 	}
 
-	// intermediate code generation based on the abstract syntax tree results in a module
-	intermediate := cod.NewIntermediateCode(abstractSyntax)
-	intermediate.Generate()
-	module := intermediate.GetModule()
+	// code generation based on the abstract syntax tree results in an intermediate code unit
+	generator := gen.NewGenerator(abstractSyntax)
+	generator.Generate()
+	intermediateCode := generator.GetIntermediateCodeUnit()
 
-	// build control flow graph from an intermediate code module
-	controlFlow := cfg.NewControlFlowGraph(module)
+	// build control flow graph from an intermediate code unit
+	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
 	controlFlow.Build()
 
-	// emit assembly code from the intermediate code module
-	emitter := emi.NewEmitter(emi.Amd64, module)
+	// emit assembly code from the intermediate code unit
+	emitter := emi.NewEmitter(emi.Amd64, intermediateCode)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, module, controlFlow, assemblyCode}
+	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
 }

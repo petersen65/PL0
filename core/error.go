@@ -105,7 +105,7 @@ var (
 		Parser:             "parser",
 		AbstractSyntaxTree: "ast",
 		Analyzer:           "analyzer",
-		Intermediate:       "intermediate",
+		Generator:          "generator",
 		ControlFlowGraph:   "cfg",
 		Emitter:            "emitter",
 		Emulator:           "emulator",

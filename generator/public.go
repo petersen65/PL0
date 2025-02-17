@@ -1,8 +1,8 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package code implements the intermediate code generation compiler phase by traversing the abstract syntax tree.
-package code
+// Package generator implements the intermediate code generation compiler phase by traversing the abstract syntax tree.
+package generator
 
 import (
 	"container/list"
@@ -142,8 +142,8 @@ type (
 		Code             Quadruple `json:"code"`               // three-address code operation
 	}
 
-	// IntermediateCode is the public interface for the intermediate code generation compiler phase.
-	IntermediateCode interface {
+	// Generator is the public interface for the intermediate code generation compiler phase.
+	Generator interface {
 		Generate()
 		GetIntermediateCodeUnit() IntermediateCodeUnit
 	}
@@ -168,9 +168,9 @@ type (
 	}
 )
 
-// Return the public interface of the private intermediate code implementation.
-func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
-	return newIntermediateCode(abstractSyntax)
+// Return the public interface of the private generator implementation.
+func NewGenerator(abstractSyntax ast.Block) Generator {
+	return newGenerator(abstractSyntax)
 }
 
 // Return the public interface of the private intermediate code unit implementation.

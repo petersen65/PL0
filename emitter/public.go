@@ -7,8 +7,8 @@ package emitter
 import (
 	"io"
 
-	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
+	gen "github.com/petersen65/PL0/v2/generator"
 )
 
 // CPU target for the assembly code emitter.
@@ -147,7 +147,7 @@ type (
 )
 
 // Return the public interface of the private emitter implementation.
-func NewEmitter(cpu CentralProcessingUnit, intermediateCode cod.IntermediateCodeUnit) Emitter {
+func NewEmitter(cpu CentralProcessingUnit, intermediateCode gen.IntermediateCodeUnit) Emitter {
 	return newEmitter(cpu, intermediateCode)
 }
 

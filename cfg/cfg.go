@@ -8,21 +8,21 @@ import (
 	"io"
 	"strings"
 
-	cod "github.com/petersen65/PL0/v2/code"
 	cor "github.com/petersen65/PL0/v2/core"
+	gen "github.com/petersen65/PL0/v2/generator"
 )
 
 type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
 	controlFlowGraph struct {
-		intermediateCode cod.IntermediateCodeUnit `json:"-"`      // intermediate code unit that the control flow graph is built from
+		intermediateCode gen.IntermediateCodeUnit `json:"-"`      // intermediate code unit that the control flow graph is built from
 		Blocks           []*basicBlock            `json:"blocks"` // basic blocks of the control flow graph
 		edges            []*edge                  `json:"-"`      // edges of the control flow graph
 	}
 
 	// Implementation of the basic block interface that holds instructions of the block.
 	basicBlock struct {
-		Instructions []*cod.Instruction   `json:"instructions"` // instructions of the basic block
+		Instructions []*gen.Instruction   `json:"instructions"` // instructions of the basic block
 		variables    map[string]*variable `json:"-"`            // nontemporary variables in the basic block
 	}
 
@@ -36,12 +36,12 @@ type (
 	variable struct {
 		name     string           // flattened name in the intermediate code
 		liveness bool             // true if the variable is live at the current instruction
-		nextUse  *cod.Instruction // next instruction that uses the variable
+		nextUse  *gen.Instruction // next instruction that uses the variable
 	}
 )
 
 // Create a new control flow graph for the specified intermediate code unit.
-func newControlFlowGraph(intermediateCode cod.IntermediateCodeUnit) ControlFlowGraph {
+func newControlFlowGraph(intermediateCode gen.IntermediateCodeUnit) ControlFlowGraph {
 	return &controlFlowGraph{
 		intermediateCode: intermediateCode,
 		Blocks:           make([]*basicBlock, 0),
@@ -52,7 +52,7 @@ func newControlFlowGraph(intermediateCode cod.IntermediateCodeUnit) ControlFlowG
 // Create a new basic block for storing consecutive instructions.
 func newBasicBlock() BasicBlock {
 	return &basicBlock{
-		Instructions: make([]*cod.Instruction, 0),
+		Instructions: make([]*gen.Instruction, 0),
 		variables:    make(map[string]*variable),
 	}
 }
@@ -78,7 +78,7 @@ func (cfg *controlFlowGraph) Build() {
 			fallthrough
 
 		// any instruction that is the target of a conditional or unconditional jump is a leader
-		case i.Code.Operation == cod.Target:
+		case i.Code.Operation == gen.Target:
 			// append the previous basic block to the control flow graph if it is not nil
 			cfg.AppendBasicBlock(block)
 
@@ -87,13 +87,13 @@ func (cfg *controlFlowGraph) Build() {
 			block.AppendInstruction(i)
 
 		// any instruction that immediately follows a conditional or unconditional jump is a leader
-		case i.Code.Operation == cod.Jump ||
-			i.Code.Operation == cod.JumpEqual ||
-			i.Code.Operation == cod.JumpNotEqual ||
-			i.Code.Operation == cod.JumpLess ||
-			i.Code.Operation == cod.JumpLessEqual ||
-			i.Code.Operation == cod.JumpGreater ||
-			i.Code.Operation == cod.JumpGreaterEqual:
+		case i.Code.Operation == gen.Jump ||
+			i.Code.Operation == gen.JumpEqual ||
+			i.Code.Operation == gen.JumpNotEqual ||
+			i.Code.Operation == gen.JumpLess ||
+			i.Code.Operation == gen.JumpLessEqual ||
+			i.Code.Operation == gen.JumpGreater ||
+			i.Code.Operation == gen.JumpGreaterEqual:
 
 			// append the current instruction to the current basic block
 			block.AppendInstruction(i)
@@ -177,7 +177,7 @@ func (bb *basicBlock) String() string {
 }
 
 // Append an instruction to a basic block if it is not nil.
-func (bb *basicBlock) AppendInstruction(instruction *cod.Instruction) {
+func (bb *basicBlock) AppendInstruction(instruction *gen.Instruction) {
 	if instruction != nil {
 
 		bb.Instructions = append(bb.Instructions, instruction)
