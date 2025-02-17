@@ -145,18 +145,18 @@ type (
 	// IntermediateCode is the public interface for the intermediate code generation compiler phase.
 	IntermediateCode interface {
 		Generate()
-		GetModule() Module
+		GetIntermediateCodeUnit() IntermediateCodeUnit
 	}
-	
-	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
-	Module interface {
+
+	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
+	IntermediateCodeUnit interface {
 		AppendInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
 
-	// The iterator interface provides navigation methods for the module's intermediate code instructions.
+	// The iterator interface provides navigation methods for the units's intermediate code instructions.
 	Iterator interface {
 		Current() *Instruction
 		First() *Instruction
@@ -173,9 +173,9 @@ func NewIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return newIntermediateCode(abstractSyntax)
 }
 
-// Return the public interface of the private module implementation.
-func NewModule() Module {
-	return newModule()
+// Return the public interface of the private intermediate code unit implementation.
+func NewIntermediateCodeUnit() IntermediateCodeUnit {
+	return newIntermediateCodeUnit()
 }
 
 // Create a new three-address code instruction with an operation, two arguments, a result, and some options.

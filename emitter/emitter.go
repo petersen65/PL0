@@ -26,9 +26,9 @@ const (
 type (
 	// Private implementation of the assembly code emitter.
 	emitter struct {
-		intermediateCode cod.Module            // intermediate code unit to generate assembly code for
-		assemblyCode     *assemblyCodeUnit     // assembly code unit for the CPU target
-		cpu              CentralProcessingUnit // target CPU for the emitter
+		intermediateCode cod.IntermediateCodeUnit // intermediate code unit to generate assembly code for
+		assemblyCode     *assemblyCodeUnit        // assembly code unit for the CPU target
+		cpu              CentralProcessingUnit    // target CPU for the emitter
 	}
 
 	// Private implementation of the assembly code unit.
@@ -91,7 +91,7 @@ var (
 )
 
 // Return the public interface of the private emitter implementation.
-func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit cod.Module) Emitter {
+func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit cod.IntermediateCodeUnit) Emitter {
 	if cpu != Amd64 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedCpuTarget, cpu, nil))
 	}

@@ -38,14 +38,14 @@ const (
 type (
 	// Intermediate code generation compiler phase. It implements the Visitor interface to traverse the AST and generate code.
 	intermediateCode struct {
-		abstractSyntax ast.Block  // abstract syntax tree to generate intermediate code for
-		module         *module    // module to store the generated intermediate code
-		results        *list.List // last-in-first-out results-list holding temporary results from expressions
+		abstractSyntax   ast.Block             // abstract syntax tree to generate intermediate code for
+		intermediateCode *intermediateCodeUnit // intermediate code unit to store the generated intermediate code
+		results          *list.List            // last-in-first-out results-list holding temporary results from expressions
 	}
 
-	// Module represents a logical unit of instructions created from one source file so that a program can be linked together from multiple modules.
-	module struct {
-		UniqueId     string             `json:"unique_id"`    // unique identifier of the module
+	// Represents a logical unit of instructions created from one source file.
+	intermediateCodeUnit struct {
+		UniqueId     string             `json:"unique_id"`    // unique identifier of the intermediate code unit
 		names        []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
 		symbolTable  map[string]*symbol `json:"-"`            // symbol table for intermediate code flattened names
 		Instructions *list.List         `json:"instructions"` // intermediate code instructions as doubly linked list that allows reordering
@@ -73,7 +73,7 @@ type (
 		definition *list.Element // instruction where the symbol is defined
 	}
 
-	// Navigation implementation for the module's intermediate code instructions.
+	// Navigation implementation for the unit's intermediate code instructions.
 	iterator struct {
 		current      *list.Element
 		instructions *list.List
@@ -197,15 +197,15 @@ var (
 // Create a new intermediate code generator.
 func newIntermediateCode(abstractSyntax ast.Block) IntermediateCode {
 	return &intermediateCode{
-		abstractSyntax: abstractSyntax,
-		module:         NewModule().(*module),
-		results:        list.New(),
+		abstractSyntax:   abstractSyntax,
+		intermediateCode: NewIntermediateCodeUnit().(*intermediateCodeUnit),
+		results:          list.New(),
 	}
 }
 
-// Create a new intermediate code module and initialize it with a unique identifier.
-func newModule() Module {
-	return &module{
+// Create a new intermediate code unit and initialize it with a unique identifier.
+func newIntermediateCodeUnit() IntermediateCodeUnit {
+	return &intermediateCodeUnit{
 		UniqueId:     uuid.NewString(),
 		names:        make([]string, 0),
 		symbolTable:  make(map[string]*symbol),
@@ -492,18 +492,18 @@ func (i *iterator) Peek(offset int) *Instruction {
 }
 
 // Append an instruction to the intermediate code.
-func (m *module) AppendInstruction(instruction *Instruction) *list.Element {
+func (m *intermediateCodeUnit) AppendInstruction(instruction *Instruction) *list.Element {
 	return m.Instructions.PushBack(instruction)
 }
 
-// Get an instruction iterator for the module.
-func (m *module) GetIterator() Iterator {
+// Get an instruction iterator for the intermediate code unit.
+func (m *intermediateCodeUnit) GetIterator() Iterator {
 	return &iterator{current: m.Instructions.Front(), instructions: m.Instructions}
 }
 
-// Marshal the module to a JSON object.
-func (m *module) MarshalJSON() ([]byte, error) {
-	type Embedded module
+// Marshal the intermediate code unit to a JSON object.
+func (m *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
+	type Embedded intermediateCodeUnit
 	instructions := make([]Instruction, 0, m.Instructions.Len())
 
 	// copy the doubly linked instruction-list to a slice of instructions
@@ -523,9 +523,9 @@ func (m *module) MarshalJSON() ([]byte, error) {
 	return json.Marshal(mj)
 }
 
-// Unmarshal the module from a JSON object.
-func (m *module) UnmarshalJSON(raw []byte) error {
-	type Embedded module
+// Unmarshal the intermediate code unit from a JSON object.
+func (m *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
+	type Embedded intermediateCodeUnit
 
 	// struct to unmarshal the JSON object to
 	mj := &struct {
@@ -547,9 +547,9 @@ func (m *module) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
-// Print the module to the specified writer.
-func (m *module) Print(print io.Writer, args ...any) error {
-	// enumerate all instructions in the module and print them to the writer
+// Print the intermediate code unit to the specified writer.
+func (m *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
+	// enumerate all instructions in the unit and print them to the writer
 	for e := m.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
@@ -559,11 +559,11 @@ func (m *module) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the module to the specified writer in the specified format.
-func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
+// Export the intermediate code unit to the specified writer in the specified format.
+func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
-		// export the module as a JSON object
+		// export the unit as a JSON object
 		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {
@@ -577,7 +577,7 @@ func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 		}
 
 	case cor.Text:
-		// print is a convenience function to export the module as a string to the print writer
+		// print is a convenience function to export the intermediate code unit as a string to the print writer
 		return m.Print(print)
 
 	default:
@@ -586,7 +586,7 @@ func (m *module) Export(format cor.ExportFormat, print io.Writer) error {
 }
 
 // Insert a symbol into the intermediate code symbol table. If the symbol already exists, it will be overwritten.
-func (m *module) insert(symbol *symbol) {
+func (m *intermediateCodeUnit) insert(symbol *symbol) {
 	if m.lookup(symbol.name) == nil {
 		m.names = append(m.names, symbol.name)
 	}
@@ -595,7 +595,7 @@ func (m *module) insert(symbol *symbol) {
 }
 
 // Lookup a symbol in the the intermediate code symbol table. If the symbol is not found, nil is returned.
-func (m *module) lookup(name string) *symbol {
+func (m *intermediateCodeUnit) lookup(name string) *symbol {
 	if symbol, ok := m.symbolTable[name]; ok {
 		return symbol
 	}
@@ -603,9 +603,9 @@ func (m *module) lookup(name string) *symbol {
 	return nil
 }
 
-// Configure abstract syntax extensions and fill the symbol table of the module.
+// Configure abstract syntax extensions and fill the symbol table of the intermediate code unit.
 func configureSymbols(node ast.Node, code any) {
-	module := code.(*intermediateCode).module
+	unit := code.(*intermediateCode).intermediateCode
 
 	switch n := node.(type) {
 	case *ast.BlockNode:
@@ -614,17 +614,17 @@ func configureSymbols(node ast.Node, code any) {
 	case *ast.ConstantDeclarationNode:
 		name := n.Scope.NewIdentifier(prefix[ConstantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		module.insert(newSymbol(name, constant, dataTypeMap[n.DataType]))
+		unit.insert(newSymbol(name, constant, dataTypeMap[n.DataType]))
 
 	case *ast.VariableDeclarationNode:
 		name := n.Scope.NewIdentifier(prefix[VariablePrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		module.insert(newSymbol(name, variable, dataTypeMap[n.DataType]))
+		unit.insert(newSymbol(name, variable, dataTypeMap[n.DataType]))
 
 	case *ast.ProcedureDeclarationNode:
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[FunctionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		module.insert(newSymbol(name, function, Void))
+		unit.insert(newSymbol(name, function, Void))
 	}
 }
 
@@ -641,8 +641,8 @@ func (i *intermediateCode) Generate() {
 }
 
 // Get access to the generated intermediate code.
-func (i *intermediateCode) GetModule() Module {
-	return i.module
+func (i *intermediateCode) GetIntermediateCodeUnit() IntermediateCodeUnit {
+	return i.intermediateCode
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.
@@ -659,7 +659,7 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 			noAddress,
 			blockBegin) // branch-label as target for any branching operation
 
-		i.module.AppendInstruction(instruction)
+		i.intermediateCode.AppendInstruction(instruction)
 	} else {
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
 		blockBegin := astSymbol.Extension[symbolExtension].(*symbolMetaData).name
@@ -672,15 +672,15 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 			noAddress,
 			blockBegin) // branch-label as target for any branching operation
 
-		element := i.module.AppendInstruction((instruction))
+		element := i.intermediateCode.AppendInstruction((instruction))
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
-		codeSymbol := i.module.lookup(blockBegin)
+		codeSymbol := i.intermediateCode.lookup(blockBegin)
 		codeSymbol.definition = element
 	}
 
 	// create prelude for the block
-	i.module.AppendInstruction(newInstruction(Prelude, noAddress, noAddress, noAddress))
+	i.intermediateCode.AppendInstruction(newInstruction(Prelude, noAddress, noAddress, noAddress))
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -693,10 +693,10 @@ func (i *intermediateCode) VisitBlock(bn *ast.BlockNode) {
 	bn.Statement.Accept(i)
 
 	// create epilog for the block
-	i.module.AppendInstruction(newInstruction(Epilog, noAddress, noAddress, noAddress))
+	i.intermediateCode.AppendInstruction(newInstruction(Epilog, noAddress, noAddress, noAddress))
 
 	// return from the block and mark the end of the block
-	i.module.AppendInstruction(newInstruction(Return, noAddress, noAddress, noAddress))
+	i.intermediateCode.AppendInstruction(newInstruction(Return, noAddress, noAddress, noAddress))
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
@@ -720,7 +720,7 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 	codeName := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(codeName)
+	codeSymbol := i.intermediateCode.lookup(codeName)
 
 	// set the location of the variable in its logical memory space
 	codeSymbol.location = scopeMetaData.counter
@@ -734,8 +734,8 @@ func (i *intermediateCode) VisitVariableDeclaration(vd *ast.VariableDeclarationN
 		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // location for the variable
 		vd.TokenStreamIndex) // variable declaration in the token stream
 
-	// append allocate instruction to the module and set it as definition for the intermediate code variable
-	codeSymbol.definition = i.module.AppendInstruction(instruction)
+	// append allocate instruction to the unit and set it as definition for the intermediate code variable
+	codeSymbol.definition = i.intermediateCode.AppendInstruction(instruction)
 }
 
 // Generate code for a procedure declaration.
@@ -754,9 +754,9 @@ func (i *intermediateCode) VisitLiteral(ln *ast.LiteralNode) {
 		NewAddress(ln.Scope.NewIdentifier(prefix[ResultPrefix]), Temporary, dataTypeMap[ln.DataType], 0), // temporary result
 		ln.TokenStreamIndex) // literal use in the token stream
 
-	// push the temporary result onto the results-list and append the instruction to the module
+	// push the temporary result onto the results-list and append the instruction to the intermediate code unit
 	i.pushResult(instruction.Code.Result)
-	i.module.AppendInstruction(instruction)
+	i.intermediateCode.AppendInstruction(instruction)
 }
 
 // Generate code for an identifier use.
@@ -770,7 +770,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		codeName := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
-		codeSymbol := i.module.lookup(codeName)
+		codeSymbol := i.intermediateCode.lookup(codeName)
 
 		// create a value copy instruction to store the constant value in an temporary result
 		instruction := newInstruction(
@@ -780,9 +780,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			NewAddress(iu.Scope.NewIdentifier(prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
 			iu.TokenStreamIndex) // constant use in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Code.Result)
-		i.module.AppendInstruction(instruction)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Variable:
 		// get variable declaration of the variable to load
@@ -798,7 +798,7 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		codeName := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
-		codeSymbol := i.module.lookup(codeName)
+		codeSymbol := i.intermediateCode.lookup(codeName)
 
 		// create a variable load instruction to load the variable value into a temporary result
 		instruction := newInstruction(
@@ -809,9 +809,9 @@ func (i *intermediateCode) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			useDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 			iu.TokenStreamIndex)       // variable use in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Code.Result)
-		i.module.AppendInstruction(instruction)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Procedure:
 		// not required for code generation
@@ -838,8 +838,8 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			noAddress,           // consumed temporary result is checked in-place, boolean result must be hold externally
 			uo.TokenStreamIndex) // unary operation in the token stream
 
-		// append the instruction to the module (boolean results are not stored on the results-list)
-		i.module.AppendInstruction(instruction)
+		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Negate:
 		// create a negate instruction to negate the temporary result
@@ -850,9 +850,9 @@ func (i *intermediateCode) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			result,              // consumed temporary result is negated in-place (read, negate, write back negated result)
 			uo.TokenStreamIndex) // unary operation in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the module
+		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Code.Result)
-		i.module.AppendInstruction(instruction)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
@@ -898,9 +898,9 @@ func (i *intermediateCode) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			NewAddress(scope.NewIdentifier(prefix[ResultPrefix]), Temporary, left.DataType, 0), // arithmetic operation result
 			bo.TokenStreamIndex) // arithmetic operation in the token stream
 
-		// push the temporary result result onto the results-list and append the instruction to the module
+		// push the temporary result result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Code.Result)
-		i.module.AppendInstruction(instruction)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
@@ -949,8 +949,8 @@ func (i *intermediateCode) VisitConditionalOperation(co *ast.ConditionalOperatio
 			noAddress,           // consumed temporary results are checked in-place, boolean result must be hold externally
 			co.TokenStreamIndex) // conditional operation in the token stream
 
-		// append the instruction to the module (boolean results are not stored on the results-list)
-		i.module.AppendInstruction(instruction)
+		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
+		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
@@ -977,7 +977,7 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 	codeName := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(codeName)
+	codeSymbol := i.intermediateCode.lookup(codeName)
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := newInstruction(
@@ -988,8 +988,8 @@ func (i *intermediateCode) VisitAssignmentStatement(s *ast.AssignmentStatementNo
 		assignmentDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 		s.TokenStreamIndex)               // assignment statement in the token stream
 
-	// append the instruction to the module
-	i.module.AppendInstruction(instruction)
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(instruction)
 }
 
 // Generate code for a read statement.
@@ -1011,7 +1011,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 	codeName := variableUse.Scope.Lookup(variableUse.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol := i.module.lookup(codeName)
+	codeSymbol := i.intermediateCode.lookup(codeName)
 
 	// create a variable load instruction to load the variable value into a temporary result
 	load := newInstruction(
@@ -1039,7 +1039,7 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		s.TokenStreamIndex) // read statement in the token stream
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol = i.module.lookup(codeName)
+	codeSymbol = i.intermediateCode.lookup(codeName)
 
 	// store the resultant value into the variable used by the read statement
 	store := newInstruction(
@@ -1050,11 +1050,11 @@ func (i *intermediateCode) VisitReadStatement(s *ast.ReadStatementNode) {
 		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 		s.TokenStreamIndex)         // read statement in the token stream
 
-	// append the instructions to the module
-	i.module.AppendInstruction(load)
-	i.module.AppendInstruction(param)
-	i.module.AppendInstruction(readln)
-	i.module.AppendInstruction(store)
+	// append the instructions to the intermediate code unit
+	i.intermediateCode.AppendInstruction(load)
+	i.intermediateCode.AppendInstruction(param)
+	i.intermediateCode.AppendInstruction(readln)
+	i.intermediateCode.AppendInstruction(store)
 }
 
 // Generate code for a write statement.
@@ -1079,9 +1079,9 @@ func (i *intermediateCode) VisitWriteStatement(s *ast.WriteStatementNode) {
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
 
-	// append the instructions to the module
-	i.module.AppendInstruction(param)
-	i.module.AppendInstruction(writeln)
+	// append the instructions to the intermediate code unit
+	i.intermediateCode.AppendInstruction(param)
+	i.intermediateCode.AppendInstruction(writeln)
 }
 
 // Generate code for a call statement.
@@ -1108,8 +1108,8 @@ func (i *intermediateCode) VisitCallStatement(s *ast.CallStatementNode) {
 		callDepth-declarationDepth, // block nesting depth difference between procedure call and procedure declaration
 		s.TokenStreamIndex)         // call statement in the token stream
 
-	// append the instruction to the module
-	i.module.AppendInstruction(call)
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(call)
 }
 
 // Generate code for an if-then statement.
@@ -1128,7 +1128,7 @@ func (i *intermediateCode) VisitIfStatement(s *ast.IfStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a target instruction behind the statement instructions
-	i.module.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, behindStatement, s.TokenStreamIndex))
+	i.intermediateCode.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, behindStatement, s.TokenStreamIndex))
 }
 
 // Generate code for a while-do statement.
@@ -1139,7 +1139,7 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 	behindStatement := scope.NewIdentifier(prefix[LabelPrefix])
 
 	// append a target instruction before the conditional expression instructions
-	i.module.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, beforeCondition, s.TokenStreamIndex))
+	i.intermediateCode.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, beforeCondition, s.TokenStreamIndex))
 
 	// calculate the result of the conditional expression
 	s.Condition.Accept(i)
@@ -1152,10 +1152,10 @@ func (i *intermediateCode) VisitWhileStatement(s *ast.WhileStatementNode) {
 
 	// append a jump instruction to jump back to the conditional expression instructions
 	beforeConditionAddress := NewAddress(beforeCondition, Label, String, 0)
-	i.module.AppendInstruction(newInstruction(Jump, beforeConditionAddress, noAddress, noAddress, s.TokenStreamIndex))
+	i.intermediateCode.AppendInstruction(newInstruction(Jump, beforeConditionAddress, noAddress, noAddress, s.TokenStreamIndex))
 
 	// append a target instruction behind the statement instructions
-	i.module.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, behindStatement, s.TokenStreamIndex))
+	i.intermediateCode.AppendInstruction(newInstruction(Target, noAddress, noAddress, noAddress, behindStatement, s.TokenStreamIndex))
 }
 
 // Generate code for a compound begin-end statement.
@@ -1241,8 +1241,8 @@ func (i *intermediateCode) jumpConditional(expression ast.Expression, jumpIfCond
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
 	}
 
-	// append the conditional jump instruction to the module
-	i.module.AppendInstruction(jump)
+	// append the conditional jump instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(jump)
 }
 
 // Push a result onto the results-list of temporary results.

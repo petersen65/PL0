@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code module.
+// Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code unit.
 package emitter
 
 import (
@@ -134,7 +134,7 @@ type (
 		Link() error
 	}
 
-	// AssemblyCodeUnit represents one unit of instructions created from one module so that a program can be linked together from multiple modules.
+	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
@@ -147,8 +147,8 @@ type (
 )
 
 // Return the public interface of the private emitter implementation.
-func NewEmitter(cpu CentralProcessingUnit, module cod.Module) Emitter {
-	return newEmitter(cpu, module)
+func NewEmitter(cpu CentralProcessingUnit, intermediateCode cod.IntermediateCodeUnit) Emitter {
+	return newEmitter(cpu, intermediateCode)
 }
 
 // Return the public interface of the private assembly code unit implementation.

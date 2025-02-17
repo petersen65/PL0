@@ -80,13 +80,13 @@ type (
 
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
-		SourceContent  []byte               // PL/0 utf-8 source content
-		ErrorHandler   cor.ErrorHandler     // error handler of the compilation process
-		TokenStream    cor.TokenStream      // token stream of the PL/0 source content
-		AbstractSyntax ast.Block            // abstract syntax tree of the token stream
-		Module         cod.Module           // intermediate code module of the abstract syntax tree
-		ControlFlow    cfg.ControlFlowGraph // control flow graph of the intermediate code module
-		AssemblyCode   emi.AssemblyCodeUnit // assembly code of the intermediate code module
+		SourceContent    []byte                   // PL/0 utf-8 source content
+		ErrorHandler     cor.ErrorHandler         // error handler of the compilation process
+		TokenStream      cor.TokenStream          // token stream of the PL/0 source content
+		AbstractSyntax   ast.Block                // abstract syntax tree of the token stream
+		IntermediateCode cod.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
+		ControlFlow      cfg.ControlFlowGraph     // control flow graph of the intermediate code unit
+		AssemblyCode     emi.AssemblyCodeUnit     // assembly code of the intermediate code unit
 	}
 )
 
@@ -157,7 +157,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
 		} else {
 			// persist module to target and print persistence error message if an error occurred
-			if err = PersistModuleToTarget(translationUnit.Module, target); err != nil {
+			if err = PersistModuleToTarget(translationUnit.IntermediateCode, target); err != nil {
 				fmt.Fprintf(print, textErrorPersisting, target, err)
 				return
 			}
@@ -258,7 +258,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 }
 
 // Persist a module to the given binary target.
-func PersistModuleToTarget(module cod.Module, target string) error {
+func PersistModuleToTarget(module cod.IntermediateCodeUnit, target string) error {
 	var err error
 	var program *os.File
 
@@ -380,9 +380,9 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// export all intermediate code representations to the target files
-	if translationUnit.Module != nil {
-		icjErr = translationUnit.Module.Export(cor.Json, icjFile)
-		ictErr = translationUnit.Module.Export(cor.Text, ictFile)
+	if translationUnit.IntermediateCode != nil {
+		icjErr = translationUnit.IntermediateCode.Export(cor.Json, icjFile)
+		ictErr = translationUnit.IntermediateCode.Export(cor.Text, ictFile)
 	}
 
 	// export all control flow graph representations to the target files
@@ -392,10 +392,10 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	}
 
 	// export all emulator representations to the target files
-	if translationUnit.Module != nil {
+	if translationUnit.IntermediateCode != nil {
 		machine := emu.NewMachine()
 
-		if emtErr = machine.LoadModule(translationUnit.Module); emtErr == nil {
+		if emtErr = machine.LoadModule(translationUnit.IntermediateCode); emtErr == nil {
 			emjErr = machine.Export(cor.Json, emjFile)
 			emtErr = machine.Export(cor.Text, emtFile)
 		}
@@ -407,7 +407,7 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 }
 
 // Run module with the emulator.
-func EmulateModule(module cod.Module) error {
+func EmulateModule(module cod.IntermediateCodeUnit) error {
 	machine := emu.NewMachine()
 
 	if err := machine.LoadModule(module); err != nil {

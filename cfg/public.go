@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	// ControlFlowGraph represents the control flow graph of an intermediate code module.
+	// ControlFlowGraph represents the control flow graph of an intermediate code unit.
 	ControlFlowGraph interface {
 		Build()
 		AppendBasicBlock(basicBlock *basicBlock)
@@ -31,9 +31,9 @@ type (
 	}
 )
 
-// NewControlFlowGraph creates a new control flow graph for a specified module.
-func NewControlFlowGraph(module cod.Module) ControlFlowGraph {
-	return newControlFlowGraph(module)
+// Creates a new control flow graph for a specified intermediate code unit.
+func NewControlFlowGraph(intermediateCode cod.IntermediateCodeUnit) ControlFlowGraph {
+	return newControlFlowGraph(intermediateCode)
 }
 
 // NewBasicBlock creates a new basic block.

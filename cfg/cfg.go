@@ -15,9 +15,9 @@ import (
 type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
 	controlFlowGraph struct {
-		module cod.Module    `json:"-"`      // intermediate code module that the control flow graph is built from
-		Blocks []*basicBlock `json:"blocks"` // basic blocks of the control flow graph
-		edges  []*edge       `json:"-"`      // edges of the control flow graph
+		intermediateCode cod.IntermediateCodeUnit `json:"-"`      // intermediate code unit that the control flow graph is built from
+		Blocks           []*basicBlock            `json:"blocks"` // basic blocks of the control flow graph
+		edges            []*edge                  `json:"-"`      // edges of the control flow graph
 	}
 
 	// Implementation of the basic block interface that holds instructions of the block.
@@ -40,12 +40,12 @@ type (
 	}
 )
 
-// Create a new control flow graph for the specified module.
-func newControlFlowGraph(module cod.Module) ControlFlowGraph {
+// Create a new control flow graph for the specified intermediate code unit.
+func newControlFlowGraph(intermediateCode cod.IntermediateCodeUnit) ControlFlowGraph {
 	return &controlFlowGraph{
-		module: module,
-		Blocks: make([]*basicBlock, 0),
-		edges:  make([]*edge, 0),
+		intermediateCode: intermediateCode,
+		Blocks:           make([]*basicBlock, 0),
+		edges:            make([]*edge, 0),
 	}
 }
 
@@ -68,7 +68,7 @@ func newEdge(from, to *basicBlock) Edge {
 // Build the control flow graph by partitioning the intermediate code into basic blocks.
 func (cfg *controlFlowGraph) Build() {
 	var block *basicBlock
-	iterator := cfg.module.GetIterator()
+	iterator := cfg.intermediateCode.GetIterator()
 
 	// partition three-address code operations in the intermediate code into basic blocks
 	for i := iterator.First(); i != nil; i = iterator.Next() {
