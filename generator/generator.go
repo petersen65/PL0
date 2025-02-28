@@ -95,14 +95,14 @@ var (
 
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
-		Empty:      "empty",
-		Diagnostic: "diagnostic",
-		Temporary:  "temporary",
-		Literal:    "literal",
-		Variable:   "variable",
-		Label:      "label",
-		Count:      "count",
-		Code:       "code",
+		Empty:      "ety",
+		Diagnostic: "dbg",
+		Temporary:  "tmp",
+		Literal:    "lit",
+		Variable:   "var",
+		Label:      "lbl",
+		Count:      "cnt",
+		Code:       "cod",
 	}
 
 	// dataTypeNames maps an address data type to its string representation.
@@ -162,7 +162,7 @@ var (
 	// The intermediate code contract maps all three-address code operations to their address contracts for validation.
 	intermediateCodeContract = map[Operation][]addressesContract{
 		Odd:              {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-		Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
 		Plus:             {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 		Minus:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 		Times:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
@@ -278,10 +278,16 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v:%v:%v:%v", a.Variant, a.DataType, a.Location, a.Name)
+	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Location, a.Name)
+	
+	if a.Variant == Empty {
+		representation = ""
+	} else if a.Location == 0 {
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
+	}
 
-	if len(representation) > 20 {
-		return representation[:20]
+	if len(representation) > 22 {
+		representation = representation[:22]
 	}
 
 	return representation
@@ -294,7 +300,7 @@ func (o Operation) String() string {
 
 // String representation of a three-address code quadruple.
 func (q *Quadruple) String() string {
-	return fmt.Sprintf("%-12v %-20v %-20v %-20v", q.Operation, q.Arg1, q.Arg2, q.Result)
+	return fmt.Sprintf("%-12v %-22v %-22v %-22v", q.Operation, q.Arg1, q.Arg2, q.Result)
 }
 
 // String representation of an intermediate code instruction.
@@ -306,7 +312,7 @@ func (i *Instruction) String() string {
 	}
 
 	return fmt.Sprintf(
-		"%-8v %4v    %-12v    %-20v    %-20v    %-20v",
+		"%-8v %4v    %-12v   %-22v   %-22v   %-22v",
 		i.Label,
 		depthDifference,
 		i.Code.Operation,
@@ -1033,8 +1039,8 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// call the readln standard function with 1 parameter
 	readln := newInstruction(
 		Standard, // function call to the external standard library
-		NewAddress(1, Count, UnsignedInteger64, 0),     // number of parameters for the standard function
-		NewAddress(ReadLn, Code, UnsignedInteger64, 0), // code of standard function to call
+		NewAddress(1, Count, UnsignedInteger64, 0), // number of parameters for the standard function
+		NewAddress(ReadLn, Code, Integer64, 0),     // code of standard function to call
 		noAddress,
 		s.TokenStreamIndex) // read statement in the token stream
 
@@ -1074,8 +1080,8 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// call the writeln standard function with 1 parameter
 	writeln := newInstruction(
 		Standard, // function call to the external standard library
-		NewAddress(1, Count, UnsignedInteger64, 0),      // number of parameters for the standard function
-		NewAddress(WriteLn, Code, UnsignedInteger64, 0), // code of standard function to call
+		NewAddress(1, Count, UnsignedInteger64, 0), // number of parameters for the standard function
+		NewAddress(WriteLn, Code, Integer64, 0),    // code of standard function to call
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
 

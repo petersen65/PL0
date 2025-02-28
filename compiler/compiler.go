@@ -42,7 +42,7 @@ const (
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
 	textEmulating          = "Emulating binary target '%v'\n"
-	textErrorEmulating     = "Error emulating binary target '%v': %v"
+	textErrorEmulating     = "Error emulating binary target '%v': %v\n"
 	textDriverSourceTarget = "Compiler Driver with source code '%v' and binary target '%v' completed\n"
 	textDriverTarget       = "Compiler Driver with binary target '%v' completed\n"
 )
