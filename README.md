@@ -7,16 +7,17 @@ This module provides a complete compiler for the programming language PL/0. It p
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
 * analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
-* code: compiler phase for intermediate code generation by traversing the abstract syntax tree
+* generator: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
-* emulator: execution of JIT compiled intermediate code instructions by running a process on a virtual cpu with stack and registers
+* emitter: assembly code generation compiler phase by iterating over the intermediate code
+* emulator: execution of assembly code instructions by running a process on a virtual cpu with stack and registers
 * compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into a so-called pseudo-assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into an assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
-For Visual Studio Code, you should be able to run the compiler with F5. Please install the lastest Go version before that. You will be guided to a playground.pl0 file where you can try out PL/0 programming. Support for dev-containers is also provided, if you cannot install Go on your operating system. The PL/0 compiler was tested under Windows 11, Linux Ubuntu x86_64, and macOS Sonoma M2.
+For Visual Studio Code, you should be able to run the compiler with F5. Please install the lastest Go version before that. You will be guided to a playground.pl0 file where you can try out PL/0 programming. Support for dev-containers is also provided, if you cannot install Go on your operating system. The PL/0 compiler was tested under Windows 11, Linux Ubuntu 24.10, and macOS Sequoia M4.
 
 I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
 
@@ -146,6 +147,12 @@ The programming language PL/0 2025 supports the following features:
 	* complete abstract syntax tree token handler integration beyond identifier declarations and usage
 	* integrate intermediate language with token handler so that errors can be linked to source code locations
 	* improve emulator target pseudo-assembler code to be more Intel CPU like with more primitives and downward growing stack
+
+* March 1 2025 - [v2.3.0](https://github.com/petersen65/pl0/releases/tag/v2.3.0)
+	* control graph representation (CFG) of intermediate code as basic blocks (draft)
+	* refactoring of packages code and emulator into packages generator, emitter, and emulator
+	* removal of jit compiler from emulator and implementation of new emitter package that was refactored out of the jit compiler
+	* introduction of concepts "intermediate code unit" and "assembly code unit" defined as output from generator and emitter phases
 
 ## Planning
 
