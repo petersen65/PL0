@@ -53,7 +53,7 @@ const (
 	StdCall
 )
 
-// Registers of the CPU.
+// 64 bit registers of the CPU.
 const (
 	_     = Register(iota)
 	Rax   // accumulator is used for intermediate results of arithmetic operations
@@ -103,7 +103,7 @@ type (
 	// Type for operand kinds of CPU operations.
 	OperandKind int32
 
-	// Enumeration of registers of the CPU.
+	// Enumeration of 64 bit registers of the CPU.
 	Register int32
 
 	// Type for standard library call codes.

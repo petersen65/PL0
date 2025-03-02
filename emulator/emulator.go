@@ -7,14 +7,15 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"unsafe"
 
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
 )
 
 const (
-	memorySize         = 65536 // memory entries are 64-bit unsigned integers
-	stackSize          = 16384 // control stack entries are 64-bit unsigned integers
+	memorySize         = 65536 // memory entries are 8-bit unsigned bytes (64KB)
+	stackSize          = 16384 // control stack entries are 8-bit unsigned bytes (16KB)
 	stackForbiddenZone = 1024  // control stack entries below this address are forbidden to be used
 )
 
@@ -29,22 +30,21 @@ type (
 	// Flags that reflect the state of the CPU and the result of arithmetic operations.
 	flag uint64
 
-	// Virtual process that holds instructions of a binary target.
+	// Process that holds assembly code instructions.
 	process struct {
-		assemblyCode emi.AssemblyCodeUnit // assembly code instructions of the process
-		stackPointer uint64               // memory address of the downward growing stack
+		assemblyCode emi.AssemblyCodeUnit // assembly code of the process
 	}
 
-	// Virtual CPU with its registers.
+	// CPU with its registers.
 	cpu struct {
-		registers map[emi.Register]uint64 // registers of the CPU
+		registers map[emi.Register]uint64 // 64 bit registers of the CPU
 	}
 
-	// Virtual machine that can run processes.
+	// Emulation machine that can run processes.
 	machine struct {
-		cpu     cpu      // CPU of the virtual machine
-		memory  []uint64 // memory of the virtual machine
-		process process  // process running on the virtual machine
+		cpu     cpu     // CPU of the machine
+		memory  []byte  // memory of the machine
+		process process // process running on the machine
 	}
 )
 
@@ -54,10 +54,9 @@ func newMachine() Machine {
 		cpu: cpu{
 			registers: make(map[emi.Register]uint64),
 		},
-		memory: make([]uint64, memorySize),
+		memory: make([]byte, memorySize),
 		process: process{
 			assemblyCode: emi.NewAssemblyCodeUnit(),
-			stackPointer: memorySize - 1,
 		},
 	}
 }
@@ -90,27 +89,30 @@ func (m *machine) RunProcess() error {
 	m.cpu.registers[emi.Flags] = 0 // flags register
 	m.cpu.registers[emi.Rip] = 0   // instruction pointer
 
-	// initialize activation record descriptor of main block
-	m.memory[m.process.stackPointer] = 0                  // static link (access link for compile-time block nesting hierarchy)
-	m.memory[m.process.stackPointer-1] = 0                // return address (to caller)
-	m.cpu.registers[emi.Rsp] = m.process.stackPointer - 1 // stack pointer points to return address before main block's prelude runs
-	m.cpu.registers[emi.Rbp] = 0                          // intentionnaly, there is no valid base pointer yet (from a caller)
+	// initialize activation record descriptor of the main block
+	m.memory[memorySize-1] = 0                // static link (access link for compile-time block nesting hierarchy)
+	m.memory[memorySize-2] = 0                // return address (to caller)
+	m.cpu.registers[emi.Rsp] = memorySize - 2 // stack pointer points to return address before main block's prelude runs
+	m.cpu.registers[emi.Rbp] = 0              // intentionnaly, there is no valid base pointer yet (from a caller)
 
-	// execute instructions until main block return to external code
+	// the stack pointer and the base pointer point to 64 bit memory addresses (byte memory of the machine)
+	// the instruction pointer points to 64 bit code addresses (assembly code of the process)
 	for {
+		// stack address space is byte memory from 'memorySize-1' down to 'memorySize-stackSize' excluding a forbidden zone
+		if m.cpu.registers[emi.Rsp] > memorySize-1 || m.cpu.registers[emi.Rsp] < memorySize-stackSize+stackForbiddenZone {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[emi.Rsp], nil)
+		}
+
+		// instruction address space is text section memory from '0' up to 'textSectionSize-1'
 		if m.cpu.registers[emi.Rip] >= uint64(m.process.assemblyCode.Length()) {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.registers[emi.Rip], nil)
 		}
 
-		// stack address space is from 'stackPointer' down to 'stackPointer - stackSize + 1' excluding a forbidden zone
-		if m.cpu.registers[emi.Rsp] <= m.process.stackPointer-stackSize+stackForbiddenZone ||
-			m.cpu.registers[emi.Rsp] > m.process.stackPointer {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.registers[emi.Rsp], nil)
-		}
-
+		// fetch instruction from text section memory using the instruction pointer
 		instr := m.process.assemblyCode.GetInstruction(int(m.cpu.registers[emi.Rip]))
 		m.cpu.registers[emi.Rip]++
 
+		// execute instructions until main block returns to external code
 		switch instr.Operation {
 		case emi.Push: // push operand on top of stack
 			if len(instr.Operands) != 1 {
@@ -345,14 +347,16 @@ func (m *machine) push(op *emi.Operand) error {
 		arg = op.Jump
 
 	case emi.MemoryOperand:
-		arg = m.memory[int64(m.cpu.registers[op.Memory])+op.Displacement]
+		address := uint64(int64(m.cpu.registers[op.Memory]) + op.Displacement)
+		arg = *(*uint64)(unsafe.Pointer(&m.memory[address]))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
 	}
 
-	m.cpu.registers[emi.Rsp]--
-	m.memory[m.cpu.registers[emi.Rsp]] = arg
+	m.cpu.registers[emi.Rsp] -= uint64(unsafe.Sizeof(arg))
+	address := m.cpu.registers[emi.Rsp]
+	*(*uint64)(unsafe.Pointer(&m.memory[address])) = arg
 	return nil
 }
 
@@ -360,13 +364,15 @@ func (m *machine) push(op *emi.Operand) error {
 func (m *machine) pop(op *emi.Operand) error {
 	switch op.OperandKind {
 	case emi.RegisterOperand:
-		m.cpu.registers[op.Register] = m.memory[m.cpu.registers[emi.Rsp]]
+		address := m.cpu.registers[emi.Rsp]
+		arg := *(*uint64)(unsafe.Pointer(&m.memory[address]))
+		m.cpu.registers[op.Register] = arg
+		m.cpu.registers[emi.Rsp] += uint64(unsafe.Sizeof(arg))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
 	}
 
-	m.cpu.registers[emi.Rsp]++
 	return nil
 }
 
