@@ -401,13 +401,17 @@ func (m *machine) mov(a, b *emi.Operand) error {
 		m.cpu.registers[a.Register] = uint64(b.ArgInt)
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.MemoryOperand:
-		m.cpu.registers[a.Register] = m.memory[int64(m.cpu.registers[b.Memory])+b.Displacement]
+		address := uint64(int64(m.cpu.registers[b.Memory]) + b.Displacement)
+		arg := *(*uint64)(unsafe.Pointer(&m.memory[address]))
+		m.cpu.registers[a.Register] = arg
 
 	case a.OperandKind == emi.MemoryOperand && b.OperandKind == emi.RegisterOperand:
-		m.memory[int64(m.cpu.registers[a.Memory])+a.Displacement] = m.cpu.registers[b.Register]
+		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
+		*(*uint64)(unsafe.Pointer(&m.memory[address])) = m.cpu.registers[b.Register]
 
 	case a.OperandKind == emi.MemoryOperand && b.OperandKind == emi.ImmediateOperand:
-		m.memory[int64(m.cpu.registers[a.Memory])+a.Displacement] = uint64(b.ArgInt)
+		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
+		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.ArgInt)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
