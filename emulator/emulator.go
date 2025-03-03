@@ -334,29 +334,38 @@ func (m *machine) standard(code emi.StandardCall) error {
 
 // Push operand on top of stack, top of stack points to new operand.
 func (m *machine) push(op *emi.Operand) error {
-	var arg uint64
+	var content uint64
 
 	switch op.OperandKind {
 	case emi.RegisterOperand:
-		arg = m.cpu.registers[op.Register]
+		// push the content of a register to the top of the stack
+		content = m.cpu.registers[op.Register]
 
 	case emi.ImmediateOperand:
-		arg = uint64(op.ArgInt)
+		// push an immediate value to the top of the stack
+		content = uint64(op.ArgInt)
 
 	case emi.JumpOperand:
-		arg = op.Jump
+		// push a jump address to the top of the stack
+		content = op.Jump
 
 	case emi.MemoryOperand:
+		// push the content of a memory address to the top of the stack
+		// read the memory address from the register referenced by the memory operand and add a displacement
 		address := uint64(int64(m.cpu.registers[op.Memory]) + op.Displacement)
-		arg = *(*uint64)(unsafe.Pointer(&m.memory[address]))
+		
+		// to get the content of the memory address, cast the memory address to a pointer to a uint64 and dereference it
+		content = *(*uint64)(unsafe.Pointer(&m.memory[address]))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
 	}
 
-	m.cpu.registers[emi.Rsp] -= uint64(unsafe.Sizeof(arg))
-	address := m.cpu.registers[emi.Rsp]
-	*(*uint64)(unsafe.Pointer(&m.memory[address])) = arg
+	// decrement the stack pointer (stack grows downwards)
+	m.cpu.registers[emi.Rsp] -= uint64(unsafe.Sizeof(content))
+
+	// store the content at the new top of the stack
+	*(*uint64)(unsafe.Pointer(&m.memory[m.cpu.registers[emi.Rsp]])) = content
 	return nil
 }
 
@@ -364,9 +373,11 @@ func (m *machine) push(op *emi.Operand) error {
 func (m *machine) pop(op *emi.Operand) error {
 	switch op.OperandKind {
 	case emi.RegisterOperand:
-		address := m.cpu.registers[emi.Rsp]
-		arg := *(*uint64)(unsafe.Pointer(&m.memory[address]))
+		// pop the content of the top of the stack into a register
+		arg := *(*uint64)(unsafe.Pointer(&m.memory[m.cpu.registers[emi.Rsp]]))
 		m.cpu.registers[op.Register] = arg
+
+		// increment the stack pointer (stack shrinks upwards)
 		m.cpu.registers[emi.Rsp] += uint64(unsafe.Sizeof(arg))
 
 	default:
