@@ -53,7 +53,7 @@ const (
 	StdCall
 )
 
-// Register enumeration for the 64 bit, 32 bit, 16 bit, and 8 bit registers of the AMD64 CPU.
+// Register enumeration for the 256 bit, 128 bit, 64 bit, 32 bit, 16 bit, and 8 bit registers of the AMD64 CPU.
 const (
 	_ = Register(iota)
 
@@ -126,6 +126,42 @@ const (
 	R13b // 8-bit general purpose register (bits 0-7 of R13)
 	R14b // 8-bit general purpose register (bits 0-7 of R14)
 	R15b // 8-bit general purpose register (bits 0-7 of R15)
+
+	// 256 bit AVX registers of the AMD64 CPU (advanced vector extensions, AVX).
+	Ymm0  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm1  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm2  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm3  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm4  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm5  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm6  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm7  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm8  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm9  // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm10 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm11 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm12 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm13 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm14 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+	Ymm15 // floating point register (256 bits, 8 x 32 bits or 4 x 64 bits floating point numbers)
+
+	// 128 bit SSE registers of the AMD64 CPU (streaming single instructions multiple data extensions, SSE).
+	Xmm0  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm0)
+	Xmm1  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm1)
+	Xmm2  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm2)
+	Xmm3  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm3)
+	Xmm4  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm4)
+	Xmm5  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm5)
+	Xmm6  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm6)
+	Xmm7  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm7)
+	Xmm8  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm8)
+	Xmm9  // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm9)
+	Xmm10 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm10)
+	Xmm11 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm11)
+	Xmm12 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm12)
+	Xmm13 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm13)
+	Xmm14 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm14)
+	Xmm15 // floating point register (4 x 32 bits or 2 x 64 bits floating point numbers, bits 0-127 of Ymm15)
 )
 
 // Operand kinds for instructions.
