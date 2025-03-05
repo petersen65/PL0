@@ -16,7 +16,7 @@ const (
 	Amd64 = CentralProcessingUnit(iota) // AMD64 CPU target
 )
 
-// Operation codes for assembly instructions.
+// Operation codes for assembly instructions of the AMD64 CPU.
 const (
 	_ = OperationCode(iota)
 
@@ -53,34 +53,86 @@ const (
 	StdCall
 )
 
-// 64 bit registers of the CPU.
+// Register enumeration for the 64 bit, 32 bit, 16 bit, and 8 bit registers of the AMD64 CPU.
 const (
-	_     = Register(iota)
-	Rax   // accumulator is used for intermediate results of arithmetic operations
-	Rbx   // base register can be used for addressing variables
-	Rcx   // counter register can be used for counting iterations of loops
-	Rdx   // data register can be used for addressing variables
-	Rsi   // source index register used in string and array operations as a pointer to source data
-	Rdi   // destination index register is used used in string and array operations as a pointer to destination data
-	R8    // 64-bit general purpose register
-	R9    // 64-bit general purpose register
-	R10   // 64-bit general purpose register
-	R11   // 64-bit general purpose register
-	R12   // 64-bit general purpose register
-	R13   // 64-bit general purpose register
-	R14   // 64-bit general purpose register
-	R15   // 64-bit general purpose register
-	Flags // flags register contains the current state of the CPU and reflects the result of arithmetic operations
-	Rip   // instruction pointer is pointing to the next instruction to be executed
-	Rsp   // stack pointer is pointing to the top of the control stack
-	Rbp   // base pointer is pointing to the base of an activation record
+	_ = Register(iota)
+
+	// 64 bit registers of the AMD64 CPU.
+	Rax    // accumulator is used for intermediate results of arithmetic operations
+	Rbx    // base register can be used for addressing variables
+	Rcx    // counter register can be used for counting iterations of loops
+	Rdx    // data register can be used for addressing variables
+	Rsi    // source index register used in string and array operations as a pointer to source data
+	Rdi    // destination index register is used used in string and array operations as a pointer to destination data
+	R8     // 64-bit general purpose register
+	R9     // 64-bit general purpose register
+	R10    // 64-bit general purpose register
+	R11    // 64-bit general purpose register
+	R12    // 64-bit general purpose register
+	R13    // 64-bit general purpose register
+	R14    // 64-bit general purpose register
+	R15    // 64-bit general purpose register
+	Rflags // flags register contains the current state of the CPU and reflects the result of arithmetic operations
+	Rip    // instruction pointer is pointing to the next instruction to be executed
+	Rsp    // stack pointer is pointing to the top of the control stack
+	Rbp    // base pointer is pointing to the base of an activation record
+
+	// 32 bit registers of the AMD64 CPU.
+	Eax  // accumulator is used for intermediate results of arithmetic operations (bits 0-31 of Rax)
+	Ebx  // base register can be used for addressing variables (bits 0-31 of Rbx)
+	Ecx  // counter register can be used for counting iterations of loops (bits 0-31 of Rcx)
+	Edx  // data register can be used for addressing variables (bits 0-31 of Rdx)
+	Esi  // source index register used in string and array operations as a pointer to source data (bits 0-31 of Rsi)
+	Edi  // destination index register is used used in string and array operations as a pointer to destination data (bits 0-31 of Rdi)
+	R8d  // 32-bit general purpose register (bits 0-31 of R8)
+	R9d  // 32-bit general purpose register (bits 0-31 of R9)
+	R10d // 32-bit general purpose register (bits 0-31 of R10)
+	R11d // 32-bit general purpose register (bits 0-31 of R11)
+	R12d // 32-bit general purpose register (bits 0-31 of R12)
+	R13d // 32-bit general purpose register (bits 0-31 of R13)
+	R14d // 32-bit general purpose register (bits 0-31 of R14)
+	R15d // 32-bit general purpose register (bits 0-31 of R15)
+
+	// 16 bit registers of the AMD64 CPU.
+	Ax   // accumulator is used for intermediate results of arithmetic operations (bits 0-15 of Rax)
+	Bx   // base register can be used for addressing variables (bits 0-15 of Rbx)
+	Cx   // counter register can be used for counting iterations of loops (bits 0-15 of Rcx)
+	Dx   // data register can be used for addressing variables (bits 0-15 of Rdx)
+	Si   // source index register used in string and array operations as a pointer to source data (bits 0-15 of Rsi)
+	Di   // destination index register is used used in string and array operations as a pointer to destination data (bits 0-15 of Rdi)
+	R8w  // 16-bit general purpose register (bits 0-15 of R8)
+	R9w  // 16-bit general purpose register (bits 0-15 of R9)
+	R10w // 16-bit general purpose register (bits 0-15 of R10)
+	R11w // 16-bit general purpose register (bits 0-15 of R11)
+	R12w // 16-bit general purpose register (bits 0-15 of R12)
+	R13w // 16-bit general purpose register (bits 0-15 of R13)
+	R14w // 16-bit general purpose register (bits 0-15 of R14)
+	R15w // 16-bit general purpose register (bits 0-15 of R15)
+
+	// 8 bit registers of the AMD64 CPU.
+	Al   // accumulator is used for intermediate results of arithmetic operations (bits 0-7 of Rax)
+	Bl   // base register can be used for addressing variables (bits 0-7 of Rbx)
+	Cl   // counter register can be used for counting iterations of loops (bits 0-7 of Rcx)
+	Dl   // data register can be used for addressing variables (bits 0-7 of Rdx)
+	Ah   // accumulator is used for intermediate results of arithmetic operations (bits 8-15 of Rax)
+	Bh   // base register can be used for addressing variables (bits 8-15 of Rbx)
+	Ch   // counter register can be used for counting iterations of loops (bits 8-15 of Rcx)
+	Dh   // data register can be used for addressing variables (bits 8-15 of Rdx)
+	R8b  // 8-bit general purpose register (bits 0-7 of R8)
+	R9b  // 8-bit general purpose register (bits 0-7 of R9)
+	R10b // 8-bit general purpose register (bits 0-7 of R10)
+	R11b // 8-bit general purpose register (bits 0-7 of R11)
+	R12b // 8-bit general purpose register (bits 0-7 of R12)
+	R13b // 8-bit general purpose register (bits 0-7 of R13)
+	R14b // 8-bit general purpose register (bits 0-7 of R14)
+	R15b // 8-bit general purpose register (bits 0-7 of R15)
 )
 
 // Operand kinds for instructions.
 const (
 	_                = OperandKind(iota)
-	RegisterOperand  // 64-bit registers: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8 to r15
-	ImmediateOperand // int64 constant values like 'mov eax, 1'
+	RegisterOperand  // register operands are used for arithmetic and logical operations
+	ImmediateOperand // constant values like 'mov rax, 1'
 	MemoryOperand    // memory addresses are specified indirectly through registers
 	LabelOperand     // labels are used to specify jump targets and must be replaced by absolute addresses before execution
 	JumpOperand      // destinations for jump instructions that are specified as absolute addresses
@@ -113,7 +165,7 @@ type (
 	Operand struct {
 		OperandKind  OperandKind `json:"operand"`      // kind of the operand
 		Register     Register    `json:"register"`     // register operand for the operation
-		ArgInt       int64       `json:"arg_int"`      // int64 immediate value argument
+		Value        any         `json:"value"`        // immediate value argument
 		Memory       Register    `json:"memory"`       // memory address specified indirectly through register
 		Label        string      `json:"label"`        // labels for jump instructions will be replaced by an address
 		Jump         uint64      `json:"jump"`         // destinations for jump instructions are specified as absolute addresses
@@ -132,7 +184,7 @@ type (
 		Emit()
 		GetAssemblyCodeUnit() AssemblyCodeUnit
 	}
-	
+
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)

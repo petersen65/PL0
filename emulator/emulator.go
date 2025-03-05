@@ -72,22 +72,22 @@ func (m *machine) Load(scan io.Reader) error {
 
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
-	m.cpu.registers[emi.Rax] = 0   // accumulator register
-	m.cpu.registers[emi.Rbx] = 0   // base register
-	m.cpu.registers[emi.Rcx] = 0   // counter register
-	m.cpu.registers[emi.Rdx] = 0   // data register
-	m.cpu.registers[emi.Rsi] = 0   // source index register
-	m.cpu.registers[emi.Rdi] = 0   // destination index register
-	m.cpu.registers[emi.R8] = 0    // general purpose register
-	m.cpu.registers[emi.R9] = 0    // general purpose register
-	m.cpu.registers[emi.R10] = 0   // general purpose register
-	m.cpu.registers[emi.R11] = 0   // general purpose register
-	m.cpu.registers[emi.R12] = 0   // general purpose register
-	m.cpu.registers[emi.R13] = 0   // general purpose register
-	m.cpu.registers[emi.R14] = 0   // general purpose register
-	m.cpu.registers[emi.R15] = 0   // general purpose register
-	m.cpu.registers[emi.Flags] = 0 // flags register
-	m.cpu.registers[emi.Rip] = 0   // instruction pointer
+	m.cpu.registers[emi.Rax] = 0    // accumulator register
+	m.cpu.registers[emi.Rbx] = 0    // base register
+	m.cpu.registers[emi.Rcx] = 0    // counter register
+	m.cpu.registers[emi.Rdx] = 0    // data register
+	m.cpu.registers[emi.Rsi] = 0    // source index register
+	m.cpu.registers[emi.Rdi] = 0    // destination index register
+	m.cpu.registers[emi.R8] = 0     // general purpose register
+	m.cpu.registers[emi.R9] = 0     // general purpose register
+	m.cpu.registers[emi.R10] = 0    // general purpose register
+	m.cpu.registers[emi.R11] = 0    // general purpose register
+	m.cpu.registers[emi.R12] = 0    // general purpose register
+	m.cpu.registers[emi.R13] = 0    // general purpose register
+	m.cpu.registers[emi.R14] = 0    // general purpose register
+	m.cpu.registers[emi.R15] = 0    // general purpose register
+	m.cpu.registers[emi.Rflags] = 0 // flags register
+	m.cpu.registers[emi.Rip] = 0    // instruction pointer
 
 	// initialize activation record descriptor of the main block
 	m.memory[memorySize-1] = 0                // static link (access link for compile-time block nesting hierarchy)
@@ -293,7 +293,7 @@ func (m *machine) RunProcess() error {
 			}
 
 			// call standard library function via call code
-			if err := m.standard(emi.StandardCall(instr.Operands[0].ArgInt)); err != nil {
+			if err := m.standard(emi.StandardCall(instr.Operands[0].Value.(int64))); err != nil {
 				return err
 			}
 
@@ -343,7 +343,7 @@ func (m *machine) push(op *emi.Operand) error {
 
 	case emi.ImmediateOperand:
 		// push an immediate value to the top of the stack
-		content = uint64(op.ArgInt)
+		content = uint64(op.Value.(int64))
 
 	case emi.JumpOperand:
 		// push a jump address to the top of the stack
@@ -353,7 +353,7 @@ func (m *machine) push(op *emi.Operand) error {
 		// push the content of a memory address to the top of the stack
 		// read the memory address from the register referenced by the memory operand and add a displacement
 		address := uint64(int64(m.cpu.registers[op.Memory]) + op.Displacement)
-		
+
 		// to get the content of the memory address, cast the memory address to a pointer to a uint64 and dereference it
 		content = *(*uint64)(unsafe.Pointer(&m.memory[address]))
 
@@ -409,7 +409,7 @@ func (m *machine) mov(a, b *emi.Operand) error {
 		m.cpu.registers[a.Register] = m.cpu.registers[b.Register]
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		m.cpu.registers[a.Register] = uint64(b.ArgInt)
+		m.cpu.registers[a.Register] = uint64(b.Value.(int64))
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.MemoryOperand:
 		address := uint64(int64(m.cpu.registers[b.Memory]) + b.Displacement)
@@ -422,7 +422,7 @@ func (m *machine) mov(a, b *emi.Operand) error {
 
 	case a.OperandKind == emi.MemoryOperand && b.OperandKind == emi.ImmediateOperand:
 		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
-		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.ArgInt)
+		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.Value.(int64))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
@@ -478,7 +478,7 @@ func (c *cpu) add(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.ArgInt
+		arg_b = b.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Add, nil)
@@ -505,7 +505,7 @@ func (c *cpu) sub(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.ArgInt
+		arg_b = b.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Sub, nil)
@@ -533,7 +533,7 @@ func (c *cpu) imul(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.ArgInt
+		arg_b = b.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Imul, nil)
@@ -560,7 +560,7 @@ func (c *cpu) idiv(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.ArgInt
+		arg_b = b.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Idiv, nil)
@@ -591,7 +591,7 @@ func (c *cpu) cmp(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.ArgInt
+		arg_b = b.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Cmp, nil)
@@ -623,7 +623,7 @@ func (c *cpu) jmp(op *emi.Operand) error {
 
 // Jump to uint64 address if zero flag is set, nz (not zero).
 func (c *cpu) je(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(zf) != 0 {
+	if c.registers[emi.Rflags]&uint64(zf) != 0 {
 		return c.jmp(op)
 	}
 
@@ -632,7 +632,7 @@ func (c *cpu) je(op *emi.Operand) error {
 
 // Jump to uint64 address if zero flag is not set, zr (zero).
 func (c *cpu) jne(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(zf) == 0 {
+	if c.registers[emi.Rflags]&uint64(zf) == 0 {
 		return c.jmp(op)
 	}
 
@@ -641,7 +641,7 @@ func (c *cpu) jne(op *emi.Operand) error {
 
 // Jump to uint64 address if sign flag is not equal to overflow flag (sf != of).
 func (c *cpu) jl(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(sf) != c.registers[emi.Flags]&uint64(of) {
+	if c.registers[emi.Rflags]&uint64(sf) != c.registers[emi.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -650,7 +650,7 @@ func (c *cpu) jl(op *emi.Operand) error {
 
 // Jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of).
 func (c *cpu) jle(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(zf) != 0 || c.registers[emi.Flags]&uint64(sf) != c.registers[emi.Flags]&uint64(of) {
+	if c.registers[emi.Rflags]&uint64(zf) != 0 || c.registers[emi.Rflags]&uint64(sf) != c.registers[emi.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -659,7 +659,7 @@ func (c *cpu) jle(op *emi.Operand) error {
 
 // Jump to uint64 address if zero flag is not set and sign flag is equal to overflow flag (zf == 0, sf == of).
 func (c *cpu) jg(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(zf) == 0 && c.registers[emi.Flags]&uint64(sf) == c.registers[emi.Flags]&uint64(of) {
+	if c.registers[emi.Rflags]&uint64(zf) == 0 && c.registers[emi.Rflags]&uint64(sf) == c.registers[emi.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -668,7 +668,7 @@ func (c *cpu) jg(op *emi.Operand) error {
 
 // Jump to uint64 address if sign flag is equal to overflow flag (sf == of).
 func (c *cpu) jge(op *emi.Operand) error {
-	if c.registers[emi.Flags]&uint64(sf) == c.registers[emi.Flags]&uint64(of) {
+	if c.registers[emi.Rflags]&uint64(sf) == c.registers[emi.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -678,27 +678,27 @@ func (c *cpu) jge(op *emi.Operand) error {
 // Set zero flag if int64 element is zero.
 func (c *cpu) set_zf(a int64) {
 	if a == 0 {
-		c.registers[emi.Flags] |= uint64(zf)
+		c.registers[emi.Rflags] |= uint64(zf)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(zf)
+		c.registers[emi.Rflags] &= ^uint64(zf)
 	}
 }
 
 // Set sign flag if int64 element is negative.
 func (c *cpu) set_sf(a int64) {
 	if a < 0 {
-		c.registers[emi.Flags] |= uint64(sf)
+		c.registers[emi.Rflags] |= uint64(sf)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(sf)
+		c.registers[emi.Rflags] &= ^uint64(sf)
 	}
 }
 
 // Set overflow flag if negation of the int64 element overflows.
 func (c *cpu) set_of_neg(a int64) {
 	if a == math.MinInt64 {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(of)
+		c.registers[emi.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -707,11 +707,11 @@ func (c *cpu) set_of_add(a, b int64) {
 	s := a + b
 
 	if (a > 0 && b > 0 && s < a) || (a < 0 && b < 0 && s > a) {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else if (a > 0 && b < 0 && s > a) || (a < 0 && b > 0 && s < a) {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(of)
+		c.registers[emi.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -720,11 +720,11 @@ func (c *cpu) set_of_sub(a, b int64) {
 	s := a - b
 
 	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else if (a > 0 && b > 0 && s > a) || (a < 0 && b < 0 && s < a) {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(of)
+		c.registers[emi.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -733,27 +733,27 @@ func (c *cpu) set_of_mul(a, b int64) {
 	s := a * b
 
 	if a != 0 && s/a != b {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(of)
+		c.registers[emi.Rflags] &= ^uint64(of)
 	}
 }
 
 // Set overflow flag if division of two int64 elements overflows.
 func (c *cpu) set_of_div(a, b int64) {
 	if b == -1 && a == math.MinInt64 {
-		c.registers[emi.Flags] |= uint64(of)
+		c.registers[emi.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Flags] &= ^uint64(of)
+		c.registers[emi.Rflags] &= ^uint64(of)
 	}
 }
 
 // Test overflow flag
 func (c *cpu) test_of() bool {
-	return c.registers[emi.Flags]&uint64(of) != 0
+	return c.registers[emi.Rflags]&uint64(of) != 0
 }
 
 // Clear overflow flag.
 func (c *cpu) unset_of() {
-	c.registers[emi.Flags] &= ^uint64(of)
+	c.registers[emi.Rflags] &= ^uint64(of)
 }

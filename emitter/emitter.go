@@ -126,7 +126,7 @@ func newOperand(kind OperandKind, value any, displacement ...int64) *Operand {
 		return &Operand{OperandKind: RegisterOperand, Register: value.(Register)}
 
 	case ImmediateOperand:
-		return &Operand{OperandKind: ImmediateOperand, ArgInt: value.(int64)}
+		return &Operand{OperandKind: ImmediateOperand, Value: value}
 
 	case MemoryOperand:
 		if len(displacement) > 0 {
@@ -168,7 +168,7 @@ func (o *Operand) String() string {
 		return o.Register.String()
 
 	case ImmediateOperand:
-		return fmt.Sprintf("%v", o.ArgInt)
+		return fmt.Sprintf("%v", o.Value)
 
 	case MemoryOperand:
 		if o.Displacement != 0 {
