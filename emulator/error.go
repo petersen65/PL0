@@ -10,9 +10,11 @@ const (
 	_ = cor.Failure(iota + 50000)
 	unknownStandardCallCode
 	unsupportedOperand
+	unknownOperation
+	unknownGeneralPurposeRegister
+	invalidGeneralPurposeRegisterValue
 	addressOutOfRange
 	stackOverflow
-	unknownOperation
 	arithmeticOverflowNegation
 	arithmeticOverflowAddition
 	arithmeticOverflowSubtraction
@@ -23,15 +25,17 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unknownStandardCallCode:          "halt - unknown standard library call code: %v",
-	unsupportedOperand:               "halt - unsupported operand for operation '%v'",
-	addressOutOfRange:                "halt - address '%v' out of range",
-	stackOverflow:                    "halt - stack overflow at stack pointer '%v'",
-	unknownOperation:                 "halt - unknown operation at address '%v'",
-	arithmeticOverflowNegation:       "halt - arithmetic overflow (negation) at address '%v'",
-	arithmeticOverflowAddition:       "halt - arithmetic overflow (addition) at address '%v'",
-	arithmeticOverflowSubtraction:    "halt - arithmetic overflow (subtraction) at address '%v'",
-	arithmeticOverflowMultiplication: "halt - arithmetic overflow (multiplication) at address '%v'",
-	arithmeticOverflowDivision:       "halt - arithmetic overflow (division) at address '%v'",
-	divisionByZero:                   "halt - division by zero at address '%v'",
+	unknownStandardCallCode:            "halt - unknown standard library call code: %v",
+	unsupportedOperand:                 "halt - unsupported operand for operation '%v'",
+	unknownOperation:                   "halt - unknown operation at address '%v'",
+	unknownGeneralPurposeRegister:      "halt - unknown general purpose register '%v'",
+	invalidGeneralPurposeRegisterValue: "halt - invalid value for general purpose register '%v'",
+	addressOutOfRange:                  "halt - address '%v' out of range",
+	stackOverflow:                      "halt - stack overflow at stack pointer '%v'",
+	arithmeticOverflowNegation:         "halt - arithmetic overflow (negation) at address '%v'",
+	arithmeticOverflowAddition:         "halt - arithmetic overflow (addition) at address '%v'",
+	arithmeticOverflowSubtraction:      "halt - arithmetic overflow (subtraction) at address '%v'",
+	arithmeticOverflowMultiplication:   "halt - arithmetic overflow (multiplication) at address '%v'",
+	arithmeticOverflowDivision:         "halt - arithmetic overflow (division) at address '%v'",
+	divisionByZero:                     "halt - division by zero at address '%v'",
 }

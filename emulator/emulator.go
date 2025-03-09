@@ -37,7 +37,7 @@ type (
 
 	// CPU with its registers.
 	cpu struct {
-		registers map[emi.Register]uint64 // 64 bit registers of the CPU
+		registers map[emi.Register]uint64 // 64-bit registers of the CPU
 	}
 
 	// Emulation machine that can run processes.
@@ -72,31 +72,42 @@ func (m *machine) Load(scan io.Reader) error {
 
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
-	m.cpu.registers[emi.Rax] = 0    // accumulator register
-	m.cpu.registers[emi.Rbx] = 0    // base register
-	m.cpu.registers[emi.Rcx] = 0    // counter register
-	m.cpu.registers[emi.Rdx] = 0    // data register
-	m.cpu.registers[emi.Rsi] = 0    // source index register
-	m.cpu.registers[emi.Rdi] = 0    // destination index register
-	m.cpu.registers[emi.R8] = 0     // general purpose register
-	m.cpu.registers[emi.R9] = 0     // general purpose register
-	m.cpu.registers[emi.R10] = 0    // general purpose register
-	m.cpu.registers[emi.R11] = 0    // general purpose register
-	m.cpu.registers[emi.R12] = 0    // general purpose register
-	m.cpu.registers[emi.R13] = 0    // general purpose register
-	m.cpu.registers[emi.R14] = 0    // general purpose register
-	m.cpu.registers[emi.R15] = 0    // general purpose register
-	m.cpu.registers[emi.Rflags] = 0 // flags register
-	m.cpu.registers[emi.Rip] = 0    // instruction pointer
+	// initialize 64-bit general purpose registers of the CPU
+	m.cpu.set_gp(emi.Rax, 0) // accumulator register
+	m.cpu.set_gp(emi.Rbx, 0) // base register
+	m.cpu.set_gp(emi.Rcx, 0) // counter register
+	m.cpu.set_gp(emi.Rdx, 0) // data register
+	m.cpu.set_gp(emi.Rsi, 0) // source index register
+	m.cpu.set_gp(emi.Rdi, 0) // destination index register
+	m.cpu.set_gp(emi.R8, 0)  // general purpose register
+	m.cpu.set_gp(emi.R9, 0)  // general purpose register
+	m.cpu.set_gp(emi.R10, 0) // general purpose register
+	m.cpu.set_gp(emi.R11, 0) // general purpose register
+	m.cpu.set_gp(emi.R12, 0) // general purpose register
+	m.cpu.set_gp(emi.R13, 0) // general purpose register
+	m.cpu.set_gp(emi.R14, 0) // general purpose register
+	m.cpu.set_gp(emi.R15, 0) // general purpose register
 
-	// initialize activation record descriptor of the main block
-	m.memory[memorySize-1] = 0                // static link (access link for compile-time block nesting hierarchy)
-	m.memory[memorySize-2] = 0                // return address (to caller)
-	m.cpu.registers[emi.Rsp] = memorySize - 2 // stack pointer points to return address before main block's prelude runs
+	// initialize 64-bit flags and instruction pointer registers of the CPU
+	m.cpu.registers[emi.Rflags] = 0 // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
+	m.cpu.registers[emi.Rip] = 0    // instruction pointer contains the 64-bit code address of the next instruction to execute
+
+
+
+	// TODO !!, comments not correct
+	// initialize 64-bit flags, instruction pointer, stack pointer, and base pointer registers of the CPU
+	m.cpu.registers[emi.Rsp] = memorySize - 2 // stack pointer contains the 64-bit return code address before main block's prelude runs
 	m.cpu.registers[emi.Rbp] = 0              // intentionnaly, there is no valid base pointer yet (from a caller)
 
-	// the stack pointer and the base pointer point to 64 bit memory addresses (byte memory of the machine)
-	// the instruction pointer points to 64 bit code addresses (assembly code of the process)
+	// TODO !!, memory addresses are 8-bit unsigned bytes
+	// initialize activation record descriptor of the main block
+	m.memory[memorySize-1] = 0 // static link (access link for compile-time block nesting hierarchy)
+	m.memory[memorySize-2] = 0 // return address (to caller)
+
+
+	
+	// the stack pointer and the base pointer point to 64-bit memory addresses (byte memory of the machine)
+	// the instruction pointer points to 64-bit code addresses (assembly code of the process)
 	for {
 		// stack address space is byte memory from 'memorySize-1' down to 'memorySize-stackSize' excluding a forbidden zone
 		if m.cpu.registers[emi.Rsp] > memorySize-1 || m.cpu.registers[emi.Rsp] < memorySize-stackSize+stackForbiddenZone {
@@ -673,6 +684,74 @@ func (c *cpu) jge(op *emi.Operand) error {
 	}
 
 	return nil
+}
+
+// Set a general purpose 64-bit, 32-bit, 16-bit, or 8-bit register value on the CPU.
+func (c *cpu) set_gp(r emi.Register, v any) error {
+	switch r {
+	case emi.Rax, emi.Rbx, emi.Rcx, emi.Rdx, emi.Rsi, emi.Rdi, emi.R8, emi.R9, emi.R10, emi.R11, emi.R12, emi.R13, emi.R14, emi.R15:
+		if v, ok := v.(uint64); !ok {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidGeneralPurposeRegisterValue, r, nil)
+		} else {
+			c.registers[r] = v
+		}
+
+	case emi.Eax, emi.Ebx, emi.Ecx, emi.Edx, emi.Esi, emi.Edi, emi.R8d, emi.R9d, emi.R10d, emi.R11d, emi.R12d, emi.R13d, emi.R14d, emi.R15d:
+		if v, ok := v.(uint32); !ok {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidGeneralPurposeRegisterValue, r, nil)
+		} else {
+			c.registers[r] = uint64(v)
+		}
+
+	case emi.Ax, emi.Bx, emi.Cx, emi.Dx, emi.Si, emi.Di, emi.R8w, emi.R9w, emi.R10w, emi.R11w, emi.R12w, emi.R13w, emi.R14w, emi.R15w:
+		if v, ok := v.(uint16); !ok {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidGeneralPurposeRegisterValue, r, nil)
+		} else {
+			c.registers[r] = c.registers[r]&0xffffffffffff0000 | uint64(v)
+		}
+
+	case emi.Al, emi.Bl, emi.Cl, emi.Dl, emi.R8b, emi.R9b, emi.R10b, emi.R11b, emi.R12b, emi.R13b, emi.R14b, emi.R15b:
+		if v, ok := v.(uint8); !ok {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidGeneralPurposeRegisterValue, r, nil)
+		} else {
+			c.registers[r] = c.registers[r]&0xffffffffffffff00 | uint64(v)
+		}
+
+	case emi.Ah, emi.Bh, emi.Ch, emi.Dh:
+		if v, ok := v.(uint8); !ok {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidGeneralPurposeRegisterValue, r, nil)
+		} else {
+			c.registers[r] = c.registers[r]&0xffffffffffff00ff | uint64(v)<<8
+		}
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownGeneralPurposeRegister, r, nil)
+	}
+
+	return nil
+}
+
+// Get a general purpose 64-bit, 32-bit, 16-bit, or 8-bit register value from the CPU.
+func (c *cpu) get_gp(r emi.Register) (any, error) {
+	switch r {
+	case emi.Rax, emi.Rbx, emi.Rcx, emi.Rdx, emi.Rsi, emi.Rdi, emi.R8, emi.R9, emi.R10, emi.R11, emi.R12, emi.R13, emi.R14, emi.R15:
+		return c.registers[r], nil
+
+	case emi.Eax, emi.Ebx, emi.Ecx, emi.Edx, emi.Esi, emi.Edi, emi.R8d, emi.R9d, emi.R10d, emi.R11d, emi.R12d, emi.R13d, emi.R14d, emi.R15d:
+		return uint32(c.registers[r]), nil
+
+	case emi.Ax, emi.Bx, emi.Cx, emi.Dx, emi.Si, emi.Di, emi.R8w, emi.R9w, emi.R10w, emi.R11w, emi.R12w, emi.R13w, emi.R14w, emi.R15w:
+		return uint16(c.registers[r]), nil
+
+	case emi.Al, emi.Bl, emi.Cl, emi.Dl:
+		return uint8(c.registers[r]), nil
+
+	case emi.Ah, emi.Bh, emi.Ch, emi.Dh:
+		return uint8(c.registers[r] >> 8), nil
+
+	default:
+		return nil, cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownGeneralPurposeRegister, r, nil)
+	}
 }
 
 // Set zero flag if int64 element is zero.
