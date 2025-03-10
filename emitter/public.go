@@ -64,20 +64,20 @@ const (
 	Rbp    // base pointer is pointing to the base of an activation record
 
 	// 64-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
-	Rax    // accumulator is used for intermediate results of arithmetic operations
-	Rbx    // base register can be used for addressing variables
-	Rcx    // counter register can be used for counting iterations of loops
-	Rdx    // data register can be used for addressing variables
-	Rsi    // source index register used in string and array operations as a pointer to source data
-	Rdi    // destination index register is used used in string and array operations as a pointer to destination data
-	R8     // 64-bit general purpose register
-	R9     // 64-bit general purpose register
-	R10    // 64-bit general purpose register
-	R11    // 64-bit general purpose register
-	R12    // 64-bit general purpose register
-	R13    // 64-bit general purpose register
-	R14    // 64-bit general purpose register
-	R15    // 64-bit general purpose register
+	Rax // accumulator is used for intermediate results of arithmetic operations
+	Rbx // base register can be used for addressing variables
+	Rcx // counter register can be used for counting iterations of loops
+	Rdx // data register can be used for addressing variables
+	Rsi // source index register used in string and array operations as a pointer to source data
+	Rdi // destination index register is used used in string and array operations as a pointer to destination data
+	R8  // 64-bit general purpose register
+	R9  // 64-bit general purpose register
+	R10 // 64-bit general purpose register
+	R11 // 64-bit general purpose register
+	R12 // 64-bit general purpose register
+	R13 // 64-bit general purpose register
+	R14 // 64-bit general purpose register
+	R15 // 64-bit general purpose register
 
 	// 32-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
 	Eax  // accumulator is used for intermediate results of arithmetic operations (bits 0-31 of Rax)
@@ -185,7 +185,7 @@ const (
 
 type (
 	// Type for CPU targets.
-	CentralProcessingUnit int
+	CentralProcessingUnit int32
 
 	// Type for CPU operation codes.
 	OperationCode int32
@@ -193,7 +193,7 @@ type (
 	// Type for operand kinds of CPU operations.
 	OperandKind int32
 
-	// Enumeration of 64-bit registers of the CPU.
+	// Enumeration of registers of the CPU.
 	Register int32
 
 	// Type for standard library call codes.
@@ -235,6 +235,129 @@ type (
 		Import(format cor.ExportFormat, scan io.Reader) error
 	}
 )
+
+var (
+	// Map 32-bit general purpose registers to corresponding 64-bit registers (32-bit registers are zero-extended to 64-bit).
+	GeneralPurpose32to64 = map[Register]Register{
+		Eax:  Rax, // bits 0-31 of Rax, set bits 32-63 to 0
+		Ebx:  Rbx, // bits 0-31 of Rbx, set bits 32-63 to 0
+		Ecx:  Rcx, // bits 0-31 of Rcx, set bits 32-63 to 0
+		Edx:  Rdx, // bits 0-31 of Rdx, set bits 32-63 to 0
+		Esi:  Rsi, // bits 0-31 of Rsi, set bits 32-63 to 0
+		Edi:  Rdi, // bits 0-31 of Rdi, set bits 32-63 to 0
+		R8d:  R8,  // bits 0-31 of R8, set bits 32-63 to 0
+		R9d:  R9,  // bits 0-31 of R9, set bits 32-63 to 0
+		R10d: R10, // bits 0-31 of R10, set bits 32-63 to 0
+		R11d: R11, // bits 0-31 of R11, set bits 32-63 to 0
+		R12d: R12, // bits 0-31 of R12, set bits 32-63 to 0
+		R13d: R13, // bits 0-31 of R13, set bits 32-63 to 0
+		R14d: R14, // bits 0-31 of R14, set bits 32-63 to 0
+		R15d: R15, // bits 0-31 of R15, set bits 32-63 to 0
+	}
+
+	// Map 16-bit general purpose registers to corresponding 64-bit registers (16-bit registers leave bits 16-63 unchanged).
+	GeneralPurpose16to64 = map[Register]Register{
+		Ax:   Rax, // bits 0-15 of Rax
+		Bx:   Rbx, // bits 0-15 of Rbx
+		Cx:   Rcx, // bits 0-15 of Rcx
+		Dx:   Rdx, // bits 0-15 of Rdx
+		Si:   Rsi, // bits 0-15 of Rsi
+		Di:   Rdi, // bits 0-15 of Rdi
+		R8w:  R8,  // bits 0-15 of R8
+		R9w:  R9,  // bits 0-15 of R9
+		R10w: R10, // bits 0-15 of R10
+		R11w: R11, // bits 0-15 of R11
+		R12w: R12, // bits 0-15 of R12
+		R13w: R13, // bits 0-15 of R13
+		R14w: R14, // bits 0-15 of R14
+		R15w: R15, // bits 0-15 of R15
+	}
+
+	// Map 8-bit general purpose registers to corresponding 64-bit registers (8-bit registers leave bits 8-63 or bits 16-63 unchanged).
+	GeneralPurpose8to64 = map[Register]Register{
+		Al:   Rax, // bits 0-7 of Rax
+		Bl:   Rbx, // bits 0-7 of Rbx
+		Cl:   Rcx, // bits 0-7 of Rcx
+		Dl:   Rdx, // bits 0-7 of Rdx
+		Ah:   Rax, // bits 8-15 of Rax
+		Bh:   Rbx, // bits 8-15 of Rbx
+		Ch:   Rcx, // bits 8-15 of Rcx
+		Dh:   Rdx, // bits 8-15 of Rdx
+		R8b:  R8,  // bits 0-7 of R8
+		R9b:  R9,  // bits 0-7 of R9
+		R10b: R10, // bits 0-7 of R10
+		R11b: R11, // bits 0-7 of R11
+		R12b: R12, // bits 0-7 of R12
+		R13b: R13, // bits 0-7 of R13
+		R14b: R14, // bits 0-7 of R14
+		R15b: R15, // bits 0-7 of R15
+	}
+)
+
+// Check if the register is a general purpose 64-bit register.
+func (r Register) IsGeneralPurpose64() bool {
+	return r >= Rax && r <= R15
+}
+
+// Check if the register is a general purpose 32-bit register.
+func (r Register) IsGeneralPurpose32() bool {
+	return r >= Eax && r <= R15d
+}
+
+// Check if the register is a general purpose 16-bit register.
+func (r Register) IsGeneralPurpose16() bool {
+	return r >= Ax && r <= R15w
+}
+
+// Check if the register is a general purpose 8-bit register.
+func (r Register) IsGeneralPurpose8() bool {
+	return r >= Al && r <= R15b
+}
+
+// Check if the register is a general purpose low 8-bit register.
+func (r Register) IsGeneralPurposeLow8() bool {
+	return r >= Al && r <= Dl || r >= R8b && r <= R15b
+}
+
+// Check if the register is a general purpose high 8-bit register.
+func (r Register) IsGeneralPurposeHigh8() bool {
+	return r >= Ah && r <= Dh
+}
+
+// Check if the register is a advanced vector extensions register.
+func (r Register) IsAvx() bool {
+	return r >= Ymm0 && r <= Ymm15
+}
+
+// Check if the register is a streaming single instructions multiple data extensions register.
+func (r Register) IsSse() bool {
+	return r >= Xmm0 && r <= Xmm15
+}
+
+// Check if the register is the flags 64-bit register.
+func (r Register) IsFlags() bool {
+	return r == Rflags
+}
+
+// Check if the register is a pointer 64-bit register.
+func (r Register) IsPointer() bool {
+	return r == Rip || r == Rsp || r == Rbp
+}
+
+// Map any register to its corresponding 64-bit register.
+func (r Register) To64() Register {
+	if r.IsGeneralPurpose32() {
+		return GeneralPurpose32to64[r]
+	}
+	if r.IsGeneralPurpose16() {
+		return GeneralPurpose16to64[r]
+	}
+	if r.IsGeneralPurpose8() {
+		return GeneralPurpose8to64[r]
+	}
+	
+	return r
+}
 
 // Return the public interface of the private emitter implementation.
 func NewEmitter(cpu CentralProcessingUnit, intermediateCode gen.IntermediateCodeUnit) Emitter {

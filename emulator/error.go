@@ -13,6 +13,7 @@ const (
 	unknownOperation
 	unknownGeneralPurposeRegister
 	invalidGeneralPurposeRegisterValue
+	invalidMemoryValue
 	addressOutOfRange
 	stackOverflow
 	arithmeticOverflowNegation
@@ -30,6 +31,7 @@ var failureMap = map[cor.Failure]string{
 	unknownOperation:                   "halt - unknown operation at address '%v'",
 	unknownGeneralPurposeRegister:      "halt - unknown general purpose register '%v'",
 	invalidGeneralPurposeRegisterValue: "halt - invalid value for general purpose register '%v'",
+	invalidMemoryValue:                 "halt - invalid value for memory at address '%v'",
 	addressOutOfRange:                  "halt - address '%v' out of range",
 	stackOverflow:                      "halt - stack overflow at stack pointer '%v'",
 	arithmeticOverflowNegation:         "halt - arithmetic overflow (negation) at address '%v'",
