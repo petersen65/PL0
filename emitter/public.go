@@ -176,6 +176,14 @@ const (
 	JumpOperand      // destinations for jump instructions that are specified as absolute addresses
 )
 
+// Operand sizes in bits for memory operands.
+const (
+	Bits8  = OperandSize(8)
+	Bits16 = OperandSize(16)
+	Bits32 = OperandSize(32)
+	Bits64 = OperandSize(64)
+)
+
 // Call codes for the programming language standard library.
 const (
 	_ = StandardCall(iota)
@@ -193,6 +201,9 @@ type (
 	// Type for operand kinds of CPU operations.
 	OperandKind int32
 
+	// Type for sizes of an operand in bits.
+	OperandSize int32
+
 	// Enumeration of registers of the CPU.
 	Register int32
 
@@ -201,13 +212,12 @@ type (
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
-		OperandKind  OperandKind `json:"operand"`      // kind of the operand
-		Register     Register    `json:"register"`     // register operand for the operation
-		Value        any         `json:"value"`        // immediate value argument
-		Memory       Register    `json:"memory"`       // memory address specified indirectly through register
-		Label        string      `json:"label"`        // labels for jump instructions will be replaced by an address
-		Jump         uint64      `json:"jump"`         // destinations for jump instructions are specified as absolute addresses
-		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
+		Kind      OperandKind  `json:"kind"`          // kind of the operand
+		Register  Register     `json:"register"`      // register with various bit sizes
+		Immediate any          `json:"value"`         // immediate value with various bit sizes
+		Memory    MemoryDetail `json:"memory_detail"` // additional details about the memory operand
+		Label     string       `json:"label"`         // labels for jump instructions will be replaced by an address
+		Jump      uint64       `json:"jump"`          // destinations for jump instructions are specified as absolute addresses
 	}
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
@@ -215,6 +225,12 @@ type (
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
 		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
+	}
+
+	// Additional details about the bit size and displacement for memory operands.
+	MemoryDetail struct {
+		Size         OperandSize `json:"size"`         // bit size of the value in the memory space
+		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
@@ -324,6 +340,11 @@ func (r Register) IsGeneralPurposeHigh8() bool {
 	return r >= Ah && r <= Dh
 }
 
+// Check if the register is any general purpose register.
+func (r Register) IsGeneralPurpose() bool {
+	return r.IsGeneralPurpose64() || r.IsGeneralPurpose32() || r.IsGeneralPurpose16() || r.IsGeneralPurpose8()
+}
+
 // Check if the register is a advanced vector extensions register.
 func (r Register) IsAvx() bool {
 	return r >= Ymm0 && r <= Ymm15
@@ -355,7 +376,7 @@ func (r Register) To64() Register {
 	if r.IsGeneralPurpose8() {
 		return GeneralPurpose8to64[r]
 	}
-	
+
 	return r
 }
 
@@ -375,6 +396,6 @@ func NewInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 }
 
 // Create a new operand for an assembly instruction.
-func NewOperand(kind OperandKind, value any, displacement ...int64) *Operand {
-	return newOperand(kind, value, displacement...)
+func NewOperand(kind OperandKind, value any, detail ...MemoryDetail) *Operand {
+	return newOperand(kind, value, detail...)
 }

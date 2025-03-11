@@ -12,6 +12,7 @@ const (
 	unknownIntermediateCodeOperation
 	unknownKindOfOperandInCpuOperation
 	unexpectedKindOfOperandInCpuOperation
+	invalidSizeForOperandInCpuOperation
 	unresolvedLabelReferenceInAssemblyCode
 	unexpectedNumberOfFunctionArguments
 	unknownExportFormat
@@ -27,6 +28,7 @@ var failureMap = map[cor.Failure]string{
 	unknownIntermediateCodeOperation:       "unknown intermediate code operation: %v",
 	unknownKindOfOperandInCpuOperation:     "unknown kind of operand in CPU operation: %v",
 	unexpectedKindOfOperandInCpuOperation:  "unexpected kind of operand in CPU operation: %v",
+	invalidSizeForOperandInCpuOperation:    "invalid size for operand in CPU operation: %v",
 	unresolvedLabelReferenceInAssemblyCode: "unresolved label reference in assembly code: %v",
 	unexpectedNumberOfFunctionArguments:    "unexpected number of arguments for function call",
 	unknownExportFormat:                    "unknown export format: %v",

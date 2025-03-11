@@ -164,6 +164,14 @@ var (
 		Xmm14: "xmm14",
 		Xmm15: "xmm15",
 	}
+
+	// Map CPU operand sizes to their string representation.
+	operandSizeNames = map[OperandSize]string{
+		Bits8:  "byte",
+		Bits16: "word",
+		Bits32: "dword",
+		Bits64: "qword",
+	}
 )
 
 // Return the public interface of the private emitter implementation.
@@ -196,26 +204,26 @@ func newInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 }
 
 // Create a new operand for an assembly instruction.
-func newOperand(kind OperandKind, value any, displacement ...int64) *Operand {
+func newOperand(kind OperandKind, value any, detail ...MemoryDetail) *Operand {
 	switch kind {
 	case RegisterOperand:
-		return &Operand{OperandKind: RegisterOperand, Register: value.(Register)}
+		return &Operand{Kind: RegisterOperand, Register: value.(Register)}
 
 	case ImmediateOperand:
-		return &Operand{OperandKind: ImmediateOperand, Value: value}
+		return &Operand{Kind: ImmediateOperand, Immediate: value}
 
 	case MemoryOperand:
-		if len(displacement) > 0 {
-			return &Operand{OperandKind: MemoryOperand, Memory: value.(Register), Displacement: displacement[0]}
+		if len(detail) > 0 {
+			return &Operand{Kind: MemoryOperand, Register: value.(Register), Memory: detail[0]}
 		}
 
-		return &Operand{OperandKind: MemoryOperand, Memory: value.(Register)}
+		return &Operand{Kind: MemoryOperand, Register: value.(Register), Memory: MemoryDetail{Size: Bits64, Displacement: 0}}
 
 	case LabelOperand:
-		return &Operand{OperandKind: LabelOperand, Label: value.(string)}
+		return &Operand{Kind: LabelOperand, Label: value.(string)}
 
 	case JumpOperand:
-		return &Operand{OperandKind: JumpOperand, Jump: value.(uint64)}
+		return &Operand{Kind: JumpOperand, Jump: value.(uint64)}
 
 	default:
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, kind, nil))
@@ -237,21 +245,26 @@ func (r Register) String() string {
 	return registerNames[r]
 }
 
+// String representation of a CPU operand size.
+func (s OperandSize) String() string {
+	return operandSizeNames[s]
+}
+
 // String representation of an operand kind of CPU operations.
 func (o *Operand) String() string {
-	switch o.OperandKind {
+	switch o.Kind {
 	case RegisterOperand:
 		return o.Register.String()
 
 	case ImmediateOperand:
-		return fmt.Sprintf("%v", o.Value)
+		return fmt.Sprintf("%v", o.Immediate)
 
 	case MemoryOperand:
-		if o.Displacement != 0 {
-			return fmt.Sprintf("[%v%+d]", o.Memory, o.Displacement)
+		if o.Memory.Displacement != 0 {
+			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Memory, o.Memory.Displacement)
 		}
 
-		return fmt.Sprintf("[%v]", o.Memory)
+		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Memory)
 
 	case LabelOperand:
 		return o.Label
@@ -260,7 +273,7 @@ func (o *Operand) String() string {
 		return fmt.Sprintf("%v", o.Jump)
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.OperandKind, nil))
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
 	}
 }
 
@@ -294,17 +307,17 @@ func (a *assemblyCodeUnit) AppendRuntimeLibrary() {
 	behindLoop := fmt.Sprintf("%v.2", followStaticLinkLabel)
 
 	// runtime library function "create_static_link"
-	a.AppendInstruction(Mov, []string{createStaticLinkLabel}, newOperand(RegisterOperand, Rcx), newOperand(MemoryOperand, Rbp, descriptorSize-1))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbp))
-	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition))
-	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, descriptorSize-1), newOperand(RegisterOperand, Rbx))
+	a.AppendInstruction(Mov, []string{createStaticLinkLabel}, newOperand(RegisterOperand, Rcx), newOperand(MemoryOperand, Rbp, Bits64, descriptorSize-1))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbp, Bits64))
+	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition,))
+	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, Bits64, descriptorSize-1), newOperand(RegisterOperand, Rbx))
 	a.AppendInstruction(Ret, nil)
 
 	// runtime library function "follow_static_link"
 	a.AppendInstruction(Mov, []string{followStaticLinkLabel}, newOperand(RegisterOperand, Rbx), newOperand(RegisterOperand, Rbp))
 	a.AppendInstruction(Cmp, []string{loopCondition}, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(0)))
 	a.AppendInstruction(Je, nil, newOperand(LabelOperand, behindLoop))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbx, descriptorSize-1))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbx, Bits64, descriptorSize-1))
 	a.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(1)))
 	a.AppendInstruction(Jmp, nil, newOperand(LabelOperand, loopCondition))
 	a.AppendInstruction(Ret, []string{behindLoop})
@@ -331,8 +344,8 @@ func (a *assemblyCodeUnit) Link() error {
 		switch asm.Operation {
 		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
 			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
-			if asm.Operands[0].OperandKind != LabelOperand {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].OperandKind, nil)
+			if asm.Operands[0].Kind != LabelOperand {
+				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].Kind, nil)
 			}
 
 			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
@@ -496,7 +509,7 @@ func (e *emitter) Emit() {
 
 			if i.DepthDifference == 0 {
 				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(Push, l, newOperand(MemoryOperand, Rbp, -int64(location)))
+				e.assemblyCode.AppendInstruction(Push, l, newOperand(MemoryOperand, Rbp, Bits64, -int64(location)))
 			} else {
 				// block nesting depth difference between variable use and variable declaration
 				e.assemblyCode.AppendInstruction(Mov, l,

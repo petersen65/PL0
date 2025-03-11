@@ -80,51 +80,51 @@ func (m *machine) Load(scan io.Reader) error {
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
 	// initialize 64-bit general purpose registers of the CPU
-	set_reg(&m.cpu, emi.Rax, zero) // accumulator register
-	set_reg(&m.cpu, emi.Rbx, zero) // base register
-	set_reg(&m.cpu, emi.Rcx, zero) // counter register
-	set_reg(&m.cpu, emi.Rdx, zero) // data register
-	set_reg(&m.cpu, emi.Rsi, zero) // source index register
-	set_reg(&m.cpu, emi.Rdi, zero) // destination index register
-	set_reg(&m.cpu, emi.R8, zero)  // general purpose register
-	set_reg(&m.cpu, emi.R9, zero)  // general purpose register
-	set_reg(&m.cpu, emi.R10, zero) // general purpose register
-	set_reg(&m.cpu, emi.R11, zero) // general purpose register
-	set_reg(&m.cpu, emi.R12, zero) // general purpose register
-	set_reg(&m.cpu, emi.R13, zero) // general purpose register
-	set_reg(&m.cpu, emi.R14, zero) // general purpose register
-	set_reg(&m.cpu, emi.R15, zero) // general purpose register
+	m.cpu.set_gp(emi.Rax, zero) // accumulator register
+	m.cpu.set_gp(emi.Rbx, zero) // base register
+	m.cpu.set_gp(emi.Rcx, zero) // counter register
+	m.cpu.set_gp(emi.Rdx, zero) // data register
+	m.cpu.set_gp(emi.Rsi, zero) // source index register
+	m.cpu.set_gp(emi.Rdi, zero) // destination index register
+	m.cpu.set_gp(emi.R8, zero)  // general purpose register
+	m.cpu.set_gp(emi.R9, zero)  // general purpose register
+	m.cpu.set_gp(emi.R10, zero) // general purpose register
+	m.cpu.set_gp(emi.R11, zero) // general purpose register
+	m.cpu.set_gp(emi.R12, zero) // general purpose register
+	m.cpu.set_gp(emi.R13, zero) // general purpose register
+	m.cpu.set_gp(emi.R14, zero) // general purpose register
+	m.cpu.set_gp(emi.R15, zero) // general purpose register
 
 	// initialize 64-bit flags and instruction pointer registers of the CPU
-	set_reg(&m.cpu, emi.Rflags, zero) // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
-	set_reg(&m.cpu, emi.Rip, zero)    // instruction pointer points to the next instruction to be executed
+	m.cpu.set_flg(zero)          // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
+	m.cpu.set_ptr(emi.Rip, zero) // instruction pointer points to the next instruction to be executed
 
 	// initialize activation record descriptor of the main block
 	set_mem(m, memorySize-pointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
 	set_mem(m, memorySize-2*pointerSize, zero) // return address (to caller)
 
 	// initialize stack pointer and base pointer registers of the CPU
-	set_reg(&m.cpu, emi.Rsp, memorySize-2*pointerSize) // points to return address before main block's prelude runs
-	set_reg(&m.cpu, emi.Rbp, zero)                     // intentionnaly, there is no valid base pointer yet (from a caller)
+	m.cpu.set_ptr(emi.Rsp, memorySize-2*pointerSize) // points to return address before main block's prelude runs
+	m.cpu.set_ptr(emi.Rbp, zero)                     // intentionnaly, there is no valid base pointer yet (from a caller)
 
 	// the stack pointer and the base pointer point to 64-bit memory addresses (byte memory of the machine)
 	// the instruction pointer points to 64-bit code addresses (assembly code of the process)
 	for {
 		// stack address space is byte memory from 'memorySize-1' down to 'memorySize-stackSize' excluding a forbidden zone
-		if get_reg[uint64](&m.cpu, emi.Rsp) > memorySize-1 || get_reg[uint64](&m.cpu, emi.Rsp) < memorySize-stackSize+stackForbiddenZone {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, get_reg[uint64](&m.cpu, emi.Rsp), nil)
+		if m.cpu.get_ptr(emi.Rsp) > memorySize-1 || m.cpu.get_ptr(emi.Rsp) < memorySize-stackSize+stackForbiddenZone {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.get_ptr(emi.Rsp), nil)
 		}
 
 		// instruction address space is text section memory from '0' up to 'textSectionSize-1'
-		if get_reg[uint64](&m.cpu, emi.Rip) >= uint64(m.process.assemblyCode.Length()) {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, get_reg[uint64](&m.cpu, emi.Rip), nil)
+		if m.cpu.get_ptr(emi.Rip) >= uint64(m.process.assemblyCode.Length()) {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.get_ptr(emi.Rip), nil)
 		}
 
 		// fetch non-nil instruction from text section memory using the instruction pointer
-		instr := m.process.assemblyCode.GetInstruction(int(get_reg[uint64](&m.cpu, emi.Rip)))
+		instr := m.process.assemblyCode.GetInstruction(int(m.cpu.get_ptr(emi.Rip)))
 
 		// increment the instruction pointer to point to the next instruction
-		set_reg(&m.cpu, emi.Rip, get_reg[uint64](&m.cpu, emi.Rip)+1)
+		m.cpu.set_ptr(emi.Rip, m.cpu.get_ptr(emi.Rip)+1)
 
 		// execute instructions until main block returns to external code
 		switch instr.Operation {
@@ -297,22 +297,22 @@ func (m *machine) RunProcess() error {
 			}
 
 			// returning from the entrypoint of the program exits the program
-			if get_reg[uint64](&m.cpu, emi.Rip) == 0 {
+			if m.cpu.get_ptr(emi.Rip) == 0 {
 				return nil
 			}
 
 		case emi.StdCall: // call to programming language standard library based on standard call code
-			if len(instr.Operands) != 1 || instr.Operands[0].OperandKind != emi.ImmediateOperand {
+			if len(instr.Operands) != 1 || instr.Operands[0].Kind != emi.ImmediateOperand {
 				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.StdCall, nil)
 			}
 
 			// call standard library function via call code
-			if err := m.standard(emi.StandardCall(instr.Operands[0].Value.(int64))); err != nil {
+			if err := m.standard(emi.StandardCall(instr.Operands[0].Immediate.(int64))); err != nil {
 				return err
 			}
 
 		default:
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, get_reg[uint64](&m.cpu, emi.Rip)-1, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.get_ptr(emi.Rip)-1, nil)
 		}
 	}
 }
@@ -337,7 +337,7 @@ func (m *machine) standard(code emi.StandardCall) error {
 	case emi.Writeln:
 		// write integer to stdout
 		m.pop(emi.NewOperand(emi.RegisterOperand, emi.Rax))
-		fmt.Printf("%v\n", int64(m.cpu.registers[emi.Rax]))
+		fmt.Printf("%v\n", m.cpu.get_gp(emi.Rax).(int64))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownStandardCallCode, code, nil)
@@ -348,44 +348,66 @@ func (m *machine) standard(code emi.StandardCall) error {
 
 // Push operand on top of stack, top of stack points to new operand.
 func (m *machine) push(op *emi.Operand) error {
-	var content uint64
+	var value any
 
-	switch op.OperandKind {
+	switch op.Kind {
 	case emi.RegisterOperand:
-		// push the content of a register to the top of the stack
-		content = m.cpu.registers[op.Register]
+		// push the value of a register to the top of the stack
+		if op.Register.IsPointer() {
+			value = m.cpu.get_ptr(op.Register)
+		} else if op.Register.IsGeneralPurpose() {
+			value = m.cpu.get_gp(op.Register)
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+		}
 
 	case emi.ImmediateOperand:
 		// push an immediate value to the top of the stack
-		content = uint64(op.Value.(int64))
+		value = op.Immediate
 
 	case emi.JumpOperand:
 		// push a jump address to the top of the stack
-		content = op.Jump
+		value = op.Jump
 
 	case emi.MemoryOperand:
 		// push the content of a memory address to the top of the stack
 		// read the memory address from the register referenced by the memory operand and add a displacement
-		address := uint64(int64(m.cpu.registers[op.Memory]) + op.Displacement)
+		address := uint64(int64(get_reg[uint64](&m.cpu, op.Memory)) + op.Displacement)
 
-		// to get the content of the memory address, cast the memory address to a pointer to a uint64 and dereference it
-		content = *(*uint64)(unsafe.Pointer(&m.memory[address]))
+		// get the value from the memory address
+		value = get_mem[uint64](m, address)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
 	}
 
 	// decrement the stack pointer (stack grows downwards)
-	m.cpu.registers[emi.Rsp] -= uint64(unsafe.Sizeof(content))
+	m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)-uint64(unsafe.Sizeof(value)))
 
 	// store the content at the new top of the stack
-	*(*uint64)(unsafe.Pointer(&m.memory[m.cpu.registers[emi.Rsp]])) = content
+	switch v := value.(type) {
+	case uint64:
+		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
+
+	case uint32:
+		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
+
+	case uint16:
+		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
+
+	case uint8:
+		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidMemoryValue, v, nil)
+	}
+
 	return nil
 }
 
 // Pop element from top of stack into operand, top of stack points to previous element.
 func (m *machine) pop(op *emi.Operand) error {
-	switch op.OperandKind {
+	switch op.Kind {
 	case emi.RegisterOperand:
 		// pop the content of the top of the stack into a register
 		arg := *(*uint64)(unsafe.Pointer(&m.memory[m.cpu.registers[emi.Rsp]]))
@@ -419,24 +441,24 @@ func (m *machine) ret() error {
 // Copy second operand to first operand.
 func (m *machine) mov(a, b *emi.Operand) error {
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		m.cpu.registers[a.Register] = m.cpu.registers[b.Register]
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		m.cpu.registers[a.Register] = uint64(b.Value.(int64))
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		m.cpu.registers[a.Register] = uint64(b.Immediate.(int64))
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.MemoryOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.MemoryOperand:
 		address := uint64(int64(m.cpu.registers[b.Memory]) + b.Displacement)
 		arg := *(*uint64)(unsafe.Pointer(&m.memory[address]))
 		m.cpu.registers[a.Register] = arg
 
-	case a.OperandKind == emi.MemoryOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.MemoryOperand && b.Kind == emi.RegisterOperand:
 		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
 		*(*uint64)(unsafe.Pointer(&m.memory[address])) = m.cpu.registers[b.Register]
 
-	case a.OperandKind == emi.MemoryOperand && b.OperandKind == emi.ImmediateOperand:
+	case a.Kind == emi.MemoryOperand && b.Kind == emi.ImmediateOperand:
 		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
-		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.Value.(int64))
+		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.Immediate.(int64))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
@@ -447,7 +469,7 @@ func (m *machine) mov(a, b *emi.Operand) error {
 
 // Negate int64 element.
 func (c *cpu) neg(op *emi.Operand) error {
-	switch op.OperandKind {
+	switch op.Kind {
 	case emi.RegisterOperand:
 		c.set_of_neg(int64(c.registers[op.Register]))
 
@@ -468,7 +490,7 @@ func (c *cpu) neg(op *emi.Operand) error {
 
 // Perform bitwise 'and' operation with uint64 element and uint64 argument.
 func (c *cpu) and(op *emi.Operand, arg uint64) error {
-	switch op.OperandKind {
+	switch op.Kind {
 	case emi.RegisterOperand:
 		c.registers[op.Register] = c.registers[op.Register] & arg
 
@@ -488,11 +510,11 @@ func (c *cpu) add(a, b *emi.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.Value.(int64)
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		arg_b = b.Immediate.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Add, nil)
@@ -515,11 +537,11 @@ func (c *cpu) sub(a, b *emi.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.Value.(int64)
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		arg_b = b.Immediate.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Sub, nil)
@@ -543,11 +565,11 @@ func (c *cpu) imul(a, b *emi.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.Value.(int64)
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		arg_b = b.Immediate.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Imul, nil)
@@ -570,11 +592,11 @@ func (c *cpu) idiv(a, b *emi.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.Value.(int64)
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		arg_b = b.Immediate.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Idiv, nil)
@@ -601,11 +623,11 @@ func (c *cpu) cmp(a, b *emi.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.RegisterOperand:
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.OperandKind == emi.RegisterOperand && b.OperandKind == emi.ImmediateOperand:
-		arg_b = b.Value.(int64)
+	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+		arg_b = b.Immediate.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Cmp, nil)
@@ -621,7 +643,7 @@ func (c *cpu) cmp(a, b *emi.Operand) error {
 
 // Unconditionally jump to uint64 address.
 func (c *cpu) jmp(op *emi.Operand) error {
-	switch op.OperandKind {
+	switch op.Kind {
 	case emi.RegisterOperand:
 		c.registers[emi.Rip] = c.registers[op.Register]
 
@@ -772,50 +794,78 @@ func (c *cpu) unset_of() {
 	c.registers[emi.Rflags] &= ^uint64(of)
 }
 
-// Set a value in the register.
-func set_reg[T raw](c *cpu, r emi.Register, v T) {
+// Set a value in a general purpose register and panic if the register is not a general purpose register.
+func (c *cpu) set_gp(r emi.Register, v any) {
 	switch {
 	case r.IsGeneralPurpose64():
-		c.registers[r] = uint64(v)
+		c.registers[r] = v.(uint64)
 
 	case r.IsGeneralPurpose32():
-		c.registers[r.To64()] = uint64(uint32(v))
+		c.registers[r.To64()] = uint64(v.(uint32))
 
 	case r.IsGeneralPurpose16():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff0000 | uint64(uint16(v))
+		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff0000 | uint64(v.(uint16))
 
 	case r.IsGeneralPurposeLow8():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffffff00 | uint64(uint8(v))
+		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffffff00 | uint64(v.(uint8))
 
 	case r.IsGeneralPurposeHigh8():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff00ff | uint64(uint8(v))<<8
+		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff00ff | uint64(v.(uint8))<<8
 
 	default:
-		c.registers[r] = uint64(v)
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
 	}
 }
 
-// Get a value from the register.
-func get_reg[T raw](c *cpu, r emi.Register) T {
+// Get a value from a general purpose register and panic if the register is not a general purpose register.
+func (c *cpu) get_gp(r emi.Register) any {
 	switch {
 	case r.IsGeneralPurpose64():
-		return T(c.registers[r])
+		return c.registers[r]
 
 	case r.IsGeneralPurpose32():
-		return T(uint32(c.registers[r.To64()]))
+		return uint32(c.registers[r.To64()])
 
 	case r.IsGeneralPurpose16():
-		return T(uint16(c.registers[r.To64()]))
+		return uint16(c.registers[r.To64()])
 
 	case r.IsGeneralPurposeLow8():
-		return T(uint8(c.registers[r.To64()]))
+		return uint8(c.registers[r.To64()])
 
 	case r.IsGeneralPurposeHigh8():
-		return T(uint8(c.registers[r.To64()] >> 8))
+		return uint8(c.registers[r.To64()] >> 8)
 
 	default:
-		return T(c.registers[r])
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
 	}
+}
+
+// Set a value in the flags register.
+func (c *cpu) set_flg(v uint64) {
+	c.registers[emi.Rflags] = v
+}
+
+// Get a value from the flags register.
+func (c *cpu) get_flg() uint64 {
+	return c.registers[emi.Rflags]
+}
+
+// Set an address in a pointer register and panic if the register is not a pointer register.
+func (c *cpu) set_ptr(r emi.Register, v uint64) {
+	if !r.IsPointer() {
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
+	}
+
+	c.registers[r] = v
+}
+
+// Get an address from a pointer register and panic if the register is not a pointer register.
+func (c *cpu) get_ptr(r emi.Register) uint64 {
+	if !r.IsPointer() {
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
+	}
+
+	return c.registers[r]
 }
 
 // Set a value in the memory space.
