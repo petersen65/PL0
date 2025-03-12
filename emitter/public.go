@@ -176,7 +176,7 @@ const (
 	JumpOperand      // destinations for jump instructions that are specified as absolute addresses
 )
 
-// Operand sizes in bits for memory operands.
+// Operand sizes in bits.
 const (
 	Bits8  = OperandSize(8)
 	Bits16 = OperandSize(16)
@@ -253,6 +253,72 @@ type (
 )
 
 var (
+	// Map any register to its bit size.
+	RegisterSize = map[Register]OperandSize{
+		Rflags: Bits64,
+		Rip:    Bits64,
+		Rsp:    Bits64,
+		Rbp:    Bits64,
+		Rax:    Bits64,
+		Rbx:    Bits64,
+		Rcx:    Bits64,
+		Rdx:    Bits64,
+		Rsi:    Bits64,
+		Rdi:    Bits64,
+		R8:     Bits64,
+		R9:     Bits64,
+		R10:    Bits64,
+		R11:    Bits64,
+		R12:    Bits64,
+		R13:    Bits64,
+		R14:    Bits64,
+		R15:    Bits64,
+		Eax:    Bits32,
+		Ebx:    Bits32,
+		Ecx:    Bits32,
+		Edx:    Bits32,
+		Esi:    Bits32,
+		Edi:    Bits32,
+		R8d:    Bits32,
+		R9d:    Bits32,
+		R10d:   Bits32,
+		R11d:   Bits32,
+		R12d:   Bits32,
+		R13d:   Bits32,
+		R14d:   Bits32,
+		R15d:   Bits32,
+		Ax:     Bits16,
+		Bx:     Bits16,
+		Cx:     Bits16,
+		Dx:     Bits16,
+		Si:     Bits16,
+		Di:     Bits16,
+		R8w:    Bits16,
+		R9w:    Bits16,
+		R10w:   Bits16,
+		R11w:   Bits16,
+		R12w:   Bits16,
+		R13w:   Bits16,
+		R14w:   Bits16,
+		R15w:   Bits16,
+		Al:     Bits8,
+		Bl:     Bits8,
+		Cl:     Bits8,
+		Dl:     Bits8,
+		Ah:     Bits8,
+		Bh:     Bits8,
+		Ch:     Bits8,
+		Dh:     Bits8,
+		R8b:    Bits8,
+		R9b:    Bits8,
+		R10b:   Bits8,
+		R11b:   Bits8,
+		R12b:   Bits8,
+		R13b:   Bits8,
+		R14b:   Bits8,
+		R15b:   Bits8,
+	}
+
 	// Map 32-bit general purpose registers to corresponding 64-bit registers (32-bit registers are zero-extended to 64-bit).
 	GeneralPurpose32to64 = map[Register]Register{
 		Eax:  Rax, // bits 0-31 of Rax, set bits 32-63 to 0
@@ -312,7 +378,7 @@ var (
 
 // Check if the register is a general purpose 64-bit register.
 func (r Register) IsGeneralPurpose64() bool {
-	return r >= Rax && r <= R15
+	return r >= Rax && r <= R15 || r == Rsp || r == Rbp
 }
 
 // Check if the register is a general purpose 32-bit register.
@@ -360,9 +426,19 @@ func (r Register) IsFlags() bool {
 	return r == Rflags
 }
 
-// Check if the register is a pointer 64-bit register.
-func (r Register) IsPointer() bool {
-	return r == Rip || r == Rsp || r == Rbp
+// Check if the register is the stack pointer 64-bit register.
+func (r Register) IsStackPointer() bool {
+	return r == Rsp
+}
+
+// Check if the register is the base pointer 64-bit register.
+func (r Register) IsBasePointer() bool {
+	return r == Rbp
+}
+
+// Check if the register is the instruction pointer 64-bit register.
+func (r Register) IsInstructionPointer() bool {
+	return r == Rip
 }
 
 // Map any register to its corresponding 64-bit register.

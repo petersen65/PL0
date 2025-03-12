@@ -352,9 +352,7 @@ func (m *machine) push(op *emi.Operand) error {
 	switch op.Kind {
 	case emi.RegisterOperand:
 		// push the value of a register to the top of the stack
-		if op.Register.IsPointer() {
-			value = m.cpu.get_ptr(op.Register)
-		} else if op.Register.IsGeneralPurpose() {
+		if op.Register.IsGeneralPurpose() {
 			value = m.cpu.get_gp(op.Register)
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
@@ -370,22 +368,18 @@ func (m *machine) push(op *emi.Operand) error {
 
 	case emi.MemoryOperand:
 		// push the content of a memory address to the top of the stack
-		var address uint64
+		if op.Register.IsGeneralPurpose64() {
+			// read the memory address from a 64-bit register
+			address := m.cpu.get_gp(op.Register).(uint64)
+			
+			// calculate the memory address by adding the displacement to the register value
+			address = uint64(int64(address) + op.Memory.Displacement)
 
-		// read the memory address from a 64-bit register
-		if op.Register.IsPointer() {
-			address = m.cpu.get_ptr(op.Register)
-		} else if op.Register.IsGeneralPurpose64() {
-			address = m.cpu.get_gp(op.Register).(uint64)
+			// get the value from the memory address
+			value = get_mem_by_op(m, address, op.Memory.Size)
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
 		}
-
-		// calculate the memory address by adding the displacement to the register value
-		address = uint64(int64(address) + op.Memory.Displacement)
-
-		// get the value from the memory address
-		value = m.get_mem(op.Memory.Size, address)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
@@ -395,7 +389,7 @@ func (m *machine) push(op *emi.Operand) error {
 	m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)-get_mem_sz(value))
 
 	// store the content at the new top of the stack
-	m.set_mem(m.cpu.get_ptr(emi.Rsp), value)
+	set_mem_by_tp(m, m.cpu.get_ptr(emi.Rsp), value)
 
 	return nil
 }
@@ -404,12 +398,17 @@ func (m *machine) push(op *emi.Operand) error {
 func (m *machine) pop(op *emi.Operand) error {
 	switch op.Kind {
 	case emi.RegisterOperand:
-		// pop the content of the top of the stack into a register
-		arg := *(*uint64)(unsafe.Pointer(&m.memory[m.cpu.registers[emi.Rsp]]))
-		m.cpu.registers[op.Register] = arg
+		// check if the register is a general purpose register
+		if !op.Register.IsGeneralPurpose() {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
+		}
+
+		// pop the value on the top of the stack into a register
+		value := get_mem_by_op(m, m.cpu.get_ptr(emi.Rsp), emi.RegisterSize[op.Register])
+		m.cpu.set_gp(op.Register, value)
 
 		// increment the stack pointer (stack shrinks upwards)
-		m.cpu.registers[emi.Rsp] += uint64(unsafe.Sizeof(arg))
+		m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)+get_mem_sz(value))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
@@ -437,69 +436,76 @@ func (m *machine) ret() error {
 func (m *machine) mov(a, b *emi.Operand) error {
 	switch {
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
-		m.cpu.registers[a.Register] = m.cpu.registers[b.Register]
+		// copy the value of the second register to the first register
+		if a.Register.IsGeneralPurpose64() && b.Register.IsGeneralPurpose64() ||
+			a.Register.IsGeneralPurpose32() && b.Register.IsGeneralPurpose32() ||
+			a.Register.IsGeneralPurpose16() && b.Register.IsGeneralPurpose16() ||
+			a.Register.IsGeneralPurpose8() && b.Register.IsGeneralPurpose8() {
+			m.cpu.set_gp(a.Register, m.cpu.get_gp(b.Register))
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		}
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		m.cpu.registers[a.Register] = uint64(b.Immediate.(int64))
+		// copy the immediate value to the register
+		if a.Register.IsGeneralPurpose64() {
+			m.cpu.set_gp(a.Register, uint64(b.Immediate.(int64)))
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		}
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.MemoryOperand:
-		address := uint64(int64(m.cpu.registers[b.Memory]) + b.Displacement)
-		arg := *(*uint64)(unsafe.Pointer(&m.memory[address]))
-		m.cpu.registers[a.Register] = arg
+		// copy the value from memory to the register
+		if b.Register.IsGeneralPurpose64() && b.Memory.Size == emi.RegisterSize[a.Register] {
+			// read the memory address from a 64-bit register
+			address := m.cpu.get_gp(b.Register).(uint64)
+			
+			// calculate the memory address by adding the displacement to the register value
+			address = uint64(int64(address) + b.Memory.Displacement)
+
+			// get the value from the memory address and store it in the register
+			value := get_mem_by_op(m, address, b.Memory.Size)
+			m.cpu.set_gp(a.Register, value)
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		}
 
 	case a.Kind == emi.MemoryOperand && b.Kind == emi.RegisterOperand:
-		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
-		*(*uint64)(unsafe.Pointer(&m.memory[address])) = m.cpu.registers[b.Register]
+		// copy the value from the register to memory
+		if a.Register.IsGeneralPurpose64() && a.Memory.Size == emi.RegisterSize[b.Register] {
+			// read the memory address from a 64-bit register
+			address := m.cpu.get_gp(a.Register).(uint64)
+
+			// calculate the memory address by adding the displacement to the register value
+			address = uint64(int64(address) + a.Memory.Displacement)
+
+			// store the value from the register to the memory address
+			value := m.cpu.get_gp(b.Register)
+			set_mem_by_tp(m, address, value)
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		}
 
 	case a.Kind == emi.MemoryOperand && b.Kind == emi.ImmediateOperand:
-		address := uint64(int64(m.cpu.registers[a.Memory]) + a.Displacement)
-		*(*uint64)(unsafe.Pointer(&m.memory[address])) = uint64(b.Immediate.(int64))
+		// copy the immediate value to memory
+		if a.Register.IsGeneralPurpose64() { 
+			// read the memory address from a 64-bit register
+			address := m.cpu.get_gp(a.Register).(uint64)
+
+			// calculate the memory address by adding the displacement to the register value
+			address = uint64(int64(address) + a.Memory.Displacement)
+
+			// store the immediate value to the memory address
+			set_mem_by_tp(m, address, uint64(b.Immediate.(int64)))
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		}
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
 	}
 
 	return nil
-}
-
-// Set a value in the memory space.
-func (m *machine) set_mem(a uint64, v any) {
-	switch v := v.(type) {
-	case uint64:
-		set_mem(m, a, v)
-
-	case uint32:
-		set_mem(m, a, v)
-
-	case uint16:
-		set_mem(m, a, v)
-
-	case uint8:
-		set_mem(m, a, v)
-
-	default:
-		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, v, nil))
-	}
-}
-
-// Get a value from the memory space.
-func (m *machine) get_mem(s emi.OperandSize, a uint64) any {
-	switch s {
-	case emi.Bits64:
-		return get_mem[uint64](m, a)
-
-	case emi.Bits32:
-		return get_mem[uint32](m, a)
-
-	case emi.Bits16:
-		return get_mem[uint16](m, a)
-
-	case emi.Bits8:
-		return get_mem[uint8](m, a)
-
-	default:
-		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, s, nil))
-	}
 }
 
 // Negate int64 element.
@@ -887,7 +893,7 @@ func (c *cpu) get_flg() uint64 {
 
 // Set an address in a pointer register and panic if the register is not a pointer register.
 func (c *cpu) set_ptr(r emi.Register, v uint64) {
-	if !r.IsPointer() {
+	if !r.IsInstructionPointer() && !r.IsStackPointer() && !r.IsBasePointer() {
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
 	}
 
@@ -896,11 +902,51 @@ func (c *cpu) set_ptr(r emi.Register, v uint64) {
 
 // Get an address from a pointer register and panic if the register is not a pointer register.
 func (c *cpu) get_ptr(r emi.Register) uint64 {
-	if !r.IsPointer() {
+	if !r.IsInstructionPointer() && !r.IsStackPointer() && !r.IsBasePointer() {
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
 	}
 
 	return c.registers[r]
+}
+
+// Set a value in the memory space by type bit size.
+func set_mem_by_tp(m *machine, a uint64, v any) {
+	switch v := v.(type) {
+	case uint64:
+		set_mem(m, a, v)
+
+	case uint32:
+		set_mem(m, a, v)
+
+	case uint16:
+		set_mem(m, a, v)
+
+	case uint8:
+		set_mem(m, a, v)
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, v, nil))
+	}
+}
+
+// Get a value from the memory space by operand bit size.
+func get_mem_by_op(m *machine, a uint64, o emi.OperandSize) any {
+	switch o {
+	case emi.Bits64:
+		return get_mem[uint64](m, a)
+
+	case emi.Bits32:
+		return get_mem[uint32](m, a)
+
+	case emi.Bits16:
+		return get_mem[uint16](m, a)
+
+	case emi.Bits8:
+		return get_mem[uint8](m, a)
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, o, nil))
+	}
 }
 
 // Set a value in the memory space.
