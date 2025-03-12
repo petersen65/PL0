@@ -16,7 +16,6 @@ import (
 const (
 	memorySize         = uint64(65536) // memory entries are 8-bit unsigned bytes (64KB)
 	stackSize          = uint64(16384) // control stack entries are 8-bit unsigned bytes (16KB)
-	pointerSize        = uint64(8)     // a pointer contains a memory address (8 bytes)
 	stackForbiddenZone = uint64(1024)  // control stack entries below this address are forbidden to be used
 	zero               = uint64(0)     // zero as 64-bit unsigned integer
 )
@@ -100,12 +99,12 @@ func (m *machine) RunProcess() error {
 	m.cpu.set_ptr(emi.Rip, zero) // instruction pointer points to the next instruction to be executed
 
 	// initialize activation record descriptor of the main block
-	set_mem(m, memorySize-pointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
-	set_mem(m, memorySize-2*pointerSize, zero) // return address (to caller)
+	set_mem(m, memorySize-emi.PointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
+	set_mem(m, memorySize-2*emi.PointerSize, zero) // return address (to caller)
 
 	// initialize stack pointer and base pointer registers of the CPU
-	m.cpu.set_ptr(emi.Rsp, memorySize-2*pointerSize) // points to return address before main block's prelude runs
-	m.cpu.set_ptr(emi.Rbp, zero)                     // intentionnaly, there is no valid base pointer yet (from a caller)
+	m.cpu.set_ptr(emi.Rsp, memorySize-2*emi.PointerSize) // points to return address before main block's prelude runs
+	m.cpu.set_ptr(emi.Rbp, zero)                         // intentionnaly, there is no valid base pointer yet (from a caller)
 
 	// the stack pointer and the base pointer point to 64-bit memory addresses (byte memory of the machine)
 	// the instruction pointer points to 64-bit code addresses (assembly code of the process)
@@ -371,36 +370,32 @@ func (m *machine) push(op *emi.Operand) error {
 
 	case emi.MemoryOperand:
 		// push the content of a memory address to the top of the stack
-		// read the memory address from the register referenced by the memory operand and add a displacement
-		address := uint64(int64(get_reg[uint64](&m.cpu, op.Memory)) + op.Displacement)
+		var address uint64
+
+		// read the memory address from a 64-bit register
+		if op.Register.IsPointer() {
+			address = m.cpu.get_ptr(op.Register)
+		} else if op.Register.IsGeneralPurpose64() {
+			address = m.cpu.get_gp(op.Register).(uint64)
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+		}
+
+		// calculate the memory address by adding the displacement to the register value
+		address = uint64(int64(address) + op.Memory.Displacement)
 
 		// get the value from the memory address
-		value = get_mem[uint64](m, address)
+		value = m.get_mem(op.Memory.Size, address)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
 	}
 
 	// decrement the stack pointer (stack grows downwards)
-	m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)-uint64(unsafe.Sizeof(value)))
+	m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)-get_mem_sz(value))
 
 	// store the content at the new top of the stack
-	switch v := value.(type) {
-	case uint64:
-		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
-
-	case uint32:
-		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
-
-	case uint16:
-		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
-
-	case uint8:
-		set_mem(m, m.cpu.get_ptr(emi.Rsp), v)
-
-	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, invalidMemoryValue, v, nil)
-	}
+	m.set_mem(m.cpu.get_ptr(emi.Rsp), value)
 
 	return nil
 }
@@ -465,6 +460,46 @@ func (m *machine) mov(a, b *emi.Operand) error {
 	}
 
 	return nil
+}
+
+// Set a value in the memory space.
+func (m *machine) set_mem(a uint64, v any) {
+	switch v := v.(type) {
+	case uint64:
+		set_mem(m, a, v)
+
+	case uint32:
+		set_mem(m, a, v)
+
+	case uint16:
+		set_mem(m, a, v)
+
+	case uint8:
+		set_mem(m, a, v)
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, v, nil))
+	}
+}
+
+// Get a value from the memory space.
+func (m *machine) get_mem(s emi.OperandSize, a uint64) any {
+	switch s {
+	case emi.Bits64:
+		return get_mem[uint64](m, a)
+
+	case emi.Bits32:
+		return get_mem[uint32](m, a)
+
+	case emi.Bits16:
+		return get_mem[uint16](m, a)
+
+	case emi.Bits8:
+		return get_mem[uint8](m, a)
+
+	default:
+		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, invalidMemoryValue, s, nil))
+	}
 }
 
 // Negate int64 element.
@@ -876,4 +911,9 @@ func set_mem[T raw](m *machine, a uint64, v T) {
 // Get a value from the memory space.
 func get_mem[T raw](m *machine, a uint64) T {
 	return *(*T)(unsafe.Pointer(&m.memory[a]))
+}
+
+// Calculate the memory size of any value in bytes.
+func get_mem_sz(v any) uint64 {
+	return uint64(unsafe.Sizeof(v))
 }

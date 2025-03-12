@@ -11,9 +11,9 @@ import (
 	gen "github.com/petersen65/PL0/v2/generator"
 )
 
-// CPU target for the assembly code emitter.
 const (
-	Amd64 = CentralProcessingUnit(iota) // AMD64 CPU target
+	Amd64       = CentralProcessingUnit(iota) // CPU target for the assembly code emitter
+	PointerSize = 8                           // size of a pointer to a memory address in bytes (64 bits)
 )
 
 // Operation codes for assembly instructions of the AMD64 CPU.

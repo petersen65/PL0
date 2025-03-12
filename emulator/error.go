@@ -33,7 +33,7 @@ var failureMap = map[cor.Failure]string{
 	unknownGeneralPurposeRegister:      "halt - unknown general purpose register '%v'",
 	unknownPointerRegister:             "panic - unknown pointer register '%v'",
 	invalidGeneralPurposeRegisterValue: "halt - invalid value for general purpose register '%v'",
-	invalidMemoryValue:                 "halt - invalid value for memory '%v'",
+	invalidMemoryValue:                 "panic - invalid value for memory '%v'",
 	addressOutOfRange:                  "halt - address '%v' out of range",
 	stackOverflow:                      "halt - stack overflow at stack pointer '%v'",
 	arithmeticOverflowNegation:         "halt - arithmetic overflow (negation) at address '%v'",

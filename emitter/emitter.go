@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	descriptorSize        = 3                       // size of an activation record descriptor
+	descriptorSize        = 24                      // size of an activation record descriptor in bytes
 	defaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
 	createStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	followStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
@@ -305,19 +305,20 @@ func (a *assemblyCodeUnit) AppendInstruction(op OperationCode, labels []string, 
 func (a *assemblyCodeUnit) AppendRuntimeLibrary() {
 	loopCondition := fmt.Sprintf("%v.1", followStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", followStaticLinkLabel)
+	detail := MemoryDetail{Size: Bits64, Displacement: descriptorSize - PointerSize}
 
 	// runtime library function "create_static_link"
-	a.AppendInstruction(Mov, []string{createStaticLinkLabel}, newOperand(RegisterOperand, Rcx), newOperand(MemoryOperand, Rbp, Bits64, descriptorSize-1))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbp, Bits64))
-	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition,))
-	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, Bits64, descriptorSize-1), newOperand(RegisterOperand, Rbx))
+	a.AppendInstruction(Mov, []string{createStaticLinkLabel}, newOperand(RegisterOperand, Rcx), newOperand(MemoryOperand, Rbp, detail))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbp))
+	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition))
+	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, detail), newOperand(RegisterOperand, Rbx))
 	a.AppendInstruction(Ret, nil)
 
 	// runtime library function "follow_static_link"
 	a.AppendInstruction(Mov, []string{followStaticLinkLabel}, newOperand(RegisterOperand, Rbx), newOperand(RegisterOperand, Rbp))
 	a.AppendInstruction(Cmp, []string{loopCondition}, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(0)))
 	a.AppendInstruction(Je, nil, newOperand(LabelOperand, behindLoop))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbx, Bits64, descriptorSize-1))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbx, detail))
 	a.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(1)))
 	a.AppendInstruction(Jmp, nil, newOperand(LabelOperand, loopCondition))
 	a.AppendInstruction(Ret, []string{behindLoop})
@@ -506,10 +507,11 @@ func (e *emitter) Emit() {
 		case gen.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
 			// panic if parsing of the variable into its location fails (unsupported data type)
 			location := i.Code.Arg1.Parse().(uint64)
+			detail := MemoryDetail{Size: Bits64, Displacement: -int64(location)}
 
 			if i.DepthDifference == 0 {
 				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(Push, l, newOperand(MemoryOperand, Rbp, Bits64, -int64(location)))
+				e.assemblyCode.AppendInstruction(Push, l, newOperand(MemoryOperand, Rbp, detail))
 			} else {
 				// block nesting depth difference between variable use and variable declaration
 				e.assemblyCode.AppendInstruction(Mov, l,
@@ -520,12 +522,13 @@ func (e *emitter) Emit() {
 				e.assemblyCode.AppendInstruction(Call, nil, newOperand(LabelOperand, followStaticLinkLabel))
 
 				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(Push, nil, newOperand(MemoryOperand, Rbx, -int64(location)))
+				e.assemblyCode.AppendInstruction(Push, nil, newOperand(MemoryOperand, Rbx, detail))
 			}
 
 		case gen.VariableStore: // store the top of the runtime control stack into a variable's stack address
 			// panic if parsing of the variable into its location fails (unsupported data type)
 			location := i.Code.Result.Parse().(uint64)
+			detail := MemoryDetail{Size: Bits64, Displacement: -int64(location)}
 
 			if i.DepthDifference == 0 {
 				// pop content of the variable
@@ -533,7 +536,7 @@ func (e *emitter) Emit() {
 
 				// copy content of the variable into memory location 'variables base - variable offset'
 				e.assemblyCode.AppendInstruction(Mov, nil,
-					newOperand(MemoryOperand, Rbp, -int64(location)),
+					newOperand(MemoryOperand, Rbp, detail),
 					newOperand(RegisterOperand, Rax))
 			} else {
 				// block nesting depth difference between variable use and variable declaration
@@ -549,7 +552,7 @@ func (e *emitter) Emit() {
 
 				// copy content of the variable into memory location 'variables base - variable offset'
 				e.assemblyCode.AppendInstruction(Mov, nil,
-					newOperand(MemoryOperand, Rbx, -int64(location)),
+					newOperand(MemoryOperand, Rbx, detail),
 					newOperand(RegisterOperand, Rax))
 			}
 
