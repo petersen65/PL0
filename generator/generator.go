@@ -9,14 +9,12 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 )
-
-// Number of bits of a signed or unsigned integer.
-const integerBitSize = 64
 
 // Display name of entry point only used for informational purposes.
 const entryPointDisplayName = "@main"
@@ -111,6 +109,13 @@ var (
 		String:            "string",
 		UnsignedInteger64: "uint64",
 		Integer64:         "int64",
+		Integer32:         "int32",
+		Integer16:         "int16",
+		Integer8:          "int8",
+		Float64:           "float64",
+		Float32:           "float32",
+		Rune32:            "rune32",
+		Boolean8:          "bool8",
 	}
 
 	// Prefixes used for names of addresses.
@@ -279,7 +284,7 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 // String representation of the three-address code address.
 func (a *Address) String() string {
 	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Location, a.Name)
-	
+
 	if a.Variant == Empty {
 		representation = ""
 	} else if a.Location == 0 {
@@ -326,11 +331,44 @@ func (a *Address) Parse() any {
 	switch a.Variant {
 	case Literal:
 		switch a.DataType {
-		case Integer64:
-			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
+		case Integer64, Integer32, Integer16, Integer8:
+			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
-				return arg
+				if a.DataType == Integer32 {
+					return int32(decoded)
+				} else if a.DataType == Integer16 {
+					return int16(decoded)
+				} else if a.DataType == Integer8 {
+					return int8(decoded)
+				} else {
+					return decoded
+				}
+			}
+
+		case Float64, Float32:
+			if decoded, err := strconv.ParseFloat(a.Name, a.DataType.BitSize()); err != nil {
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				if a.DataType == Float32 {
+					return float32(decoded)
+				} else {
+					return decoded
+				}
+			}
+
+		case Rune32:
+			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
+			} else {
+				return decoded
+			}
+
+		case Boolean8:
+			if decoded, err := strconv.ParseBool(a.Name); err != nil {
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				return decoded
 			}
 
 		default:
@@ -339,7 +377,7 @@ func (a *Address) Parse() any {
 
 	case Variable:
 		switch a.DataType {
-		case Integer64:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
 			return a.Location
 
 		default:
@@ -348,7 +386,7 @@ func (a *Address) Parse() any {
 
 	case Temporary:
 		switch a.DataType {
-		case Integer64:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
 			return nil
 
 		default:
@@ -367,10 +405,10 @@ func (a *Address) Parse() any {
 	case Count:
 		switch a.DataType {
 		case UnsignedInteger64:
-			if arg, err := strconv.ParseUint(a.Name, 10, integerBitSize); err != nil {
+			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.BitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
-				return arg
+				return decoded
 			}
 
 		default:
@@ -380,10 +418,10 @@ func (a *Address) Parse() any {
 	case Code:
 		switch a.DataType {
 		case Integer64:
-			if arg, err := strconv.ParseInt(a.Name, 10, integerBitSize); err != nil {
+			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
-				return arg
+				return decoded
 			}
 
 		default:

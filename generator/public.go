@@ -80,7 +80,16 @@ const (
 	Void              = DataType(iota) // an address that does not have a data type
 	String                             // the string data type is used for labels in label addresses
 	UnsignedInteger64                  // the unsigned integer data type is used for counting purposes or call codes
-	Integer64                          // the integer data type is used for constants, literals, variables, and temporaries
+
+	// data types supported for constants, literals, variables, and temporaries (number specific bit size)
+	Integer64
+	Integer32
+	Integer16
+	Integer8
+	Float64
+	Float32
+	Rune32
+	Boolean8
 )
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.
@@ -167,6 +176,31 @@ type (
 		Peek(offset int) *Instruction
 	}
 )
+
+// Supported data types for constants, literals, variables, and temporaries.
+func (dataType DataType) IsSupported() bool {
+	return dataType >= Integer64 && dataType <= Boolean8
+}
+
+// Determine the bit size of a data type or return 0 if there is no defined bit size.
+func (dataType DataType) BitSize() int {
+	switch dataType {
+	case UnsignedInteger64, Integer64, Float64:
+		return 64
+
+	case Integer32, Float32, Rune32:
+		return 32
+
+	case Integer16:
+		return 16
+
+	case Integer8, Boolean8:
+		return 8
+
+	default:
+		return 0
+	}
+}
 
 // Return the public interface of the private generator implementation.
 func NewGenerator(abstractSyntax ast.Block) Generator {
