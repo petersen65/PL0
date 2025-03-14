@@ -80,10 +80,17 @@ const (
 	GreaterEqual
 )
 
-// Data types of literals and symbols.
+// Data types of literals, constants, and variables.
 const (
 	_ = DataType(iota)
 	Integer64
+	Integer32
+	Integer16
+	Integer8
+	Float64
+	Float32
+	Rune32
+	Boolean8
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -372,6 +379,13 @@ var (
 	// DataTypeNames maps a data type to its string representation.
 	DataTypeNames = map[DataType]string{
 		Integer64: "int64",
+		Integer32: "int32",
+		Integer16: "int16",
+		Integer8:  "int8",
+		Float64:   "float64",
+		Float32:   "float32",
+		Rune32:    "rune32",
+		Boolean8:  "bool8",
 	}
 
 	// NodeTypeNames maps node types to their string representation.

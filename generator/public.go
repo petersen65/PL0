@@ -202,6 +202,27 @@ func (dataType DataType) BitSize() int {
 	}
 }
 
+// Return the alignment of a data type or 0 if there is no defined alignment.
+// The alignment is the number of bytes needed to store a data type in memory.
+func (dataType DataType) Alignment() int {
+	switch dataType {
+	case Integer64, Float64:
+		return 8
+
+	case Integer32, Float32, Rune32:
+		return 4
+
+	case Integer16:
+		return 2
+
+	case Integer8, Boolean8:
+		return 1
+
+	default:
+		return 0
+	}
+}
+
 // Return the public interface of the private generator implementation.
 func NewGenerator(abstractSyntax ast.Block) Generator {
 	return newGenerator(abstractSyntax)

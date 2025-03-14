@@ -647,7 +647,7 @@ func (m *intermediateCodeUnit) lookup(name string) *symbol {
 	return nil
 }
 
-// Configure abstract syntax extensions and fill the symbol table of the intermediate code unit.
+// Configure abstract syntax extensions and fill the symbol table of the intermediate code unit. This is a visit function.
 func configureSymbols(node ast.Node, code any) {
 	unit := code.(*generator).intermediateCode
 
@@ -658,6 +658,11 @@ func configureSymbols(node ast.Node, code any) {
 	case *ast.ConstantDeclarationNode:
 		name := n.Scope.NewIdentifier(prefix[ConstantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
+
+		if ! n.DataType.IsSupported() {
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, n, nil))
+		}
+
 		unit.insert(newSymbol(name, constant, dataTypeMap[n.DataType]))
 
 	case *ast.VariableDeclarationNode:
@@ -675,12 +680,12 @@ func configureSymbols(node ast.Node, code any) {
 // Generate intermediate code for the abstract syntax tree.
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (i *generator) Generate() {
-	// pre-create symbol table for intermediate code
+	// pre-create symbol table for intermediate code by providing a visit function that is called for each node
 	if err := ast.Walk(i.abstractSyntax, ast.PreOrder, i, configureSymbols); err != nil {
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
-	// generate intermediate code for the abstract syntax tree
+	// generate intermediate code for the abstract syntax tree by using the visitor pattern of the abstract syntax tree
 	i.abstractSyntax.Accept(i)
 }
 
