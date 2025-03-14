@@ -59,17 +59,17 @@ const (
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into an address
-	VariableLoad  // load variable value from its location in the logical memory space into an address
-	VariableStore // store variable value from an address into its location in the logical memory space
+	VariableLoad  // load variable value from its offset in the logical memory space into an address
+	VariableStore // store variable value from an address into its offset in the logical memory space
 )
 
 // Variants of an address in the three-address code concept.
 const (
 	Empty      = Variant(iota) // empty address holds no address
 	Diagnostic                 // diagnostic address for debugging purposes
-	Temporary                  // temporary results of operations (temporaries are not named and have no location)
+	Temporary                  // temporary results of operations (temporaries are not named and have no offset)
 	Literal                    // literal address holds constant or literal values
-	Variable                   // variable address holds the location of a variable in the logical memory space
+	Variable                   // variable address holds the offset of a variable in the logical memory space
 	Label                      // label address used as target of jumps and calls is resolved by the linker
 	Count                      // count address used for counting purposes like the number of parameters in a function call
 	Code                       // code address holds a call code for the external standard library (e.g. readln, writeln)
@@ -129,10 +129,10 @@ type (
 
 	// Address is the data structure of an address in the three-address code concept.
 	Address struct {
-		Name     string   `json:"name"`      // name or value of an address (values need to be converted to a string)
+		Name     string   `json:"name"`      // name or value of an address (a value needs to be converted to a string)
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
 		DataType DataType `json:"data_type"` // data type of the address
-		Location uint64   `json:"location"`  // location of an address in the logical memory space
+		Offset   int64    `json:"offset"`    // offset of an address in the logical memory space
 	}
 
 	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
@@ -202,24 +202,38 @@ func (dataType DataType) BitSize() int {
 	}
 }
 
-// Return the alignment of a data type or 0 if there is no defined alignment.
-// The alignment is the number of bytes needed to store a data type in memory.
-func (dataType DataType) Alignment() int {
+// Depending on the data type, calculate the alignment of a positive or negativ offset in the logical memory space.
+func (dataType DataType) Alignment(offset int64) int64 {
 	switch dataType {
 	case Integer64, Float64:
-		return 8
+		return Align(offset, 8)
 
 	case Integer32, Float32, Rune32:
-		return 4
+		return Align(offset, 4)
 
 	case Integer16:
-		return 2
+		return Align(offset, 2)
 
 	case Integer8, Boolean8:
-		return 1
+		return Align(offset, 1)
 
 	default:
 		return 0
+	}
+}
+
+// Round up or down an offset to its next alignment boundary. If the alignment is not a power of 2, return 0.
+func Align(offset, alignment int64) int64 {
+	// check if the alignment is smaller or equal to 0 or not a power of 2
+	if alignment <= 0 || alignment&(alignment-1) != 0 {
+		return 0
+	}
+
+	// calculate the alignment of the offset depending on its sign (round up or down)
+	if offset >= 0 {
+		return (offset + alignment - 1) & ^(alignment - 1)
+	} else {
+		return (offset - alignment + 1) & ^(alignment - 1)
 	}
 }
 
@@ -239,6 +253,6 @@ func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ..
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(name any, variant Variant, dataType DataType, location uint64) *Address {
-	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Location: location}
+func NewAddress(name any, variant Variant, dataType DataType, offset int64) *Address {
+	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Offset: offset}
 }

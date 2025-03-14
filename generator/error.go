@@ -13,6 +13,8 @@ const (
 	unknownDataTypeRepresentation
 	invalidAddressesContract
 	intermediateCodeAddressParsingError
+	unsupportedDataTypeInConstantDeclaration
+	unsupportedDataTypeInVariableDeclaration
 	unsupportedDataTypeInIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress
 	invalidContextInIdentifierUse
@@ -34,6 +36,8 @@ var failureMap = map[cor.Failure]string{
 	invalidAddressesContract:                     "invalid addresses contract: %v",
 	intermediateCodeAddressParsingError:          "value of intermediate code address cannot be parsed: %v",
 	unsupportedDataTypeInIntermediateCodeAddress: "unsupported data type in intermediate code address: %v",
+	unsupportedDataTypeInConstantDeclaration:     "unsupported data type in constant declaration: %v",
+	unsupportedDataTypeInVariableDeclaration:     "unsupported data type in variable declaration: %v",
 	unexceptedVariantInIntermediateCodeAddress:   "unexcepted variant in intermediate code address: %v",
 	invalidContextInIdentifierUse:                "invalid context in identifier use",
 	symbolTableUpdateFailed:                      "error while updating intermediate code symbol table: %v",

@@ -51,7 +51,7 @@ type (
 
 	// Metadata for each scope in the abstract syntax tree.
 	scopeMetaData struct {
-		counter uint64 // counter for all variables in an abstract syntax scope
+		offset int64 // offset for all variables in an abstract syntax scope
 	}
 
 	// Metadata for each symbol in the abstract syntax tree.
@@ -66,8 +66,8 @@ type (
 	symbol struct {
 		name       string        // flattened name in the intermediate code
 		kind       entry         // kind of symbol entry
-		dataType   DataType      // data type of the symbol
-		location   uint64        // location in the logical memory space
+		dataType   DataType      // datatype of the symbol
+		offset     int64         // offset in the logical memory space
 		definition *list.Element // instruction where the symbol is defined
 	}
 
@@ -86,7 +86,7 @@ type (
 )
 
 var (
-	// Map abstract syntax data types to intermediate code data types (they have separate type systems)
+	// Map abstract syntax datatypes to intermediate code datatypes (they have separate type systems)
 	dataTypeMap = map[ast.DataType]DataType{
 		ast.Integer64: Integer64,
 	}
@@ -103,7 +103,7 @@ var (
 		Code:       "cod",
 	}
 
-	// dataTypeNames maps an address data type to its string representation.
+	// dataTypeNames maps an address datatype to its string representation.
 	dataTypeNames = map[DataType]string{
 		Void:              "void",
 		String:            "string",
@@ -128,7 +128,7 @@ var (
 	}
 
 	// noAddress represents an unused address in the three-address code concept.
-	noAddress = &Address{Name: "-", Variant: Empty, DataType: Void, Location: 0}
+	noAddress = &Address{Name: "-", Variant: Empty, DataType: Void, Offset: 0}
 
 	// Map three-address code operations of the intermediate code to their string representation.
 	operationNames = map[Operation]string{
@@ -252,7 +252,7 @@ func newSymbol(name string, kind entry, dataType DataType) *symbol {
 
 // Create metadata for a scope in the abstract syntax tree.
 func newScopeMetaData() *scopeMetaData {
-	return &scopeMetaData{counter: 1}
+	return &scopeMetaData{offset: 0}
 }
 
 // Create metadata for a symbol in the abstract syntax tree.
@@ -265,12 +265,12 @@ func (v Variant) String() string {
 	return variantNames[v]
 }
 
-// String representation of a data type.
+// String representation of a datatype.
 func (dt DataType) String() string {
 	return dataTypeNames[dt]
 }
 
-// Get a data type from its representation.
+// Get a datatype from its representation.
 func (dtr DataTypeRepresentation) DataType() DataType {
 	for dataType, representation := range dataTypeNames {
 		if representation == string(dtr) {
@@ -283,11 +283,11 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Location, a.Name)
+	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Offset, a.Name)
 
 	if a.Variant == Empty {
 		representation = ""
-	} else if a.Location == 0 {
+	} else if a.Offset == 0 {
 		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
 	}
 
@@ -326,7 +326,7 @@ func (i *Instruction) String() string {
 		i.Code.Result)
 }
 
-// Parse a three-address code address into a value based on its variant and data type.
+// Parse a three-address code address into a value based on its variant and datatype.
 func (a *Address) Parse() any {
 	switch a.Variant {
 	case Literal:
@@ -378,7 +378,7 @@ func (a *Address) Parse() any {
 	case Variable:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
-			return a.Location
+			return a.Offset
 
 		default:
 			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
@@ -658,17 +658,20 @@ func configureSymbols(node ast.Node, code any) {
 	case *ast.ConstantDeclarationNode:
 		name := n.Scope.NewIdentifier(prefix[ConstantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-
-		if ! n.DataType.IsSupported() {
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, n, nil))
-		}
-
 		unit.insert(newSymbol(name, constant, dataTypeMap[n.DataType]))
+
+		if !dataTypeMap[n.DataType].IsSupported() {
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInConstantDeclaration, n, nil))
+		}
 
 	case *ast.VariableDeclarationNode:
 		name := n.Scope.NewIdentifier(prefix[VariablePrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.insert(newSymbol(name, variable, dataTypeMap[n.DataType]))
+
+		if !dataTypeMap[n.DataType].IsSupported() {
+			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInVariableDeclaration, n, nil))
+		}
 
 	case *ast.ProcedureDeclarationNode:
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[FunctionPrefix])
@@ -771,16 +774,18 @@ func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.intermediateCode.lookup(codeName)
 
-	// set the location of the variable in its logical memory space
-	codeSymbol.location = scopeMetaData.counter
-	scopeMetaData.counter++
+	// set the offset of the variable in its logical memory space
+	// ensure that the offset in the logical memory space is aligned to a datatype depended boundary
+	byteSize := int64(codeSymbol.dataType.BitSize() / 8)
+	scopeMetaData.offset = codeSymbol.dataType.Alignment(scopeMetaData.offset + byteSize)
+	codeSymbol.offset = scopeMetaData.offset
 
 	// allocate memory for the variable in its logical memory space
 	instruction := newInstruction(
-		Allocate, // allocate memory based on a location
-		NewAddress(vd.Name, Diagnostic, codeSymbol.dataType, codeSymbol.location), // for diagnostic purposes only
+		Allocate, // allocate memory based on a offset
+		NewAddress(vd.Name, Diagnostic, codeSymbol.dataType, codeSymbol.offset), // for diagnostic purposes only
 		noAddress,
-		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // location for the variable
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.offset), // offset for the variable
 		vd.TokenStreamIndex) // variable declaration in the token stream
 
 	// append allocate instruction to the unit and set it as definition for the intermediate code variable
@@ -851,8 +856,8 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 		// create a variable load instruction to load the variable value into a temporary result
 		instruction := newInstruction(
-			VariableLoad, // load the value of the variable from its location into a temporary result
-			NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
+			VariableLoad, // load the value of the variable from its offset into a temporary result
+			NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.offset), // variable offset
 			noAddress,
 			NewAddress(iu.Scope.NewIdentifier(prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
 			useDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
@@ -1030,10 +1035,10 @@ func (i *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := newInstruction(
-		VariableStore, // store the value of the temporary result into the location of a variable
+		VariableStore, // store the value of the temporary result into the offset of a variable
 		right,         // consumed right-hand-side temporary result
 		noAddress,
-		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location),
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.offset),
 		assignmentDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 		s.TokenStreamIndex)               // assignment statement in the token stream
 
@@ -1064,8 +1069,8 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// create a variable load instruction to load the variable value into a temporary result
 	load := newInstruction(
-		VariableLoad, // load the value of the variable from its location into a temporary result
-		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
+		VariableLoad, // load the value of the variable from its offset into a temporary result
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.offset), // variable offset
 		noAddress,
 		NewAddress(scope.NewIdentifier(prefix[ResultPrefix]), Temporary, codeSymbol.dataType, 0), // temporary result
 		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
@@ -1092,10 +1097,10 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// store the resultant value into the variable used by the read statement
 	store := newInstruction(
-		VariableStore,   // store the value of the standard function result into the location of a variable
+		VariableStore,   // store the value of the standard function result into the offset of a variable
 		param.Code.Arg1, // standard function resultant value
 		noAddress,
-		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.location), // variable location
+		NewAddress(codeSymbol.name, Variable, codeSymbol.dataType, codeSymbol.offset), // variable offset
 		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 		s.TokenStreamIndex)         // read statement in the token stream
 
