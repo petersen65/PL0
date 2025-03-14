@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	descriptorSize        = 24                      // size of an activation record descriptor in bytes
+	descriptorSize        = 3 * PointerSize         // size of an activation record descriptor in bytes
 	defaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
 	createStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	followStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
