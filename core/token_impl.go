@@ -12,9 +12,6 @@ import (
 	"strings"
 )
 
-// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
-const eof Token = -1
-
 // Token handler manages the current and next token in the token stream.
 type tokenHandler struct {
 	tokenStreamIndex     int                // index of the current token in the token stream table

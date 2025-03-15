@@ -9,6 +9,9 @@ import (
 	"slices"
 )
 
+// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
+const eof Token = -1
+
 // Tokens of the PL/0 programming language.
 const (
 	Unknown = Token(iota)
@@ -194,6 +197,36 @@ var (
 	}
 )
 
+// Return the interface to a new token handler.
+func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
+	return newTokenHandler(tokenStream, errorHandler, component, failureMap)
+}
+
+// Return the interface to a new error handler.
+func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
+	return newErrorHandler(tokenStream)
+}
+
+// Create a new general error with a severity level (a general error can wrap any other error).
+func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
+	return newGeneralError(component, failureMap, severity, code, value, inner)
+}
+
+// Create a new line-column error with a severity level and a line and column number.
+func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
+	return newLineColumnError(component, failureMap, severity, code, value, line, column)
+}
+
+// Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
+func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
+	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
+}
+
+// Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
+func NewTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
+	return newTokenError(component, failureMap, severity, code, value, tokenStream, index)
+}
+
 // Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.
 func Set(tss ...TokenSet) Tokens {
 	set := Tokens{}
@@ -219,34 +252,4 @@ func (t Token) ToTokens() Tokens {
 // Tokens.ToTokens simply returns the token set that is passed in to satisfy the TokenSet interface.
 func (t Tokens) ToTokens() Tokens {
 	return t
-}
-
-// Return the public interface to a new token handler.
-func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
-	return newTokenHandler(tokenStream, errorHandler, component, failureMap)
-}
-
-// Return the public interface to a new error handler.
-func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
-	return newErrorHandler(tokenStream)
-}
-
-// Create a new general error with a severity level (a general error can wrap any other error).
-func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
-	return newGeneralError(component, failureMap, severity, code, value, inner)
-}
-
-// Create a new line-column error with a severity level and a line and column number.
-func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
-	return newLineColumnError(component, failureMap, severity, code, value, line, column)
-}
-
-// Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
-	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
-}
-
-// Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
-func NewTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
-	return newTokenError(component, failureMap, severity, code, value, tokenStream, index)
 }
