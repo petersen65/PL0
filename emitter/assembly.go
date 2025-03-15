@@ -4,22 +4,29 @@
 package emitter
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Size of a pointer to a memory address in bytes (64 bits).
-const PointerSize = 8
+const (
+	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
+	DescriptorSize        = 3 * PointerSize         // size of an activation record descriptor in bytes
+	DefaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
+	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
+	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
+)
 
 // Operand kinds for instructions.
 const (
-	_                = OperandKind(iota)
-	RegisterOperand  // register operands are used for arithmetic and logical operations
-	ImmediateOperand // constant values are literals in various bit sizes
-	MemoryOperand    // memory addresses are specified indirectly through registers
-	LabelOperand     // labels are used to specify jump targets and must be replaced by absolute addresses before execution
-	JumpOperand      // destinations for jump instructions that are specified as absolute addresses
+	RegisterOperand  = OperandKind(iota) // register operands are used for arithmetic and logical operations
+	ImmediateOperand                     // constant values are literals in various bit sizes
+	MemoryOperand                        // memory addresses are specified indirectly through registers
+	LabelOperand                         // labels are used to specify jump targets and must be replaced by absolute addresses before execution
+	JumpOperand                          // destinations for jump instructions that are specified as absolute addresses
 )
 
 // Operand sizes in bits.
@@ -118,4 +125,65 @@ func NewLabelOperand(label string) *Operand {
 // Create a new jump operand for an assembly instruction.
 func NewJumpOperand(address uint64) *Operand {
 	return newOperand(JumpOperand, address)
+}
+
+// String representation of a CPU operation code.
+func (oc OperationCode) String() string {
+	return operationNames[oc]
+}
+
+// String representation of a CPU register.
+func (r Register) String() string {
+	return registerNames[r]
+}
+
+// String representation of a CPU operand size.
+func (s OperandSize) String() string {
+	return operandSizeNames[s]
+}
+
+// String representation of an operand kind of CPU operations.
+func (o *Operand) String() string {
+	switch o.Kind {
+	case RegisterOperand:
+		return o.Register.String()
+
+	case ImmediateOperand:
+		return fmt.Sprintf("%v", o.Immediate)
+
+	case MemoryOperand:
+		if o.Memory.Displacement != 0 {
+			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Memory, o.Memory.Displacement)
+		}
+
+		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Memory)
+
+	case LabelOperand:
+		return o.Label
+
+	case JumpOperand:
+		return fmt.Sprintf("%v", o.Jump)
+
+	default:
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
+	}
+}
+
+// String representation of an assembly instruction.
+func (i *Instruction) String() string {
+	var buffer bytes.Buffer
+
+	for _, label := range i.Labels {
+		buffer.WriteString(label)
+		buffer.WriteString(":\n")
+	}
+
+	buffer.WriteString(fmt.Sprintf("  %-12v", i.Operation))
+
+	for _, op := range i.Operands {
+		buffer.WriteString(op.String())
+		buffer.WriteString(", ")
+	}
+
+	return strings.TrimSuffix(buffer.String(), ", ")
 }

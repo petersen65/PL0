@@ -6,14 +6,12 @@ package emitter
 
 import gen "github.com/petersen65/PL0/v2/generator"
 
-const (
-	Amd64 = CentralProcessingUnit(iota) // CPU target for the assembly code emitter
-)
+// CPU target for the assembly code emitter.
+const Amd64 = CentralProcessingUnit(iota)
 
 // Call codes for the programming language standard library.
 const (
-	_ = StandardCall(iota)
-	Readln
+	Readln = StandardCall(iota)
 	Writeln
 )
 
@@ -34,4 +32,9 @@ type (
 // Return the public interface of the private emitter implementation.
 func NewEmitter(cpu CentralProcessingUnit, intermediateCode gen.IntermediateCodeUnit) Emitter {
 	return newEmitter(cpu, intermediateCode)
+}
+
+// String representation of a CPU target.
+func (cpu CentralProcessingUnit) String() string {
+	return cpuNames[cpu]
 }
