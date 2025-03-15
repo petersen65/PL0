@@ -54,6 +54,130 @@ type (
 	}
 )
 
+var (
+	// Map any register to its bit size.
+	registerSize = map[emi.Register]emi.OperandSize{
+		emi.Rflags: emi.Bits64,
+		emi.Rip:    emi.Bits64,
+		emi.Rsp:    emi.Bits64,
+		emi.Rbp:    emi.Bits64,
+		emi.Rax:    emi.Bits64,
+		emi.Rbx:    emi.Bits64,
+		emi.Rcx:    emi.Bits64,
+		emi.Rdx:    emi.Bits64,
+		emi.Rsi:    emi.Bits64,
+		emi.Rdi:    emi.Bits64,
+		emi.R8:     emi.Bits64,
+		emi.R9:     emi.Bits64,
+		emi.R10:    emi.Bits64,
+		emi.R11:    emi.Bits64,
+		emi.R12:    emi.Bits64,
+		emi.R13:    emi.Bits64,
+		emi.R14:    emi.Bits64,
+		emi.R15:    emi.Bits64,
+		emi.Eax:    emi.Bits32,
+		emi.Ebx:    emi.Bits32,
+		emi.Ecx:    emi.Bits32,
+		emi.Edx:    emi.Bits32,
+		emi.Esi:    emi.Bits32,
+		emi.Edi:    emi.Bits32,
+		emi.R8d:    emi.Bits32,
+		emi.R9d:    emi.Bits32,
+		emi.R10d:   emi.Bits32,
+		emi.R11d:   emi.Bits32,
+		emi.R12d:   emi.Bits32,
+		emi.R13d:   emi.Bits32,
+		emi.R14d:   emi.Bits32,
+		emi.R15d:   emi.Bits32,
+		emi.Ax:     emi.Bits16,
+		emi.Bx:     emi.Bits16,
+		emi.Cx:     emi.Bits16,
+		emi.Dx:     emi.Bits16,
+		emi.Si:     emi.Bits16,
+		emi.Di:     emi.Bits16,
+		emi.R8w:    emi.Bits16,
+		emi.R9w:    emi.Bits16,
+		emi.R10w:   emi.Bits16,
+		emi.R11w:   emi.Bits16,
+		emi.R12w:   emi.Bits16,
+		emi.R13w:   emi.Bits16,
+		emi.R14w:   emi.Bits16,
+		emi.R15w:   emi.Bits16,
+		emi.Al:     emi.Bits8,
+		emi.Bl:     emi.Bits8,
+		emi.Cl:     emi.Bits8,
+		emi.Dl:     emi.Bits8,
+		emi.Ah:     emi.Bits8,
+		emi.Bh:     emi.Bits8,
+		emi.Ch:     emi.Bits8,
+		emi.Dh:     emi.Bits8,
+		emi.R8b:    emi.Bits8,
+		emi.R9b:    emi.Bits8,
+		emi.R10b:   emi.Bits8,
+		emi.R11b:   emi.Bits8,
+		emi.R12b:   emi.Bits8,
+		emi.R13b:   emi.Bits8,
+		emi.R14b:   emi.Bits8,
+		emi.R15b:   emi.Bits8,
+	}
+
+	// Map 32-bit general purpose registers to corresponding 64-bit registers (32-bit registers are zero-extended to 64-bit).
+	generalPurpose32to64 = map[emi.Register]emi.Register{
+		emi.Eax:  emi.Rax, // bits 0-31 of Rax, set bits 32-63 to 0
+		emi.Ebx:  emi.Rbx, // bits 0-31 of Rbx, set bits 32-63 to 0
+		emi.Ecx:  emi.Rcx, // bits 0-31 of Rcx, set bits 32-63 to 0
+		emi.Edx:  emi.Rdx, // bits 0-31 of Rdx, set bits 32-63 to 0
+		emi.Esi:  emi.Rsi, // bits 0-31 of Rsi, set bits 32-63 to 0
+		emi.Edi:  emi.Rdi, // bits 0-31 of Rdi, set bits 32-63 to 0
+		emi.R8d:  emi.R8,  // bits 0-31 of R8, set bits 32-63 to 0
+		emi.R9d:  emi.R9,  // bits 0-31 of R9, set bits 32-63 to 0
+		emi.R10d: emi.R10, // bits 0-31 of R10, set bits 32-63 to 0
+		emi.R11d: emi.R11, // bits 0-31 of R11, set bits 32-63 to 0
+		emi.R12d: emi.R12, // bits 0-31 of R12, set bits 32-63 to 0
+		emi.R13d: emi.R13, // bits 0-31 of R13, set bits 32-63 to 0
+		emi.R14d: emi.R14, // bits 0-31 of R14, set bits 32-63 to 0
+		emi.R15d: emi.R15, // bits 0-31 of R15, set bits 32-63 to 0
+	}
+
+	// Map 16-bit general purpose registers to corresponding 64-bit registers (16-bit registers leave bits 16-63 unchanged).
+	generalPurpose16to64 = map[emi.Register]emi.Register{
+		emi.Ax:   emi.Rax, // bits 0-15 of Rax
+		emi.Bx:   emi.Rbx, // bits 0-15 of Rbx
+		emi.Cx:   emi.Rcx, // bits 0-15 of Rcx
+		emi.Dx:   emi.Rdx, // bits 0-15 of Rdx
+		emi.Si:   emi.Rsi, // bits 0-15 of Rsi
+		emi.Di:   emi.Rdi, // bits 0-15 of Rdi
+		emi.R8w:  emi.R8,  // bits 0-15 of R8
+		emi.R9w:  emi.R9,  // bits 0-15 of R9
+		emi.R10w: emi.R10, // bits 0-15 of R10
+		emi.R11w: emi.R11, // bits 0-15 of R11
+		emi.R12w: emi.R12, // bits 0-15 of R12
+		emi.R13w: emi.R13, // bits 0-15 of R13
+		emi.R14w: emi.R14, // bits 0-15 of R14
+		emi.R15w: emi.R15, // bits 0-15 of R15
+	}
+
+	// Map 8-bit general purpose registers to corresponding 64-bit registers (8-bit registers leave bits 8-63 or bits 16-63 unchanged).
+	generalPurpose8to64 = map[emi.Register]emi.Register{
+		emi.Al:   emi.Rax, // bits 0-7 of Rax
+		emi.Bl:   emi.Rbx, // bits 0-7 of Rbx
+		emi.Cl:   emi.Rcx, // bits 0-7 of Rcx
+		emi.Dl:   emi.Rdx, // bits 0-7 of Rdx
+		emi.Ah:   emi.Rax, // bits 8-15 of Rax
+		emi.Bh:   emi.Rbx, // bits 8-15 of Rbx
+		emi.Ch:   emi.Rcx, // bits 8-15 of Rcx
+		emi.Dh:   emi.Rdx, // bits 8-15 of Rdx
+		emi.R8b:  emi.R8,  // bits 0-7 of R8
+		emi.R9b:  emi.R9,  // bits 0-7 of R9
+		emi.R10b: emi.R10, // bits 0-7 of R10
+		emi.R11b: emi.R11, // bits 0-7 of R11
+		emi.R12b: emi.R12, // bits 0-7 of R12
+		emi.R13b: emi.R13, // bits 0-7 of R13
+		emi.R14b: emi.R14, // bits 0-7 of R14
+		emi.R15b: emi.R15, // bits 0-7 of R15
+	}
+)
+
 // Create a new emulation machine with CPU, registers, memory, and stack.
 func newMachine() Machine {
 	return &machine{
@@ -306,7 +430,7 @@ func (m *machine) RunProcess() error {
 			}
 
 			// call standard library function via call code
-			if err := m.standard(emi.StandardCall(instr.Operands[0].Immediate.(int64))); err != nil {
+			if err := m.standard(emi.StandardCall(instr.Operands[0].Immediate.Value.(int64))); err != nil {
 				return err
 			}
 
@@ -328,14 +452,14 @@ func (m *machine) standard(code emi.StandardCall) error {
 			_, err := fmt.Scanln(&input)
 
 			if err == nil {
-				m.push(emi.NewOperand(emi.ImmediateOperand, input))
+				m.push(emi.NewImmediateOperand(emi.Bits64, input))
 				break
 			}
 		}
 
 	case emi.Writeln:
 		// write integer to stdout
-		m.pop(emi.NewOperand(emi.RegisterOperand, emi.Rax))
+		m.pop(emi.NewRegisterOperand(emi.Rax))
 		fmt.Printf("%v\n", m.cpu.get_gp(emi.Rax).(int64))
 
 	default:
@@ -404,7 +528,7 @@ func (m *machine) pop(op *emi.Operand) error {
 		}
 
 		// pop the value on the top of the stack into a register
-		value := get_mem_by_op(m, m.cpu.get_ptr(emi.Rsp), emi.RegisterSize[op.Register])
+		value := get_mem_by_op(m, m.cpu.get_ptr(emi.Rsp), registerSize[op.Register])
 		m.cpu.set_gp(op.Register, value)
 
 		// increment the stack pointer (stack shrinks upwards)
@@ -420,7 +544,7 @@ func (m *machine) pop(op *emi.Operand) error {
 // Caller function calls callee function.
 func (m *machine) call(op *emi.Operand) error {
 	// push return address (instruction pointer of caller + 1)
-	m.push(emi.NewOperand(emi.JumpOperand, m.cpu.registers[emi.Rip]))
+	m.push(emi.NewJumpOperand(m.cpu.registers[emi.Rip]))
 
 	// jump to function at uint64 address
 	return m.cpu.jmp(op)
@@ -429,7 +553,7 @@ func (m *machine) call(op *emi.Operand) error {
 // Callee function returns to caller function.
 func (m *machine) ret() error {
 	// restore callers instruction pointer
-	return m.pop(emi.NewOperand(emi.RegisterOperand, emi.Rip))
+	return m.pop(emi.NewRegisterOperand(emi.Rip))
 }
 
 // Copy second operand to first operand.
@@ -449,14 +573,14 @@ func (m *machine) mov(a, b *emi.Operand) error {
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
 		// copy the immediate value to the register
 		if a.Register.IsGeneralPurpose64() {
-			m.cpu.set_gp(a.Register, uint64(b.Immediate.(int64)))
+			m.cpu.set_gp(a.Register, uint64(b.Immediate.Value.(int64)))
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
 		}
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.MemoryOperand:
 		// copy the value from memory to the register
-		if b.Register.IsGeneralPurpose64() && b.Memory.Size == emi.RegisterSize[a.Register] {
+		if b.Register.IsGeneralPurpose64() && b.Memory.Size == registerSize[a.Register] {
 			// read the memory address from a 64-bit register
 			address := m.cpu.get_gp(b.Register).(uint64)
 			
@@ -472,7 +596,7 @@ func (m *machine) mov(a, b *emi.Operand) error {
 
 	case a.Kind == emi.MemoryOperand && b.Kind == emi.RegisterOperand:
 		// copy the value from the register to memory
-		if a.Register.IsGeneralPurpose64() && a.Memory.Size == emi.RegisterSize[b.Register] {
+		if a.Register.IsGeneralPurpose64() && a.Memory.Size == registerSize[b.Register] {
 			// read the memory address from a 64-bit register
 			address := m.cpu.get_gp(a.Register).(uint64)
 
@@ -496,7 +620,7 @@ func (m *machine) mov(a, b *emi.Operand) error {
 			address = uint64(int64(address) + a.Memory.Displacement)
 
 			// store the immediate value to the memory address
-			set_mem_by_tp(m, address, uint64(b.Immediate.(int64)))
+			set_mem_by_tp(m, address, uint64(b.Immediate.Value.(int64)))
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
 		}
@@ -555,7 +679,7 @@ func (c *cpu) add(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		arg_b = b.Immediate.(int64)
+		arg_b = b.Immediate.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Add, nil)
@@ -582,7 +706,7 @@ func (c *cpu) sub(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		arg_b = b.Immediate.(int64)
+		arg_b = b.Immediate.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Sub, nil)
@@ -610,7 +734,7 @@ func (c *cpu) imul(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		arg_b = b.Immediate.(int64)
+		arg_b = b.Immediate.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Imul, nil)
@@ -637,7 +761,7 @@ func (c *cpu) idiv(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		arg_b = b.Immediate.(int64)
+		arg_b = b.Immediate.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Idiv, nil)
@@ -668,7 +792,7 @@ func (c *cpu) cmp(a, b *emi.Operand) error {
 		arg_b = int64(c.registers[b.Register])
 
 	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
-		arg_b = b.Immediate.(int64)
+		arg_b = b.Immediate.Value.(int64)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Cmp, nil)
@@ -842,16 +966,16 @@ func (c *cpu) set_gp(r emi.Register, v any) {
 		c.registers[r] = v.(uint64)
 
 	case r.IsGeneralPurpose32():
-		c.registers[r.To64()] = uint64(v.(uint32))
+		c.registers[to_64(r)] = uint64(v.(uint32))
 
 	case r.IsGeneralPurpose16():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff0000 | uint64(v.(uint16))
+		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffff0000 | uint64(v.(uint16))
 
 	case r.IsGeneralPurposeLow8():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffffff00 | uint64(v.(uint8))
+		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffffff00 | uint64(v.(uint8))
 
 	case r.IsGeneralPurposeHigh8():
-		c.registers[r.To64()] = c.registers[r.To64()]&0xffffffffffff00ff | uint64(v.(uint8))<<8
+		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffff00ff | uint64(v.(uint8))<<8
 
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
@@ -865,16 +989,16 @@ func (c *cpu) get_gp(r emi.Register) any {
 		return c.registers[r]
 
 	case r.IsGeneralPurpose32():
-		return uint32(c.registers[r.To64()])
+		return uint32(c.registers[to_64(r)])
 
 	case r.IsGeneralPurpose16():
-		return uint16(c.registers[r.To64()])
+		return uint16(c.registers[to_64(r)])
 
 	case r.IsGeneralPurposeLow8():
-		return uint8(c.registers[r.To64()])
+		return uint8(c.registers[to_64(r)])
 
 	case r.IsGeneralPurposeHigh8():
-		return uint8(c.registers[r.To64()] >> 8)
+		return uint8(c.registers[to_64(r)] >> 8)
 
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
@@ -907,6 +1031,21 @@ func (c *cpu) get_ptr(r emi.Register) uint64 {
 	}
 
 	return c.registers[r]
+}
+
+// Map any register to its corresponding 64-bit register.
+func to_64(r emi.Register) emi.Register {
+	if r.IsGeneralPurpose32() {
+		return generalPurpose32to64[r]
+	}
+	if r.IsGeneralPurpose16() {
+		return generalPurpose16to64[r]
+	}
+	if r.IsGeneralPurpose8() {
+		return generalPurpose8to64[r]
+	}
+
+	return r
 }
 
 // Set a value in the memory space by type bit size.
