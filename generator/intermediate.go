@@ -1,7 +1,6 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package generator implements the intermediate code generation compiler phase by traversing the abstract syntax tree.
 package generator
 
 import (
@@ -9,7 +8,6 @@ import (
 	"fmt"
 	"io"
 
-	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
@@ -101,10 +99,17 @@ const (
 	FunctionPrefix                    // the function prefix is used for function names in the intermediate code
 )
 
-// External standard functions provided for the programming language.
+// Kind of supported symbol entry.
 const (
-	_       = StandardFunction(iota) // needs to be alligned with call codes for the programming language standard library
-	ReadLn                           // readln function reads a line from the standard input stream
+	ConstantSymbol = Entry(iota)
+	VariableSymbol
+	FunctionSymbol
+)
+
+// External standard functions provided for the programming language.
+// needs to be alligned with call codes for the programming language standard library
+const (
+	ReadLn  = StandardFunction(iota) // readln function reads a line from the standard input stream
 	WriteLn                          // writeln function writes a line to the standard output stream
 )
 
@@ -123,6 +128,9 @@ type (
 
 	// Type for three-address code operations.
 	Operation int32
+
+	// Kind of symbol entries.
+	Entry int
 
 	// Enumeration of standard functions that belong to the external standard library.
 	StandardFunction int64
@@ -151,16 +159,21 @@ type (
 		Code             Quadruple `json:"code"`               // three-address code operation
 	}
 
-	// Generator is the public interface for the intermediate code generation compiler phase.
-	Generator interface {
-		Generate()
-		GetIntermediateCodeUnit() IntermediateCodeUnit
+	// A Symbol represents a flattened name in the intermediate code.
+	Symbol struct {
+		Name       string        // flattened name in the intermediate code
+		Kind       Entry         // kind of symbol entry
+		DataType   DataType      // datatype of the symbol
+		Offset     int64         // offset in the logical memory space
+		Definition *list.Element // instruction where the symbol is defined
 	}
 
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
 	IntermediateCodeUnit interface {
 		AppendInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
+		Insert(symbol *Symbol)
+		Lookup(name string) *Symbol
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -176,6 +189,92 @@ type (
 		Peek(offset int) *Instruction
 	}
 )
+
+// Return the interface of the intermediate code unit implementation.
+func NewIntermediateCodeUnit() IntermediateCodeUnit {
+	return newIntermediateCodeUnit()
+}
+
+// Create a new three-address code instruction with an operation, two arguments, a result, and some options.
+func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction {
+	return newInstruction(operatiom, arg1, arg2, result, options...)
+}
+
+// Create a new three-address code argument or result address.
+func NewAddress(name any, variant Variant, dataType DataType, offset int64) *Address {
+	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Offset: offset}
+}
+
+// Create new symbol for the intermediate code.
+func NewSymbol(name string, kind Entry, dataType DataType) *Symbol {
+	return &Symbol{Name: name, Kind: kind, DataType: dataType}
+}
+
+// String representation of a variant.
+func (v Variant) String() string {
+	return variantNames[v]
+}
+
+// String representation of a datatype.
+func (dt DataType) String() string {
+	return dataTypeNames[dt]
+}
+
+// Get a datatype from its representation.
+func (dtr DataTypeRepresentation) DataType() DataType {
+	for dataType, representation := range dataTypeNames {
+		if representation == string(dtr) {
+			return dataType
+		}
+	}
+
+	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+}
+
+// String representation of the three-address code address.
+func (a *Address) String() string {
+	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Offset, a.Name)
+
+	if a.Variant == Empty {
+		representation = ""
+	} else if a.Offset == 0 {
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
+	}
+
+	if len(representation) > 22 {
+		representation = representation[:22]
+	}
+
+	return representation
+}
+
+// String representation of an three-address code operation.
+func (o Operation) String() string {
+	return operationNames[o]
+}
+
+// String representation of a three-address code quadruple.
+func (q *Quadruple) String() string {
+	return fmt.Sprintf("%-12v %-22v %-22v %-22v", q.Operation, q.Arg1, q.Arg2, q.Result)
+}
+
+// String representation of an intermediate code instruction.
+func (i *Instruction) String() string {
+	var depthDifference any = i.DepthDifference
+
+	if i.DepthDifference == UnusedDifference {
+		depthDifference = ""
+	}
+
+	return fmt.Sprintf(
+		"%-8v %4v    %-12v   %-22v   %-22v   %-22v",
+		i.Label,
+		depthDifference,
+		i.Code.Operation,
+		i.Code.Arg1,
+		i.Code.Arg2,
+		i.Code.Result)
+}
 
 // Supported data types for constants, literals, variables, and temporaries.
 func (dataType DataType) IsSupported() bool {
@@ -235,24 +334,4 @@ func Align(offset, alignment int64) int64 {
 	} else {
 		return (offset - alignment + 1) & ^(alignment - 1)
 	}
-}
-
-// Return the public interface of the private generator implementation.
-func NewGenerator(abstractSyntax ast.Block) Generator {
-	return newGenerator(abstractSyntax)
-}
-
-// Return the public interface of the private intermediate code unit implementation.
-func NewIntermediateCodeUnit() IntermediateCodeUnit {
-	return newIntermediateCodeUnit()
-}
-
-// Create a new three-address code instruction with an operation, two arguments, a result, and some options.
-func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction {
-	return newInstruction(operatiom, arg1, arg2, result, options...)
-}
-
-// Create a new three-address code argument or result address.
-func NewAddress(name any, variant Variant, dataType DataType, offset int64) *Address {
-	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Offset: offset}
 }

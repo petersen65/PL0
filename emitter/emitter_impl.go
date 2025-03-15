@@ -13,7 +13,7 @@ import (
 // Implementation of the assembly code emitter.
 type emitter struct {
 	intermediateCode gen.IntermediateCodeUnit // intermediate code unit to generate assembly code for
-	assemblyCode     *assemblyCodeUnit        // assembly code unit for the CPU target
+	assemblyCode     AssemblyCodeUnit         // assembly code unit for the CPU target
 	cpu              CentralProcessingUnit    // target CPU for the emitter
 }
 
@@ -30,7 +30,7 @@ func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit gen.Intermediate
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     NewAssemblyCodeUnit().(*assemblyCodeUnit),
+		assemblyCode:     NewAssemblyCodeUnit(),
 		cpu:              cpu,
 	}
 }

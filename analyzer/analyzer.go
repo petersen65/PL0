@@ -14,7 +14,7 @@ type NameAnalysis interface {
 	Analyze()
 }
 
-// Return the public interface of the private name analysis implementation.
+// Return the interface of the name analysis implementation.
 func NewNameAnalysis(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) NameAnalysis {
 	tokenHandler.ReplaceComponent(cor.Analyzer, failureMap)
 	return newNameAnalysis(abstractSyntax, errorHandler, tokenHandler)

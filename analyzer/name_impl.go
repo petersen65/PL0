@@ -10,14 +10,14 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Private implementation of the name analysis.
+// Implementation of the name analysis.
 type nameAnalysis struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run name analysis on
 	errorHandler   cor.ErrorHandler // error handler that is used to handle errors that occurred during semantic analysis
 	tokenHandler   cor.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-// Return the public interface of the private name analysis implementation.
+// Return the interface of the name analysis implementation.
 func newNameAnalysis(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) NameAnalysis {
 	return &nameAnalysis{
 		abstractSyntax: abstractSyntax,
