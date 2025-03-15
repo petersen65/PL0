@@ -1,1140 +1,541 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
+// Package ast implements the abstract syntax tree (AST) for the PL/0 parser.
 package ast
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
-func newScope(uniqueId int32, outer *Scope) *Scope {
-	symbolTable := make(SymbolTable)
+// Empty scopes are required to use this number as their scope id
+const EmptyScopeId = -1
 
-	return &Scope{
-		Outer:             outer,
-		Extension:         make(map[ExtensionType]any),
-		id:                uniqueId,
-		identifierCounter: make(map[rune]uint64),
-		names:             make([]string, 0),
-		symbolTable:       &symbolTable,
+// EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
+const EmptyConstantName = "@constant"
+
+// Types of nodes in the abstract syntax tree.
+const (
+	BlockType = NodeType(iota)
+	ConstantDeclarationType
+	VariableDeclarationType
+	ProcedureDeclarationType
+	LiteralType
+	IdentifierUseType
+	UnaryOperationType
+	BinaryOperationType
+	ConditionalOperationType
+	AssignmentStatementType
+	ReadStatementType
+	WriteStatementType
+	CallStatementType
+	IfStatementType
+	WhileStatementType
+	CompoundStatementType
+)
+
+// Traverse the abstract syntax tree in specific orders.
+const (
+	PreOrder = TraversalOrder(iota)
+	InOrder
+	PostOrder
+	LevelOrder
+)
+
+// Search parent block nodes in the abstract syntax tree.
+const (
+	CurrentBlock = BlockSearchMode(iota)
+	RootBlock
+)
+
+// Operators with one operand.
+const (
+	Odd = UnaryOperator(iota)
+	Negate
+)
+
+// Operators with two operands.
+const (
+	Plus = BinaryOperator(iota)
+	Minus
+	Times
+	Divide
+)
+
+// Operators for comparison.
+const (
+	Equal = RelationalOperator(iota)
+	NotEqual
+	Less
+	LessEqual
+	Greater
+	GreaterEqual
+)
+
+// Data types of literals, constants, and variables.
+const (
+	Integer64 = DataType(iota)
+	Integer32
+	Integer16
+	Integer8
+	Float64
+	Float32
+	Rune32
+	Boolean8
+)
+
+// Kind of supported symbol entry as bit-mask.
+const (
+	Constant Entry = 1 << iota
+	Variable
+	Procedure
+)
+
+// Usage mode of an identifier as bit-mask.
+const (
+	Read Usage = 1 << iota
+	Write
+	Execute
+)
+
+type (
+	// Type of a node in the abstract syntax tree.
+	NodeType int
+
+	// Traversal order for the abstract syntax tree.
+	TraversalOrder int
+
+	// Search mode for block nodes in the abstract syntax tree.
+	BlockSearchMode int
+
+	// Take one operand and perform an operation on it.
+	UnaryOperator int
+
+	// Take two operands and perform an operation on them.
+	BinaryOperator int
+
+	// Take two operands and perform a comparison on them.
+	RelationalOperator int
+
+	// The data type of a symbol.
+	DataType int
+
+	// String representation of a data type.
+	DataTypeRepresentation string
+
+	// Kind of symbol entries.
+	Entry uint64
+
+	// Usage mode of an identifier.
+	Usage uint64
+
+	// Support for symbol table extensions of compiler phases
+	ExtensionType int32
+
+	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
+	Symbol struct {
+		Name        string                // name of the symbol
+		Kind        Entry                 // kind of the symbol
+		Declaration Declaration           // declaration node of the symbol
+		Extension   map[ExtensionType]any // extensions for compiler phases
 	}
+
+	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
+	SymbolTable map[string]*Symbol
+
+	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
+	Scope struct {
+		Outer             *Scope                // outer scope or nil if this is the outermost scope
+		Extension         map[ExtensionType]any // extensions for compiler phases
+		id                int32                 // each scope has a unique identifier
+		identifierCounter map[rune]uint64       // counter for compiler-generated unique identifier names
+		names             []string              // enable deterministic iteration over the symbol table
+		symbolTable       *SymbolTable          // symbol table of the scope
+	}
+
+	// A node in the abstract syntax tree.
+	Node interface {
+		Type() NodeType
+		SetParent(node Node)
+		Parent() Node
+		Children() []Node
+		String() string
+		Accept(visitor Visitor)
+	}
+
+	// A block represented as an abstract syntax tree.
+	Block interface {
+		Node
+		BlockString() string
+		Print(print io.Writer, args ...any) error
+		Export(format cor.ExportFormat, print io.Writer) error
+	}
+
+	// A declaration represented as an abstract syntax tree.
+	Declaration interface {
+		Node
+		DeclarationString() string
+	}
+
+	// An expression represented as an abstract syntax tree.
+	Expression interface {
+		Node
+		ExpressionString() string
+	}
+
+	// A statement represented as an abstract syntax tree.
+	Statement interface {
+		Node
+		StatementString() string
+	}
+
+	// Block node represents a block in the AST.
+	BlockNode struct {
+		TypeName     string        `json:"type"`         // type name of the block node
+		ParentNode   Node          `json:"-"`            // parent node of the block
+		Depth        int32         `json:"depth"`        // block nesting depth
+		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
+		Declarations []Declaration `json:"declarations"` // all declarations of the block
+		Closure      []Declaration `json:"closure"`      // all captured variable declarations of the block
+		Statement    Statement     `json:"statement"`    // statement of the block
+	}
+
+	// ConstantDeclaration node represents a constant declaration in the AST.
+	ConstantDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the constant declaration node
+		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
+		Name             string       `json:"name"`               // name of the constant
+		Value            any          `json:"value"`              // value of constant
+		DataType         DataType     `json:"data_type"`          // data type of the constant
+		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
+		Usage            []Expression `json:"-"`                  // all usages of the constant
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// VariableDeclaration node represents a variable declaration in the AST.
+	VariableDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the variable declaration node
+		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
+		Name             string       `json:"name"`               // name of the variable
+		DataType         DataType     `json:"data_type"`          // data type of the variable
+		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
+		Usage            []Expression `json:"-"`                  // all usages of the variable
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// ProcedureDeclaration node represents a procedure declaration in the AST.
+	ProcedureDeclarationNode struct {
+		TypeName         string       `json:"type"`               // type name of the procedure declaration node
+		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
+		Name             string       `json:"name"`               // name of the procedure
+		Block            Block        `json:"block"`              // block of the procedure
+		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
+		Usage            []Expression `json:"-"`                  // all usages of the procedure
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// Literal node represents the usage of a literal value in the AST.
+	LiteralNode struct {
+		TypeName         string   `json:"type"`               // type name of the literal node
+		ParentNode       Node     `json:"-"`                  // parent node of the literal
+		Value            any      `json:"value"`              // literal value
+		DataType         DataType `json:"data_type"`          // data type of the literal
+		Scope            *Scope   `json:"-"`                  // scope of the literal usage
+		TokenStreamIndex int      `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// IdentifierUseNode represents the usage of an identifier in the AST.
+	IdentifierUseNode struct {
+		TypeName         string `json:"type"`               // type name of the identifier usage node
+		ParentNode       Node   `json:"-"`                  // parent node of the identifier usage
+		Name             string `json:"name"`               // name of the identifier
+		Scope            *Scope `json:"-"`                  // scope of the identifier usage
+		Context          Entry  `json:"context"`            // context of the identifier
+		Use              Usage  `json:"use"`                // usage mode of the identifier
+		TokenStreamIndex int    `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// UnaryOperation node represents a unary operation in the AST.
+	UnaryOperationNode struct {
+		TypeName         string        `json:"type"`               // type name of the unary operation node
+		ParentNode       Node          `json:"-"`                  // parent node of the unary operation
+		Operation        UnaryOperator `json:"operation"`          // unary operation
+		Operand          Expression    `json:"operand"`            // operand of the unary operation
+		TokenStreamIndex int           `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// BinaryOperation node represents a binary operation in the AST.
+	BinaryOperationNode struct {
+		TypeName         string         `json:"type"`               // type name of the binary operation node
+		ParentNode       Node           `json:"-"`                  // parent node of the binary operation
+		Operation        BinaryOperator `json:"operation"`          // binary operation
+		Left             Expression     `json:"left"`               // left operand of the binary operation
+		Right            Expression     `json:"right"`              // right operand of the binary operation
+		TokenStreamIndex int            `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// ConditionalOperation node represents a conditional operation in the AST.
+	ConditionalOperationNode struct {
+		TypeName         string             `json:"type"`               // type name of the conditional operation node
+		ParentNode       Node               `json:"-"`                  // parent node of the conditional
+		Operation        RelationalOperator `json:"operation"`          // conditional operation
+		Left             Expression         `json:"left"`               // left operand of the conditional operation
+		Right            Expression         `json:"right"`              // right operand of the conditional operation
+		TokenStreamIndex int                `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// AssignmentStatement node represents an assignment statement in the AST.
+	AssignmentStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the assignment statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the assignment statement
+		Variable         Expression `json:"variable"`           // variable use on the left side of the assignment statement
+		Expression       Expression `json:"expression"`         // expression on the right side of the assignment statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// ReadStatement node represents a read statement in the AST.
+	ReadStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the read statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the read statement
+		Variable         Expression `json:"variable"`           // variable use of the read statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// WriteStatement node represents a write statement in the AST.
+	WriteStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the write statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the write statement
+		Expression       Expression `json:"expression"`         // expression of the write statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// CallStatement node represents a call statement in the AST.
+	CallStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the call statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the call statement
+		Procedure        Expression `json:"procedure"`          // procedure use of the call statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// IfStatement node represents an if-then statement in the AST.
+	IfStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the if-then statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the if-then statement
+		Condition        Expression `json:"condition"`          // if-condition of the if-then statement
+		Statement        Statement  `json:"statement"`          // then-statement of the if-then statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// WhileStatement node represents a while-do statement in the AST.
+	WhileStatementNode struct {
+		TypeName         string     `json:"type"`               // type name of the while-do statement node
+		ParentNode       Node       `json:"-"`                  // parent node of the while-do statement
+		Condition        Expression `json:"condition"`          // while-condition of the while-do statement
+		Statement        Statement  `json:"statement"`          // do-statement of the while-do statement
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// CompoundStatement node represents a begin-end statement in the AST.
+	CompoundStatementNode struct {
+		TypeName   string      `json:"type"`       // type name of the compound statement node
+		ParentNode Node        `json:"-"`          // parent node of the begin-end compound statement
+		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
+	}
+
+	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser phase to be grouped in a single visitor struct.
+	// The visitor design pattern allows implementing double dispatch for traversing the abstract syntax tree. Each parser phase method is chosen based on:
+	//   the dynamic type of the object (the AST node) determines the method to be called, and
+	//   the dynamic type of the argument (the visitor) determines the behavior of the method.
+	Visitor interface {
+		VisitBlock(block *BlockNode)
+		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
+		VisitVariableDeclaration(declaration *VariableDeclarationNode)
+		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)
+		VisitLiteral(literal *LiteralNode)
+		VisitIdentifierUse(use *IdentifierUseNode)
+		VisitUnaryOperation(operation *UnaryOperationNode)
+		VisitBinaryOperation(operation *BinaryOperationNode)
+		VisitConditionalOperation(operation *ConditionalOperationNode)
+		VisitAssignmentStatement(assignment *AssignmentStatementNode)
+		VisitReadStatement(read *ReadStatementNode)
+		VisitWriteStatement(write *WriteStatementNode)
+		VisitCallStatement(call *CallStatementNode)
+		VisitIfStatement(ifStmt *IfStatementNode)
+		VisitWhileStatement(whileStmt *WhileStatementNode)
+		VisitCompoundStatement(compound *CompoundStatementNode)
+	}
+)
+
+var (
+	// DataTypeNames maps a data type to its string representation.
+	DataTypeNames = map[DataType]string{
+		Integer64: "int64",
+		Integer32: "int32",
+		Integer16: "int16",
+		Integer8:  "int8",
+		Float64:   "float64",
+		Float32:   "float32",
+		Rune32:    "rune32",
+		Boolean8:  "bool8",
+	}
+
+	// NodeTypeNames maps node types to their string representation.
+	NodeTypeNames = map[NodeType]string{
+		BlockType:                "block",
+		ConstantDeclarationType:  "constant",
+		VariableDeclarationType:  "variable",
+		ProcedureDeclarationType: "procedure",
+		LiteralType:              "literal",
+		IdentifierUseType:        "use",
+		UnaryOperationType:       "unary",
+		BinaryOperationType:      "binary",
+		ConditionalOperationType: "conditional",
+		AssignmentStatementType:  "assignment",
+		ReadStatementType:        "read",
+		WriteStatementType:       "write",
+		CallStatementType:        "call",
+		IfStatementType:          "if",
+		WhileStatementType:       "while",
+		CompoundStatementType:    "compound",
+	}
+
+	// KindNames maps symbol kinds to their string representation.
+	KindNames = map[Entry]string{
+		Constant:  "constant",
+		Variable:  "variable",
+		Procedure: "procedure",
+	}
+)
+
+// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
+func NewScope(uniqueId int32, outer *Scope) *Scope {
+	return newScope(uniqueId, outer)
 }
 
 // Create a new entry for the symbol table.
-func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
-	return &Symbol{
-		Name:        name,
-		Kind:        kind,
-		Declaration: declaration,
-		Extension:   make(map[ExtensionType]any),
-	}
+func NewSymbol(name string, kind Entry, declaration Declaration) *Symbol {
+	return newSymbol(name, kind, declaration)
 }
 
-// Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
-	block := &BlockNode{
-		TypeName:     NodeTypeNames[BlockType],
-		Depth:        depth,
-		Scope:        scope,
-		Declarations: declarations,
-		Closure:      make([]Declaration, 0),
-		Statement:    statement,
-	}
-
-	for _, declaration := range block.Declarations {
-		declaration.SetParent(block)
-	}
-
-	statement.SetParent(block)
-	return block
+// An empty scope should only be used in the context of parser errors and is free from any side-effect.
+func NewEmptyScope() *Scope {
+	return newScope(EmptyScopeId, nil)
 }
 
-// Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
-	return &ConstantDeclarationNode{
-		TypeName:         NodeTypeNames[ConstantDeclarationType],
-		Name:             name,
-		Value:            value,
-		DataType:         dataType,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
+// An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
+func NewEmptyDeclaration() Declaration {
+	return newConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewEmptyScope(), 0)
 }
 
-// Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
-	return &VariableDeclarationNode{
-		TypeName:         NodeTypeNames[VariableDeclarationType],
-		Name:             name,
-		DataType:         dataType,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
+// An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
+func NewEmptyExpression() Expression {
+	return newLiteral(int64(0), Integer64, NewEmptyScope(), 0)
 }
 
-// Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
-	return &ProcedureDeclarationNode{
-		TypeName:         NodeTypeNames[ProcedureDeclarationType],
-		Name:             name,
-		Block:            block,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
+// An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
+func NewEmptyStatement() Statement {
+	return newCompoundStatement(make([]Statement, 0))
 }
 
-// Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
-	return &LiteralNode{
-		TypeName:         NodeTypeNames[LiteralType],
-		Value:            value,
-		DataType:         dataType,
-		Scope:            scope,
-		TokenStreamIndex: index,
-	}
+// NewBlock creates a new block node in the abstract syntax tree.
+func NewBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+	return newBlock(depth, scope, declarations, statement)
 }
 
-// Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
-	return &IdentifierUseNode{
-		TypeName:         NodeTypeNames[IdentifierUseType],
-		Name:             name,
-		Scope:            scope,
-		Context:          context,
-		TokenStreamIndex: index,
-	}
+// NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
+func NewConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
+	return newConstantDeclaration(name, value, dataType, scope, index)
 }
 
-// Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
-	unary := &UnaryOperationNode{
-		TypeName:         NodeTypeNames[UnaryOperationType],
-		Operation:        operation,
-		Operand:          operand,
-		TokenStreamIndex: index,
-	}
-
-	operand.SetParent(unary)
-	return unary
+// NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
+func NewVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
+	return newVariableDeclaration(name, dataType, scope, index)
 }
 
-// Create a new binary operation node in the abstract syntax tree.
-func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
-	binary := &BinaryOperationNode{
-		TypeName:         NodeTypeNames[BinaryOperationType],
-		Operation:        operation,
-		Left:             left,
-		Right:            right,
-		TokenStreamIndex: index,
-	}
-
-	left.SetParent(binary)
-	right.SetParent(binary)
-	return binary
+// NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
+func NewProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
+	return newProcedureDeclaration(name, block, scope, index)
 }
 
-// Create a new conditional operation node in the abstract syntax tree.
-func newConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
-	conditional := &ConditionalOperationNode{
-		TypeName:         NodeTypeNames[ConditionalOperationType],
-		Operation:        operation,
-		Left:             left,
-		Right:            right,
-		TokenStreamIndex: index,
-	}
-
-	left.SetParent(conditional)
-	right.SetParent(conditional)
-	return conditional
+// NewLiteral creates a new literal node in the abstract syntax tree.
+func NewLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
+	return newLiteral(value, dataType, scope, index)
 }
 
-// Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(variable, expression Expression, index int) Statement {
-	assignment := &AssignmentStatementNode{
-		TypeName:         NodeTypeNames[AssignmentStatementType],
-		Variable:         variable,
-		Expression:       expression,
-		TokenStreamIndex: index,
-	}
-
-	variable.SetParent(assignment)
-	expression.SetParent(assignment)
-	return assignment
+// NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
+func NewIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
+	return newIdentifierUse(name, scope, context, index)
 }
 
-// Create a new read statement node in the abstract syntax tree.
-func newReadStatement(variable Expression, index int) Statement {
-	read := &ReadStatementNode{
-		TypeName:         NodeTypeNames[ReadStatementType],
-		Variable:         variable,
-		TokenStreamIndex: index,
-	}
-
-	variable.SetParent(read)
-	return read
+// NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
+func NewUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
+	return newUnaryOperation(operation, operand, index)
 }
 
-// Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(expression Expression, index int) Statement {
-	write := &WriteStatementNode{
-		TypeName:         NodeTypeNames[WriteStatementType],
-		Expression:       expression,
-		TokenStreamIndex: index,
-	}
-
-	expression.SetParent(write)
-	return write
+// NewBinaryOperation creates a new binary operation node in the abstract syntax tree.
+func NewBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
+	return newBinaryOperation(operation, left, right, index)
 }
 
-// Create a new call statement node in the abstract syntax tree.
-func newCallStatement(procedure Expression, index int) Statement {
-	call := &CallStatementNode{
-		TypeName:         NodeTypeNames[CallStatementType],
-		Procedure:        procedure,
-		TokenStreamIndex: index,
-	}
-
-	procedure.SetParent(call)
-	return call
+// NewConditionalOperation creates a new conditional operation node in the abstract syntax tree.
+func NewConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
+	return newConditionalOperation(operation, left, right, index)
 }
 
-// Create a new if-then statement node in the abstract syntax tree.
-func newIfStatement(condition Expression, statement Statement, index int) Statement {
-	ifStmt := &IfStatementNode{
-		TypeName:         NodeTypeNames[IfStatementType],
-		Condition:        condition,
-		Statement:        statement,
-		TokenStreamIndex: index,
-	}
-
-	condition.SetParent(ifStmt)
-	statement.SetParent(ifStmt)
-	return ifStmt
+// NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
+func NewAssignmentStatement(variable, expression Expression, index int) Statement {
+	return newAssignmentStatement(variable, expression, index)
 }
 
-// Create a new while-do statement node in the abstract syntax tree.
-func newWhileStatement(condition Expression, statement Statement, index int) Statement {
-	whileStmt := &WhileStatementNode{
-		TypeName:         NodeTypeNames[WhileStatementType],
-		Condition:        condition,
-		Statement:        statement,
-		TokenStreamIndex: index,
-	}
-
-	condition.SetParent(whileStmt)
-	statement.SetParent(whileStmt)
-	return whileStmt
+// NewReadStatement creates a new read statement node in the abstract syntax tree.
+func NewReadStatement(variable Expression, index int) Statement {
+	return newReadStatement(variable, index)
 }
 
-// Create a new compound statement node in the abstract syntax tree.
-func newCompoundStatement(statements []Statement) Statement {
-	compound := &CompoundStatementNode{
-		TypeName:   NodeTypeNames[CompoundStatementType],
-		Statements: statements,
-	}
-
-	for _, statement := range compound.Statements {
-		statement.SetParent(compound)
-	}
-
-	return compound
+// NewWriteStatement creates a new write statement node in the abstract syntax tree.
+func NewWriteStatement(expression Expression, index int) Statement {
+	return newWriteStatement(expression, index)
 }
 
-// String representation of a data type.
-func (dt DataType) String() string {
-	return DataTypeNames[dt]
+// NewCallStatement creates a new call statement node in the abstract syntax tree.
+func NewCallStatement(procedure Expression, index int) Statement {
+	return newCallStatement(procedure, index)
 }
 
-// Get a data type from its representation.
-func (dtr DataTypeRepresentation) DataType() DataType {
-	for dataType, representation := range DataTypeNames {
-		if representation == string(dtr) {
-			return dataType
-		}
-	}
-
-	panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+// NewIfStatement creates a new if-then statement node in the abstract syntax tree.
+func NewIfStatement(condition Expression, statement Statement, index int) Statement {
+	return newIfStatement(condition, statement, index)
 }
 
-// Return the unique identifier of the scope
-func (s *Scope) Id() int32 {
-	return s.id
+// NewWhileStatement creates a new while-do statement node in the abstract syntax tree.
+func NewWhileStatement(condition Expression, statement Statement, index int) Statement {
+	return newWhileStatement(condition, statement, index)
 }
 
-// Create a new compiler-generated unique identifier name for a scope.
-func (s *Scope) NewIdentifier(prefix rune) string {
-	if _, ok := s.identifierCounter[prefix]; !ok {
-		s.identifierCounter[prefix] = 0
-	}
-
-	s.identifierCounter[prefix]++
-	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter[prefix])
+// NewCompoundStatement creates a compound statement node in the abstract syntax tree.
+func NewCompoundStatement(statements []Statement) Statement {
+	return newCompoundStatement(statements)
 }
 
-// Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
-func (s *Scope) Insert(symbol *Symbol) {
-	if s.LookupCurrent(symbol.Name) == nil {
-		s.names = append(s.names, symbol.Name)
-	}
-
-	(*s.symbolTable)[symbol.Name] = symbol
+// Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
+func Walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
+	return walk(parent, order, visitor, visit)
 }
 
-// Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
-func (s *Scope) Lookup(name string) *Symbol {
-	if symbol := s.LookupCurrent(name); symbol != nil {
-		return symbol
-	}
-
-	if s.Outer != nil {
-		return s.Outer.Lookup(name)
-	}
-
-	return nil
-}
-
-// Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
-func (s *Scope) LookupCurrent(name string) *Symbol {
-	if symbol, ok := (*s.symbolTable)[name]; ok {
-		return symbol
-	}
-
-	return nil
-}
-
-// Deterministically iterate over all symbols in the symbol table of the current scope.
-func (s *Scope) IterateCurrent() <-chan *Symbol {
-	symbols := make(chan *Symbol)
-
-	go func() {
-		for _, name := range s.names {
-			symbols <- (*s.symbolTable)[name]
-		}
-
-		close(symbols)
-	}()
-
-	return symbols
-}
-
-// Get type of the block node.
-func (b *BlockNode) Type() NodeType {
-	return BlockType
-}
-
-// Set the parent Node of the block node.
-func (b *BlockNode) SetParent(parent Node) {
-	b.ParentNode = parent
-}
-
-// String of the block node.
-func (b *BlockNode) String() string {
-	return fmt.Sprintf("block d=%v", b.Depth)
-}
-
-// Parent node of the block node.
-func (b *BlockNode) Parent() Node {
-	return b.ParentNode
-}
-
-// Children nodes of the block node.
-func (b *BlockNode) Children() []Node {
-	children := make([]Node, 0, len(b.Declarations)+1)
-
-	for _, declaration := range b.Declarations {
-		children = append(children, declaration)
-	}
-
-	return append(children, b.Statement)
-}
-
-// BlockString returns the string representation of the block.
-func (b *BlockNode) BlockString() string {
-	return b.String()
-}
-
-// Accept the visitor for the block node.
-func (b *BlockNode) Accept(visitor Visitor) {
-	visitor.VisitBlock(b)
-}
-
-// Print the abstract syntax tree to the specified writer.
-func (b *BlockNode) Print(print io.Writer, args ...any) error {
-	// traverse the abstract syntax tree and print each node
-	if err := printAbstractSyntaxTree(b, "", true, print); err != nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
-	}
-
-	return nil
-}
-
-// Export the abstract syntax tree of the block node.
-func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
-	switch format {
-	case cor.Json:
-		// export the abstract syntax tree as a JSON object
-		if raw, err := json.MarshalIndent(b, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
-		} else {
-			_, err = print.Write(raw)
-
-			if err != nil {
-				err = cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+// SearchBlock searches for a parent block node in the abstract syntax tree based on the search mode.
+func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
+	for node != nil {
+		if block, ok := node.(*BlockNode); ok {
+			if mode == CurrentBlock {
+				return block
+			} else if mode == RootBlock && block.Parent() == nil {
+				return block
 			}
-
-			return err
 		}
 
-	case cor.Text:
-		// print is a convenience function to export the abstract syntax tree as a string to the print writer
-		return b.Print(print)
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownExportFormat, format, nil))
-	}
-}
-
-// Type of the constant declaration node.
-func (d *ConstantDeclarationNode) Type() NodeType {
-	return ConstantDeclarationType
-}
-
-// Set the parent Node of the constant declaration node.
-func (d *ConstantDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the constant declaration node.
-func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=%v,u=%v)", KindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
-}
-
-// Parent node of the constant declaration node.
-func (d *ConstantDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the constant declaration node.
-func (d *ConstantDeclarationNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// DeclarationString returns the string representation of the constant declaration.
-func (d *ConstantDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the constant declaration node.
-func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitConstantDeclaration(d)
-}
-
-// Type of the variable declaration node.
-func (d *VariableDeclarationNode) Type() NodeType {
-	return VariableDeclarationType
-}
-
-// Set the parent Node of the variable declaration node.
-func (d *VariableDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the variable declaration node.
-func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,t=%v,u=%v)", KindNames[Variable], d.Name, d.DataType, len(d.Usage))
-}
-
-// Parent node of the variable declaration node.
-func (d *VariableDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the variable declaration node.
-func (d *VariableDeclarationNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// DeclarationString returns the string representation of the variable declaration.
-func (d *VariableDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the variable declaration node.
-func (d *VariableDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitVariableDeclaration(d)
-}
-
-// Type of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Type() NodeType {
-	return ProcedureDeclarationType
-}
-
-// Set the parent Node of the procedure declaration node.
-func (d *ProcedureDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the procedure declaration node.
-func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,u=%v)", KindNames[Procedure], d.Name, len(d.Usage))
-}
-
-// Parent node of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Children() []Node {
-	return []Node{d.Block}
-}
-
-// DeclarationString returns the string representation of the procedure declaration.
-func (d *ProcedureDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the procedure declaration node.
-func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitProcedureDeclaration(d)
-}
-
-// Type of the literal node.
-func (e *LiteralNode) Type() NodeType {
-	return LiteralType
-}
-
-// Set the parent Node of the literal node.
-func (e *LiteralNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the literal node.
-func (e *LiteralNode) String() string {
-	return fmt.Sprintf("literal(v=%v,t=%v)", e.Value, e.DataType)
-}
-
-// Parent node of the literal node.
-func (e *LiteralNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the literal node.
-func (e *LiteralNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// ExpressionString returns the string representation of the literal expression.
-func (e *LiteralNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the literal node.
-func (e *LiteralNode) Accept(visitor Visitor) {
-	visitor.VisitLiteral(e)
-}
-
-// Type of the identifier-use node.
-func (u *IdentifierUseNode) Type() NodeType {
-	return IdentifierUseType
-}
-
-// Set the parent Node of the identifier-use node.
-func (u *IdentifierUseNode) SetParent(parent Node) {
-	u.ParentNode = parent
-}
-
-// String of the identifier-use node.
-func (u *IdentifierUseNode) String() string {
-	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
-		switch symbol.Kind {
-		case Constant:
-			return fmt.Sprintf("use(k=c,n=%v,v=%v,u=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
-
-		case Variable:
-			return fmt.Sprintf("use(k=v,n=%v,u=%v)", symbol.Name, u.Use)
-
-		case Procedure:
-			return fmt.Sprintf("use(k=p,n=%v,u=%v)", symbol.Name, u.Use)
-
-		default:
-			panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))
-		}
-	}
-
-	return fmt.Sprintf("use(n=%v,u=%v)", u.Name, u.Use)
-}
-
-// Parent node of the identifier-use node.
-func (u *IdentifierUseNode) Parent() Node {
-	return u.ParentNode
-}
-
-// Children nodes of the identifier-use node.
-func (u *IdentifierUseNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// ExpressionString returns the string representation of an identifier-use.
-func (u *IdentifierUseNode) ExpressionString() string {
-	return u.String()
-}
-
-// Accept the visitor for the identifier-use node.
-func (u *IdentifierUseNode) Accept(visitor Visitor) {
-	visitor.VisitIdentifierUse(u)
-}
-
-// Type of the unary operation node.
-func (e *UnaryOperationNode) Type() NodeType {
-	return UnaryOperationType
-}
-
-// Set the parent Node of the unary operation node.
-func (e *UnaryOperationNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the unary operation node.
-func (e *UnaryOperationNode) String() string {
-	switch e.Operation {
-	case Odd:
-		return "odd"
-
-	case Negate:
-		return "negate"
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
-	}
-}
-
-// Parent node of the unary operation node.
-func (e *UnaryOperationNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the unary operation node.
-func (e *UnaryOperationNode) Children() []Node {
-	return []Node{e.Operand}
-}
-
-// ExpressionString returns the string representation of the unary operation expression.
-func (e *UnaryOperationNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the unary operation node.
-func (e *UnaryOperationNode) Accept(visitor Visitor) {
-	visitor.VisitUnaryOperation(e)
-}
-
-// Type of the binary operation node.
-func (e *BinaryOperationNode) Type() NodeType {
-	return BinaryOperationType
-}
-
-// Set the parent Node of the binary operation node.
-func (e *BinaryOperationNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the binary operation node.
-func (e *BinaryOperationNode) String() string {
-	switch e.Operation {
-	case Plus:
-		return "addition"
-
-	case Minus:
-		return "subtraction"
-
-	case Times:
-		return "multiplication"
-
-	case Divide:
-		return "division"
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
-	}
-}
-
-// Parent node of the binary operation node.
-func (e *BinaryOperationNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the binary operation node.
-func (e *BinaryOperationNode) Children() []Node {
-	return []Node{e.Left, e.Right}
-}
-
-// ExpressionString returns the string representation of the binary operation expression.
-func (e *BinaryOperationNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the binary operation node.
-func (e *BinaryOperationNode) Accept(visitor Visitor) {
-	visitor.VisitBinaryOperation(e)
-}
-
-// Type of the conditional operation node.
-func (e *ConditionalOperationNode) Type() NodeType {
-	return ConditionalOperationType
-}
-
-// Set the parent Node of the conditional operation node.
-func (e *ConditionalOperationNode) SetParent(parent Node) {
-	e.ParentNode = parent
-}
-
-// String of the conditional operation node.
-func (e *ConditionalOperationNode) String() string {
-	switch e.Operation {
-	case Equal:
-		return "equal"
-
-	case NotEqual:
-		return "not equal"
-
-	case Less:
-		return "less"
-
-	case LessEqual:
-		return "less equal"
-
-	case Greater:
-		return "greater"
-
-	case GreaterEqual:
-		return "greater equal"
-
-	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
-
-	}
-}
-
-// Parent node of the conditional operation node.
-func (e *ConditionalOperationNode) Parent() Node {
-	return e.ParentNode
-}
-
-// Children nodes of the conditional operation node.
-func (e *ConditionalOperationNode) Children() []Node {
-	return []Node{e.Left, e.Right}
-}
-
-// ConditionString returns the string representation of the conditional operation expression.
-func (e *ConditionalOperationNode) ExpressionString() string {
-	return e.String()
-}
-
-// Accept the visitor for the conditional operation node.
-func (e *ConditionalOperationNode) Accept(visitor Visitor) {
-	visitor.VisitConditionalOperation(e)
-}
-
-// Type of the assignment statement node.
-func (s *AssignmentStatementNode) Type() NodeType {
-	return AssignmentStatementType
-}
-
-// Set the parent Node of the assignment statement node.
-func (s *AssignmentStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the assignment statement node.
-func (s *AssignmentStatementNode) String() string {
-	return "assignment"
-}
-
-// Parent node of the assignment statement node.
-func (s *AssignmentStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the assignment statement node.
-func (s *AssignmentStatementNode) Children() []Node {
-	return []Node{s.Variable, s.Expression}
-}
-
-// StatementString returns the string representation of the assignment statement.
-func (s *AssignmentStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the assignment statement node.
-func (s *AssignmentStatementNode) Accept(visitor Visitor) {
-	visitor.VisitAssignmentStatement(s)
-}
-
-// Type of the read statement node.
-func (s *ReadStatementNode) Type() NodeType {
-	return ReadStatementType
-}
-
-// Set the parent Node of the read statement node.
-func (s *ReadStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the read statement node.
-func (s *ReadStatementNode) String() string {
-	return "read"
-}
-
-// Parent node of the read statement node.
-func (s *ReadStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the read statement node.
-func (s *ReadStatementNode) Children() []Node {
-	return []Node{s.Variable}
-}
-
-// StatementString returns the string representation of the read statement.
-func (s *ReadStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the read statement node.
-func (s *ReadStatementNode) Accept(visitor Visitor) {
-	visitor.VisitReadStatement(s)
-}
-
-// Type of the write statement node.
-func (s *WriteStatementNode) Type() NodeType {
-	return WriteStatementType
-}
-
-// Set the parent Node of the write statement node.
-func (s *WriteStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the write statement node.
-func (s *WriteStatementNode) String() string {
-	return "write"
-}
-
-// Parent node of the write statement node.
-func (s *WriteStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the write statement node.
-func (s *WriteStatementNode) Children() []Node {
-	return []Node{s.Expression}
-}
-
-// StatementString returns the string representation of the write statement.
-func (s *WriteStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the write statement node.
-func (s *WriteStatementNode) Accept(visitor Visitor) {
-	visitor.VisitWriteStatement(s)
-}
-
-// Type of the call statement node.
-func (s *CallStatementNode) Type() NodeType {
-	return CallStatementType
-}
-
-// Set the parent Node of the call statement node.
-func (s *CallStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the call statement node.
-func (s *CallStatementNode) String() string {
-	return "call"
-}
-
-// Parent node of the call statement node.
-func (s *CallStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the call statement node.
-func (s *CallStatementNode) Children() []Node {
-	return []Node{s.Procedure}
-}
-
-// StatementString returns the string representation of the call statement.
-func (s *CallStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the call statement node.
-func (s *CallStatementNode) Accept(visitor Visitor) {
-	visitor.VisitCallStatement(s)
-}
-
-// Type of the if-then statement node.
-func (s *IfStatementNode) Type() NodeType {
-	return IfStatementType
-}
-
-// Set the parent Node of the if-then statement node.
-func (s *IfStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the if-then statement node.
-func (s *IfStatementNode) String() string {
-	return "if"
-}
-
-// Parent node of the if-then statement node.
-func (s *IfStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the if-then statement node.
-func (s *IfStatementNode) Children() []Node {
-	return []Node{s.Condition, s.Statement}
-}
-
-// StatementString returns the string representation of the if-then statement.
-func (s *IfStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the if-then statement node.
-func (s *IfStatementNode) Accept(visitor Visitor) {
-	visitor.VisitIfStatement(s)
-}
-
-// Type of the while-do statement node.
-func (s *WhileStatementNode) Type() NodeType {
-	return WhileStatementType
-}
-
-// Set the parent Node of the while-do statement node.
-func (s *WhileStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the while-do statement node.
-func (s *WhileStatementNode) String() string {
-	return "while"
-}
-
-// Parent node of the while-do statement node.
-func (s *WhileStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the while-do statement node.
-func (s *WhileStatementNode) Children() []Node {
-	return []Node{s.Condition, s.Statement}
-}
-
-// StatementString returns the string representation of the while statement.
-func (s *WhileStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the while-do statement node.
-func (s *WhileStatementNode) Accept(visitor Visitor) {
-	visitor.VisitWhileStatement(s)
-}
-
-// Type of the compound statement node.
-func (s *CompoundStatementNode) Type() NodeType {
-	return CompoundStatementType
-}
-
-// Set the parent Node of the compound statement node.
-func (s *CompoundStatementNode) SetParent(parent Node) {
-	s.ParentNode = parent
-}
-
-// String of the compound statement node.
-func (s *CompoundStatementNode) String() string {
-	return "compound"
-}
-
-// Parent node of the compound statement node.
-func (s *CompoundStatementNode) Parent() Node {
-	return s.ParentNode
-}
-
-// Children nodes of the compound statement node.
-func (s *CompoundStatementNode) Children() []Node {
-	children := make([]Node, 0, len(s.Statements))
-
-	for _, statement := range s.Statements {
-		children = append(children, statement)
-	}
-
-	return children
-}
-
-// StatementString returns the string representation of the compound statement.
-func (s *CompoundStatementNode) StatementString() string {
-	return s.String()
-}
-
-// Accept the visitor for the compound statement node.
-func (s *CompoundStatementNode) Accept(visitor Visitor) {
-	visitor.VisitCompoundStatement(s)
-}
-
-// Walk traverses a abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
-// Example tree:
-//
-//	    A
-//	   / \
-//	  B   C
-//	 / \   \
-//	D   E   F
-func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
-	// check preconditions for walking the tree and return an error if any are violated
-	if parent == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, cannotWalkOnNilNode, nil, nil)
-	} else if visitor == nil && visit == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresVisitorOrFunction, nil, nil)
-	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresInterfaceOrFunction, nil, nil)
-	}
-
-	// filter out empty constants
-	if constant, ok := parent.(*ConstantDeclarationNode); ok && constant.Name == EmptyConstantName {
-		return nil
-	}
-
-	// switch on the order of traversal
-	switch order {
-	// Pre-order traversal is a method of traversing a tree data structure in which each node is processed before (pre) its child nodes.
-	// This is commonly used in certain tree-related algorithms, including those for parsing expressions and serializing or deserializing trees.
-	//
-	// The order of operations for pre-order traversal is:
-	//   1. Visit the parent node
-	//   2. Traverse the childs left to right in pre-order
-	// A pre-order traversal would visit the nodes in the following order: A, B, D, E, C, F.
-	case PreOrder:
-		// call the visit function or visit the parent node
-		if visit != nil {
-			visit(parent, visitor)
-		} else {
-			parent.Accept(visitor.(Visitor))
-		}
-
-		// traverse the childs left to right in pre-order
-		for _, child := range parent.Children() {
-			walk(child, order, visitor, visit)
-		}
-
-	// In-order traversal is a method of traversing a tree data structure in which each node is processed between (in) its child nodes.
-	// This traversal method visits the nodes of a binary search tree in ascending order (if the tree is correctly formed).
-	// This can be useful for operations like printing out the nodes of the tree in sorted order.
-	//
-	// The order of operations for in-order traversal is:
-	//   1. Traverse the left subtree in in-order
-	//   2. Visit the parent node
-	//   3. Traverse the right subtree in in-order
-	// An in-order traversal would visit the nodes in the following order: D, B, E, A, C, F.
-	case InOrder:
-		if len(parent.Children()) != 2 {
-			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, inOrderRequiresTwoChildren, nil, nil)
-		}
-
-		// traverse the left subtree in in-order
-		walk(parent.Children()[0], order, visitor, visit)
-
-		// call the visit function or visit the parent node
-		if visit != nil {
-			visit(parent, visitor)
-		} else {
-			parent.Accept(visitor.(Visitor))
-		}
-
-		// traverse the right subtree in in-order
-		walk(parent.Children()[1], order, visitor, visit)
-
-	// Post-order traversal is a method of traversing a tree data structure in which each node is processed after (post) its child nodes.
-	// This method is often used when you need to ensure that a node is processed after its descendants, such as when deleting or freeing nodes of a tree.
-	//
-	// The order of operations for post-order traversal is:
-	//   1. Traverse the childs left to right in post-order
-	//   2. Visit the parent node
-	// A post-order traversal would visit the nodes in the following order: D, E, B, F, C, A.
-	case PostOrder:
-		// traverse the childs left to right in post-order
-		for _, child := range parent.Children() {
-			walk(child, order, visitor, visit)
-		}
-
-		// call the visit function or visit the parent node
-		if visit != nil {
-			visit(parent, visitor)
-		} else {
-			parent.Accept(visitor.(Visitor))
-		}
-
-	// Level-order traversal is a method of traversing a tree data structure in which each node is processed level by level.
-	// This method is often used when you need to process the nodes of a tree in a breadth-first manner.
-	// In a level-order traversal, all nodes at the current depth (or "level") are processed before moving on to nodes at the next depth.
-	// This is different from pre-order, in-order, and post-order traversals, which are all types of depth-first traversals.
-	//
-	// The order of operations for level-order traversal is:
-	//   1. Visit the parent node
-	//   2. Visit all the nodes at the next depth (i.e., the children of the parent node)
-	//   3. Repeat step 2 for each subsequent depth, visiting all nodes at each depth before moving on to the next
-	// A level-order traversal would visit the nodes in the following order: A, B, C, D, E, F.
-	case LevelOrder:
-		queue := make([]Node, 0)
-		queue = append(queue, parent)
-
-		for len(queue) > 0 {
-			node := queue[0]  // get the first node in the queue
-			queue = queue[1:] // remove the first node from the queue
-
-			// call the visit function or visit the node
-			if visit != nil {
-				visit(node, visitor)
-			} else {
-				node.Accept(visitor.(Visitor))
-			}
-
-			queue = append(queue, node.Children()...) // add the node's children to the end of the queue
-		}
-	}
-
-	return nil
-}
-
-// Print the abstract syntax tree to the specified writer by recursively traversing the tree in pre-order.
-func printAbstractSyntaxTree(node Node, indent string, last bool, print io.Writer) error {
-	if _, err := fmt.Fprintf(print, "%v+- %v\n", indent, node); err != nil {
-		return err
-	}
-
-	if last {
-		indent += "   "
-	} else {
-		indent += "|  "
-	}
-
-	for i, child := range node.Children() {
-		if err := printAbstractSyntaxTree(child, indent, i == len(node.Children())-1, print); err != nil {
-			return err
-		}
+		node = node.Parent()
 	}
 
 	return nil
