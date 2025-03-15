@@ -92,7 +92,7 @@ type (
 	}
 )
 
-// Return the public interface of the private assembly code unit implementation.
+// Return the interface of the assembly code unit implementation.
 func NewAssemblyCodeUnit() AssemblyCodeUnit {
 	return newAssemblyCodeUnit()
 }

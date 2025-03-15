@@ -29,7 +29,7 @@ type (
 	}
 )
 
-// Return the public interface of the private emitter implementation.
+// Return the interface of the emitter implementation.
 func NewEmitter(cpu CentralProcessingUnit, intermediateCode gen.IntermediateCodeUnit) Emitter {
 	return newEmitter(cpu, intermediateCode)
 }

@@ -10,7 +10,7 @@ import (
 	gen "github.com/petersen65/PL0/v2/generator"
 )
 
-// Private implementation of the assembly code emitter.
+// Implementation of the assembly code emitter.
 type emitter struct {
 	intermediateCode gen.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     *assemblyCodeUnit        // assembly code unit for the CPU target
@@ -22,7 +22,7 @@ var cpuNames = map[CentralProcessingUnit]string{
 	Amd64: "amd64",
 }
 
-// Return the public interface of the private emitter implementation.
+// Return the interface of the emitter implementation.
 func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit gen.IntermediateCodeUnit) Emitter {
 	if cpu != Amd64 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedCpuTarget, cpu, nil))
