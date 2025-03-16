@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package generator
+package intermediate
 
 import (
 	"container/list"
@@ -66,18 +66,6 @@ var (
 		Boolean8:          "bool8",
 	}
 
-	// Prefixes used for names of addresses.
-	prefix = map[PrefixType]rune{
-		LabelPrefix:    'l',
-		ResultPrefix:   't',
-		ConstantPrefix: 'c',
-		VariablePrefix: 'v',
-		FunctionPrefix: 'f',
-	}
-
-	// NoAddress represents an unused address in the three-address code concept.
-	noAddress = &Address{Name: "-", Variant: Empty, DataType: Void, Offset: 0}
-
 	// Map three-address code operations of the intermediate code to their string representation.
 	operationNames = map[Operation]string{
 		Odd:              "odd",
@@ -112,7 +100,7 @@ var (
 		VariableStore:    "varStore",
 	}
 
-	// The intermediate code contract maps all three-address code operations to their address contracts for validation.
+	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
 	intermediateCodeContract = map[Operation][]addressesContract{
 		Odd:              {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
 		Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},

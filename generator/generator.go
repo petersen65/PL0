@@ -4,12 +4,15 @@
 // Package generator implements the intermediate code generation compiler phase by traversing the abstract syntax tree.
 package generator
 
-import ast "github.com/petersen65/PL0/v2/ast"
+import (
+	ast "github.com/petersen65/PL0/v2/ast"
+	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+)
 
 // Generator is the interface for the intermediate code generation compiler phase.
 type Generator interface {
 	Generate()
-	GetIntermediateCodeUnit() IntermediateCodeUnit
+	GetIntermediateCodeUnit() ic.IntermediateCodeUnit
 }
 
 // Return the interface of the generator implementation.

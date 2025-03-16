@@ -19,6 +19,7 @@ import (
 	emi "github.com/petersen65/PL0/v2/emitter"
 	emu "github.com/petersen65/PL0/v2/emulator"
 	gen "github.com/petersen65/PL0/v2/generator"
+	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 	par "github.com/petersen65/PL0/v2/parser"
 	scn "github.com/petersen65/PL0/v2/scanner"
 )
@@ -79,13 +80,13 @@ type (
 
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
-		SourceContent    []byte                   // PL/0 utf-8 source content
-		ErrorHandler     cor.ErrorHandler         // error handler of the compilation process
-		TokenStream      cor.TokenStream          // token stream of the PL/0 source content
-		AbstractSyntax   ast.Block                // abstract syntax tree of the token stream
-		IntermediateCode gen.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
-		ControlFlow      cfg.ControlFlowGraph     // control flow graph of the intermediate code unit
-		AssemblyCode     emi.AssemblyCodeUnit     // assembly code of the intermediate code unit
+		SourceContent    []byte                  // PL/0 utf-8 source content
+		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
+		TokenStream      cor.TokenStream         // token stream of the PL/0 source content
+		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
+		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
+		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
+		AssemblyCode     emi.AssemblyCodeUnit    // assembly code of the intermediate code unit
 	}
 )
 

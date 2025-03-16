@@ -4,7 +4,7 @@
 // Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code unit.
 package emitter
 
-import gen "github.com/petersen65/PL0/v2/generator"
+import ic "github.com/petersen65/PL0/v2/generator/intermediate"
 
 // CPU target for the assembly code emitter.
 const Amd64 = CentralProcessingUnit(iota)
@@ -30,7 +30,7 @@ type (
 )
 
 // Return the interface of the emitter implementation.
-func NewEmitter(cpu CentralProcessingUnit, intermediateCode gen.IntermediateCodeUnit) Emitter {
+func NewEmitter(cpu CentralProcessingUnit, intermediateCode ic.IntermediateCodeUnit) Emitter {
 	return newEmitter(cpu, intermediateCode)
 }
 

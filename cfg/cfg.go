@@ -8,7 +8,7 @@ import (
 	"io"
 
 	cor "github.com/petersen65/PL0/v2/core"
-	gen "github.com/petersen65/PL0/v2/generator"
+	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
 type (
@@ -23,7 +23,7 @@ type (
 	// Basic blocks are maximal sequences of consecutive instructions that execute without branching.
 	BasicBlock interface {
 		String() string
-		AppendInstruction(instruction *gen.Instruction)
+		AppendInstruction(instruction *ic.Instruction)
 	}
 
 	// Edges represent the control flow between basic blocks in the control flow graph.
@@ -32,7 +32,7 @@ type (
 )
 
 // Creates a new control flow graph for a specified intermediate code unit.
-func NewControlFlowGraph(intermediateCode gen.IntermediateCodeUnit) ControlFlowGraph {
+func NewControlFlowGraph(intermediateCode ic.IntermediateCodeUnit) ControlFlowGraph {
 	return newControlFlowGraph(intermediateCode)
 }
 
