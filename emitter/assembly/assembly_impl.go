@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package emitter
+package assembly
 
 import (
 	"bytes"
@@ -193,7 +193,7 @@ func newOperand(kind OperandKind, value any, detail ...any) *Operand {
 		return &Operand{Kind: JumpOperand, Jump: value.(uint64)}
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, kind, nil))
+		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, kind, nil))
 	}
 }
 
@@ -247,12 +247,12 @@ func (a *assemblyCodeUnit) Link() error {
 		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
 			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
 			if asm.Operands[0].Kind != LabelOperand {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].Kind, nil)
+				return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].Kind, nil)
 			}
 
 			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
 			if address, ok := labels[asm.Operands[0].Label]; !ok {
-				return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
+				return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
 			} else {
 				asm.Operands[0] = newOperand(JumpOperand, address)
 			}
@@ -276,12 +276,12 @@ func (a *assemblyCodeUnit) GetInstruction(index int) *Instruction {
 // Print the assembly code to the specified writer.
 func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	if _, err := fmt.Fprintf(print, "global %v\nsection .text\n%v:\n", DefaultStartLabel, DefaultStartLabel); err != nil {
-		return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 	}
 
 	for _, instr := range a.textSection {
 		if _, err := fmt.Fprintf(print, "%v\n", instr); err != nil {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
@@ -296,12 +296,12 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 		if raw, err := json.MarshalIndent(struct {
 			TextSection []*Instruction `json:"text_section"`
 		}{TextSection: a.textSection}, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+				err = cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 			}
 
 			return err
@@ -316,23 +316,23 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 
 		// cannot export binary target before a linking step has resolved all labels
 		if !a.resolved {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, linkingStepMissing, nil, nil)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, linkingStepMissing, nil, nil)
 		}
 
 		// encode the text section into a binary buffer
 		if err := gob.NewEncoder(&buffer).Encode(a.textSection); err != nil {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 
 		// transfer the binary buffer to the print writer
 		if _, err := buffer.WriteTo(print); err != nil {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 
 		return nil
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -342,12 +342,12 @@ func (a *assemblyCodeUnit) Import(format cor.ExportFormat, scan io.Reader) error
 	case cor.Binary:
 		// decode the binary buffer into the text section
 		if err := gob.NewDecoder(scan).Decode(&a.textSection); err != nil {
-			return cor.NewGeneralError(cor.Emitter, failureMap, cor.Error, assemblyCodeImportFailed, nil, err)
+			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeImportFailed, nil, err)
 		}
 
 		return nil
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownImportFormat, format, nil))
+		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownImportFormat, format, nil))
 	}
 }

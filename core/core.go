@@ -64,8 +64,10 @@ const (
 	AbstractSyntaxTree
 	Analyzer
 	Generator
+	Intermediate
 	ControlFlowGraph
 	Emitter
+	Assembly
 	Emulator
 	AllComponents = Component(^uint64(0))
 )

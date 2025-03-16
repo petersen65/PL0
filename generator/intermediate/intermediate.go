@@ -1,6 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
+// Package intermediate implements the intermediate code language which is based on the three-address code concept.
 package intermediate
 
 import (
@@ -228,7 +229,7 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 		}
 	}
 
-	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
 }
 
 // String representation of the three-address code address.

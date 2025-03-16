@@ -89,8 +89,10 @@ var (
 		AbstractSyntaxTree: "ast",
 		Analyzer:           "analyzer",
 		Generator:          "generator",
+		Intermediate:       "intermediate",
 		ControlFlowGraph:   "cfg",
 		Emitter:            "emitter",
+		Assembly:           "assembly",
 		Emulator:           "emulator",
 	}
 )

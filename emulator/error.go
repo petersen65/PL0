@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the emulator.
 const (
-	_ = cor.Failure(iota + 50000)
+	_ = cor.Failure(iota + 10000)
 	unknownStandardCallCode
 	unsupportedOperand
 	unknownOperation

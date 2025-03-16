@@ -165,7 +165,7 @@ func newInstruction(operatiom Operation, arg1, arg2, result *Address, options ..
 			instruction.TokenStreamIndex = opt
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownInstructionOption, option, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownInstructionOption, option, nil))
 		}
 	}
 
@@ -251,7 +251,7 @@ func (m *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the unit and print them to the writer
 	for e := m.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
-			return cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		}
 	}
 
@@ -264,12 +264,12 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 	case cor.Json:
 		// export the unit as a JSON object
 		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.Generator, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+				err = cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 			}
 
 			return err
@@ -280,7 +280,7 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 		return m.Print(print)
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -291,7 +291,7 @@ func (a *Address) Parse() any {
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8:
 			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				if a.DataType == Integer32 {
 					return int32(decoded)
@@ -306,7 +306,7 @@ func (a *Address) Parse() any {
 
 		case Float64, Float32:
 			if decoded, err := strconv.ParseFloat(a.Name, a.DataType.BitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				if a.DataType == Float32 {
 					return float32(decoded)
@@ -317,20 +317,20 @@ func (a *Address) Parse() any {
 
 		case Rune32:
 			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
 			} else {
 				return decoded
 			}
 
 		case Boolean8:
 			if decoded, err := strconv.ParseBool(a.Name); err != nil {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Variable:
@@ -339,7 +339,7 @@ func (a *Address) Parse() any {
 			return a.Offset
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Temporary:
@@ -348,7 +348,7 @@ func (a *Address) Parse() any {
 			return nil
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Label:
@@ -357,37 +357,37 @@ func (a *Address) Parse() any {
 			return a.Name
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Count:
 		switch a.DataType {
 		case UnsignedInteger64:
 			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.BitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	case Code:
 		switch a.DataType {
 		case Integer64:
 			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
 	}
 }
 
@@ -401,7 +401,7 @@ func (q *Quadruple) ValidateAddressesContract() {
 		}
 	}
 
-	panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
+	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
 }
 
 // Get the instruction at the current position in the list.

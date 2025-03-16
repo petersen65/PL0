@@ -4,28 +4,22 @@
 // Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code unit.
 package emitter
 
-import ic "github.com/petersen65/PL0/v2/generator/intermediate"
+import (
+	ac "github.com/petersen65/PL0/v2/emitter/assembly"
+	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+)
 
 // CPU target for the assembly code emitter.
 const Amd64 = CentralProcessingUnit(iota)
-
-// Call codes for the programming language standard library.
-const (
-	Readln = StandardCall(iota)
-	Writeln
-)
 
 type (
 	// Type for CPU targets.
 	CentralProcessingUnit int32
 
-	// Type for standard library call codes.
-	StandardCall int64
-
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {
 		Emit()
-		GetAssemblyCodeUnit() AssemblyCodeUnit
+		GetAssemblyCodeUnit() ac.AssemblyCodeUnit
 	}
 )
 

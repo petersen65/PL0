@@ -1,7 +1,8 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package emitter
+// Package assembly implements the assembly code language which is based on the AMD64 assembly language.
+package assembly
 
 import (
 	"bytes"
@@ -37,6 +38,12 @@ const (
 	Bits64 = OperandSize(64)
 )
 
+// Call codes for the programming language standard library.
+const (
+	Readln = StandardCall(iota)
+	Writeln
+)
+
 type (
 	// Type for CPU operation codes.
 	OperationCode int32
@@ -49,6 +56,9 @@ type (
 
 	// Enumeration of registers of the CPU.
 	Register int32
+
+	// Type for standard library call codes.
+	StandardCall int64
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
@@ -165,7 +175,7 @@ func (o *Operand) String() string {
 		return fmt.Sprintf("%v", o.Jump)
 
 	default:
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
+		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
 	}
 }
 

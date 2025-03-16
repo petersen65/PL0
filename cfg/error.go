@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the control flow graph.
 const (
-	_ = cor.Failure(iota + 6000)
+	_ = cor.Failure(iota + 7000)
 	unknownExportFormat
 	controlFlowGraphExportFailed
 )

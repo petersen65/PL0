@@ -10,7 +10,7 @@ import (
 	"unsafe"
 
 	cor "github.com/petersen65/PL0/v2/core"
-	emi "github.com/petersen65/PL0/v2/emitter"
+	ac "github.com/petersen65/PL0/v2/emitter/assembly"
 )
 
 const (
@@ -38,12 +38,12 @@ type (
 
 	// Process that holds assembly code instructions.
 	process struct {
-		assemblyCode emi.AssemblyCodeUnit // assembly code of the process
+		assemblyCode ac.AssemblyCodeUnit // assembly code of the process
 	}
 
 	// CPU with its registers.
 	cpu struct {
-		registers map[emi.Register]uint64 // Registers of the CPU
+		registers map[ac.Register]uint64 // Registers of the CPU
 	}
 
 	// Emulation machine that can run processes.
@@ -56,125 +56,125 @@ type (
 
 var (
 	// Map any register to its bit size.
-	registerSize = map[emi.Register]emi.OperandSize{
-		emi.Rflags: emi.Bits64,
-		emi.Rip:    emi.Bits64,
-		emi.Rsp:    emi.Bits64,
-		emi.Rbp:    emi.Bits64,
-		emi.Rax:    emi.Bits64,
-		emi.Rbx:    emi.Bits64,
-		emi.Rcx:    emi.Bits64,
-		emi.Rdx:    emi.Bits64,
-		emi.Rsi:    emi.Bits64,
-		emi.Rdi:    emi.Bits64,
-		emi.R8:     emi.Bits64,
-		emi.R9:     emi.Bits64,
-		emi.R10:    emi.Bits64,
-		emi.R11:    emi.Bits64,
-		emi.R12:    emi.Bits64,
-		emi.R13:    emi.Bits64,
-		emi.R14:    emi.Bits64,
-		emi.R15:    emi.Bits64,
-		emi.Eax:    emi.Bits32,
-		emi.Ebx:    emi.Bits32,
-		emi.Ecx:    emi.Bits32,
-		emi.Edx:    emi.Bits32,
-		emi.Esi:    emi.Bits32,
-		emi.Edi:    emi.Bits32,
-		emi.R8d:    emi.Bits32,
-		emi.R9d:    emi.Bits32,
-		emi.R10d:   emi.Bits32,
-		emi.R11d:   emi.Bits32,
-		emi.R12d:   emi.Bits32,
-		emi.R13d:   emi.Bits32,
-		emi.R14d:   emi.Bits32,
-		emi.R15d:   emi.Bits32,
-		emi.Ax:     emi.Bits16,
-		emi.Bx:     emi.Bits16,
-		emi.Cx:     emi.Bits16,
-		emi.Dx:     emi.Bits16,
-		emi.Si:     emi.Bits16,
-		emi.Di:     emi.Bits16,
-		emi.R8w:    emi.Bits16,
-		emi.R9w:    emi.Bits16,
-		emi.R10w:   emi.Bits16,
-		emi.R11w:   emi.Bits16,
-		emi.R12w:   emi.Bits16,
-		emi.R13w:   emi.Bits16,
-		emi.R14w:   emi.Bits16,
-		emi.R15w:   emi.Bits16,
-		emi.Al:     emi.Bits8,
-		emi.Bl:     emi.Bits8,
-		emi.Cl:     emi.Bits8,
-		emi.Dl:     emi.Bits8,
-		emi.Ah:     emi.Bits8,
-		emi.Bh:     emi.Bits8,
-		emi.Ch:     emi.Bits8,
-		emi.Dh:     emi.Bits8,
-		emi.R8b:    emi.Bits8,
-		emi.R9b:    emi.Bits8,
-		emi.R10b:   emi.Bits8,
-		emi.R11b:   emi.Bits8,
-		emi.R12b:   emi.Bits8,
-		emi.R13b:   emi.Bits8,
-		emi.R14b:   emi.Bits8,
-		emi.R15b:   emi.Bits8,
+	registerSize = map[ac.Register]ac.OperandSize{
+		ac.Rflags: ac.Bits64,
+		ac.Rip:    ac.Bits64,
+		ac.Rsp:    ac.Bits64,
+		ac.Rbp:    ac.Bits64,
+		ac.Rax:    ac.Bits64,
+		ac.Rbx:    ac.Bits64,
+		ac.Rcx:    ac.Bits64,
+		ac.Rdx:    ac.Bits64,
+		ac.Rsi:    ac.Bits64,
+		ac.Rdi:    ac.Bits64,
+		ac.R8:     ac.Bits64,
+		ac.R9:     ac.Bits64,
+		ac.R10:    ac.Bits64,
+		ac.R11:    ac.Bits64,
+		ac.R12:    ac.Bits64,
+		ac.R13:    ac.Bits64,
+		ac.R14:    ac.Bits64,
+		ac.R15:    ac.Bits64,
+		ac.Eax:    ac.Bits32,
+		ac.Ebx:    ac.Bits32,
+		ac.Ecx:    ac.Bits32,
+		ac.Edx:    ac.Bits32,
+		ac.Esi:    ac.Bits32,
+		ac.Edi:    ac.Bits32,
+		ac.R8d:    ac.Bits32,
+		ac.R9d:    ac.Bits32,
+		ac.R10d:   ac.Bits32,
+		ac.R11d:   ac.Bits32,
+		ac.R12d:   ac.Bits32,
+		ac.R13d:   ac.Bits32,
+		ac.R14d:   ac.Bits32,
+		ac.R15d:   ac.Bits32,
+		ac.Ax:     ac.Bits16,
+		ac.Bx:     ac.Bits16,
+		ac.Cx:     ac.Bits16,
+		ac.Dx:     ac.Bits16,
+		ac.Si:     ac.Bits16,
+		ac.Di:     ac.Bits16,
+		ac.R8w:    ac.Bits16,
+		ac.R9w:    ac.Bits16,
+		ac.R10w:   ac.Bits16,
+		ac.R11w:   ac.Bits16,
+		ac.R12w:   ac.Bits16,
+		ac.R13w:   ac.Bits16,
+		ac.R14w:   ac.Bits16,
+		ac.R15w:   ac.Bits16,
+		ac.Al:     ac.Bits8,
+		ac.Bl:     ac.Bits8,
+		ac.Cl:     ac.Bits8,
+		ac.Dl:     ac.Bits8,
+		ac.Ah:     ac.Bits8,
+		ac.Bh:     ac.Bits8,
+		ac.Ch:     ac.Bits8,
+		ac.Dh:     ac.Bits8,
+		ac.R8b:    ac.Bits8,
+		ac.R9b:    ac.Bits8,
+		ac.R10b:   ac.Bits8,
+		ac.R11b:   ac.Bits8,
+		ac.R12b:   ac.Bits8,
+		ac.R13b:   ac.Bits8,
+		ac.R14b:   ac.Bits8,
+		ac.R15b:   ac.Bits8,
 	}
 
 	// Map 32-bit general purpose registers to corresponding 64-bit registers (32-bit registers are zero-extended to 64-bit).
-	generalPurpose32to64 = map[emi.Register]emi.Register{
-		emi.Eax:  emi.Rax, // bits 0-31 of Rax, set bits 32-63 to 0
-		emi.Ebx:  emi.Rbx, // bits 0-31 of Rbx, set bits 32-63 to 0
-		emi.Ecx:  emi.Rcx, // bits 0-31 of Rcx, set bits 32-63 to 0
-		emi.Edx:  emi.Rdx, // bits 0-31 of Rdx, set bits 32-63 to 0
-		emi.Esi:  emi.Rsi, // bits 0-31 of Rsi, set bits 32-63 to 0
-		emi.Edi:  emi.Rdi, // bits 0-31 of Rdi, set bits 32-63 to 0
-		emi.R8d:  emi.R8,  // bits 0-31 of R8, set bits 32-63 to 0
-		emi.R9d:  emi.R9,  // bits 0-31 of R9, set bits 32-63 to 0
-		emi.R10d: emi.R10, // bits 0-31 of R10, set bits 32-63 to 0
-		emi.R11d: emi.R11, // bits 0-31 of R11, set bits 32-63 to 0
-		emi.R12d: emi.R12, // bits 0-31 of R12, set bits 32-63 to 0
-		emi.R13d: emi.R13, // bits 0-31 of R13, set bits 32-63 to 0
-		emi.R14d: emi.R14, // bits 0-31 of R14, set bits 32-63 to 0
-		emi.R15d: emi.R15, // bits 0-31 of R15, set bits 32-63 to 0
+	generalPurpose32to64 = map[ac.Register]ac.Register{
+		ac.Eax:  ac.Rax, // bits 0-31 of Rax, set bits 32-63 to 0
+		ac.Ebx:  ac.Rbx, // bits 0-31 of Rbx, set bits 32-63 to 0
+		ac.Ecx:  ac.Rcx, // bits 0-31 of Rcx, set bits 32-63 to 0
+		ac.Edx:  ac.Rdx, // bits 0-31 of Rdx, set bits 32-63 to 0
+		ac.Esi:  ac.Rsi, // bits 0-31 of Rsi, set bits 32-63 to 0
+		ac.Edi:  ac.Rdi, // bits 0-31 of Rdi, set bits 32-63 to 0
+		ac.R8d:  ac.R8,  // bits 0-31 of R8, set bits 32-63 to 0
+		ac.R9d:  ac.R9,  // bits 0-31 of R9, set bits 32-63 to 0
+		ac.R10d: ac.R10, // bits 0-31 of R10, set bits 32-63 to 0
+		ac.R11d: ac.R11, // bits 0-31 of R11, set bits 32-63 to 0
+		ac.R12d: ac.R12, // bits 0-31 of R12, set bits 32-63 to 0
+		ac.R13d: ac.R13, // bits 0-31 of R13, set bits 32-63 to 0
+		ac.R14d: ac.R14, // bits 0-31 of R14, set bits 32-63 to 0
+		ac.R15d: ac.R15, // bits 0-31 of R15, set bits 32-63 to 0
 	}
 
 	// Map 16-bit general purpose registers to corresponding 64-bit registers (16-bit registers leave bits 16-63 unchanged).
-	generalPurpose16to64 = map[emi.Register]emi.Register{
-		emi.Ax:   emi.Rax, // bits 0-15 of Rax
-		emi.Bx:   emi.Rbx, // bits 0-15 of Rbx
-		emi.Cx:   emi.Rcx, // bits 0-15 of Rcx
-		emi.Dx:   emi.Rdx, // bits 0-15 of Rdx
-		emi.Si:   emi.Rsi, // bits 0-15 of Rsi
-		emi.Di:   emi.Rdi, // bits 0-15 of Rdi
-		emi.R8w:  emi.R8,  // bits 0-15 of R8
-		emi.R9w:  emi.R9,  // bits 0-15 of R9
-		emi.R10w: emi.R10, // bits 0-15 of R10
-		emi.R11w: emi.R11, // bits 0-15 of R11
-		emi.R12w: emi.R12, // bits 0-15 of R12
-		emi.R13w: emi.R13, // bits 0-15 of R13
-		emi.R14w: emi.R14, // bits 0-15 of R14
-		emi.R15w: emi.R15, // bits 0-15 of R15
+	generalPurpose16to64 = map[ac.Register]ac.Register{
+		ac.Ax:   ac.Rax, // bits 0-15 of Rax
+		ac.Bx:   ac.Rbx, // bits 0-15 of Rbx
+		ac.Cx:   ac.Rcx, // bits 0-15 of Rcx
+		ac.Dx:   ac.Rdx, // bits 0-15 of Rdx
+		ac.Si:   ac.Rsi, // bits 0-15 of Rsi
+		ac.Di:   ac.Rdi, // bits 0-15 of Rdi
+		ac.R8w:  ac.R8,  // bits 0-15 of R8
+		ac.R9w:  ac.R9,  // bits 0-15 of R9
+		ac.R10w: ac.R10, // bits 0-15 of R10
+		ac.R11w: ac.R11, // bits 0-15 of R11
+		ac.R12w: ac.R12, // bits 0-15 of R12
+		ac.R13w: ac.R13, // bits 0-15 of R13
+		ac.R14w: ac.R14, // bits 0-15 of R14
+		ac.R15w: ac.R15, // bits 0-15 of R15
 	}
 
 	// Map 8-bit general purpose registers to corresponding 64-bit registers (8-bit registers leave bits 8-63 or bits 16-63 unchanged).
-	generalPurpose8to64 = map[emi.Register]emi.Register{
-		emi.Al:   emi.Rax, // bits 0-7 of Rax
-		emi.Bl:   emi.Rbx, // bits 0-7 of Rbx
-		emi.Cl:   emi.Rcx, // bits 0-7 of Rcx
-		emi.Dl:   emi.Rdx, // bits 0-7 of Rdx
-		emi.Ah:   emi.Rax, // bits 8-15 of Rax
-		emi.Bh:   emi.Rbx, // bits 8-15 of Rbx
-		emi.Ch:   emi.Rcx, // bits 8-15 of Rcx
-		emi.Dh:   emi.Rdx, // bits 8-15 of Rdx
-		emi.R8b:  emi.R8,  // bits 0-7 of R8
-		emi.R9b:  emi.R9,  // bits 0-7 of R9
-		emi.R10b: emi.R10, // bits 0-7 of R10
-		emi.R11b: emi.R11, // bits 0-7 of R11
-		emi.R12b: emi.R12, // bits 0-7 of R12
-		emi.R13b: emi.R13, // bits 0-7 of R13
-		emi.R14b: emi.R14, // bits 0-7 of R14
-		emi.R15b: emi.R15, // bits 0-7 of R15
+	generalPurpose8to64 = map[ac.Register]ac.Register{
+		ac.Al:   ac.Rax, // bits 0-7 of Rax
+		ac.Bl:   ac.Rbx, // bits 0-7 of Rbx
+		ac.Cl:   ac.Rcx, // bits 0-7 of Rcx
+		ac.Dl:   ac.Rdx, // bits 0-7 of Rdx
+		ac.Ah:   ac.Rax, // bits 8-15 of Rax
+		ac.Bh:   ac.Rbx, // bits 8-15 of Rbx
+		ac.Ch:   ac.Rcx, // bits 8-15 of Rcx
+		ac.Dh:   ac.Rdx, // bits 8-15 of Rdx
+		ac.R8b:  ac.R8,  // bits 0-7 of R8
+		ac.R9b:  ac.R9,  // bits 0-7 of R9
+		ac.R10b: ac.R10, // bits 0-7 of R10
+		ac.R11b: ac.R11, // bits 0-7 of R11
+		ac.R12b: ac.R12, // bits 0-7 of R12
+		ac.R13b: ac.R13, // bits 0-7 of R13
+		ac.R14b: ac.R14, // bits 0-7 of R14
+		ac.R15b: ac.R15, // bits 0-7 of R15
 	}
 )
 
@@ -182,11 +182,11 @@ var (
 func newMachine() Machine {
 	return &machine{
 		cpu: cpu{
-			registers: make(map[emi.Register]uint64),
+			registers: make(map[ac.Register]uint64),
 		},
 		memory: make([]byte, memorySize),
 		process: process{
-			assemblyCode: emi.NewAssemblyCodeUnit(),
+			assemblyCode: ac.NewAssemblyCodeUnit(),
 		},
 	}
 }
@@ -203,210 +203,210 @@ func (m *machine) Load(scan io.Reader) error {
 // Run a process and return an error if the process fails to execute.
 func (m *machine) RunProcess() error {
 	// initialize 64-bit general purpose registers of the CPU
-	m.cpu.set_gp(emi.Rax, zero) // accumulator register
-	m.cpu.set_gp(emi.Rbx, zero) // base register
-	m.cpu.set_gp(emi.Rcx, zero) // counter register
-	m.cpu.set_gp(emi.Rdx, zero) // data register
-	m.cpu.set_gp(emi.Rsi, zero) // source index register
-	m.cpu.set_gp(emi.Rdi, zero) // destination index register
-	m.cpu.set_gp(emi.R8, zero)  // general purpose register
-	m.cpu.set_gp(emi.R9, zero)  // general purpose register
-	m.cpu.set_gp(emi.R10, zero) // general purpose register
-	m.cpu.set_gp(emi.R11, zero) // general purpose register
-	m.cpu.set_gp(emi.R12, zero) // general purpose register
-	m.cpu.set_gp(emi.R13, zero) // general purpose register
-	m.cpu.set_gp(emi.R14, zero) // general purpose register
-	m.cpu.set_gp(emi.R15, zero) // general purpose register
+	m.cpu.set_gp(ac.Rax, zero) // accumulator register
+	m.cpu.set_gp(ac.Rbx, zero) // base register
+	m.cpu.set_gp(ac.Rcx, zero) // counter register
+	m.cpu.set_gp(ac.Rdx, zero) // data register
+	m.cpu.set_gp(ac.Rsi, zero) // source index register
+	m.cpu.set_gp(ac.Rdi, zero) // destination index register
+	m.cpu.set_gp(ac.R8, zero)  // general purpose register
+	m.cpu.set_gp(ac.R9, zero)  // general purpose register
+	m.cpu.set_gp(ac.R10, zero) // general purpose register
+	m.cpu.set_gp(ac.R11, zero) // general purpose register
+	m.cpu.set_gp(ac.R12, zero) // general purpose register
+	m.cpu.set_gp(ac.R13, zero) // general purpose register
+	m.cpu.set_gp(ac.R14, zero) // general purpose register
+	m.cpu.set_gp(ac.R15, zero) // general purpose register
 
 	// initialize 64-bit flags and instruction pointer registers of the CPU
-	m.cpu.set_flg(zero)          // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
-	m.cpu.set_ptr(emi.Rip, zero) // instruction pointer points to the next instruction to be executed
+	m.cpu.set_flg(zero)         // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
+	m.cpu.set_ptr(ac.Rip, zero) // instruction pointer points to the next instruction to be executed
 
 	// initialize activation record descriptor of the main block
-	set_mem(m, memorySize-emi.PointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
-	set_mem(m, memorySize-2*emi.PointerSize, zero) // return address (to caller)
+	set_mem(m, memorySize-ac.PointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
+	set_mem(m, memorySize-2*ac.PointerSize, zero) // return address (to caller)
 
 	// initialize stack pointer and base pointer registers of the CPU
-	m.cpu.set_ptr(emi.Rsp, memorySize-2*emi.PointerSize) // points to return address before main block's prelude runs
-	m.cpu.set_ptr(emi.Rbp, zero)                         // intentionnaly, there is no valid base pointer yet (from a caller)
+	m.cpu.set_ptr(ac.Rsp, memorySize-2*ac.PointerSize) // points to return address before main block's prelude runs
+	m.cpu.set_ptr(ac.Rbp, zero)                        // intentionnaly, there is no valid base pointer yet (from a caller)
 
 	// the stack pointer and the base pointer point to 64-bit memory addresses (byte memory of the machine)
 	// the instruction pointer points to 64-bit code addresses (assembly code of the process)
 	for {
 		// stack address space is byte memory from 'memorySize-1' down to 'memorySize-stackSize' excluding a forbidden zone
-		if m.cpu.get_ptr(emi.Rsp) > memorySize-1 || m.cpu.get_ptr(emi.Rsp) < memorySize-stackSize+stackForbiddenZone {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.get_ptr(emi.Rsp), nil)
+		if m.cpu.get_ptr(ac.Rsp) > memorySize-1 || m.cpu.get_ptr(ac.Rsp) < memorySize-stackSize+stackForbiddenZone {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, stackOverflow, m.cpu.get_ptr(ac.Rsp), nil)
 		}
 
 		// instruction address space is text section memory from '0' up to 'textSectionSize-1'
-		if m.cpu.get_ptr(emi.Rip) >= uint64(m.process.assemblyCode.Length()) {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.get_ptr(emi.Rip), nil)
+		if m.cpu.get_ptr(ac.Rip) >= uint64(m.process.assemblyCode.Length()) {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, addressOutOfRange, m.cpu.get_ptr(ac.Rip), nil)
 		}
 
 		// fetch non-nil instruction from text section memory using the instruction pointer
-		instr := m.process.assemblyCode.GetInstruction(int(m.cpu.get_ptr(emi.Rip)))
+		instr := m.process.assemblyCode.GetInstruction(int(m.cpu.get_ptr(ac.Rip)))
 
 		// increment the instruction pointer to point to the next instruction
-		m.cpu.set_ptr(emi.Rip, m.cpu.get_ptr(emi.Rip)+1)
+		m.cpu.set_ptr(ac.Rip, m.cpu.get_ptr(ac.Rip)+1)
 
 		// execute instructions until main block returns to external code
 		switch instr.Operation {
-		case emi.Push: // push operand on top of stack
+		case ac.Push: // push operand on top of stack
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
 			}
 
 			if err := m.push(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Pop: // pop element from top of stack into operand
+		case ac.Pop: // pop element from top of stack into operand
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Pop, nil)
 			}
 
 			if err := m.pop(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Mov: // copy second operand to first operand
+		case ac.Mov: // copy second operand to first operand
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 			}
 
 			if err := m.mov(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Jmp: // unconditionally jump to uint64 address
+		case ac.Jmp: // unconditionally jump to uint64 address
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jmp, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jmp, nil)
 			}
 
 			if err := m.cpu.jmp(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Je: // jump to uint64 address if last comparison was equal
+		case ac.Je: // jump to uint64 address if last comparison was equal
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Je, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Je, nil)
 			}
 
 			if err := m.cpu.je(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Jne: // jump to uint64 address if last comparison was not equal
+		case ac.Jne: // jump to uint64 address if last comparison was not equal
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jne, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jne, nil)
 			}
 
 			if err := m.cpu.jne(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Jl: // jump to uint64 address if last comparison was less than
+		case ac.Jl: // jump to uint64 address if last comparison was less than
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jl, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jl, nil)
 			}
 
 			if err := m.cpu.jl(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Jle: // jump to uint64 address if last comparison was less than or equal to
+		case ac.Jle: // jump to uint64 address if last comparison was less than or equal to
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jle, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jle, nil)
 			}
 
 			if err := m.cpu.jle(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Jg: // jump to uint64 address if last comparison was greater than
+		case ac.Jg: // jump to uint64 address if last comparison was greater than
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jg, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jg, nil)
 			}
 
 			if err := m.cpu.jg(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Jge: // jump to uint64 address if last comparison was greater than or equal to
+		case ac.Jge: // jump to uint64 address if last comparison was greater than or equal to
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jge, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jge, nil)
 			}
 
 			if err := m.cpu.jge(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.Neg: // negate int64 element
+		case ac.Neg: // negate int64 element
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Neg, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Neg, nil)
 			}
 
 			if err := m.cpu.neg(instr.Operands[0]); err != nil {
 				return err
 			}
 
-		case emi.And: // test if element is odd and set zero flag if it is
+		case ac.And: // test if element is odd and set zero flag if it is
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.And, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.And, nil)
 			}
 
 			if err := m.cpu.and(instr.Operands[0], 1); err != nil {
 				return err
 			}
 
-		case emi.Add: // add two int64 elements and store the result
+		case ac.Add: // add two int64 elements and store the result
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Add, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Add, nil)
 			}
 
 			if err := m.cpu.add(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Sub: // subtract two int64 elements and store the result
+		case ac.Sub: // subtract two int64 elements and store the result
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Sub, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Sub, nil)
 			}
 
 			if err := m.cpu.sub(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Imul: // multiply two int64 elements and store the result
+		case ac.Imul: // multiply two int64 elements and store the result
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Imul, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Imul, nil)
 			}
 
 			if err := m.cpu.imul(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Idiv: // divide two int64 elements and store the result
+		case ac.Idiv: // divide two int64 elements and store the result
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Idiv, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Idiv, nil)
 			}
 
 			if err := m.cpu.idiv(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Cmp: // compare two int64 elements and set flags register based on result
+		case ac.Cmp: // compare two int64 elements and set flags register based on result
 			if len(instr.Operands) != 2 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Cmp, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Cmp, nil)
 			}
 
 			if err := m.cpu.cmp(instr.Operands[0], instr.Operands[1]); err != nil {
 				return err
 			}
 
-		case emi.Call: // caller function calls callee function
+		case ac.Call: // caller function calls callee function
 			if len(instr.Operands) != 1 {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Call, nil)
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Call, nil)
 			}
 
 			// call function at uint64 address
@@ -414,36 +414,36 @@ func (m *machine) RunProcess() error {
 				return err
 			}
 
-		case emi.Ret: // callee function returns to caller function
+		case ac.Ret: // callee function returns to caller function
 			if err := m.ret(); err != nil {
 				return err
 			}
 
 			// returning from the entrypoint of the program exits the program
-			if m.cpu.get_ptr(emi.Rip) == 0 {
+			if m.cpu.get_ptr(ac.Rip) == 0 {
 				return nil
 			}
 
-		case emi.StdCall: // call to programming language standard library based on standard call code
-			if len(instr.Operands) != 1 || instr.Operands[0].Kind != emi.ImmediateOperand {
-				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.StdCall, nil)
+		case ac.StdCall: // call to programming language standard library based on standard call code
+			if len(instr.Operands) != 1 || instr.Operands[0].Kind != ac.ImmediateOperand {
+				return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.StdCall, nil)
 			}
 
 			// call standard library function via call code
-			if err := m.standard(emi.StandardCall(instr.Operands[0].Immediate.Value.(int64))); err != nil {
+			if err := m.standard(ac.StandardCall(instr.Operands[0].Immediate.Value.(int64))); err != nil {
 				return err
 			}
 
 		default:
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.get_ptr(emi.Rip)-1, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownOperation, m.cpu.get_ptr(ac.Rip)-1, nil)
 		}
 	}
 }
 
 // Call a programming language standard library function.
-func (m *machine) standard(code emi.StandardCall) error {
+func (m *machine) standard(code ac.StandardCall) error {
 	switch code {
-	case emi.Readln:
+	case ac.Readln:
 		// read integer from stdin
 		var input int64
 
@@ -452,15 +452,15 @@ func (m *machine) standard(code emi.StandardCall) error {
 			_, err := fmt.Scanln(&input)
 
 			if err == nil {
-				m.push(emi.NewImmediateOperand(emi.Bits64, input))
+				m.push(ac.NewImmediateOperand(ac.Bits64, input))
 				break
 			}
 		}
 
-	case emi.Writeln:
+	case ac.Writeln:
 		// write integer to stdout
-		m.pop(emi.NewRegisterOperand(emi.Rax))
-		fmt.Printf("%v\n", m.cpu.get_gp(emi.Rax).(int64))
+		m.pop(ac.NewRegisterOperand(ac.Rax))
+		fmt.Printf("%v\n", m.cpu.get_gp(ac.Rax).(int64))
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unknownStandardCallCode, code, nil)
@@ -470,81 +470,81 @@ func (m *machine) standard(code emi.StandardCall) error {
 }
 
 // Push operand on top of stack, top of stack points to new operand.
-func (m *machine) push(op *emi.Operand) error {
+func (m *machine) push(op *ac.Operand) error {
 	var value any
 
 	switch op.Kind {
-	case emi.RegisterOperand:
+	case ac.RegisterOperand:
 		// push the value of a register to the top of the stack
 		if op.Register.IsGeneralPurpose() {
 			value = m.cpu.get_gp(op.Register)
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
 		}
 
-	case emi.ImmediateOperand:
+	case ac.ImmediateOperand:
 		// push an immediate value to the top of the stack
 		value = op.Immediate
 
-	case emi.JumpOperand:
+	case ac.JumpOperand:
 		// push a jump address to the top of the stack
 		value = op.Jump
 
-	case emi.MemoryOperand:
+	case ac.MemoryOperand:
 		// push the content of a memory address to the top of the stack
 		if op.Register.IsGeneralPurpose64() {
 			// read the memory address from a 64-bit register
 			address := m.cpu.get_gp(op.Register).(uint64)
-			
+
 			// calculate the memory address by adding the displacement to the register value
 			address = uint64(int64(address) + op.Memory.Displacement)
 
 			// get the value from the memory address
 			value = get_mem_by_op(m, address, op.Memory.Size)
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
 		}
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Push, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
 	}
 
 	// decrement the stack pointer (stack grows downwards)
-	m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)-get_mem_sz(value))
+	m.cpu.set_ptr(ac.Rsp, m.cpu.get_ptr(ac.Rsp)-get_mem_sz(value))
 
 	// store the content at the new top of the stack
-	set_mem_by_tp(m, m.cpu.get_ptr(emi.Rsp), value)
+	set_mem_by_tp(m, m.cpu.get_ptr(ac.Rsp), value)
 
 	return nil
 }
 
 // Pop element from top of stack into operand, top of stack points to previous element.
-func (m *machine) pop(op *emi.Operand) error {
+func (m *machine) pop(op *ac.Operand) error {
 	switch op.Kind {
-	case emi.RegisterOperand:
+	case ac.RegisterOperand:
 		// check if the register is a general purpose register
 		if !op.Register.IsGeneralPurpose() {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Pop, nil)
 		}
 
 		// pop the value on the top of the stack into a register
-		value := get_mem_by_op(m, m.cpu.get_ptr(emi.Rsp), registerSize[op.Register])
+		value := get_mem_by_op(m, m.cpu.get_ptr(ac.Rsp), registerSize[op.Register])
 		m.cpu.set_gp(op.Register, value)
 
 		// increment the stack pointer (stack shrinks upwards)
-		m.cpu.set_ptr(emi.Rsp, m.cpu.get_ptr(emi.Rsp)+get_mem_sz(value))
+		m.cpu.set_ptr(ac.Rsp, m.cpu.get_ptr(ac.Rsp)+get_mem_sz(value))
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Pop, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Pop, nil)
 	}
 
 	return nil
 }
 
 // Caller function calls callee function.
-func (m *machine) call(op *emi.Operand) error {
+func (m *machine) call(op *ac.Operand) error {
 	// push return address (instruction pointer of caller + 1)
-	m.push(emi.NewJumpOperand(m.cpu.registers[emi.Rip]))
+	m.push(ac.NewJumpOperand(m.cpu.registers[ac.Rip]))
 
 	// jump to function at uint64 address
 	return m.cpu.jmp(op)
@@ -553,13 +553,13 @@ func (m *machine) call(op *emi.Operand) error {
 // Callee function returns to caller function.
 func (m *machine) ret() error {
 	// restore callers instruction pointer
-	return m.pop(emi.NewRegisterOperand(emi.Rip))
+	return m.pop(ac.NewRegisterOperand(ac.Rip))
 }
 
 // Copy second operand to first operand.
-func (m *machine) mov(a, b *emi.Operand) error {
+func (m *machine) mov(a, b *ac.Operand) error {
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		// copy the value of the second register to the first register
 		if a.Register.IsGeneralPurpose64() && b.Register.IsGeneralPurpose64() ||
 			a.Register.IsGeneralPurpose32() && b.Register.IsGeneralPurpose32() ||
@@ -567,23 +567,23 @@ func (m *machine) mov(a, b *emi.Operand) error {
 			a.Register.IsGeneralPurpose8() && b.Register.IsGeneralPurpose8() {
 			m.cpu.set_gp(a.Register, m.cpu.get_gp(b.Register))
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		// copy the immediate value to the register
 		if a.Register.IsGeneralPurpose64() {
 			m.cpu.set_gp(a.Register, uint64(b.Immediate.Value.(int64)))
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.MemoryOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.MemoryOperand:
 		// copy the value from memory to the register
 		if b.Register.IsGeneralPurpose64() && b.Memory.Size == registerSize[a.Register] {
 			// read the memory address from a 64-bit register
 			address := m.cpu.get_gp(b.Register).(uint64)
-			
+
 			// calculate the memory address by adding the displacement to the register value
 			address = uint64(int64(address) + b.Memory.Displacement)
 
@@ -591,10 +591,10 @@ func (m *machine) mov(a, b *emi.Operand) error {
 			value := get_mem_by_op(m, address, b.Memory.Size)
 			m.cpu.set_gp(a.Register, value)
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
 
-	case a.Kind == emi.MemoryOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.MemoryOperand && b.Kind == ac.RegisterOperand:
 		// copy the value from the register to memory
 		if a.Register.IsGeneralPurpose64() && a.Memory.Size == registerSize[b.Register] {
 			// read the memory address from a 64-bit register
@@ -607,12 +607,12 @@ func (m *machine) mov(a, b *emi.Operand) error {
 			value := m.cpu.get_gp(b.Register)
 			set_mem_by_tp(m, address, value)
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
 
-	case a.Kind == emi.MemoryOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.MemoryOperand && b.Kind == ac.ImmediateOperand:
 		// copy the immediate value to memory
-		if a.Register.IsGeneralPurpose64() { 
+		if a.Register.IsGeneralPurpose64() {
 			// read the memory address from a 64-bit register
 			address := m.cpu.get_gp(a.Register).(uint64)
 
@@ -622,24 +622,24 @@ func (m *machine) mov(a, b *emi.Operand) error {
 			// store the immediate value to the memory address
 			set_mem_by_tp(m, address, uint64(b.Immediate.Value.(int64)))
 		} else {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Mov, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 	}
 
 	return nil
 }
 
 // Negate int64 element.
-func (c *cpu) neg(op *emi.Operand) error {
+func (c *cpu) neg(op *ac.Operand) error {
 	switch op.Kind {
-	case emi.RegisterOperand:
+	case ac.RegisterOperand:
 		c.set_of_neg(int64(c.registers[op.Register]))
 
 		if c.test_of() {
-			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowNegation, c.registers[emi.Rip]-1, nil)
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowNegation, c.registers[ac.Rip]-1, nil)
 		}
 
 		c.registers[op.Register] = uint64(-int64(c.registers[op.Register]))
@@ -647,16 +647,16 @@ func (c *cpu) neg(op *emi.Operand) error {
 		c.set_sf(int64(c.registers[op.Register]))
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Neg, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Neg, nil)
 	}
 
 	return nil
 }
 
 // Perform bitwise 'and' operation with uint64 element and uint64 argument.
-func (c *cpu) and(op *emi.Operand, arg uint64) error {
+func (c *cpu) and(op *ac.Operand, arg uint64) error {
 	switch op.Kind {
-	case emi.RegisterOperand:
+	case ac.RegisterOperand:
 		c.registers[op.Register] = c.registers[op.Register] & arg
 
 		c.set_zf(int64(c.registers[op.Register]))
@@ -664,31 +664,31 @@ func (c *cpu) and(op *emi.Operand, arg uint64) error {
 		c.unset_of()
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.And, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.And, nil)
 	}
 
 	return nil
 }
 
 // Add two int64 elements and store the result.
-func (c *cpu) add(a, b *emi.Operand) error {
+func (c *cpu) add(a, b *ac.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		arg_b = b.Immediate.Value.(int64)
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Add, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Add, nil)
 	}
 
 	c.set_of_add(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowAddition, c.registers[emi.Rip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowAddition, c.registers[ac.Rip]-1, nil)
 	}
 
 	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) + arg_b)
@@ -698,24 +698,24 @@ func (c *cpu) add(a, b *emi.Operand) error {
 }
 
 // Subtract two int64 elements and store the result.
-func (c *cpu) sub(a, b *emi.Operand) error {
+func (c *cpu) sub(a, b *ac.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		arg_b = b.Immediate.Value.(int64)
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Sub, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Sub, nil)
 	}
 
 	c.set_of_sub(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowSubtraction, c.registers[emi.Rip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowSubtraction, c.registers[ac.Rip]-1, nil)
 
 	}
 
@@ -726,24 +726,24 @@ func (c *cpu) sub(a, b *emi.Operand) error {
 }
 
 // Multiply two int64 elements and store the result.
-func (c *cpu) imul(a, b *emi.Operand) error {
+func (c *cpu) imul(a, b *ac.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		arg_b = b.Immediate.Value.(int64)
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Imul, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Imul, nil)
 	}
 
 	c.set_of_mul(int64(c.registers[a.Register]), arg_b)
 
 	if c.test_of() {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowMultiplication, c.registers[emi.Rip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowMultiplication, c.registers[ac.Rip]-1, nil)
 	}
 
 	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) * arg_b)
@@ -753,28 +753,28 @@ func (c *cpu) imul(a, b *emi.Operand) error {
 }
 
 // Divide two int64 elements and store the result.
-func (c *cpu) idiv(a, b *emi.Operand) error {
+func (c *cpu) idiv(a, b *ac.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		arg_b = b.Immediate.Value.(int64)
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Idiv, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Idiv, nil)
 	}
 
 	c.set_of_div(int64(c.registers[a.Register]), arg_b)
 
 	if arg_b == 0 {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, divisionByZero, c.registers[emi.Rip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, divisionByZero, c.registers[ac.Rip]-1, nil)
 	}
 
 	if c.test_of() {
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowDivision, c.registers[emi.Rip]-1, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, arithmeticOverflowDivision, c.registers[ac.Rip]-1, nil)
 	}
 
 	c.registers[a.Register] = uint64(int64(c.registers[a.Register]) / arg_b)
@@ -784,18 +784,18 @@ func (c *cpu) idiv(a, b *emi.Operand) error {
 }
 
 // Compare two int64 elements from top of stack and set flags register based on result (zero zf, sign sf, overflow of).
-func (c *cpu) cmp(a, b *emi.Operand) error {
+func (c *cpu) cmp(a, b *ac.Operand) error {
 	var arg_b int64
 
 	switch {
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.RegisterOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.RegisterOperand:
 		arg_b = int64(c.registers[b.Register])
 
-	case a.Kind == emi.RegisterOperand && b.Kind == emi.ImmediateOperand:
+	case a.Kind == ac.RegisterOperand && b.Kind == ac.ImmediateOperand:
 		arg_b = b.Immediate.Value.(int64)
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Cmp, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Cmp, nil)
 	}
 
 	c.set_of_sub(int64(c.registers[a.Register]), arg_b)
@@ -807,24 +807,24 @@ func (c *cpu) cmp(a, b *emi.Operand) error {
 }
 
 // Unconditionally jump to uint64 address.
-func (c *cpu) jmp(op *emi.Operand) error {
+func (c *cpu) jmp(op *ac.Operand) error {
 	switch op.Kind {
-	case emi.RegisterOperand:
-		c.registers[emi.Rip] = c.registers[op.Register]
+	case ac.RegisterOperand:
+		c.registers[ac.Rip] = c.registers[op.Register]
 
-	case emi.JumpOperand:
-		c.registers[emi.Rip] = op.Jump
+	case ac.JumpOperand:
+		c.registers[ac.Rip] = op.Jump
 
 	default:
-		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, emi.Jmp, nil)
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jmp, nil)
 	}
 
 	return nil
 }
 
 // Jump to uint64 address if zero flag is set, nz (not zero).
-func (c *cpu) je(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(zf) != 0 {
+func (c *cpu) je(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(zf) != 0 {
 		return c.jmp(op)
 	}
 
@@ -832,8 +832,8 @@ func (c *cpu) je(op *emi.Operand) error {
 }
 
 // Jump to uint64 address if zero flag is not set, zr (zero).
-func (c *cpu) jne(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(zf) == 0 {
+func (c *cpu) jne(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(zf) == 0 {
 		return c.jmp(op)
 	}
 
@@ -841,8 +841,8 @@ func (c *cpu) jne(op *emi.Operand) error {
 }
 
 // Jump to uint64 address if sign flag is not equal to overflow flag (sf != of).
-func (c *cpu) jl(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(sf) != c.registers[emi.Rflags]&uint64(of) {
+func (c *cpu) jl(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(sf) != c.registers[ac.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -850,8 +850,8 @@ func (c *cpu) jl(op *emi.Operand) error {
 }
 
 // Jump to uint64 address if zero flag is set and sign flag is not equal to overflow flag (zf != 0, sf != of).
-func (c *cpu) jle(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(zf) != 0 || c.registers[emi.Rflags]&uint64(sf) != c.registers[emi.Rflags]&uint64(of) {
+func (c *cpu) jle(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(zf) != 0 || c.registers[ac.Rflags]&uint64(sf) != c.registers[ac.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -859,8 +859,8 @@ func (c *cpu) jle(op *emi.Operand) error {
 }
 
 // Jump to uint64 address if zero flag is not set and sign flag is equal to overflow flag (zf == 0, sf == of).
-func (c *cpu) jg(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(zf) == 0 && c.registers[emi.Rflags]&uint64(sf) == c.registers[emi.Rflags]&uint64(of) {
+func (c *cpu) jg(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(zf) == 0 && c.registers[ac.Rflags]&uint64(sf) == c.registers[ac.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -868,8 +868,8 @@ func (c *cpu) jg(op *emi.Operand) error {
 }
 
 // Jump to uint64 address if sign flag is equal to overflow flag (sf == of).
-func (c *cpu) jge(op *emi.Operand) error {
-	if c.registers[emi.Rflags]&uint64(sf) == c.registers[emi.Rflags]&uint64(of) {
+func (c *cpu) jge(op *ac.Operand) error {
+	if c.registers[ac.Rflags]&uint64(sf) == c.registers[ac.Rflags]&uint64(of) {
 		return c.jmp(op)
 	}
 
@@ -879,27 +879,27 @@ func (c *cpu) jge(op *emi.Operand) error {
 // Set zero flag if int64 element is zero.
 func (c *cpu) set_zf(a int64) {
 	if a == 0 {
-		c.registers[emi.Rflags] |= uint64(zf)
+		c.registers[ac.Rflags] |= uint64(zf)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(zf)
+		c.registers[ac.Rflags] &= ^uint64(zf)
 	}
 }
 
 // Set sign flag if int64 element is negative.
 func (c *cpu) set_sf(a int64) {
 	if a < 0 {
-		c.registers[emi.Rflags] |= uint64(sf)
+		c.registers[ac.Rflags] |= uint64(sf)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(sf)
+		c.registers[ac.Rflags] &= ^uint64(sf)
 	}
 }
 
 // Set overflow flag if negation of the int64 element overflows.
 func (c *cpu) set_of_neg(a int64) {
 	if a == math.MinInt64 {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(of)
+		c.registers[ac.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -908,11 +908,11 @@ func (c *cpu) set_of_add(a, b int64) {
 	s := a + b
 
 	if (a > 0 && b > 0 && s < a) || (a < 0 && b < 0 && s > a) {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else if (a > 0 && b < 0 && s > a) || (a < 0 && b > 0 && s < a) {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(of)
+		c.registers[ac.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -921,11 +921,11 @@ func (c *cpu) set_of_sub(a, b int64) {
 	s := a - b
 
 	if (a > 0 && b < 0 && s < a) || (a < 0 && b > 0 && s > a) {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else if (a > 0 && b > 0 && s > a) || (a < 0 && b < 0 && s < a) {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(of)
+		c.registers[ac.Rflags] &= ^uint64(of)
 	}
 }
 
@@ -934,33 +934,33 @@ func (c *cpu) set_of_mul(a, b int64) {
 	s := a * b
 
 	if a != 0 && s/a != b {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(of)
+		c.registers[ac.Rflags] &= ^uint64(of)
 	}
 }
 
 // Set overflow flag if division of two int64 elements overflows.
 func (c *cpu) set_of_div(a, b int64) {
 	if b == -1 && a == math.MinInt64 {
-		c.registers[emi.Rflags] |= uint64(of)
+		c.registers[ac.Rflags] |= uint64(of)
 	} else {
-		c.registers[emi.Rflags] &= ^uint64(of)
+		c.registers[ac.Rflags] &= ^uint64(of)
 	}
 }
 
 // Test overflow flag
 func (c *cpu) test_of() bool {
-	return c.registers[emi.Rflags]&uint64(of) != 0
+	return c.registers[ac.Rflags]&uint64(of) != 0
 }
 
 // Clear overflow flag.
 func (c *cpu) unset_of() {
-	c.registers[emi.Rflags] &= ^uint64(of)
+	c.registers[ac.Rflags] &= ^uint64(of)
 }
 
 // Set a value in a general purpose register and panic if the register is not a general purpose register.
-func (c *cpu) set_gp(r emi.Register, v any) {
+func (c *cpu) set_gp(r ac.Register, v any) {
 	switch {
 	case r.IsGeneralPurpose64():
 		c.registers[r] = v.(uint64)
@@ -983,7 +983,7 @@ func (c *cpu) set_gp(r emi.Register, v any) {
 }
 
 // Get a value from a general purpose register and panic if the register is not a general purpose register.
-func (c *cpu) get_gp(r emi.Register) any {
+func (c *cpu) get_gp(r ac.Register) any {
 	switch {
 	case r.IsGeneralPurpose64():
 		return c.registers[r]
@@ -1007,16 +1007,16 @@ func (c *cpu) get_gp(r emi.Register) any {
 
 // Set a value in the flags register.
 func (c *cpu) set_flg(v uint64) {
-	c.registers[emi.Rflags] = v
+	c.registers[ac.Rflags] = v
 }
 
 // Get a value from the flags register.
 func (c *cpu) get_flg() uint64 {
-	return c.registers[emi.Rflags]
+	return c.registers[ac.Rflags]
 }
 
 // Set an address in a pointer register and panic if the register is not a pointer register.
-func (c *cpu) set_ptr(r emi.Register, v uint64) {
+func (c *cpu) set_ptr(r ac.Register, v uint64) {
 	if !r.IsInstructionPointer() && !r.IsStackPointer() && !r.IsBasePointer() {
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
 	}
@@ -1025,7 +1025,7 @@ func (c *cpu) set_ptr(r emi.Register, v uint64) {
 }
 
 // Get an address from a pointer register and panic if the register is not a pointer register.
-func (c *cpu) get_ptr(r emi.Register) uint64 {
+func (c *cpu) get_ptr(r ac.Register) uint64 {
 	if !r.IsInstructionPointer() && !r.IsStackPointer() && !r.IsBasePointer() {
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownPointerRegister, r, nil))
 	}
@@ -1034,7 +1034,7 @@ func (c *cpu) get_ptr(r emi.Register) uint64 {
 }
 
 // Map any register to its corresponding 64-bit register.
-func to_64(r emi.Register) emi.Register {
+func to_64(r ac.Register) ac.Register {
 	if r.IsGeneralPurpose32() {
 		return generalPurpose32to64[r]
 	}
@@ -1069,18 +1069,18 @@ func set_mem_by_tp(m *machine, a uint64, v any) {
 }
 
 // Get a value from the memory space by operand bit size.
-func get_mem_by_op(m *machine, a uint64, o emi.OperandSize) any {
+func get_mem_by_op(m *machine, a uint64, o ac.OperandSize) any {
 	switch o {
-	case emi.Bits64:
+	case ac.Bits64:
 		return get_mem[uint64](m, a)
 
-	case emi.Bits32:
+	case ac.Bits32:
 		return get_mem[uint32](m, a)
 
-	case emi.Bits16:
+	case ac.Bits16:
 		return get_mem[uint16](m, a)
 
-	case emi.Bits8:
+	case ac.Bits8:
 		return get_mem[uint8](m, a)
 
 	default:

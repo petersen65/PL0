@@ -17,6 +17,7 @@ import (
 	cfg "github.com/petersen65/PL0/v2/cfg"
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
+	ac "github.com/petersen65/PL0/v2/emitter/assembly"
 	emu "github.com/petersen65/PL0/v2/emulator"
 	gen "github.com/petersen65/PL0/v2/generator"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
@@ -86,7 +87,7 @@ type (
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
-		AssemblyCode     emi.AssemblyCodeUnit    // assembly code of the intermediate code unit
+		AssemblyCode     ac.AssemblyCodeUnit     // assembly code of the intermediate code unit
 	}
 )
 
@@ -257,7 +258,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 }
 
 // Persist an assembly code unit to the given binary target.
-func PersistAssemblyCodeUnitToTarget(unit emi.AssemblyCodeUnit, target string) error {
+func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) error {
 	var err error
 	var program *os.File
 
