@@ -53,12 +53,12 @@ func (e *emitter) Emit() {
 			l = append(l, i.Label)
 
 		case ic.Allocate: // allocate space in an activation record for all local variables
-			// group consecutive intermediate code allocate operations into one alloc instruction
+			// group consecutive intermediate code allocate operations into one space allocation instruction
 			for j := 0; ; j++ {
 				if iterator.Peek(j).ThreeAddressCode.Operation != ic.Allocate {
 					e.assemblyCode.AppendInstruction(ac.Sub, l,
 						ac.NewRegisterOperand(ac.Rsp),
-						ac.NewImmediateOperand(ac.Bits64, int64(j+1)))
+						ac.NewImmediateOperand(ac.Bits64, -iterator.Peek(j-1).ThreeAddressCode.Result.Offset))
 
 					iterator.Skip(j)
 					break
