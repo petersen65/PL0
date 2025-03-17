@@ -46,16 +46,16 @@ func (e *emitter) Emit() {
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		// panic if the intermediate code instruction has not a valid addresses contract
-		i.Code.ValidateAddressesContract()
+		i.ThreeAddressCode.ValidateAddressesContract()
 
-		switch i.Code.Operation {
+		switch i.ThreeAddressCode.Operation {
 		case ic.Target: // append labels for the directly following non 'Target' instruction
 			l = append(l, i.Label)
 
 		case ic.Allocate: // allocate space in an activation record for all local variables
 			// group consecutive intermediate code allocate operations into one alloc instruction
 			for j := 0; ; j++ {
-				if iterator.Peek(j).Code.Operation != ic.Allocate {
+				if iterator.Peek(j).ThreeAddressCode.Operation != ic.Allocate {
 					e.assemblyCode.AppendInstruction(ac.Sub, l,
 						ac.NewRegisterOperand(ac.Rsp),
 						ac.NewImmediateOperand(ac.Bits64, int64(j+1)))
@@ -86,16 +86,16 @@ func (e *emitter) Emit() {
 
 		case ic.ValueCopy: // push an immediate value onto the runtime control stack
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
-			value := i.Code.Arg1.Parse()
+			value := i.ThreeAddressCode.Arg1.Parse()
 			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, value))
 
 		case ic.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
-			// panic if parsing of the variable into its location fails (unsupported data type)
-			location := i.Code.Arg1.Parse().(uint64)
+			// panic if parsing of the variable into its offset fails (unsupported data type)
+			offset := i.ThreeAddressCode.Arg1.Parse().(int64)
 
 			if i.DepthDifference == 0 {
 				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewMemoryOperand(ac.Rbp, ac.Bits64, -int64(location)))
+				e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewMemoryOperand(ac.Rbp, ac.Bits64, offset))
 			} else {
 				// block nesting depth difference between variable use and variable declaration
 				e.assemblyCode.AppendInstruction(ac.Mov, l,
@@ -106,20 +106,20 @@ func (e *emitter) Emit() {
 				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
 
 				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewMemoryOperand(ac.Rbx, ac.Bits64, -int64(location)))
+				e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewMemoryOperand(ac.Rbx, ac.Bits64, offset))
 			}
 
 		case ic.VariableStore: // store the top of the runtime control stack into a variable's stack address
-			// panic if parsing of the variable into its location fails (unsupported data type)
-			location := i.Code.Result.Parse().(uint64)
+			// panic if parsing of the variable into its offset fails (unsupported data type)
+			offset := i.ThreeAddressCode.Result.Parse().(int64)
 
 			if i.DepthDifference == 0 {
 				// pop content of the variable
 				e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rax))
 
-				// copy content of the variable into memory location 'variables base - variable offset'
+				// copy content of the variable into memory at 'variables base - variable offset'
 				e.assemblyCode.AppendInstruction(ac.Mov, nil,
-					ac.NewMemoryOperand(ac.Rbp, ac.Bits64, -int64(location)),
+					ac.NewMemoryOperand(ac.Rbp, ac.Bits64, offset),
 					ac.NewRegisterOperand(ac.Rax))
 			} else {
 				// block nesting depth difference between variable use and variable declaration
@@ -133,15 +133,15 @@ func (e *emitter) Emit() {
 				// pop content of the variable
 				e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
 
-				// copy content of the variable into memory location 'variables base - variable offset'
+				// copy content of the variable into memory at 'variables base - variable offset'
 				e.assemblyCode.AppendInstruction(ac.Mov, nil,
-					ac.NewMemoryOperand(ac.Rbx, ac.Bits64, -int64(location)),
+					ac.NewMemoryOperand(ac.Rbx, ac.Bits64, offset),
 					ac.NewRegisterOperand(ac.Rax))
 			}
 
 		case ic.Negate: // negate the top of the runtime control stack and leave the result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Code.Arg1.Parse()
+			_ = i.ThreeAddressCode.Arg1.Parse()
 
 			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rax))
 			e.assemblyCode.AppendInstruction(ac.Neg, nil, ac.NewRegisterOperand(ac.Rax))
@@ -149,20 +149,20 @@ func (e *emitter) Emit() {
 
 		case ic.Odd: // check if the top of the runtime control stack is an odd number and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Code.Arg1.Parse()
+			_ = i.ThreeAddressCode.Arg1.Parse()
 
 			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rax))
 			e.assemblyCode.AppendInstruction(ac.And, nil, ac.NewRegisterOperand(ac.Rax))
 
 		case ic.Plus, ic.Minus, ic.Times, ic.Divide: // perform an arithmetic operation on the top two elements of the runtime control stack and replace them with one result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Code.Arg1.Parse()
-			_ = i.Code.Arg2.Parse()
+			_ = i.ThreeAddressCode.Arg1.Parse()
+			_ = i.ThreeAddressCode.Arg2.Parse()
 
 			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rbx))
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
 
-			switch i.Code.Operation {
+			switch i.ThreeAddressCode.Operation {
 			case ic.Plus:
 				e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
 
@@ -180,8 +180,8 @@ func (e *emitter) Emit() {
 
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the runtime control stack, remove them, and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Code.Arg1.Parse()
-			_ = i.Code.Arg2.Parse()
+			_ = i.ThreeAddressCode.Arg1.Parse()
+			_ = i.ThreeAddressCode.Arg2.Parse()
 
 			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rbx))
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
@@ -189,50 +189,50 @@ func (e *emitter) Emit() {
 
 		case ic.Jump: // unconditionally jump to a label that is resolved by the linker
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jmp, l, ac.NewLabelOperand(name))
 
 		case ic.JumpEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Je, l, ac.NewLabelOperand(name))
 
 		case ic.JumpNotEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jne, l, ac.NewLabelOperand(name))
 
 		case ic.JumpLess: // jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jl, l, ac.NewLabelOperand(name))
 
 		case ic.JumpLessEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jle, l, ac.NewLabelOperand(name))
 
 		case ic.JumpGreater: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jg, l, ac.NewLabelOperand(name))
 
 		case ic.JumpGreaterEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg1.Parse().(string)
+			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jge, l, ac.NewLabelOperand(name))
 
 		case ic.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Code.Arg1.Parse()
+			_ = i.ThreeAddressCode.Arg1.Parse()
 			parameters.PushBack(i)
 
 		case ic.Call: // call a function with 0 arguments by jumping to the function's label
 			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
-			count := i.Code.Arg1.Parse().(uint64)
+			count := i.ThreeAddressCode.Arg1.Parse().(uint64)
 
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Code.Arg2.Parse().(string)
+			name := i.ThreeAddressCode.Arg2.Parse().(string)
 
 			if count != 0 {
 				// procedures do not support parameters yet
@@ -258,17 +258,17 @@ func (e *emitter) Emit() {
 			// the second parameter holds the call code of the standard function in the programming language's standard library
 
 			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
-			count := i.Code.Arg1.Parse().(uint64)
+			count := i.ThreeAddressCode.Arg1.Parse().(uint64)
 
 			// panic if parsing of the call code into an integer fails (unsupported value or data type)
-			code := i.Code.Arg2.Parse().(int64)
+			code := i.ThreeAddressCode.Arg2.Parse().(int64)
 
 			// parameter instruction for the standard library function call
 			pi := parameters.Back().Value.(*ic.Instruction)
 			parameters.Remove(parameters.Back())
 
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = pi.Code.Arg1.Parse()
+			_ = pi.ThreeAddressCode.Arg1.Parse()
 
 			if count != 1 {
 				// current standard library functions expect 1 parameter on the runtime control stack
@@ -279,11 +279,11 @@ func (e *emitter) Emit() {
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Code.Operation, nil))
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.ThreeAddressCode.Operation, nil))
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
-		if i.Code.Operation != ic.Target {
+		if i.ThreeAddressCode.Operation != ic.Target {
 			l = make([]string, 0)
 		}
 	}

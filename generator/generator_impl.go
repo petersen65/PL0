@@ -181,7 +181,7 @@ func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	// set the offset of the variable in its logical memory space
 	// ensure that the offset in the logical memory space is aligned to a datatype depended boundary
 	byteSize := int64(codeSymbol.DataType.BitSize() / 8)
-	scopeMetaData.offset = codeSymbol.DataType.Alignment(scopeMetaData.offset + byteSize)
+	scopeMetaData.offset = codeSymbol.DataType.Alignment(scopeMetaData.offset - byteSize)
 	codeSymbol.Offset = scopeMetaData.offset
 
 	// allocate memory for the variable in its logical memory space
@@ -194,6 +194,11 @@ func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 
 	// append allocate instruction to the unit and set it as definition for the intermediate code variable
 	codeSymbol.Definition = i.intermediateCode.AppendInstruction(instruction)
+
+	// the offset of a variable must be negative in its logical memory space
+	if codeSymbol.Offset >= 0 {
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidVariableOffset, vd, nil))
+	}
 }
 
 // Generate code for a procedure declaration.
@@ -213,7 +218,7 @@ func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
 		ln.TokenStreamIndex) // literal use in the token stream
 
 	// push the temporary result onto the results-list and append the instruction to the intermediate code unit
-	i.pushResult(instruction.Code.Result)
+	i.pushResult(instruction.ThreeAddressCode.Result)
 	i.intermediateCode.AppendInstruction(instruction)
 }
 
@@ -239,7 +244,7 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			iu.TokenStreamIndex) // constant use in the token stream
 
 		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
-		i.pushResult(instruction.Code.Result)
+		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Variable:
@@ -268,7 +273,7 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			iu.TokenStreamIndex)       // variable use in the token stream
 
 		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
-		i.pushResult(instruction.Code.Result)
+		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Procedure:
@@ -309,7 +314,7 @@ func (i *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 			uo.TokenStreamIndex) // unary operation in the token stream
 
 		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
-		i.pushResult(instruction.Code.Result)
+		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
@@ -357,7 +362,7 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			bo.TokenStreamIndex) // arithmetic operation in the token stream
 
 		// push the temporary result result onto the results-list and append the instruction to the intermediate code unit
-		i.pushResult(instruction.Code.Result)
+		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
@@ -482,8 +487,8 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// parameter 1 for the readln standard function
 	param := ic.NewInstruction(
-		ic.Parameter,     // parameter for a standard function
-		load.Code.Result, // temporary result will be replaced by the standard function resultant value
+		ic.Parameter,                 // parameter for a standard function
+		load.ThreeAddressCode.Result, // temporary result will be replaced by the standard function resultant value
 		noAddress,
 		noAddress,
 		s.TokenStreamIndex) // read statement in the token stream
@@ -501,8 +506,8 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// store the resultant value into the variable used by the read statement
 	store := ic.NewInstruction(
-		ic.VariableStore, // store the value of the standard function result into the offset of a variable
-		param.Code.Arg1,  // standard function resultant value
+		ic.VariableStore,            // store the value of the standard function result into the offset of a variable
+		param.ThreeAddressCode.Arg1, // standard function resultant value
 		noAddress,
 		ic.NewAddress(codeSymbol.Name, ic.Variable, codeSymbol.DataType, codeSymbol.Offset), // variable offset
 		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration

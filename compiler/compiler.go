@@ -138,12 +138,12 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// compile source code to module and persist module to binary target
+	// compile source code to translation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, source, target)
 		translationUnit, err = CompileSourceToTranslationUnit(source)
 
-		// print compilation error message if an I/O error occurred during compilation
+		// print error message if an I/O error occurred during compilation
 		if err != nil {
 			fmt.Fprintf(print, textErrorCompiling, source, err)
 			return
@@ -155,21 +155,27 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		// print abandon compilation message if any error occurred during compilation
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
-		} else {
-			// persist assembly code unit to target and print persistence error message if an error occurred
-			if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
-				fmt.Fprintf(print, textErrorPersisting, target, err)
-				return
-			}
 		}
 	}
 
-	// export intermediate representations to the target path
-	if options&Export != 0 {
+	// export intermediate representations to the target path even if errors occurred during compilation
+	if options&Compile != 0 && options&Export != 0 {
 		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
 
+		// append runtime library to assembly code unit before exporting
+		translationUnit.AssemblyCode.AppendRuntimeLibrary()
+
+		// print error message if any error occurred during export
 		if err = ExportIntermediateRepresentationsToTarget(translationUnit, targetDirectory, baseFileName); err != nil {
 			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
+			return
+		}
+	}
+
+	// link and persist assembly code unit as binary target and print persistence error message if an error occurred
+	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
+		if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
+			fmt.Fprintf(print, textErrorPersisting, target, err)
 			return
 		}
 	}
@@ -274,7 +280,6 @@ func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) er
 			}
 		}()
 
-		unit.AppendRuntimeLibrary()
 		unit.Link()
 		unit.Export(cor.Binary, program)
 	}

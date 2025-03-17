@@ -80,7 +80,7 @@ const (
 	String                             // the string data type is used for labels in label addresses
 	UnsignedInteger64                  // the unsigned integer data type is used for counting purposes or call codes
 
-	// data types supported for constants, literals, variables, and temporaries (number specific bit size)
+	// data types supported for constants, literals, variables, and temporaries (postfix specifies the bit size)
 	Integer64
 	Integer32
 	Integer16
@@ -157,7 +157,7 @@ type (
 		Label            string    `json:"label"`              // branch-label for any branching operation
 		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
 		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
-		Code             Quadruple `json:"code"`               // three-address code operation
+		ThreeAddressCode Quadruple `json:"code"`               // three-address code operation
 	}
 
 	// A Symbol represents a flattened name in the intermediate code.
@@ -271,10 +271,10 @@ func (i *Instruction) String() string {
 		"%-8v %4v    %-12v   %-22v   %-22v   %-22v",
 		i.Label,
 		depthDifference,
-		i.Code.Operation,
-		i.Code.Arg1,
-		i.Code.Arg2,
-		i.Code.Result)
+		i.ThreeAddressCode.Operation,
+		i.ThreeAddressCode.Arg1,
+		i.ThreeAddressCode.Arg2,
+		i.ThreeAddressCode.Result)
 }
 
 // Supported data types for constants, literals, variables, and temporaries.
@@ -322,17 +322,17 @@ func (dataType DataType) Alignment(offset int64) int64 {
 	}
 }
 
-// Round up or down an offset to its next alignment boundary. If the alignment is not a power of 2, return 0.
+// Round up or down an offset to its next alignment boundary. If something is wrong with the offset or alignment, return 0.
 func Align(offset, alignment int64) int64 {
-	// check if the alignment is smaller or equal to 0 or not a power of 2
-	if alignment <= 0 || alignment&(alignment-1) != 0 {
+	// validate and make sure the alignment is a power of 2
+	if offset == 0 || alignment <= 0 || alignment&(alignment-1) != 0 {
 		return 0
 	}
 
 	// calculate the alignment of the offset depending on its sign (round up or down)
-	if offset >= 0 {
+	if offset > 0 {
 		return (offset + alignment - 1) & ^(alignment - 1)
 	} else {
-		return (offset - alignment + 1) & ^(alignment - 1)
+		return -(((-offset) + alignment - 1) & ^(alignment - 1))
 	}
 }

@@ -159,14 +159,14 @@ func (o *Operand) String() string {
 		return o.Register.String()
 
 	case ImmediateOperand:
-		return fmt.Sprintf("%v", o.Immediate)
+		return fmt.Sprintf("%v", o.Immediate.Value)
 
 	case MemoryOperand:
 		if o.Memory.Displacement != 0 {
-			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Memory, o.Memory.Displacement)
+			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Register, o.Memory.Displacement)
 		}
 
-		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Memory)
+		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Register)
 
 	case LabelOperand:
 		return o.Label

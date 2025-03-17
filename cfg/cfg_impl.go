@@ -16,13 +16,13 @@ type (
 	// Implementation of the control flow graph interface that manages basic blocks and edges.
 	controlFlowGraph struct {
 		intermediateCode ic.IntermediateCodeUnit `json:"-"`      // intermediate code unit that the control flow graph is built from
-		Blocks           []*basicBlock            `json:"blocks"` // basic blocks of the control flow graph
-		edges            []*edge                  `json:"-"`      // edges of the control flow graph
+		Blocks           []*basicBlock           `json:"blocks"` // basic blocks of the control flow graph
+		edges            []*edge                 `json:"-"`      // edges of the control flow graph
 	}
 
 	// Implementation of the basic block interface that holds instructions of the block.
 	basicBlock struct {
-		Instructions []*ic.Instruction   `json:"instructions"` // instructions of the basic block
+		Instructions []*ic.Instruction    `json:"instructions"` // instructions of the basic block
 		variables    map[string]*variable `json:"-"`            // nontemporary variables in the basic block
 	}
 
@@ -34,8 +34,8 @@ type (
 
 	// A nontemporary variable in the control flow graph.
 	variable struct {
-		name     string           // flattened name in the intermediate code
-		liveness bool             // true if the variable is live at the current instruction
+		name     string          // flattened name in the intermediate code
+		liveness bool            // true if the variable is live at the current instruction
 		nextUse  *ic.Instruction // next instruction that uses the variable
 	}
 )
@@ -78,7 +78,7 @@ func (cfg *controlFlowGraph) Build() {
 			fallthrough
 
 		// any instruction that is the target of a conditional or unconditional jump is a leader
-		case i.Code.Operation == ic.Target:
+		case i.ThreeAddressCode.Operation == ic.Target:
 			// append the previous basic block to the control flow graph if it is not nil
 			cfg.AppendBasicBlock(block)
 
@@ -87,13 +87,13 @@ func (cfg *controlFlowGraph) Build() {
 			block.AppendInstruction(i)
 
 		// any instruction that immediately follows a conditional or unconditional jump is a leader
-		case i.Code.Operation == ic.Jump ||
-			i.Code.Operation == ic.JumpEqual ||
-			i.Code.Operation == ic.JumpNotEqual ||
-			i.Code.Operation == ic.JumpLess ||
-			i.Code.Operation == ic.JumpLessEqual ||
-			i.Code.Operation == ic.JumpGreater ||
-			i.Code.Operation == ic.JumpGreaterEqual:
+		case i.ThreeAddressCode.Operation == ic.Jump ||
+			i.ThreeAddressCode.Operation == ic.JumpEqual ||
+			i.ThreeAddressCode.Operation == ic.JumpNotEqual ||
+			i.ThreeAddressCode.Operation == ic.JumpLess ||
+			i.ThreeAddressCode.Operation == ic.JumpLessEqual ||
+			i.ThreeAddressCode.Operation == ic.JumpGreater ||
+			i.ThreeAddressCode.Operation == ic.JumpGreaterEqual:
 
 			// append the current instruction to the current basic block
 			block.AppendInstruction(i)
