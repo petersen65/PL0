@@ -397,27 +397,23 @@ func (q *Quadruple) ValidateAddressesContract() {
 
 // Get the instruction at the current position in the list.
 func (i *iterator) Current() *Instruction {
-	return i.Peek(0)
+	if i.current == nil {
+		return nil
+	}
+
+	return i.current.Value.(*Instruction)
 }
 
 // Move to the first instruction in the list.
 func (i *iterator) First() *Instruction {
-	if i.instructions.Len() == 0 {
-		return nil
-	}
-
-	i.current = i.instructions.Front().Next()
-	return i.instructions.Front().Value.(*Instruction)
+	i.current = i.instructions.Front()
+	return i.Current()
 }
 
 // Move to the last instruction in the list.
 func (i *iterator) Last() *Instruction {
-	if i.instructions.Len() == 0 {
-		return nil
-	}
-
-	i.current = nil
-	return i.instructions.Back().Value.(*Instruction)
+	i.current = i.instructions.Back()
+	return i.Current()
 }
 
 // Move the iterator to the next instruction.
@@ -426,10 +422,8 @@ func (i *iterator) Next() *Instruction {
 		return nil
 	}
 
-	instruction := i.current.Value.(*Instruction)
 	i.current = i.current.Next()
-
-	return instruction
+	return i.Current()
 }
 
 // Move the iterator to the previous instruction.
@@ -438,29 +432,23 @@ func (i *iterator) Previous() *Instruction {
 		return nil
 	}
 
-	instruction := i.current.Value.(*Instruction)
 	i.current = i.current.Prev()
-
-	return instruction
+	return i.Current()
 }
 
 // Move the iterator N instructions backward or forward
 func (i *iterator) Skip(offset int) *Instruction {
 	if offset < 0 {
-		for j := 0; j > offset; j-- {
+		for range -offset {
 			i.Previous()
 		}
 	} else if offset > 0 {
-		for j := 0; j < offset; j++ {
+		for range offset {
 			i.Next()
 		}
 	}
 
-	if i.current == nil {
-		return nil
-	}
-
-	return i.current.Value.(*Instruction)
+	return i.Current()
 }
 
 // Peek the instruction at the specified offset from the current instruction.
@@ -468,11 +456,19 @@ func (i *iterator) Peek(offset int) *Instruction {
 	element := i.current
 
 	if offset < 0 {
-		for j := 0; element != nil && j > offset; j-- {
+		for range -offset {
+			if element == nil {
+				break
+			}
+
 			element = element.Prev()
 		}
 	} else if offset > 0 {
-		for j := 0; element != nil && j < offset; j++ {
+		for range offset {
+			if element == nil {
+				break
+			}
+
 			element = element.Next()
 		}
 	}

@@ -48,6 +48,7 @@ func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateC
 		intermediateCode: intermediateCodeUnit,
 		assemblyCode:     ac.NewAssemblyCodeUnit(),
 		cpu:              cpu,
+		offsetTable:      make(map[string]int64),
 	}
 }
 
@@ -89,8 +90,8 @@ func (e *emitter) Emit() {
 						ac.NewRegisterOperand(ac.Rsp),
 						ac.NewImmediateOperand(ac.Bits64, offset))
 
-					// set next intermediate code instruction and break
-					iterator.Skip(j + 1)
+					// set last processed intermediate code instruction and break
+					iterator.Skip(j)
 					break
 				}
 			}
@@ -144,10 +145,10 @@ func (e *emitter) Emit() {
 
 		case ic.VariableStore: // store the top of the runtime control stack into a variable's stack address
 			// panic if parsing of the variable into nil fails (unsupported data type)
-			i.ThreeAddressCode.Arg1.Parse()
+			i.ThreeAddressCode.Result.Parse()
 
-			// determinde offset of the local variable in its activation record
-			offset := e.offsetTable[i.ThreeAddressCode.Arg1.Name]
+			// determine offset of the local variable in its activation record
+			offset := e.offsetTable[i.ThreeAddressCode.Result.Name]
 
 			if i.DepthDifference == 0 {
 				// pop content of the variable
