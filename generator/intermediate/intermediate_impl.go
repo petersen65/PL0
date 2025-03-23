@@ -290,7 +290,7 @@ func (a *Address) Parse() any {
 	case Literal:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8:
-			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
+			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				if a.DataType == Integer32 {
@@ -305,7 +305,7 @@ func (a *Address) Parse() any {
 			}
 
 		case Float64, Float32:
-			if decoded, err := strconv.ParseFloat(a.Name, a.DataType.BitSize()); err != nil {
+			if decoded, err := strconv.ParseFloat(a.Name, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				if a.DataType == Float32 {
@@ -333,16 +333,7 @@ func (a *Address) Parse() any {
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
-	case Variable:
-		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
-			return a.Offset
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Temporary:
+	case Variable, Temporary:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
 			return nil
@@ -363,7 +354,7 @@ func (a *Address) Parse() any {
 	case Count:
 		switch a.DataType {
 		case UnsignedInteger64:
-			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.BitSize()); err != nil {
+			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
@@ -376,7 +367,7 @@ func (a *Address) Parse() any {
 	case Code:
 		switch a.DataType {
 		case Integer64:
-			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.BitSize()); err != nil {
+			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
@@ -491,4 +482,24 @@ func (i *iterator) Peek(offset int) *Instruction {
 	}
 
 	return element.Value.(*Instruction)
+}
+
+// Determine the bit size of a data type or return 0 if there is no defined bit size.
+func (dataType DataType) bitSize() int {
+	switch dataType {
+	case UnsignedInteger64, Integer64, Float64:
+		return 64
+
+	case Integer32, Float32, Rune32:
+		return 32
+
+	case Integer16:
+		return 16
+
+	case Integer8, Boolean8:
+		return 8
+
+	default:
+		return 0
+	}
 }

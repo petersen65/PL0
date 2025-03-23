@@ -58,19 +58,19 @@ const (
 
 	Allocate      // allocate memory for a variable in its logical memory space
 	ValueCopy     // copy the value of a constant or literal into an address
-	VariableLoad  // load variable value from its offset in the logical memory space into an address
-	VariableStore // store variable value from an address into its offset in the logical memory space
+	VariableLoad  // load variable value from the logical memory space into an address
+	VariableStore // store variable value from an address into the logical memory space
 )
 
 // Variants of an address in the three-address code concept.
 const (
 	Empty      = Variant(iota) // empty address holds no address
 	Diagnostic                 // diagnostic address for debugging purposes
-	Temporary                  // temporary results of operations (temporaries are not named and have no offset)
-	Literal                    // literal address holds constant or literal values
-	Variable                   // variable address holds the offset of a variable in the logical memory space
-	Label                      // label address used as target of jumps and calls is resolved by the linker
-	Count                      // count address used for counting purposes like the number of parameters in a function call
+	Temporary                  // temporary address holds a result of an operation
+	Literal                    // literal address holds a constant or literal value
+	Variable                   // variable address holds an argument of an operation
+	Label                      // label address used as target for jumps and calls is resolved by the linker
+	Count                      // count address is used for counting purposes like the number of parameters in a function call
 	Code                       // code address holds a call code for the external standard library (e.g. readln, writeln)
 )
 
@@ -141,7 +141,6 @@ type (
 		Name     string   `json:"name"`      // name or value of an address (a value needs to be converted to a string)
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
 		DataType DataType `json:"data_type"` // data type of the address
-		Offset   int64    `json:"offset"`    // offset of an address in the logical memory space
 	}
 
 	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
@@ -165,7 +164,6 @@ type (
 		Name       string        // flattened name in the intermediate code
 		Kind       Entry         // kind of symbol entry
 		DataType   DataType      // datatype of the symbol
-		Offset     int64         // offset in the logical memory space
 		Definition *list.Element // instruction where the symbol is defined
 	}
 
@@ -202,8 +200,8 @@ func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ..
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(name any, variant Variant, dataType DataType, offset int64) *Address {
-	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType, Offset: offset}
+func NewAddress(name any, variant Variant, dataType DataType) *Address {
+	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType}
 }
 
 // Create new symbol for the intermediate code.
@@ -234,12 +232,10 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Offset, a.Name)
+	representation := fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
 
 	if a.Variant == Empty {
 		representation = ""
-	} else if a.Offset == 0 {
-		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
 	}
 
 	if len(representation) > 22 {
@@ -280,59 +276,4 @@ func (i *Instruction) String() string {
 // Supported data types for constants, literals, variables, and temporaries.
 func (dataType DataType) IsSupported() bool {
 	return dataType >= Integer64 && dataType <= Boolean8
-}
-
-// Determine the bit size of a data type or return 0 if there is no defined bit size.
-func (dataType DataType) BitSize() int {
-	switch dataType {
-	case UnsignedInteger64, Integer64, Float64:
-		return 64
-
-	case Integer32, Float32, Rune32:
-		return 32
-
-	case Integer16:
-		return 16
-
-	case Integer8, Boolean8:
-		return 8
-
-	default:
-		return 0
-	}
-}
-
-// Depending on the data type, calculate the alignment of a positive or negativ offset in the logical memory space.
-func (dataType DataType) Alignment(offset int64) int64 {
-	switch dataType {
-	case Integer64, Float64:
-		return Align(offset, 8)
-
-	case Integer32, Float32, Rune32:
-		return Align(offset, 4)
-
-	case Integer16:
-		return Align(offset, 2)
-
-	case Integer8, Boolean8:
-		return Align(offset, 1)
-
-	default:
-		return 0
-	}
-}
-
-// Round up or down an offset to its next alignment boundary. If something is wrong with the offset or alignment, return 0.
-func Align(offset, alignment int64) int64 {
-	// validate and make sure the alignment is a power of 2
-	if offset == 0 || alignment <= 0 || alignment&(alignment-1) != 0 {
-		return 0
-	}
-
-	// calculate the alignment of the offset depending on its sign (round up or down)
-	if offset > 0 {
-		return (offset + alignment - 1) & ^(alignment - 1)
-	} else {
-		return -(((-offset) + alignment - 1) & ^(alignment - 1))
-	}
 }

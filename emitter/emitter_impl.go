@@ -16,12 +16,27 @@ type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     ac.AssemblyCodeUnit     // assembly code unit for the CPU target
 	cpu              CentralProcessingUnit   // target CPU for the emitter
+	offsetTable      map[string]int64        // offset of local variables in their activation record
 }
 
-// Map CPU targets to their string representation.
-var cpuNames = map[CentralProcessingUnit]string{
-	Amd64: "amd64",
-}
+var (
+	// Map CPU targets to their string representation.
+	cpuNames = map[CentralProcessingUnit]string{
+		Amd64: "amd64",
+	}
+
+	// Map intermediate code datatypes to assembly code bit sizes.
+	dataTypeToBits = map[ic.DataType]ac.OperandSize{
+		ic.Integer64: ac.Bits64,
+		ic.Integer32: ac.Bits32,
+		ic.Integer16: ac.Bits16,
+		ic.Integer8:  ac.Bits8,
+		ic.Float64:   ac.Bits64,
+		ic.Float32:   ac.Bits32,
+		ic.Rune32:    ac.Bits32,
+		ic.Boolean8:  ac.Bits8,
+	}
+)
 
 // Return the interface of the emitter implementation.
 func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
@@ -54,13 +69,28 @@ func (e *emitter) Emit() {
 
 		case ic.Allocate: // allocate space in an activation record for all local variables
 			// group consecutive intermediate code allocate operations into one space allocation instruction
-			for j := 0; ; j++ {
-				if iterator.Peek(j).ThreeAddressCode.Operation != ic.Allocate {
+			for j, offset := 0, int64(0); iterator.Peek(j) != nil; j++ {
+				if iterator.Peek(j).ThreeAddressCode.Operation == ic.Allocate {
+					// local variable to allocate space for
+					result := iterator.Peek(j).ThreeAddressCode.Result
+
+					// calculate memory size and allignment of the local variable
+					byteSize := int64(dataTypeToBits[result.DataType]) / 8
+					offset = dataTypeToBits[result.DataType].Alignment(offset - byteSize)
+
+					// remember offset of the local variable in its activation record
+					e.offsetTable[result.Name] = offset
+				}
+
+				// break if all local variables int the activiation record have been allocated
+				if iterator.Peek(j+1) != nil && iterator.Peek(j+1).ThreeAddressCode.Operation != ic.Allocate {
+					// grow the runtime control stack downwards to provide space for all local variables int the activiation record
 					e.assemblyCode.AppendInstruction(ac.Sub, l,
 						ac.NewRegisterOperand(ac.Rsp),
-						ac.NewImmediateOperand(ac.Bits64, -iterator.Peek(j-1).ThreeAddressCode.Result.Offset))
+						ac.NewImmediateOperand(ac.Bits64, offset))
 
-					iterator.Skip(j)
+					// set next intermediate code instruction and break
+					iterator.Skip(j + 1)
 					break
 				}
 			}
@@ -90,8 +120,11 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, value))
 
 		case ic.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
-			// panic if parsing of the variable into its offset fails (unsupported data type)
-			offset := i.ThreeAddressCode.Arg1.Parse().(int64)
+			// panic if parsing of the variable into nil fails (unsupported data type)
+			i.ThreeAddressCode.Arg1.Parse()
+
+			// determinde offset of the local variable in its activation record
+			offset := e.offsetTable[i.ThreeAddressCode.Arg1.Name]
 
 			if i.DepthDifference == 0 {
 				// push memory content at 'variables base - variable offset' onto runtime control stack
@@ -110,8 +143,11 @@ func (e *emitter) Emit() {
 			}
 
 		case ic.VariableStore: // store the top of the runtime control stack into a variable's stack address
-			// panic if parsing of the variable into its offset fails (unsupported data type)
-			offset := i.ThreeAddressCode.Result.Parse().(int64)
+			// panic if parsing of the variable into nil fails (unsupported data type)
+			i.ThreeAddressCode.Arg1.Parse()
+
+			// determinde offset of the local variable in its activation record
+			offset := e.offsetTable[i.ThreeAddressCode.Arg1.Name]
 
 			if i.DepthDifference == 0 {
 				// pop content of the variable
