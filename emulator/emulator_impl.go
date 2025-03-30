@@ -548,11 +548,17 @@ func (m *machine) pop(op *ac.Operand) error {
 
 // Caller function calls callee function.
 func (m *machine) call(op *ac.Operand) error {
-	// push return address (instruction pointer of caller + 1)
-	m.push(ac.NewJumpOperand(m.cpu.registers[ac.Rip]))
+	switch op.Kind {
+	case ac.JumpOperand:
+		// push return address (instruction pointer of caller + 1)
+		m.push(ac.NewJumpOperand(m.cpu.get_ptr(ac.Rip)))
 
-	// jump to function at uint64 address
-	return m.cpu.jmp(op)
+		// jump to function at uint64 address
+		return m.cpu.jmp(op)
+
+	default:
+		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Call, nil)
+	}
 }
 
 // Callee function returns to caller function.
@@ -815,10 +821,17 @@ func (c *cpu) cmp(a, b *ac.Operand) error {
 func (c *cpu) jmp(op *ac.Operand) error {
 	switch op.Kind {
 	case ac.RegisterOperand:
-		c.registers[ac.Rip] = c.registers[op.Register]
+		// jump to the address stored in a general purpose 64-bit register
+		if !op.Register.IsGeneralPurpose64() {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jmp, nil)
+		}
+
+		// set the instruction pointer to the address in the 64-bit register
+		c.set_ptr(ac.Rip, c.get_gp(op.Register).(uint64))
 
 	case ac.JumpOperand:
-		c.registers[ac.Rip] = op.Jump
+		// set the instruction pointer to the address stored in a jump operand
+		c.set_ptr(ac.Rip, op.Jump)
 
 	default:
 		return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Jmp, nil)
