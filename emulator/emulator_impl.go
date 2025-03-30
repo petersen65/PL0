@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"unsafe"
 
 	cor "github.com/petersen65/PL0/v2/core"
@@ -1104,5 +1105,6 @@ func get_mem[T raw](m *machine, a uint64) T {
 
 // Calculate the memory size of any value in bytes.
 func get_mem_sz(v any) uint64 {
-	return uint64(unsafe.Sizeof(v))
+	s := reflect.TypeOf(v).Size()
+	return uint64(s)
 }
