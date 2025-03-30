@@ -222,9 +222,13 @@ func (m *machine) RunProcess() error {
 	m.cpu.set_flg(zero)         // flags is a bit field that contains the status of the CPU and the result of arithmetic operations
 	m.cpu.set_ptr(ac.Rip, zero) // instruction pointer points to the next instruction to be executed
 
-	// initialize activation record descriptor of the main block
-	set_mem(m, memorySize-ac.PointerSize, zero)   // static link (access link for compile-time block nesting hierarchy)
-	set_mem(m, memorySize-2*ac.PointerSize, zero) // return address (to caller)
+	// initialize activation record descriptor of the main block that contains the following pointers 1-3:
+	// 1. access link for compile-time block nesting hierarchy (static link)
+	// 2. return address to caller (instruction pointer of caller before callee function call)
+	// 3. base pointer of the caller (dynamic link)
+	// the base pointer of the callee points to the memory address after 3rd element and is used to access local variables
+	set_mem(m, memorySize-ac.PointerSize, zero)
+	set_mem(m, memorySize-2*ac.PointerSize, zero)
 
 	// initialize stack pointer and base pointer registers of the CPU
 	m.cpu.set_ptr(ac.Rsp, memorySize-2*ac.PointerSize) // points to return address before main block's prelude runs
