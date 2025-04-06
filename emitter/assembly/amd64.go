@@ -173,7 +173,7 @@ func (r Register) IsGeneralPurpose8() bool {
 	return r >= Al && r <= R15b
 }
 
-// Check if the register is a general purpose low 8-bit register.
+// Check if the register is a general purpose low 8-bit or 8-bit register.
 func (r Register) IsGeneralPurposeLow8() bool {
 	return r >= Al && r <= Dl || r >= R8b && r <= R15b
 }

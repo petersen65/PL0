@@ -489,7 +489,11 @@ func (m *machine) push(op *ac.Operand) error {
 
 	case ac.ImmediateOperand:
 		// push an immediate value to the top of the stack
-		value = op.Immediate
+		if op.Immediate.Size == ac.Bits8 || op.Immediate.Size == ac.Bits32 {
+			value = op.Immediate.Value
+		} else {
+			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
+		}
 
 	case ac.JumpOperand:
 		// push a jump address to the top of the stack
@@ -505,7 +509,7 @@ func (m *machine) push(op *ac.Operand) error {
 			address = uint64(int64(address) + op.Memory.Displacement)
 
 			// get the value from the memory address
-			value = get_mem_by_op(m, address, op.Memory.Size)
+			value = get_mem_by_operand_sz(m, address, op.Memory.Size)
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Push, nil)
 		}
@@ -518,7 +522,7 @@ func (m *machine) push(op *ac.Operand) error {
 	m.cpu.set_ptr(ac.Rsp, m.cpu.get_ptr(ac.Rsp)-get_mem_sz(value))
 
 	// store the content at the new top of the stack
-	set_mem_by_tp(m, m.cpu.get_ptr(ac.Rsp), value)
+	set_mem_by_type_sz(m, m.cpu.get_ptr(ac.Rsp), value)
 
 	return nil
 }
@@ -533,7 +537,7 @@ func (m *machine) pop(op *ac.Operand) error {
 		}
 
 		// pop the value on the top of the stack into a register
-		value := get_mem_by_op(m, m.cpu.get_ptr(ac.Rsp), registerSize[op.Register])
+		value := get_mem_by_operand_sz(m, m.cpu.get_ptr(ac.Rsp), registerSize[op.Register])
 		m.cpu.set_gp(op.Register, value)
 
 		// increment the stack pointer (stack shrinks upwards)
@@ -599,7 +603,7 @@ func (m *machine) mov(a, b *ac.Operand) error {
 			address = uint64(int64(address) + b.Memory.Displacement)
 
 			// get the value from the memory address and store it in the register
-			value := get_mem_by_op(m, address, b.Memory.Size)
+			value := get_mem_by_operand_sz(m, address, b.Memory.Size)
 			m.cpu.set_gp(a.Register, value)
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
@@ -616,7 +620,7 @@ func (m *machine) mov(a, b *ac.Operand) error {
 
 			// store the value from the register to the memory address
 			value := m.cpu.get_gp(b.Register)
-			set_mem_by_tp(m, address, value)
+			set_mem_by_type_sz(m, address, value)
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
@@ -631,7 +635,7 @@ func (m *machine) mov(a, b *ac.Operand) error {
 			address = uint64(int64(address) + a.Memory.Displacement)
 
 			// store the immediate value to the memory address
-			set_mem_by_tp(m, address, uint64(b.Immediate.Value.(int64)))
+			set_mem_by_type_sz(m, address, uint64(b.Immediate.Value.(int64)))
 		} else {
 			return cor.NewGeneralError(cor.Emulator, failureMap, cor.Error, unsupportedOperand, ac.Mov, nil)
 		}
@@ -981,19 +985,28 @@ func (c *cpu) unset_of() {
 func (c *cpu) set_gp(r ac.Register, v any) {
 	switch {
 	case r.IsGeneralPurpose64():
+		// set the value of a 64-bit general purpose register
 		c.registers[r] = v.(uint64)
 
 	case r.IsGeneralPurpose32():
-		c.registers[to_64(r)] = uint64(v.(uint32))
+		// set the value of a 32-bit general purpose register
+		// override the upper 32 bits of the corresponding 64-bit register with zeros
+		c.registers[map_to_64(r)] = uint64(v.(uint32))
 
 	case r.IsGeneralPurpose16():
-		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffff0000 | uint64(v.(uint16))
+		// set the value of a 16-bit general purpose register
+		// keep the upper 48 bits of the corresponding 64-bit register unchanged
+		c.registers[map_to_64(r)] = c.registers[map_to_64(r)]&0xffffffffffff0000 | uint64(v.(uint16))
 
 	case r.IsGeneralPurposeLow8():
-		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffffff00 | uint64(v.(uint8))
+		// set the value of a low 8-bit and 8-bit general purpose register (bits 0-7)
+		// keep the upper 56 bits of the corresponding 64-bit register unchanged
+		c.registers[map_to_64(r)] = c.registers[map_to_64(r)]&0xffffffffffffff00 | uint64(v.(uint8))
 
 	case r.IsGeneralPurposeHigh8():
-		c.registers[to_64(r)] = c.registers[to_64(r)]&0xffffffffffff00ff | uint64(v.(uint8))<<8
+		// set the value of a high 8-bit general purpose register (bits 8-15)
+		// keep the upper 48 bits and the lower 8 bits of the corresponding 64-bit register unchanged
+		c.registers[map_to_64(r)] = c.registers[map_to_64(r)]&0xffffffffffff00ff | uint64(v.(uint8))<<8
 
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
@@ -1004,19 +1017,24 @@ func (c *cpu) set_gp(r ac.Register, v any) {
 func (c *cpu) get_gp(r ac.Register) any {
 	switch {
 	case r.IsGeneralPurpose64():
+		// get the value of a 64-bit general purpose register
 		return c.registers[r]
 
 	case r.IsGeneralPurpose32():
-		return uint32(c.registers[to_64(r)])
+		// get the value of a 32-bit general purpose register by cutting the upper 32 bits of the corresponding 64-bit register
+		return uint32(c.registers[map_to_64(r)])
 
 	case r.IsGeneralPurpose16():
-		return uint16(c.registers[to_64(r)])
+		// get the value of a 16-bit general purpose register by cutting the upper 48 bits of the corresponding 64-bit register
+		return uint16(c.registers[map_to_64(r)])
 
 	case r.IsGeneralPurposeLow8():
-		return uint8(c.registers[to_64(r)])
+		// get the value of a low 8-bit and 8-bit general purpose register by cutting the upper 56 bits of the corresponding 64-bit register
+		return uint8(c.registers[map_to_64(r)])
 
 	case r.IsGeneralPurposeHigh8():
-		return uint8(c.registers[to_64(r)] >> 8)
+		// get the value of a high 8-bit general purpose register by cutting the upper 48 bits and the lower 8 bits of the corresponding 64-bit register
+		return uint8(c.registers[map_to_64(r)] >> 8)
 
 	default:
 		panic(cor.NewGeneralError(cor.Emulator, failureMap, cor.Fatal, unknownGeneralPurposeRegister, r, nil))
@@ -1052,22 +1070,24 @@ func (c *cpu) get_ptr(r ac.Register) uint64 {
 }
 
 // Map any register to its corresponding 64-bit register.
-func to_64(r ac.Register) ac.Register {
-	if r.IsGeneralPurpose32() {
+func map_to_64(r ac.Register) ac.Register {
+	switch {
+	case r.IsGeneralPurpose32():
 		return generalPurpose32to64[r]
-	}
-	if r.IsGeneralPurpose16() {
-		return generalPurpose16to64[r]
-	}
-	if r.IsGeneralPurpose8() {
-		return generalPurpose8to64[r]
-	}
 
-	return r
+	case r.IsGeneralPurpose16():
+		return generalPurpose16to64[r]
+
+	case r.IsGeneralPurpose8():
+		return generalPurpose8to64[r]
+
+	default:
+		return r
+	}
 }
 
 // Set a value in the memory space by type bit size.
-func set_mem_by_tp(m *machine, a uint64, v any) {
+func set_mem_by_type_sz(m *machine, a uint64, v any) {
 	switch v := v.(type) {
 	case uint64:
 		set_mem(m, a, v)
@@ -1087,7 +1107,7 @@ func set_mem_by_tp(m *machine, a uint64, v any) {
 }
 
 // Get a value from the memory space by operand bit size.
-func get_mem_by_op(m *machine, a uint64, o ac.OperandSize) any {
+func get_mem_by_operand_sz(m *machine, a uint64, o ac.OperandSize) any {
 	switch o {
 	case ac.Bits64:
 		return get_mem[uint64](m, a)
