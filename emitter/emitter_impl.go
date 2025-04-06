@@ -27,16 +27,16 @@ var (
 
 	// Map intermediate code datatypes to assembly code bit sizes.
 	dataTypeToBits = map[ic.DataType]ac.OperandSize{
-		ic.Unsigned64: ac.Bits64,
-		ic.Unsigned32: ac.Bits32,
-		ic.Unsigned16: ac.Bits16,
-		ic.Unsigned8:  ac.Bits8,
 		ic.Integer64:  ac.Bits64,
 		ic.Integer32:  ac.Bits32,
 		ic.Integer16:  ac.Bits16,
 		ic.Integer8:   ac.Bits8,
 		ic.Float64:    ac.Bits64,
 		ic.Float32:    ac.Bits32,
+		ic.Unsigned64: ac.Bits64,
+		ic.Unsigned32: ac.Bits32,
+		ic.Unsigned16: ac.Bits16,
+		ic.Unsigned8:  ac.Bits8,
 		ic.Rune32:     ac.Bits32,
 		ic.Boolean8:   ac.Bits8,
 	}
