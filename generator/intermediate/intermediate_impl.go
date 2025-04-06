@@ -53,17 +53,17 @@ var (
 
 	// dataTypeNames maps an address datatype to its string representation.
 	dataTypeNames = map[DataType]string{
-		Void:              "void",
-		String:            "string",
-		UnsignedInteger64: "uint64",
-		Integer64:         "int64",
-		Integer32:         "int32",
-		Integer16:         "int16",
-		Integer8:          "int8",
-		Float64:           "float64",
-		Float32:           "float32",
-		Rune32:            "rune32",
-		Boolean8:          "bool8",
+		Void:       "void",
+		String:     "string",
+		Unsigned64: "uint64",
+		Integer64:  "int64",
+		Integer32:  "int32",
+		Integer16:  "int16",
+		Integer8:   "int8",
+		Float64:    "float64",
+		Float32:    "float32",
+		Rune32:     "rune32",
+		Boolean8:   "bool8",
 	}
 
 	// Map three-address code operations of the intermediate code to their string representation.
@@ -315,6 +315,21 @@ func (a *Address) Parse() any {
 				}
 			}
 
+		case Unsigned64, Unsigned32, Unsigned16, Unsigned8:
+			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				if a.DataType == Unsigned32 {
+					return uint32(decoded)
+				} else if a.DataType == Unsigned16 {
+					return uint16(decoded)
+				} else if a.DataType == Unsigned8 {
+					return uint8(decoded)
+				} else {
+					return decoded
+				}
+			}
+
 		case Rune32:
 			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
@@ -335,7 +350,7 @@ func (a *Address) Parse() any {
 
 	case Variable, Temporary:
 		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Rune32, Boolean8:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Rune32, Boolean8:
 			return nil
 
 		default:
@@ -353,7 +368,7 @@ func (a *Address) Parse() any {
 
 	case Count:
 		switch a.DataType {
-		case UnsignedInteger64:
+		case Unsigned64:
 			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
@@ -483,16 +498,16 @@ func (i *iterator) Peek(offset int) *Instruction {
 // Determine the bit size of a data type or return 0 if there is no defined bit size.
 func (dataType DataType) bitSize() int {
 	switch dataType {
-	case UnsignedInteger64, Integer64, Float64:
+	case Integer64, Float64, Unsigned64:
 		return 64
 
-	case Integer32, Float32, Rune32:
+	case Integer32, Float32, Unsigned32, Rune32:
 		return 32
 
-	case Integer16:
+	case Integer16, Unsigned16:
 		return 16
 
-	case Integer8, Boolean8:
+	case Integer8, Unsigned8, Boolean8:
 		return 8
 
 	default:

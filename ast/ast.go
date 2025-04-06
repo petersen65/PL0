@@ -82,6 +82,10 @@ const (
 	Integer8
 	Float64
 	Float32
+	Unsigned64
+	Unsigned32
+	Unsigned16
+	Unsigned8
 	Rune32
 	Boolean8
 )
@@ -371,14 +375,18 @@ type (
 var (
 	// DataTypeNames maps a data type to its string representation.
 	DataTypeNames = map[DataType]string{
-		Integer64: "int64",
-		Integer32: "int32",
-		Integer16: "int16",
-		Integer8:  "int8",
-		Float64:   "float64",
-		Float32:   "float32",
-		Rune32:    "rune32",
-		Boolean8:  "bool8",
+		Integer64:  "int64",
+		Integer32:  "int32",
+		Integer16:  "int16",
+		Integer8:   "int8",
+		Float64:    "float64",
+		Float32:    "float32",
+		Unsigned64: "uint64",
+		Unsigned32: "uint32",
+		Unsigned16: "uint16",
+		Unsigned8:  "uint8",
+		Rune32:     "rune32",
+		Boolean8:   "bool8",
 	}
 
 	// NodeTypeNames maps node types to their string representation.

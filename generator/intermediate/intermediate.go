@@ -76,19 +76,22 @@ const (
 
 // Data types supported for an address of the three-address code concept.
 const (
-	Void              = DataType(iota) // an address that does not have a data type
-	String                             // the string data type is used for labels in label addresses
-	UnsignedInteger64                  // the unsigned integer data type is used for counting purposes or call codes
+	Void   = DataType(iota) // an address that does not have a data type
+	String                  // the string data type is used for labels in label addresses
 
 	// data types supported for constants, literals, variables, and temporaries (postfix specifies the bit size)
-	Integer64
-	Integer32
-	Integer16
-	Integer8
-	Float64
-	Float32
-	Rune32
-	Boolean8
+	Integer64  // signed 64-bit integer
+	Integer32  // signed 32-bit integer
+	Integer16  // signed 16-bit integer
+	Integer8   // signed 8-bit integer
+	Float64    // signed 64-bit floating point number
+	Float32    // signed 32-bit floating point number
+	Unsigned64 // unsigned 64-bit integer
+	Unsigned32 // unsigned 32-bit integer
+	Unsigned16 // unsigned 16-bit integer
+	Unsigned8  // unsigned 8-bit integer
+	Rune32     // unsigned 32-bit rune (UTF-8 character)
+	Boolean8   // unsigned 8-bit boolean value (true/false)
 )
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.
@@ -276,4 +279,44 @@ func (i *Instruction) String() string {
 // Supported data types for constants, literals, variables, and temporaries.
 func (dataType DataType) IsSupported() bool {
 	return dataType >= Integer64 && dataType <= Boolean8
+}
+
+// Check whether the datatype has a signed representation.
+func (dataType DataType) IsSigned() bool {
+	return dataType >= Integer64 && dataType <= Float32
+}
+
+// Check whether the datatype has an unsigned representation.
+func (dataType DataType) IsUnsigned() bool {
+	return dataType >= Unsigned64 && dataType <= Boolean8
+}
+
+// Check whether the datatype is a signed integer.
+func (dataType DataType) IsSignedInteger() bool {
+	return dataType >= Integer64 && dataType <= Integer8
+}
+
+// Check whether the datatype is an unsigned integer.
+func (dataType DataType) IsUnsignedInteger() bool {
+	return dataType >= Unsigned64 && dataType <= Unsigned8
+}
+
+// Check whether the datatype is an integer.
+func (dataType DataType) IsInteger() bool {
+	return dataType.IsSignedInteger() || dataType.IsUnsignedInteger()
+}
+
+// Check whether the datatype is a floating point number.
+func (dataType DataType) IsFloatingPoint() bool {
+	return dataType == Float64 || dataType == Float32
+}
+
+// Check whether the datatype is a character.
+func (dataType DataType) IsCharacter() bool {
+	return dataType == Rune32
+}
+
+// Check whether the datatype is a boolean.
+func (dataType DataType) IsBoolean() bool {
+	return dataType == Boolean8
 }

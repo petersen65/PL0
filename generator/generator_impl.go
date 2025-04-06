@@ -34,14 +34,18 @@ type (
 var (
 	// Map abstract syntax datatypes to intermediate code datatypes (they have separate type systems).
 	dataTypeMap = map[ast.DataType]ic.DataType{
-		ast.Integer64: ic.Integer64,
-		ast.Integer32: ic.Integer32,
-		ast.Integer16: ic.Integer16,
-		ast.Integer8:  ic.Integer8,
-		ast.Float64:   ic.Float64,
-		ast.Float32:   ic.Float32,
-		ast.Rune32:    ic.Rune32,
-		ast.Boolean8:  ic.Boolean8,
+		ast.Integer64:  ic.Integer64,
+		ast.Integer32:  ic.Integer32,
+		ast.Integer16:  ic.Integer16,
+		ast.Integer8:   ic.Integer8,
+		ast.Float64:    ic.Float64,
+		ast.Float32:    ic.Float32,
+		ast.Unsigned64: ic.Unsigned64,
+		ast.Unsigned32: ic.Unsigned32,
+		ast.Unsigned16: ic.Unsigned16,
+		ast.Unsigned8:  ic.Unsigned8,
+		ast.Rune32:     ic.Rune32,
+		ast.Boolean8:   ic.Boolean8,
 	}
 
 	// Prefixes used for names of addresses.
@@ -469,8 +473,8 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// call the readln standard function with 1 parameter
 	readln := ic.NewInstruction(
 		ic.Standard, // function call to the external standard library
-		ic.NewAddress(1, ic.Count, ic.UnsignedInteger64), // number of parameters for the standard function
-		ic.NewAddress(ic.ReadLn, ic.Code, ic.Integer64),  // code of standard function to call
+		ic.NewAddress(1, ic.Count, ic.Unsigned64),       // number of parameters for the standard function
+		ic.NewAddress(ic.ReadLn, ic.Code, ic.Integer64), // code of standard function to call
 		noAddress,
 		s.TokenStreamIndex) // read statement in the token stream
 
@@ -510,7 +514,7 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// call the writeln standard function with 1 parameter
 	writeln := ic.NewInstruction(
 		ic.Standard, // function call to the external standard library
-		ic.NewAddress(1, ic.Count, ic.UnsignedInteger64), // number of parameters for the standard function
+		ic.NewAddress(1, ic.Count, ic.Unsigned64),        // number of parameters for the standard function
 		ic.NewAddress(ic.WriteLn, ic.Code, ic.Integer64), // code of standard function to call
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
@@ -538,8 +542,8 @@ func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// call the intermediate code function with 0 parameters
 	call := ic.NewInstruction(
 		ic.Call, // call to an intermediate code function
-		ic.NewAddress(0, ic.Count, ic.UnsignedInteger64), // number of parameters for the function
-		ic.NewAddress(codeName, ic.Label, ic.String),     // label of intermediate code function to call
+		ic.NewAddress(0, ic.Count, ic.Unsigned64),    // number of parameters for the function
+		ic.NewAddress(codeName, ic.Label, ic.String), // label of intermediate code function to call
 		noAddress,
 		callDepth-declarationDepth, // block nesting depth difference between procedure call and procedure declaration
 		s.TokenStreamIndex)         // call statement in the token stream
