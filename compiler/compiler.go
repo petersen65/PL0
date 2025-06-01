@@ -18,7 +18,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
 	ac "github.com/petersen65/PL0/v2/emitter/assembly"
-	emu "github.com/petersen65/PL0/v2/emulator"
 	gen "github.com/petersen65/PL0/v2/generator"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 	par "github.com/petersen65/PL0/v2/parser"
@@ -43,8 +42,6 @@ const (
 	textErrorPersisting    = "Error persisting binary target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textEmulating          = "Emulating binary target '%v'\n"
-	textErrorEmulating     = "Error emulating binary target '%v': %v\n"
 	textDriverSourceTarget = "Compiler Driver with source code '%v' and binary target '%v' completed\n"
 	textDriverTarget       = "Compiler Driver with binary target '%v' completed\n"
 )
@@ -54,7 +51,6 @@ const (
 	Clean DriverOption = 1 << iota
 	Compile
 	Export
-	Emulate
 )
 
 // File extensions for all generated files.
@@ -180,16 +176,6 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// emulate binary target if no errors occurred during compilation
-	if options&Emulate != 0 && !translationUnit.ErrorHandler.HasErrors() {
-		fmt.Fprintf(print, textEmulating, target)
-
-		if err = EmulateTarget(target); err != nil {
-			fmt.Fprintf(print, textErrorEmulating, target, err)
-			return
-		}
-	}
-
 	// print driver completion message
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textDriverSourceTarget, source, target)
@@ -280,8 +266,15 @@ func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) er
 			}
 		}()
 
-		unit.Link()
-		unit.Export(cor.Binary, program)
+		// link the assembly code unit
+		if err = unit.Link(); err != nil {
+			return err
+		}
+
+		// export the assembly code unit to the binary target
+		if err = unit.Export(cor.Binary, program); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -398,25 +391,6 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 		Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, acjErr, ertErr, tstErr, astErr, ictErr, cftErr, actErr)
 
 	return anyError
-}
-
-// Run binary target with the emulator.
-func EmulateTarget(target string) error {
-	if scan, err := os.Open(target); err != nil {
-		return err
-	} else {
-		machine := emu.NewMachine()
-
-		if err := machine.Load(scan); err != nil {
-			return err
-		}
-
-		if err := machine.RunProcess(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Return the full path of the target file with the given base file name and extensions.

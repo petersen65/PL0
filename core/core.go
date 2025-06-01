@@ -68,7 +68,6 @@ const (
 	ControlFlowGraph
 	Emitter
 	Assembly
-	Emulator
 	AllComponents = Component(^uint64(0))
 )
 

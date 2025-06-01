@@ -93,7 +93,6 @@ var (
 		ControlFlowGraph:   "cfg",
 		Emitter:            "emitter",
 		Assembly:           "assembly",
-		Emulator:           "emulator",
 	}
 )
 

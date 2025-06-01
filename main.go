@@ -15,13 +15,12 @@ import (
 // Text messages for the compiler command line interface.
 const (
 	textTitle         = "PL/0 Compiler"
-	textVersion       = "Version 2.3.0 2025"
+	textVersion       = "Version 3.0.0 2025"
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
 	textCompileUsage  = "compile source code file to binary target file"
 	textExportUsage   = "export intermediate representations to target files"
-	textRunUsage      = "run binary target file"
 	textSourceUsage   = "source code file"
 	textTargetUsage   = "binary target file"
 	textHelpUsage     = "print help message"
@@ -33,7 +32,7 @@ var CommitHash string
 // Function main is the entry point for the compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
 	var options com.DriverOption
-	var help, compile, run, export, purge bool
+	var help, compile, export, purge bool
 	var source, target string
 
 	// define valid command line flags
@@ -43,8 +42,6 @@ func main() {
 	flag.BoolVar(&compile, "compile", false, textCompileUsage)
 	flag.BoolVar(&export, "e", false, textExportUsage)
 	flag.BoolVar(&export, "export", false, textExportUsage)
-	flag.BoolVar(&run, "r", false, textRunUsage)
-	flag.BoolVar(&run, "run", false, textRunUsage)
 	flag.StringVar(&source, "s", "", textSourceUsage)
 	flag.StringVar(&source, "source", "", textSourceUsage)
 	flag.StringVar(&target, "t", "", textTargetUsage)
@@ -58,7 +55,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
 		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
 		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
-		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
 		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
 		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
 		fmt.Fprintf(os.Stderr, "  -h | --help:    %v\n", textHelpUsage)
@@ -81,17 +77,8 @@ func main() {
 	if compile {
 		options |= com.Compile
 
+		// compile requires source and target files
 		if source == "" || target == "" {
-			flag.Usage()
-			os.Exit(1)
-		}
-	}
-
-	// run binary target
-	if run {
-		options |= com.Emulate
-
-		if target == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
@@ -112,15 +99,15 @@ func main() {
 	if purge {
 		options |= com.Clean
 
-		// purge and run options without compilation do not make sense
-		if (options&com.Compile == 0 && options&com.Emulate != 0) || target == "" {
+		// purge requires target directory
+		if target == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
 	}
 
-	// check if at least the compile, run, or purge option is set
-	if options&com.Compile == 0 && options&com.Emulate == 0 && options&com.Clean == 0 {
+	// check if at least the compile or purge option is set
+	if options&com.Compile == 0 && options&com.Clean == 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
