@@ -10,10 +10,9 @@ This module provides a complete compiler for the programming language PL/0. It p
 * generator: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
 * emitter: assembly code generation compiler phase by iterating over the intermediate code
-* emulator: execution of assembly code instructions by running a process on a virtual cpu with stack and registers
 * compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into an assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into Intel x86_64 assembly language. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
 
 From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
 
@@ -157,16 +156,13 @@ The programming language PL/0 2025 supports the following features:
 ## Planning
 
 * 2025, enhance programming language and generate assembler
-	* new memory addressing implementation for emulator based on byte boundaries, unsafe pointers and real storage sizes for variables
+	* support for Intel x86_64 assembler generation and removal of integrated emulator (nasm, clib-linkage)
 	* revisit and review current JSON marshalling and text output implementation, add Marshal/Unmarshal functions to interfaces
 	* check if panic calls in the 'code' module should include the tokenstream in its error messages
 	* implemention of control flow graph (CFG) with lifeness and use information for variables
 	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
-	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)
-	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
 	* design or redesign of public APIs for all packages of the compiler (rethink public/private visibility)
 	* unit tests for all public APIs
-	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
 	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
 	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
 	* implement constant folding based on abstract syntax tree

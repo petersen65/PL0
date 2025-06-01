@@ -8,9 +8,9 @@
     "build": {
         "args": {
             "ARCHITECTURE": "linux/amd64",
-            "BASE_IMG": "ubuntu:24.10",
+            "BASE_IMG": "ubuntu:25.04",
             "TARGET_USER": "vscode",
-            "GO_VERSION": "1.24.0"
+            "GO_VERSION": "1.24.3"
         }
     },
     "runArgs": [
@@ -21,11 +21,8 @@
         "vscode": {
             "extensions": [
                 "vscode-icons-team.vscode-icons",
-                "github.vscode-github-actions",
-                "github.codespaces",
                 "github.copilot",
                 "github.copilot-chat",
-                "github.vscode-pull-request-github",
                 "golang.go",
                 "rogalmic.bash-debug",
                 "mads-hartmann.bash-ide-vscode"
