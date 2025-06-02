@@ -16,7 +16,7 @@ import (
 const (
 	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
 	DescriptorSize        = 3 * PointerSize         // size of an activation record descriptor in bytes
-	DefaultStartLabel     = "_start"                // label for the entry point of the program if none is provided
+	EntryPointLabel       = "main"                  // label for the entry point of the program
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
 )

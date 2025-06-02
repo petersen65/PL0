@@ -36,14 +36,14 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling source code '%v' to binary target '%v'\n"
+	textCompiling          = "Compiling source code '%v' to assembly target '%v'\n"
 	textErrorCompiling     = "Error compiling source code '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting binary target '%v': %v"
+	textErrorPersisting    = "Error persisting assembly target '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with source code '%v' and binary target '%v' completed\n"
-	textDriverTarget       = "Compiler Driver with binary target '%v' completed\n"
+	textDriverSourceTarget = "Compiler Driver with source code '%v' and assembly target '%v' completed\n"
+	textDriverTarget       = "Compiler Driver with assembly target '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -62,9 +62,9 @@ const (
 	Generator
 	Control
 	Emitter
+	Assembly
 	Json
 	Text
-	Binary
 	Ensure
 )
 
@@ -97,7 +97,7 @@ var ExtensionMap = map[Extension]string{
 	Emitter:   ".acu",
 	Json:      ".json",
 	Text:      ".txt",
-	Binary:    ".bin",
+	Assembly:    ".s",
 	Ensure:    ".ensure",
 }
 
@@ -114,7 +114,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// cleaned and validated target path
-	target = GetFullPath(targetDirectory, baseFileName, Binary)
+	target = GetFullPath(targetDirectory, baseFileName, Assembly)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -130,7 +130,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 			}
 
 			// cleaned and validated target path after cleaning
-			target = GetFullPath(targetDirectory, baseFileName, Binary)
+			target = GetFullPath(targetDirectory, baseFileName, Assembly)
 		}
 	}
 
@@ -168,7 +168,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// link and persist assembly code unit as binary target and print persistence error message if an error occurred
+	// link and persist assembly code unit as assembly target and print persistence error message if an error occurred
 	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, target, err)
@@ -249,7 +249,7 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist an assembly code unit to the given binary target.
+// Persist an assembly code unit to the given assembly target.
 func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) error {
 	var err error
 	var program *os.File
@@ -266,13 +266,8 @@ func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) er
 			}
 		}()
 
-		// link the assembly code unit
-		if err = unit.Link(); err != nil {
-			return err
-		}
-
-		// export the assembly code unit to the binary target
-		if err = unit.Export(cor.Binary, program); err != nil {
+		// export the assembly code unit to the assembly target
+		if err = unit.Export(cor.Text, program); err != nil {
 			return err
 		}
 	}

@@ -19,10 +19,10 @@ const (
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
-	textCompileUsage  = "compile source code file to binary target file"
+	textCompileUsage  = "compile source code file to assembly target file"
 	textExportUsage   = "export intermediate representations to target files"
 	textSourceUsage   = "source code file"
-	textTargetUsage   = "binary target file"
+	textTargetUsage   = "assembly target file"
 	textHelpUsage     = "print help message"
 )
 
@@ -73,7 +73,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// compile source code to binary target
+	// compile source code to assembly target
 	if compile {
 		options |= com.Compile
 
