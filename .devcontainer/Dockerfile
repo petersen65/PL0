@@ -35,8 +35,9 @@ RUN apt-get install --yes \
 
 # Tools for building software with Go
 ARG GO_VERSION
-RUN curl -fsSL -o "/tmp/go${GO_VERSION}.linux-amd64.tar.gz" "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
-    && tar -C /usr/local -xzf "/tmp/go${GO_VERSION}.linux-amd64.tar.gz"
+ARG GO_ARCHITECTURE
+RUN curl -fsSL -o "/tmp/go${GO_VERSION}.${GO_ARCHITECTURE}.tar.gz" "https://golang.org/dl/go${GO_VERSION}.${GO_ARCHITECTURE}.tar.gz" \
+    && tar -C /usr/local -xzf "/tmp/go${GO_VERSION}.${GO_ARCHITECTURE}.tar.gz"
 
 # Install a specific version of LLVM and Clang
 ARG LLVM_VERSION

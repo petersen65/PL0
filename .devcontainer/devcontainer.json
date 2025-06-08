@@ -11,6 +11,7 @@
             "BASE_IMG": "ubuntu:25.04",
             "TARGET_USER": "vscode",
             "GO_VERSION": "1.24.4",
+            "GO_ARCHITECTURE": "linux-amd64",
             "GCC_VERSION": "15",
             "LLVM_VERSION": "21"
         }
