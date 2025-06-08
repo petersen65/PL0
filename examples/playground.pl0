@@ -1,4 +1,27 @@
 { provide playground for trying out PL/0 }
 
+const a = 99;
+var x, y, z;
+
 begin
+    x := 4;
+    y := 5;
+    z := -x - y;
+
+    ! x;
+    ! y;
+    ! z;
+    ! a;
+
+    if odd z then
+        ! 42;
+
+    {
+        Correct output is:
+            4
+            5
+            -9
+            99
+            42
+    }
 end.
