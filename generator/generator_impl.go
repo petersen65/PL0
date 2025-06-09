@@ -94,17 +94,17 @@ func (i *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 
 // Generate code for a block, all nested procedure blocks, and its statement.
 func (i *generator) VisitBlock(bn *ast.BlockNode) {
-	// only main block has no parent procedure declaration
+	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
 		blockBegin := bn.Scope.NewIdentifier(prefix[ic.FunctionPrefix])
 
 		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(
 			ic.Target, // target for any branching operation
-			ic.NewAddress(entryPointDisplayName, ic.Diagnostic, ic.Void), // for diagnostic purposes only
+			ic.NewAddress(entryPointDisplayName, ic.Metadata, ic.String), // branch-label with abstract syntax name
 			noAddress,
 			noAddress,
-			blockBegin) // branch-label as target for any branching operation
+			blockBegin) // branch-label with flat unique name as target for any branching operation
 
 		i.intermediateCode.AppendInstruction(instruction)
 	} else {
@@ -114,10 +114,10 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(
 			ic.Target, // target for any branching operation
-			ic.NewAddress(astSymbol.Name, ic.Diagnostic, ic.Void), // for diagnostic purposes only
+			ic.NewAddress(astSymbol.Name, ic.Metadata, ic.String), // branch-label with abstract syntax name
 			noAddress,
 			noAddress,
-			blockBegin) // branch-label as target for any branching operation
+			blockBegin) // branch-label with flat unique name as target for any branching operation
 
 		element := i.intermediateCode.AppendInstruction((instruction))
 
@@ -142,8 +142,20 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// create epilog for the block
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Epilog, noAddress, noAddress, noAddress))
 
-	// return from the block and mark the end of the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Return, noAddress, noAddress, noAddress))
+	// only the main block has no parent procedure declaration
+	if bn.ParentNode == nil {
+		// return from the main block with a final result
+		instruction := ic.NewInstruction(
+			ic.Return,
+			ic.NewAddress(int32(0), ic.Literal, ic.Integer32), // final result of the main block
+			noAddress,
+			noAddress)
+
+		i.intermediateCode.AppendInstruction(instruction)
+	} else {
+		// return from other blocks with no result
+		i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Return, noAddress, noAddress, noAddress))
+	}
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
@@ -169,7 +181,7 @@ func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	// allocate memory for the variable in its logical memory space
 	instruction := ic.NewInstruction(
 		ic.Allocate, // allocate memory for the variable
-		ic.NewAddress(vd.Name, ic.Diagnostic, codeSymbol.DataType), // variable with abstract syntax name
+		ic.NewAddress(vd.Name, ic.Metadata, codeSymbol.DataType), // variable with abstract syntax name
 		noAddress,
 		ic.NewAddress(codeSymbol.Name, ic.Variable, codeSymbol.DataType), // variable with flat unique name
 		vd.TokenStreamIndex) // variable declaration in the token stream

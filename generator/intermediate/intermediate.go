@@ -64,14 +64,14 @@ const (
 
 // Variants of an address in the three-address code concept.
 const (
-	Empty      = Variant(iota) // empty address holds no address
-	Diagnostic                 // diagnostic address for debugging purposes
-	Temporary                  // temporary address holds a result of an operation
-	Literal                    // literal address holds a constant or literal value
-	Variable                   // variable address holds an argument of an operation
-	Label                      // label address used as target for jumps and calls is resolved by the linker
-	Count                      // count address is used for counting purposes like the number of parameters in a function call
-	Code                       // code address holds a call code for the external standard library (e.g. readln, writeln)
+	Empty     = Variant(iota) // empty address holds no address
+	Metadata                  // metadata address used to store any additional information about an operation
+	Temporary                 // temporary address holds a result of an operation
+	Literal                   // literal address holds a constant or literal value
+	Variable                  // variable address holds an argument of an operation
+	Label                     // label address used as target for jumps and calls is resolved by the linker
+	Count                     // count address is used for counting purposes like the number of parameters in a function call
+	Code                      // code address holds a call code for the external standard library (e.g. readln, writeln)
 )
 
 // Data types supported for an address of the three-address code concept.
@@ -152,6 +152,13 @@ type (
 		Arg1      *Address  `json:"arg_1"`     // first address (argument 1)
 		Arg2      *Address  `json:"arg_2"`     // second address (argument 2)
 		Result    *Address  `json:"result"`    // third address (result)
+	}
+
+	// A contract for addresses describes a valid set of address variants for a three-address code operation.
+	AddressesContract struct {
+		Arg1   Variant // first address variant
+		Arg2   Variant // second address variant
+		Result Variant // third address variant
 	}
 
 	// Instruction represents a single three-address code operation with its required metadata (e.g. label, block nesting depth difference).

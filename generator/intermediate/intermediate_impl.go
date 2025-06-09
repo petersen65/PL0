@@ -29,26 +29,19 @@ type (
 		current      *list.Element
 		instructions *list.List
 	}
-
-	// A contract for addresses describes a valid set of address variants for a three-address code operation.
-	addressesContract struct {
-		Arg1   Variant // first address variant
-		Arg2   Variant // second address variant
-		Result Variant // third address variant
-	}
 )
 
 var (
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
-		Empty:      "ety",
-		Diagnostic: "dbg",
-		Temporary:  "tmp",
-		Literal:    "lit",
-		Variable:   "var",
-		Label:      "lbl",
-		Count:      "cnt",
-		Code:       "cod",
+		Empty:     "ety",
+		Metadata:  "mtd",
+		Temporary: "tmp",
+		Literal:   "lit",
+		Variable:  "var",
+		Label:     "lbl",
+		Count:     "cnt",
+		Code:      "cod",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -101,7 +94,7 @@ var (
 	}
 
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
-	intermediateCodeContract = map[Operation][]addressesContract{
+	intermediateCodeContract = map[Operation][]AddressesContract{
 		Odd:              {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
 		Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
 		Plus:             {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
@@ -125,10 +118,10 @@ var (
 		Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
 		Prelude:          {{Arg1: Empty, Arg2: Empty, Result: Empty}},
 		Epilog:           {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Empty}},
 		Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
-		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Diagnostic, Arg2: Empty, Result: Empty}},
-		Allocate:         {{Arg1: Diagnostic, Arg2: Empty, Result: Variable}},
+		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Metadata, Arg2: Empty, Result: Empty}},
+		Allocate:         {{Arg1: Metadata, Arg2: Empty, Result: Variable}},
 		ValueCopy:        {{Arg1: Literal, Arg2: Empty, Result: Temporary}},
 		VariableLoad:     {{Arg1: Variable, Arg2: Empty, Result: Temporary}},
 		VariableStore:    {{Arg1: Temporary, Arg2: Empty, Result: Variable}},
@@ -287,6 +280,18 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 // Parse a three-address code address into a value based on its variant and datatype.
 func (a *Address) Parse() any {
 	switch a.Variant {
+	case Empty:
+		switch a.DataType {
+		case Void:
+			return nil
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Metadata:
+		return a.Name
+
 	case Literal:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8:
@@ -397,13 +402,13 @@ func (a *Address) Parse() any {
 	}
 }
 
-// Validate the set of address variants for a three-address code operation.
-func (q *Quadruple) ValidateAddressesContract() {
+// Validate the set of address variants for a three-address code operation and return the index of the contract.
+func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	contract := intermediateCodeContract[q.Operation]
 
 	for _, addresses := range contract {
 		if addresses.Arg1 == q.Arg1.Variant && addresses.Arg2 == q.Arg2.Variant && addresses.Result == q.Result.Variant {
-			return
+			return addresses
 		}
 	}
 

@@ -66,7 +66,7 @@ func (e *emitter) Emit() {
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		// panic if the intermediate code instruction has not a valid addresses contract
-		i.ThreeAddressCode.ValidateAddressesContract()
+		c := i.ThreeAddressCode.ValidateAddressesContract()
 
 		switch i.ThreeAddressCode.Operation {
 		case ic.Target: // append labels for the directly following non 'Target' instruction
@@ -290,6 +290,15 @@ func (e *emitter) Emit() {
 			}
 
 		case ic.Return: // return from a function to its caller
+			// check if the function has a literal return value
+			if c.Arg1 == ic.Literal {
+				// panic if parsing of the literal into its value fails (unsupported value or data type)
+				value := i.ThreeAddressCode.Arg1.Parse().(int32)
+
+				// move the literal return value into the EAX register as the return value of the function (what the C runtime expects)
+				e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Eax), ac.NewImmediateOperand(ac.Bits32, value))
+			}
+
 			e.assemblyCode.AppendInstruction(ac.Ret, nil)
 
 		case ic.Standard:
