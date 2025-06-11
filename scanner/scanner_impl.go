@@ -18,7 +18,7 @@ const endOfFileCharacter = 0
 type scanner struct {
 	sourceIndex   int    // index of the current character in the source code byte slice
 	sourceCode    []byte // source code to scan
-	line, column  int32  // current line and column where the scanner is positioned
+	line, column  int    // current line and column where the scanner is positioned
 	lastCharacter rune   // last UTF-8 character that was read
 	lastValue     string // last identifier or number value that was read
 	currentLine   []byte // current line of source code that is being scanned

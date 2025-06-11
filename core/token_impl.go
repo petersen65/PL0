@@ -84,7 +84,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 	// calculate the start index of the token stream depending on the bottom flag
 	var bottom bool
 	var start int
-	var previousLine int32
+	var previousLine int
 
 	// check if the bottom flag is set
 	if len(args) == 1 {

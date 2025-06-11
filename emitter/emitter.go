@@ -14,7 +14,7 @@ const Amd64 = CentralProcessingUnit(iota)
 
 type (
 	// Type for CPU targets.
-	CentralProcessingUnit int32
+	CentralProcessingUnit int
 
 	// The Emitter interface provides methods for emitting assembly code for CPU targets.
 	Emitter interface {

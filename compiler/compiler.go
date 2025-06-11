@@ -69,7 +69,7 @@ const (
 )
 
 type (
-	// Driver options for the compilation process.
+	// Driver options for the compilation process (bit-mask).
 	DriverOption uint64
 
 	// File extensions for files used during compilation.

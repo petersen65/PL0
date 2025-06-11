@@ -218,8 +218,8 @@ func (r Register) IsInstructionPointer() bool {
 	return r == Rip
 }
 
-// Depending on the bit size of the operand, calculate the alignment of a positive or negativ offset. 
-func (size OperandSize) Alignment(offset int64) int64 {
+// Depending on the bit size of the operand, calculate the alignment of a positive or negativ offset (offset has a +/- 2GB limit).
+func (size OperandSize) Alignment(offset int32) int32 {
 	switch size {
 	case Bits64:
 		return Align(offset, 8)
@@ -238,8 +238,8 @@ func (size OperandSize) Alignment(offset int64) int64 {
 	}
 }
 
-// Round up or down an offset to its next alignment boundary. If something is wrong with the offset or alignment, return 0.
-func Align(offset, alignment int64) int64 {
+// Round up or down an offset to its next alignment boundary. If something is wrong with the offset or alignment, return 0 (offset has a +/- 2GB limit).
+func Align(offset, alignment int32) int32 {
 	// validate and make sure the alignment is a power of 2
 	if offset == 0 || alignment <= 0 || alignment&(alignment-1) != 0 {
 		return 0

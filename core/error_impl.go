@@ -40,8 +40,8 @@ type (
 		Code      Failure   `json:"code"`      // failure code of the error
 		Component Component `json:"component"` // component that generated the error
 		Severity  Severity  `json:"severity"`  // severity of the error
-		Line      int32     `json:"line"`      // line where the error occurred
-		Column    int32     `json:"column"`    // column where the error occurred
+		Line      int       `json:"line"`      // line where the error occurred
+		Column    int       `json:"column"`    // column where the error occurred
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
@@ -50,8 +50,8 @@ type (
 		Code       Failure   `json:"code"`      // failure code of the error
 		Component  Component `json:"component"` // component that generated the error
 		Severity   Severity  `json:"severity"`  // severity of the error
-		Line       int32     `json:"line"`      // line where the error occurred
-		Column     int32     `json:"column"`    // column where the error occurred
+		Line       int       `json:"line"`      // line where the error occurred
+		Column     int       `json:"column"`    // column where the error occurred
 		SourceCode []byte    `json:"-"`         // source code where the error occurred
 	}
 
@@ -121,13 +121,13 @@ func newGeneralError(component Component, failureMap map[Failure]string, severit
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
+func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
 	err := newGoError(failureMap, code, value)
 	return &lineColumnError{Err: err, Code: code, Component: component, Severity: severity, Line: line, Column: column}
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
+func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
 	err := newGoError(failureMap, code, value)
 	return &sourceError{Err: err, Code: code, Component: component, Severity: severity, Line: line, Column: column, SourceCode: sourceCode}
 }

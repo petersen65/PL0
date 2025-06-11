@@ -96,7 +96,7 @@ type (
 	}
 
 	// Token is a type that represents a token in the source code.
-	Token int32
+	Token int
 
 	// Tokens represents a set of tokens.
 	Tokens []Token
@@ -114,8 +114,8 @@ type (
 		Token       Token  `json:"token"`       // token kind
 		TokenName   string `json:"token_name"`  // token name
 		TokenValue  string `json:"token_value"` // token value
-		Line        int32  `json:"line"`        // line position in the source code
-		Column      int32  `json:"column"`      // column position in the source code
+		Line        int    `json:"line"`        // line position in the source code
+		Column      int    `json:"column"`      // column position in the source code
 		CurrentLine []byte `json:"-"`           // source code line
 	}
 
@@ -136,12 +136,12 @@ type (
 	}
 
 	// Failure is a type for codes that can be mapped to messages.
-	Failure int32
+	Failure int
 
-	// Error levels that are used to categorize errors.
+	// Error levels that are used to categorize errors (bit-mask).
 	Severity uint64
 
-	// Component describes packages of the compiler which can generate errors.
+	// Component describes packages of the compiler which can generate errors (bit-mask).
 	Component uint64
 
 	// ErrorHandler is an interface that provides methods for error handling and printing.
@@ -214,12 +214,12 @@ func NewGeneralError(component Component, failureMap map[Failure]string, severit
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32) error {
+func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
 	return newLineColumnError(component, failureMap, severity, code, value, line, column)
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int32, sourceCode []byte) error {
+func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
 	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
 }
 

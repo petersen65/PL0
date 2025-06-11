@@ -131,7 +131,7 @@ type (
 	PrefixType int
 
 	// Type for three-address code operations.
-	Operation int32
+	Operation int
 
 	// Kind of symbol entries.
 	Entry int

@@ -16,7 +16,7 @@ type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     ac.AssemblyCodeUnit     // assembly code unit for the CPU target
 	cpu              CentralProcessingUnit   // target CPU for the emitter
-	offsetTable      map[string]int64        // offset of local variables in their activation record
+	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
 var (
@@ -52,7 +52,7 @@ func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateC
 		intermediateCode: intermediateCodeUnit,
 		assemblyCode:     ac.NewAssemblyCodeUnit(),
 		cpu:              cpu,
-		offsetTable:      make(map[string]int64),
+		offsetTable:      make(map[string]int32),
 	}
 }
 
@@ -73,32 +73,7 @@ func (e *emitter) Emit() {
 			l = append(l, i.Label)
 
 		case ic.Allocate: // allocate space in an activation record for all local variables
-			// group consecutive intermediate code allocate operations into one space allocation instruction
-			for j, offset := 0, int64(0); iterator.Peek(j) != nil; j++ {
-				if iterator.Peek(j).ThreeAddressCode.Operation == ic.Allocate {
-					// local variable to allocate space for
-					result := iterator.Peek(j).ThreeAddressCode.Result
-
-					// calculate memory size and allignment of the local variable
-					byteSize := int64(dataTypeToBits[result.DataType]) / 8
-					offset = dataTypeToBits[result.DataType].Alignment(offset - byteSize)
-
-					// remember offset of the local variable in its activation record
-					e.offsetTable[result.Name] = offset
-				}
-
-				// break if all local variables int the activiation record have been allocated
-				if iterator.Peek(j+1) != nil && iterator.Peek(j+1).ThreeAddressCode.Operation != ic.Allocate {
-					// grow the runtime control stack downwards to provide space for all local variables int the activiation record
-					e.assemblyCode.AppendInstruction(ac.Sub, l,
-						ac.NewRegisterOperand(ac.Rsp),
-						ac.NewImmediateOperand(ac.Bits64, offset))
-
-					// set last processed intermediate code instruction and break
-					iterator.Skip(j)
-					break
-				}
-			}
+			e.Allocate(iterator, l)
 
 		case ic.Prelude: // function body prelude
 			// save caller's base pointer because it will be changed
@@ -342,4 +317,34 @@ func (e *emitter) Emit() {
 // Get access to the generated assembly code.
 func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 	return e.assemblyCode
+}
+
+// Allocate space for local variables in the activation record of a function and remember their offsets.
+func (e *emitter) Allocate(iterator ic.Iterator, labels []string) {
+	// group consecutive intermediate code allocate operations into one space allocation instruction
+	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
+		if iterator.Peek(j).ThreeAddressCode.Operation == ic.Allocate {
+			// local variable to allocate space for
+			result := iterator.Peek(j).ThreeAddressCode.Result
+
+			// calculate memory size and allignment of the local variable
+			byteSize := int32(dataTypeToBits[result.DataType]) / 8
+			offset = dataTypeToBits[result.DataType].Alignment(offset - byteSize)
+
+			// remember offset of the local variable in its activation record
+			e.offsetTable[result.Name] = offset
+		}
+
+		// break if all local variables int the activiation record have been allocated
+		if iterator.Peek(j+1) != nil && iterator.Peek(j+1).ThreeAddressCode.Operation != ic.Allocate {
+			// grow the runtime control stack downwards to provide space for all local variables int the activiation record (2GB maximum)
+			e.assemblyCode.AppendInstruction(ac.Sub, labels,
+				ac.NewRegisterOperand(ac.Rsp),
+				ac.NewImmediateOperand(ac.Bits32, -offset))
+
+			// set last processed intermediate code instruction and break
+			iterator.Skip(j)
+			break
+		}
+	}
 }

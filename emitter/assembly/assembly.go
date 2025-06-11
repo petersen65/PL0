@@ -46,19 +46,19 @@ const (
 
 type (
 	// Type for CPU operation codes.
-	OperationCode int32
+	OperationCode int
 
 	// Type for operand kinds of CPU operations.
-	OperandKind int32
+	OperandKind int
 
 	// Type for sizes of an operand in bits.
-	OperandSize int32
+	OperandSize int
 
 	// Enumeration of registers of the CPU.
-	Register int32
+	Register int
 
 	// Type for standard library call codes.
-	StandardCall int64
+	StandardCall int
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
@@ -86,7 +86,7 @@ type (
 	// Additional details about the bit size and displacement for memory operands.
 	MemoryDetail struct {
 		Size         OperandSize `json:"size"`         // bit size of the value in the memory space
-		Displacement int64       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
+		Displacement int32       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
@@ -123,7 +123,7 @@ func NewImmediateOperand(size OperandSize, value any) *Operand {
 }
 
 // Ceate a new memory operand for an assembly instruction.
-func NewMemoryOperand(register Register, size OperandSize, displacement int64) *Operand {
+func NewMemoryOperand(register Register, size OperandSize, displacement int32) *Operand {
 	return newOperand(MemoryOperand, register, MemoryDetail{Size: size, Displacement: displacement})
 }
 

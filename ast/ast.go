@@ -129,14 +129,14 @@ type (
 	// String representation of a data type.
 	DataTypeRepresentation string
 
-	// Kind of symbol entries.
+	// Kind of symbol entries (bit-mask).
 	Entry uint64
 
-	// Usage mode of an identifier.
+	// Usage mode of an identifier (bit-mask).
 	Usage uint64
 
 	// Support for symbol table extensions of compiler phases
-	ExtensionType int32
+	ExtensionType int
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
