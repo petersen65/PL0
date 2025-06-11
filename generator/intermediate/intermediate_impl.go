@@ -139,11 +139,11 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 }
 
 // Create a new instruction for the intermediate code.
-func newInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction {
+func newInstruction(operation Operation, arg1, arg2, result *Address, options ...any) *Instruction {
 	instruction := &Instruction{
 		Label:            NoLabel,
 		DepthDifference:  UnusedDifference,
-		ThreeAddressCode: Quadruple{Operation: operatiom, Arg1: arg1, Arg2: arg2, Result: result},
+		ThreeAddressCode: Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
 	}
 
 	for _, option := range options {

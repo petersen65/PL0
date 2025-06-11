@@ -205,8 +205,8 @@ func NewIntermediateCodeUnit() IntermediateCodeUnit {
 }
 
 // Create a new three-address code instruction with an operation, two arguments, a result, and some options.
-func NewInstruction(operatiom Operation, arg1, arg2, result *Address, options ...any) *Instruction {
-	return newInstruction(operatiom, arg1, arg2, result, options...)
+func NewInstruction(operation Operation, arg1, arg2, result *Address, options ...any) *Instruction {
+	return newInstruction(operation, arg1, arg2, result, options...)
 }
 
 // Create a new three-address code argument or result address.

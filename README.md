@@ -6,7 +6,7 @@ This module provides a complete compiler for the programming language PL/0. It p
 * scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
-* analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
+* analyzer: semantic analysis on the in-memory abstract syntax tree to validate identifier declarations and their usage
 * generator: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
 * emitter: assembly code generation compiler phase by iterating over the intermediate code

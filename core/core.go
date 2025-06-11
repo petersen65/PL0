@@ -245,7 +245,7 @@ func (token Token) In(set Tokens) bool {
 	return slices.Contains(set, token)
 }
 
-// Token.ToTokens concerts a token to a token set to satisfy the TokenSet interface.
+// Token.ToTokens converts a token to a token set to satisfy the TokenSet interface.
 func (t Token) ToTokens() Tokens {
 	return Tokens{t}
 }
