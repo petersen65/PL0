@@ -5,6 +5,7 @@ package emitter
 
 import (
 	"container/list"
+	"math"
 
 	cor "github.com/petersen65/PL0/v2/core"
 	ac "github.com/petersen65/PL0/v2/emitter/assembly"
@@ -72,10 +73,12 @@ func (e *emitter) Emit() {
 		c := i.ThreeAddressCode.ValidateAddressesContract()
 
 		switch i.ThreeAddressCode.Operation {
-		case ic.Target: // append labels for the directly following non 'Target' instruction
+		case ic.Target: // target for any branching operation
+			// append labels for the directly following non 'Target' instruction
 			l = append(l, i.Label)
 
-		case ic.Allocate: // allocate space in an activation record for all local variables
+		case ic.Allocate: // allocate memory for all variables in their logical memory space
+			// emit assembly code to allocate space for local variables in the activation record
 			e.allocate(iterator, l)
 
 		case ic.Prelude: // function body prelude
@@ -97,10 +100,12 @@ func (e *emitter) Emit() {
 			// restore caller's base pointer
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rbp))
 
-		case ic.ValueCopy: // push an immediate value onto the runtime control stack
+		case ic.ValueCopy: // copy an immediate value to an address
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
 			value := i.ThreeAddressCode.Arg1.Parse()
-			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, value))
+
+			// emit assembly code to copy the value onto the top of the runtime control stack
+			e.valueCopy(value, i.ThreeAddressCode.Arg1.DataType, l)
 
 		case ic.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
 			// panic if parsing of the variable into nil fails (unsupported data type)
@@ -322,7 +327,7 @@ func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 	return e.assemblyCode
 }
 
-// allocate space for local variables in the activation record of a function and remember their offsets.
+// Allocate space for local variables in the activation record of a function and remember their offsets.
 func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
@@ -352,5 +357,64 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 			iterator.Skip(j)
 			break
 		}
+	}
+}
+
+// Copy an immediate value onto the top of the runtime control stack.
+func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
+	switch dataType {
+	case ic.Integer64:
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, value))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Unsigned64:
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, int64(value.(uint64))))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Float64:
+		bits := math.Float64bits(value.(float64))
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, int64(bits)))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Integer32, ic.Integer16, ic.Integer8:
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(dataTypeToBits[dataType], value))
+
+	case ic.Float32:
+		bits := math.Float32bits(value.(float32))
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(bits)))
+
+	case ic.Unsigned32:
+		v := value.(uint32)
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, int64(v)))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Unsigned16:
+		v := value.(uint16)
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, int64(v)))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Unsigned8:
+		v := value.(uint8)
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.Rax),
+			ac.NewImmediateOperand(ac.Bits64, int64(v)))
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Rune32:
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value))
+
+	case ic.Boolean8:
+		// boolean is unsigned 8-bit, but values fit in signed representation
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value))
 	}
 }
