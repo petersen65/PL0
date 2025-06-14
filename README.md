@@ -48,7 +48,7 @@ Applied to the programming language PL/0, the grammar G is:
 The programming language PL/0 has the following productions (extended Backus-Naur form):
 
 | nonterminal symbol | terminal or nonterminal symbols
-|--------------------|------------------------------------------------------------------------------------------
+|:-------------------|:-----------------------------------------------------------------------------------------
 | program            | block "."
 |                    | &nbsp;
 | block              | ["const" identifier "=" ["+" \| "-"] number {"," identifier "=" ["+" \| "-"] number} ";"]
@@ -83,7 +83,7 @@ For PL/0, tokens define the set of accepting states of a finite automaton. There
 The programming language PL/0 2025 supports the following features:
 
 | Feature                       | Value
-|-------------------------------|-------------------------------------------
+|:------------------------------|:------------------------------------------
 | Identifier Encoding           | UTF-8
 | Identifier Length             | unlimited
 | Case Sensitivity              | yes
@@ -108,6 +108,98 @@ The programming language PL/0 2025 supports the following features:
 | Program End                   | .
 | Multi-Line Comments           | { } or (* *)
 |                               | 
+
+## System V AMD64 ABI (target for PL/0 Compiler)
+
+The PL/0 compiler emits x86-64 assembly that conforms to the **System V AMD64 ABI** (the standard on Linux, BSD, and other Unix-like systems). This ensures that:
+* functions interoperate correctly with C libraries (e.g. GCC-15’s libc)  
+* arguments, return values, and register usage follow a well-defined convention  
+* the stack is properly aligned for calls and SIMD operations (single instruction multiple data)
+
+SIMD load and store instructions assume a 16-byte stack alignment.
+
+### 1. Argument Passing
+
+For a function call its arguments aren’t all pushed onto the stack.
+* integer and pointer arguments: the first six are placed in registers RDI, RSI, RDX, RCX, R8, and R9  
+* floating-point and vector arguments: up to eight are passed in XMM0 through XMM7
+
+Any additional arguments (beyond the sixth integer or eighth floating-point) are passed on the stack in right-to-left order.
+
+### 2. Return Values
+
+Function return values are passed according to their type and size.
+* integers & pointers (≤ 64 bits): return in RAX  
+* integers/pointers (65–128 bits): return in RAX:RDX (low:high)  
+* float/double: return in XMM0  
+* small structs (≤ 16 bytes): returned in RAX/RDX or XMM0/XMM1 depending on field types  
+* larger structs/unions: returned via hidden pointer in RDI and the pointer itself in RAX
+
+### 3. Caller- vs. Callee-Saved Registers
+
+In the System V AMD64 ABI, registers are divided into two groups:
+
+* caller-saved (volatile): the caller must save these if it needs their values preserved across a function call
+* callee-saved (non-volatile): the called function must restore these before returning if it modifies them
+
+The table below summarizes which registers belong to each category.
+
+| Caller-Saved (volatile) | Callee-Saved (non-volatile) |
+|:-----------------------:|:---------------------------:|
+| RAX                     | RBX                         |
+| RCX                     | RBP (if used)               |
+| RDX                     | R12                         |
+| RSI                     | R13                         |
+| RDI                     | R14                         |
+| R8                      | R15                         |
+| R9                      |                             |
+| R10                     |                             |
+| R11                     |                             |
+
+Caller-saved registers may be freely clobbered by a function; if the caller needs them afterward, it must save/restore them.
+Callee-saved registers must be preserved by your function (push on entry, pop before return) if you modify them.
+Register RSP must always be restored to its original value before returning.
+
+### 4. Stack Alignment
+
+Proper stack alignment is crucial under the System V AMD64 ABI, both to satisfy the calling convention and to enable efficient, aligned memory and SIMD operations. In particular, the stack pointer (RSP) must be a multiple of 16 bytes immediately before any call, and a standard function prologue arranges this as shown below.  
+
+```asm
+    # --- caller does a CALL to a function ---
+    call   pl0_function
+    
+	# after CALL, CPU pushed an 8-byte return address
+    #   RSP_before_call % 16 == 0
+    #   RSP_after_call  % 16 == 8
+
+    # stack layout
+    #    [ RSP    ]       ← return address (8 bytes)
+    #    [ RSP+8  ]       ← caller’s stack below
+
+pl0_function:
+    # prologue
+    push   rbp            # RSP ← RSP - 8  → now %16 == 0
+    mov    rbp, rsp       # RBP = current RSP
+
+    # allocate FRAME bytes (FRAME % 16 == 0) for locals + padding
+    sub    rsp, FRAME     # RSP ← RSP - FRAME → still %16 == 0
+
+    # new stack layout
+    #    [ RBP - 8    ]   ← first local or padding
+    #    ...
+    #    [ RBP - FRAME]   ← last byte of FRAME
+    #    [ RBP      ]     ← saved RBP
+    #    [ RBP + 8  ]     ← return address
+    #    [ RBP +16  ]     ← caller’s stack
+
+    # ... the code, possibly making further CALLs ...
+    # since RSP %16 == 0 at each CALL, the ABI alignment rules hold
+
+    # epilogue
+    mov    rsp, rbp       # undo sub rsp, FRAME
+    pop    rbp            # restore caller’s RBP; RSP ← RSP + 8 → %16 == 8
+    ret                   # pop return address → RIP; back in caller
+```
 
 ## Change Log
 
