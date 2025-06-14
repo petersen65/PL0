@@ -11,6 +11,9 @@ import (
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
+// Runtime control stack must be aligned to 16 bytes before each function call.
+const runtimeControlStackAlignment = 16
+
 // Implementation of the assembly code emitter.
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
@@ -73,7 +76,7 @@ func (e *emitter) Emit() {
 			l = append(l, i.Label)
 
 		case ic.Allocate: // allocate space in an activation record for all local variables
-			e.Allocate(iterator, l)
+			e.allocate(iterator, l)
 
 		case ic.Prelude: // function body prelude
 			// save caller's base pointer because it will be changed
@@ -319,8 +322,8 @@ func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 	return e.assemblyCode
 }
 
-// Allocate space for local variables in the activation record of a function and remember their offsets.
-func (e *emitter) Allocate(iterator ic.Iterator, labels []string) {
+// allocate space for local variables in the activation record of a function and remember their offsets.
+func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
 		if iterator.Peek(j).ThreeAddressCode.Operation == ic.Allocate {
@@ -337,6 +340,9 @@ func (e *emitter) Allocate(iterator ic.Iterator, labels []string) {
 
 		// break if all local variables int the activiation record have been allocated
 		if iterator.Peek(j+1) != nil && iterator.Peek(j+1).ThreeAddressCode.Operation != ic.Allocate {
+			// align the offset and use it as the size required for storing all local variables
+			offset = ac.Align(offset, runtimeControlStackAlignment)
+
 			// grow the runtime control stack downwards to provide space for all local variables int the activiation record (2GB maximum)
 			e.assemblyCode.AppendInstruction(ac.Sub, labels,
 				ac.NewRegisterOperand(ac.Rsp),
