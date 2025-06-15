@@ -90,8 +90,8 @@ const (
 	Unsigned32 // unsigned 32-bit integer
 	Unsigned16 // unsigned 16-bit integer
 	Unsigned8  // unsigned 8-bit integer
-	Rune32     // unsigned 32-bit rune (UTF-8 character)
-	Boolean8   // unsigned 8-bit boolean value (true/false)
+	Rune32     // signed 32-bit rune (UTF-8 character)
+	Boolean8   // signed 8-bit boolean value (true/false)
 )
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.

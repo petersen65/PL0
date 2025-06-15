@@ -25,6 +25,7 @@ var (
 		Push:    "push",
 		Pop:     "pop",
 		Mov:     "mov",
+		MovAbs:  "movabs",
 		Cmp:     "cmp",
 		Jmp:     "jmp",
 		Je:      "je",

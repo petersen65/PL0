@@ -362,18 +362,49 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 
 // Copy an immediate value onto the top of the runtime control stack.
 func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
+	// depending on the data type, the value is copied onto the runtime control stack as an immediate value or as a 64-bit value in the RAX register
 	switch dataType {
 	case ic.Integer64:
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, value))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+		// move the 64-bit signed integer into the R10 register without sign extension
+		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewImmediateOperand(ac.Bits64, value.(int64)))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Integer32:
+		// push the 32-bit signed integer onto the runtime control stack and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value.(int32)))
+
+	case ic.Integer16:
+		// convert the 16-bit signed integer to a 32-bit signed integer before pushing it onto the runtime control stack and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(value.(int16))))
+
+	case ic.Integer8:
+		// push the 8-bit signed integer onto the runtime control stack and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value.(int8)))
 
 	case ic.Unsigned64:
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, int64(value.(uint64))))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+		// move the 64-bit unsigned integer into the R10 register without sign extension
+		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewImmediateOperand(ac.Bits64, value.(uint64)))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Unsigned32:
+		// push the 32-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value.(uint32)))
+
+	case ic.Unsigned16:
+		// convert the 16-bit unsigned integer to a 32-bit unsigned integer before pushing it onto the runtime control stack and zero-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint16))))
+
+	case ic.Unsigned8:
+		// push the 8-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value.(uint8)))
 
 	case ic.Float64:
 		bits := math.Float64bits(value.(float64))
@@ -382,39 +413,20 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 			ac.NewImmediateOperand(ac.Bits64, int64(bits)))
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
 
-	case ic.Integer32, ic.Integer16, ic.Integer8:
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(dataTypeToBits[dataType], value))
-
 	case ic.Float32:
 		bits := math.Float32bits(value.(float32))
 		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(bits)))
 
-	case ic.Unsigned32:
-		v := value.(uint32)
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, int64(v)))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
-
-	case ic.Unsigned16:
-		v := value.(uint16)
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, int64(v)))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
-
-	case ic.Unsigned8:
-		v := value.(uint8)
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, int64(v)))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
-
 	case ic.Rune32:
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value))
+		// convert the rune to a 32-bit signed integer before pushing it onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
 
 	case ic.Boolean8:
-		// boolean is unsigned 8-bit, but values fit in signed representation
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value))
+		// convert the boolean value to an 8-bit signed integer before pushing it onto the runtime control stack
+		if value.(bool) {
+			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, int8(1)))
+		} else {
+			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, int8(0)))
+		}
 	}
 }

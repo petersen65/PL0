@@ -11,6 +11,7 @@ const (
 	Push
 	Pop
 	Mov
+	MovAbs
 
 	// comparison assembly instruction for all relational operators and conditional jumps
 	Cmp
