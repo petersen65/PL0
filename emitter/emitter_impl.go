@@ -407,15 +407,28 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value.(uint8)))
 
 	case ic.Float64:
-		bits := math.Float64bits(value.(float64))
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
-			ac.NewRegisterOperand(ac.Rax),
-			ac.NewImmediateOperand(ac.Bits64, int64(bits)))
-		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+		// convert the 64-bit float value to its IEEE 754 binary representation
+		binaryRepresentationIEEE754 := math.Float64bits(value.(float64))
+
+		// move the 64-bit float value into the R10 register without any extension
+		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewImmediateOperand(ac.Bits64, binaryRepresentationIEEE754))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Float32:
-		bits := math.Float32bits(value.(float32))
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(bits)))
+		// convert the 32-bit float value to its IEEE 754 binary representation
+		binaryRepresentationIEEE754 := math.Float32bits(value.(float32))
+
+		// move the 32-bit float value into the lower 32 bits of the R10 register (named R10d) and zero-extend the upper 32 bits
+		e.assemblyCode.AppendInstruction(ac.Mov, l,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewImmediateOperand(ac.Bits32, binaryRepresentationIEEE754))
+
+		// push the 64-bit R10 register onto the runtime control stack (32-bit float value was zero-extended to 64 bits)
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Rune32:
 		// convert the rune to a 32-bit signed integer before pushing it onto the runtime control stack
