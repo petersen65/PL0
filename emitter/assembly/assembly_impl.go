@@ -207,23 +207,23 @@ func (a *assemblyCodeUnit) AppendInstruction(op OperationCode, labels []string, 
 func (a *assemblyCodeUnit) AppendRuntimeLibrary() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
-	detail := MemoryDetail{Size: Bits64, Displacement: DescriptorSize - PointerSize}
 
 	// runtime library function "create_static_link"
-	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, newOperand(RegisterOperand, Rcx), newOperand(MemoryOperand, Rbp, detail))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbp))
+	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, newOperand(RegisterOperand, Edi), newOperand(RegisterOperand, R10d))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rsi), newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: 0}))
 	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition))
-	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, detail), newOperand(RegisterOperand, Rbx))
+	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: -PointerSize}), newOperand(RegisterOperand, Rax))
 	a.AppendInstruction(Ret, nil)
 
 	// runtime library function "follow_static_link"
-	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, newOperand(RegisterOperand, Rbx), newOperand(RegisterOperand, Rbp))
-	a.AppendInstruction(Cmp, []string{loopCondition}, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(0)))
+	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, newOperand(RegisterOperand, Rsi), newOperand(RegisterOperand, Rbp))
+	a.AppendInstruction(Cmp, []string{loopCondition}, newOperand(RegisterOperand, Edi), newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(0)}))
 	a.AppendInstruction(Je, nil, newOperand(LabelOperand, behindLoop))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rbx), newOperand(MemoryOperand, Rbx, detail))
-	a.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Rcx), newOperand(ImmediateOperand, int64(1)))
+	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rsi), newOperand(MemoryOperand, Rsi, MemoryDetail{Size: Bits64, Displacement: -PointerSize}))
+	a.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Edi), newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(1)}))
 	a.AppendInstruction(Jmp, nil, newOperand(LabelOperand, loopCondition))
-	a.AppendInstruction(Ret, []string{behindLoop})
+	a.AppendInstruction(Mov, []string{behindLoop}, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rsi))
+	a.AppendInstruction(Ret, nil)
 }
 
 // The linker resolves jump and call label references to absolut code addresses in the assembly code unit.

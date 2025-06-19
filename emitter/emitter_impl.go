@@ -263,13 +263,18 @@ func (e *emitter) Emit() {
 				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedNumberOfFunctionArguments, nil, nil))
 			} else {
 				// push difference between use depth and declaration depth on runtime control stack
-				e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
+				// e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
+
+				// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
+				e.assemblyCode.AppendInstruction(ac.Mov, l,
+					ac.NewRegisterOperand(ac.R10d),
+					ac.NewImmediateOperand(ac.Bits32, int32(i.DepthDifference)))
 
 				// push return address on runtime control stack and jump to callee
 				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(name))
 
 				// remove difference from runtime control stack after return from callee
-				e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.Rsp), ac.NewImmediateOperand(ac.Bits64, int64(1)))
+				// e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.Rsp), ac.NewImmediateOperand(ac.Bits64, int64(1)))
 			}
 
 		case ic.Return: // return from a function to its caller

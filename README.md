@@ -121,7 +121,7 @@ SIMD load and store instructions assume a 16-byte stack alignment.
 ### 1. Argument Passing
 
 For a function call its arguments aren’t all pushed onto the stack.
-* integer and pointer arguments: the first six are placed in registers RDI, RSI, RDX, RCX, R8, and R9  
+* integer and pointer arguments: the first six are placed in registers RDI, RSI, RDX, RCX, R8, and R9
 * floating-point and vector arguments: up to eight are passed in XMM0 through XMM7
 
 Any additional arguments (beyond the sixth integer or eighth floating-point) are passed on the stack in right-to-left order.
