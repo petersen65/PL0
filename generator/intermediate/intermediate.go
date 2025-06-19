@@ -50,8 +50,8 @@ const (
 	// call f, n and y = call f, n for function calls, n is the number of actual parameters in "call f, n"
 	Parameter // pass parameter to function
 	Call      // call function
-	Prelude   // prelude inside the body of a function
-	Epilog    // epilog inside the body of a function
+	Prologue  // function entry sequence inside the body of a function
+	Epilogue  // function exit sequence inside the body of a function
 	Return    // return from function
 	Standard  // call function of the external standard library
 	Target    // target for any branching operation

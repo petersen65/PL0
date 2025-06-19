@@ -81,7 +81,7 @@ func (e *emitter) Emit() {
 			// emit assembly code to allocate space for local variables in the activation record
 			e.allocate(iterator, l)
 
-		case ic.Prelude: // function body prelude
+		case ic.Prologue: // function entry sequence
 			// save caller's base pointer because it will be changed
 			// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
 			// an alternative naming from literature is 'control link' that points to the activation record of the caller
@@ -93,7 +93,7 @@ func (e *emitter) Emit() {
 			// call runtime library function to create static link which provides the compile-time block nesting hierarchy at runtime
 			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
 
-		case ic.Epilog: // function body epilog
+		case ic.Epilogue: // function exit sequence
 			// clean allocated local variables from the activation record
 			e.assemblyCode.AppendInstruction(ac.Mov, l, ac.NewRegisterOperand(ac.Rsp), ac.NewRegisterOperand(ac.Rbp))
 

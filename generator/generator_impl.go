@@ -126,8 +126,8 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		codeSymbol.Definition = element
 	}
 
-	// create prelude for the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Prelude, noAddress, noAddress, noAddress))
+	// create entry sequence for the block
+	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Prologue, noAddress, noAddress, noAddress))
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -139,8 +139,8 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// statement of the block
 	bn.Statement.Accept(i)
 
-	// create epilog for the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Epilog, noAddress, noAddress, noAddress))
+	// create exit sequence for the block
+	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Epilogue, noAddress, noAddress, noAddress))
 
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
