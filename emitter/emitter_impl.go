@@ -361,12 +361,12 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 }
 
 // Copy an immediate value onto the top of the runtime control stack.
-func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
-	// depending on the data type, the value is copied onto the runtime control stack as an immediate value or as a 64-bit value in the RAX register
+func (e *emitter) valueCopy(value any, dataType ic.DataType, labels []string) {
+	// depending on the data type, the value is copied onto the runtime control stack as an immediate value or as a 64-bit value in the R10 register
 	switch dataType {
 	case ic.Integer64:
 		// move the 64-bit signed integer into the R10 register without sign extension
-		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+		e.assemblyCode.AppendInstruction(ac.MovAbs, labels,
 			ac.NewRegisterOperand(ac.R10),
 			ac.NewImmediateOperand(ac.Bits64, value.(int64)))
 
@@ -375,19 +375,19 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 
 	case ic.Integer32:
 		// push the 32-bit signed integer onto the runtime control stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value.(int32)))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, value.(int32)))
 
 	case ic.Integer16:
 		// convert the 16-bit signed integer to a 32-bit signed integer before pushing it onto the runtime control stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(value.(int16))))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, int32(value.(int16))))
 
 	case ic.Integer8:
 		// push the 8-bit signed integer onto the runtime control stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value.(int8)))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, value.(int8)))
 
 	case ic.Unsigned64:
 		// move the 64-bit unsigned integer into the R10 register without sign extension
-		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+		e.assemblyCode.AppendInstruction(ac.MovAbs, labels,
 			ac.NewRegisterOperand(ac.R10),
 			ac.NewImmediateOperand(ac.Bits64, value.(uint64)))
 
@@ -396,22 +396,22 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 
 	case ic.Unsigned32:
 		// push the 32-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, value.(uint32)))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, value.(uint32)))
 
 	case ic.Unsigned16:
 		// convert the 16-bit unsigned integer to a 32-bit unsigned integer before pushing it onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint16))))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint16))))
 
 	case ic.Unsigned8:
 		// push the 8-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, value.(uint8)))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, value.(uint8)))
 
 	case ic.Float64:
 		// convert the 64-bit float value to its IEEE 754 binary representation
 		binaryRepresentationIEEE754 := math.Float64bits(value.(float64))
 
 		// move the 64-bit float value into the R10 register without any extension
-		e.assemblyCode.AppendInstruction(ac.MovAbs, l,
+		e.assemblyCode.AppendInstruction(ac.MovAbs, labels,
 			ac.NewRegisterOperand(ac.R10),
 			ac.NewImmediateOperand(ac.Bits64, binaryRepresentationIEEE754))
 
@@ -423,7 +423,7 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 		binaryRepresentationIEEE754 := math.Float32bits(value.(float32))
 
 		// move the 32-bit float value into the lower 32 bits of the R10 register (named R10d) and zero-extend the upper 32 bits
-		e.assemblyCode.AppendInstruction(ac.Mov, l,
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
 			ac.NewRegisterOperand(ac.R10d),
 			ac.NewImmediateOperand(ac.Bits32, binaryRepresentationIEEE754))
 
@@ -432,14 +432,14 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, l []string) {
 
 	case ic.Rune32:
 		// convert the rune to a 32-bit signed integer before pushing it onto the runtime control stack
-		e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
+		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
 
 	case ic.Boolean8:
 		// convert the boolean value to an 8-bit signed integer before pushing it onto the runtime control stack
 		if value.(bool) {
-			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, int8(1)))
+			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, int8(1)))
 		} else {
-			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits8, int8(0)))
+			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, int8(0)))
 		}
 	}
 }
