@@ -11,7 +11,6 @@ const (
 	unknownKindOfOperandInCpuOperation
 	unexpectedKindOfOperandInCpuOperation
 	unresolvedLabelReferenceInAssemblyCode
-	linkingStepMissing
 	unknownExportFormat
 	unknownImportFormat
 	assemblyCodeExportFailed
@@ -23,7 +22,6 @@ var failureMap = map[cor.Failure]string{
 	unknownKindOfOperandInCpuOperation:     "unknown kind of operand in CPU operation: %v",
 	unexpectedKindOfOperandInCpuOperation:  "unexpected kind of operand in CPU operation: %v",
 	unresolvedLabelReferenceInAssemblyCode: "unresolved label reference in assembly code: %v",
-	linkingStepMissing:                     "assembly code cannot be exported because linking step is missing",
 	unknownExportFormat:                    "unknown export format: %v",
 	unknownImportFormat:                    "unknown import format: %v",
 	assemblyCodeExportFailed:               "failed to export assembly code",

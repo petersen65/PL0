@@ -4,18 +4,17 @@
 package assembly
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Private implementation of the assembly code unit.
 type assemblyCodeUnit struct {
-	resolved    bool           // flag to indicate if all labels have been resolved
+	outputKind  OutputKind     // kind of output that is produced by the assembly code
 	textSection []*Instruction // text section with assembly instructions
 }
 
@@ -151,9 +150,10 @@ var (
 	}
 )
 
-// Create a new assembly code unit and initialize it as unresolved so that it must be linked before exporting it.
-func newAssemblyCodeUnit() AssemblyCodeUnit {
+// Create a new assembly code unit and and set the kind of output it produces.
+func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	return &assemblyCodeUnit{
+		outputKind:  outputKind,
 		textSection: make([]*Instruction, 0),
 	}
 }
@@ -209,59 +209,48 @@ func (a *assemblyCodeUnit) AppendRuntimeLibrary() {
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
 
 	// runtime library function "create_static_link"
-	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, newOperand(RegisterOperand, Edi), newOperand(RegisterOperand, R10d))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rsi), newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: 0}))
+
+	// take block nesting depth difference between caller and callee (calculated at compile time)
+	// hidden parameter provided intentionally in scratch register R10d as int32
+	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel},
+		newOperand(RegisterOperand, Edi),
+		newOperand(RegisterOperand, R10d))
+
+	a.AppendInstruction(Mov, nil,
+		newOperand(RegisterOperand, Rsi),
+		newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: 0}))
+
 	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition))
-	a.AppendInstruction(Mov, nil, newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: -PointerSize}), newOperand(RegisterOperand, Rax))
+
+	a.AppendInstruction(Mov, nil,
+		newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: -PointerSize}),
+		newOperand(RegisterOperand, Rax))
+
 	a.AppendInstruction(Ret, nil)
 
 	// runtime library function "follow_static_link"
-	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, newOperand(RegisterOperand, Rsi), newOperand(RegisterOperand, Rbp))
-	a.AppendInstruction(Cmp, []string{loopCondition}, newOperand(RegisterOperand, Edi), newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(0)}))
+
+	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel},
+		newOperand(RegisterOperand, Rsi),
+		newOperand(RegisterOperand, Rbp))
+
+	a.AppendInstruction(Cmp, []string{loopCondition},
+		newOperand(RegisterOperand, Edi),
+		newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(0)}))
+
 	a.AppendInstruction(Je, nil, newOperand(LabelOperand, behindLoop))
-	a.AppendInstruction(Mov, nil, newOperand(RegisterOperand, Rsi), newOperand(MemoryOperand, Rsi, MemoryDetail{Size: Bits64, Displacement: -PointerSize}))
-	a.AppendInstruction(Sub, nil, newOperand(RegisterOperand, Edi), newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(1)}))
+
+	a.AppendInstruction(Mov, nil,
+		newOperand(RegisterOperand, Rsi),
+		newOperand(MemoryOperand, Rsi, MemoryDetail{Size: Bits64, Displacement: -PointerSize}))
+
+	a.AppendInstruction(Sub, nil,
+		newOperand(RegisterOperand, Edi),
+		newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(1)}))
+
 	a.AppendInstruction(Jmp, nil, newOperand(LabelOperand, loopCondition))
 	a.AppendInstruction(Mov, []string{behindLoop}, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rsi))
 	a.AppendInstruction(Ret, nil)
-}
-
-// The linker resolves jump and call label references to absolut code addresses in the assembly code unit.
-func (a *assemblyCodeUnit) Link() error {
-	// return without linking if all labels have already been resolved
-	if a.resolved {
-		return nil
-	}
-
-	labels := make(map[string]uint64)
-
-	// create a map of labels and their absolute addresses
-	for i := range a.textSection {
-		for _, label := range a.textSection[i].Labels {
-			labels[label] = uint64(i)
-		}
-	}
-
-	// resolve jump and call label references to absolute code addresses
-	for _, asm := range a.textSection {
-		switch asm.Operation {
-		case Call, Jmp, Je, Jne, Jl, Jle, Jg, Jge:
-			// for all jump and call operation codes, the first kind of operand must be 'LabelOperand'
-			if asm.Operands[0].Kind != LabelOperand {
-				return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, unexpectedKindOfOperandInCpuOperation, asm.Operands[0].Kind, nil)
-			}
-
-			// replace the first operand with an operand kind 'JumpOperand' that holds the absolute address
-			if address, ok := labels[asm.Operands[0].Label]; !ok {
-				return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, unresolvedLabelReferenceInAssemblyCode, asm.Operands[0].Label, nil)
-			} else {
-				asm.Operands[0] = newOperand(JumpOperand, address)
-			}
-		}
-	}
-
-	a.resolved = true
-	return nil
 }
 
 // Return the number of instructions in the assembly code unit.
@@ -274,16 +263,30 @@ func (a *assemblyCodeUnit) GetInstruction(index int) *Instruction {
 	return a.textSection[index]
 }
 
-// Print the assembly code to the specified writer.
+// Print the assembly code to the specified writer and optionally accept global symbols as arguments.
 func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
+	var globals []string
+	var globalDirective string
+
+	for _, arg := range args {
+		globals = append(globals, fmt.Sprint(arg))
+	}
+
+	if len(globals) > 0 {
+		globalDirective = ".global " + strings.Join(globals, ", ") + "\n"
+	}
+
 	header := "# x86_64 assembly code\n" +
 		"# generated by PL/0 compiler\n\n" +
 		".intel_syntax noprefix\n" +
-		".globl %[1]v\n" +
-		".text\n\n" +
-		"%[1]v:\n"
+		globalDirective +
+		"section .text\n\n"
 
-	if _, err := fmt.Fprintf(print, header, EntryPointLabel); err != nil {
+	if strings.Contains(strings.Join(globals, " "), EntryPointLabel) {
+		header += fmt.Sprintf("%[1]v:\n", EntryPointLabel)
+	}
+
+	if _, err := fmt.Fprint(print, header); err != nil {
 		return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 	}
 
@@ -317,45 +320,18 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 
 	case cor.Text:
 		// print is a convenience function to export the text section as a string to the print writer
-		return a.Print(print)
+		switch a.outputKind {
+		case Application:
+			return a.Print(print, EntryPointLabel)
 
-	case cor.Binary:
-		var buffer bytes.Buffer
+		case Runtime:
+			return a.Print(print, CreateStaticLinkLabel, FollowStaticLinkLabel)
 
-		// cannot export binary target before a linking step has resolved all labels
-		if !a.resolved {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, linkingStepMissing, nil, nil)
+		default:
+			panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownExportFormat, a.outputKind, nil))
 		}
-
-		// encode the text section into a binary buffer
-		if err := gob.NewEncoder(&buffer).Encode(a.textSection); err != nil {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
-		}
-
-		// transfer the binary buffer to the print writer
-		if _, err := buffer.WriteTo(print); err != nil {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
-		}
-
-		return nil
 
 	default:
 		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownExportFormat, format, nil))
-	}
-}
-
-// Import the assembly code from the specified reader in the specified format.
-func (a *assemblyCodeUnit) Import(format cor.ExportFormat, scan io.Reader) error {
-	switch format {
-	case cor.Binary:
-		// decode the binary buffer into the text section
-		if err := gob.NewDecoder(scan).Decode(&a.textSection); err != nil {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeImportFailed, nil, err)
-		}
-
-		return nil
-
-	default:
-		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownImportFormat, format, nil))
 	}
 }

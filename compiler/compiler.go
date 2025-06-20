@@ -158,9 +158,6 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	if options&Compile != 0 && options&Export != 0 {
 		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
 
-		// append runtime library to assembly code unit before exporting
-		translationUnit.AssemblyCode.AppendRuntimeLibrary()
-
 		// print error message if any error occurred during export
 		if err = ExportIntermediateRepresentationsToTarget(translationUnit, targetDirectory, baseFileName); err != nil {
 			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
@@ -168,7 +165,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// link and persist assembly code unit as assembly target and print persistence error message if an error occurred
+	// persist assembly code unit as assembly target and print persistence error message if an error occurred
 	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
 		if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, target, err)

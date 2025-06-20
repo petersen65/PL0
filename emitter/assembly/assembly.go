@@ -15,7 +15,6 @@ import (
 
 const (
 	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
-	DescriptorSize        = 3 * PointerSize         // size of an activation record descriptor in bytes
 	EntryPointLabel       = "main"                  // label for the entry point of the program
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
@@ -44,6 +43,12 @@ const (
 	Writeln
 )
 
+// Kind of output that is produced by the assembly code.
+const (
+	Application = OutputKind(iota)
+	Runtime
+)
+
 type (
 	// Type for CPU operation codes.
 	OperationCode int
@@ -59,6 +64,9 @@ type (
 
 	// Type for standard library call codes.
 	StandardCall int
+
+	// Output kind of the assembly code.
+	OutputKind int
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
@@ -93,18 +101,16 @@ type (
 	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
 		AppendRuntimeLibrary()
-		Link() error
 		Length() int
 		GetInstruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
-		Import(format cor.ExportFormat, scan io.Reader) error
 	}
 )
 
 // Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit() AssemblyCodeUnit {
-	return newAssemblyCodeUnit()
+func NewAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
+	return newAssemblyCodeUnit(outputKind)
 }
 
 // Create a new assembly instruction with an operation code, some labels, and operands.

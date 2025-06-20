@@ -54,7 +54,7 @@ func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateC
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     ac.NewAssemblyCodeUnit(),
+		assemblyCode:     ac.NewAssemblyCodeUnit(ac.Application),
 		cpu:              cpu,
 		offsetTable:      make(map[string]int32),
 	}
