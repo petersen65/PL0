@@ -120,27 +120,22 @@ func NewInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 
 // Create a new register operand for an assembly instruction.
 func NewRegisterOperand(register Register) *Operand {
-	return newOperand(RegisterOperand, register)
+	return &Operand{Kind: RegisterOperand, Register: register}
 }
 
 // Create a new immediate operand for an assembly instruction.
 func NewImmediateOperand(size OperandSize, value any) *Operand {
-	return newOperand(ImmediateOperand, nil, ImmediateDetail{Size: size, Value: value})
+	return &Operand{Kind: ImmediateOperand, Immediate: ImmediateDetail{Size: size, Value: value}}
 }
 
 // Ceate a new memory operand for an assembly instruction.
 func NewMemoryOperand(register Register, size OperandSize, displacement int32) *Operand {
-	return newOperand(MemoryOperand, register, MemoryDetail{Size: size, Displacement: displacement})
+	return &Operand{Kind: MemoryOperand, Register: register, Memory: MemoryDetail{Size: size, Displacement: displacement}}
 }
 
 // Create a new label operand for an assembly instruction.
 func NewLabelOperand(label string) *Operand {
-	return newOperand(LabelOperand, label)
-}
-
-// Create a new jump operand for an assembly instruction.
-func NewJumpOperand(address uint64) *Operand {
-	return newOperand(JumpOperand, address)
+	return &Operand{Kind: LabelOperand, Label: label}
 }
 
 // String representation of a CPU operation code.

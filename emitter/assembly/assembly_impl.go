@@ -167,37 +167,6 @@ func newInstruction(op OperationCode, labels []string, operands ...*Operand) *In
 	}
 }
 
-// Create a new operand for an assembly instruction.
-func newOperand(kind OperandKind, value any, detail ...any) *Operand {
-	switch kind {
-	case RegisterOperand:
-		return &Operand{Kind: RegisterOperand, Register: value.(Register)}
-
-	case ImmediateOperand:
-		if len(detail) > 0 {
-			return &Operand{Kind: ImmediateOperand, Immediate: detail[0].(ImmediateDetail)}
-		}
-
-		return &Operand{Kind: ImmediateOperand, Immediate: ImmediateDetail{Size: Bits64, Value: value.(int64)}}
-
-	case MemoryOperand:
-		if len(detail) > 0 {
-			return &Operand{Kind: MemoryOperand, Register: value.(Register), Memory: detail[0].(MemoryDetail)}
-		}
-
-		return &Operand{Kind: MemoryOperand, Register: value.(Register), Memory: MemoryDetail{Size: Bits64, Displacement: 0}}
-
-	case LabelOperand:
-		return &Operand{Kind: LabelOperand, Label: value.(string)}
-
-	case JumpOperand:
-		return &Operand{Kind: JumpOperand, Jump: value.(uint64)}
-
-	default:
-		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, kind, nil))
-	}
-}
-
 // Append an instruction to the assembly code unit.
 func (a *assemblyCodeUnit) AppendInstruction(op OperationCode, labels []string, operands ...*Operand) {
 	a.textSection = append(a.textSection, newInstruction(op, labels, operands...))
@@ -212,44 +181,22 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 
 	// take block nesting depth difference between caller and callee (calculated at compile time)
 	// hidden parameter provided intentionally in scratch register R10d as int32
-	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel},
-		newOperand(RegisterOperand, Edi),
-		newOperand(RegisterOperand, R10d))
+	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
 
-	a.AppendInstruction(Mov, nil,
-		newOperand(RegisterOperand, Rsi),
-		newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: 0}))
-
-	a.AppendInstruction(Call, nil, newOperand(LabelOperand, loopCondition))
-
-	a.AppendInstruction(Mov, nil,
-		newOperand(MemoryOperand, Rbp, MemoryDetail{Size: Bits64, Displacement: -PointerSize}),
-		newOperand(RegisterOperand, Rax))
-
+	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
+	a.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
+	a.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
 	a.AppendInstruction(Ret, nil)
 
 	// runtime function "follow_static_link"
 
-	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel},
-		newOperand(RegisterOperand, Rsi),
-		newOperand(RegisterOperand, Rbp))
-
-	a.AppendInstruction(Cmp, []string{loopCondition},
-		newOperand(RegisterOperand, Edi),
-		newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(0)}))
-
-	a.AppendInstruction(Je, nil, newOperand(LabelOperand, behindLoop))
-
-	a.AppendInstruction(Mov, nil,
-		newOperand(RegisterOperand, Rsi),
-		newOperand(MemoryOperand, Rsi, MemoryDetail{Size: Bits64, Displacement: -PointerSize}))
-
-	a.AppendInstruction(Sub, nil,
-		newOperand(RegisterOperand, Edi),
-		newOperand(ImmediateOperand, nil, ImmediateDetail{Size: Bits32, Value: int32(1)}))
-
-	a.AppendInstruction(Jmp, nil, newOperand(LabelOperand, loopCondition))
-	a.AppendInstruction(Mov, []string{behindLoop}, newOperand(RegisterOperand, Rax), newOperand(RegisterOperand, Rsi))
+	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(0)))
+	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
+	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rsi, Bits64, -PointerSize))
+	a.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(1)))
+	a.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
+	a.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
 	a.AppendInstruction(Ret, nil)
 }
 
