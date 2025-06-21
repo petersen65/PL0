@@ -36,14 +36,13 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling source code '%v' to assembly target '%v'\n"
-	textErrorCompiling     = "Error compiling source code '%v': %v"
+	textCompiling          = "Compiling source '%v' to target '%v'\n"
+	textErrorCompiling     = "Error compiling source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting assembly target '%v': %v"
+	textErrorPersisting    = "Error persisting target file '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with source code '%v' and assembly target '%v' completed\n"
-	textDriverTarget       = "Compiler Driver with assembly target '%v' completed\n"
+	textDriverSourceTarget = "Compiler Driver with source '%v' and target '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -63,6 +62,7 @@ const (
 	Control
 	Emitter
 	Assembly
+	Runtime
 	Json
 	Text
 	Ensure
@@ -97,14 +97,15 @@ var ExtensionMap = map[Extension]string{
 	Emitter:   ".acu",
 	Json:      ".json",
 	Text:      ".txt",
-	Assembly:    ".s",
+	Assembly:  ".s",
+	Runtime:   ".rt",
 	Ensure:    ".ensure",
 }
 
 // Driver for the compilation process with the given options, source, target, and print writer.
 func Driver(options DriverOption, source, target string, print io.Writer) {
 	var translationUnit TranslationUnit
-	var targetDirectory, baseFileName string
+	var targetDirectory, baseFileName, runtime string
 	var err error
 
 	// ensure target path exists and print persistence error message if an error occurred
@@ -113,8 +114,9 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		return
 	}
 
-	// cleaned and validated target path
+	// cleaned and validated target and runtime paths
 	target = GetFullPath(targetDirectory, baseFileName, Assembly)
+	runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -129,8 +131,9 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 				return
 			}
 
-			// cleaned and validated target path after cleaning
+			// cleaned and validated target and runtime paths after cleaning
 			target = GetFullPath(targetDirectory, baseFileName, Assembly)
+			runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 		}
 	}
 
@@ -154,87 +157,31 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		}
 	}
 
-	// export intermediate representations to the target path even if errors occurred during compilation
+	// export intermediate representations to the target directory even if errors occurred during compilation
 	if options&Compile != 0 && options&Export != 0 {
 		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
 
 		// print error message if any error occurred during export
-		if err = ExportIntermediateRepresentationsToTarget(translationUnit, targetDirectory, baseFileName); err != nil {
+		if err = ExportIntermediateRepresentations(translationUnit, targetDirectory, baseFileName); err != nil {
 			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
 			return
 		}
 	}
 
-	// persist assembly code unit as assembly target and print persistence error message if an error occurred
+	// persist application and runtime as target files and print persistence error message if an error occurred
 	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
-		if err = PersistAssemblyCodeUnitToTarget(translationUnit.AssemblyCode, target); err != nil {
+		if err = PersistApplication(translationUnit.AssemblyCode, target); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, target, err)
+			return
+		}
+		if err = PersistRuntime(runtime); err != nil {
+			fmt.Fprintf(print, textErrorPersisting, runtime, err)
 			return
 		}
 	}
 
 	// print driver completion message
-	if options&Compile != 0 {
-		fmt.Fprintf(print, textDriverSourceTarget, source, target)
-	} else {
-		fmt.Fprintf(print, textDriverTarget, target)
-	}
-}
-
-// Ensure target path exists and create and remove empty ensure-file to proof write access.
-func EnsureTargetPath(target string) (string, string, error) {
-	var targetDirectory string
-	target = filepath.Clean(target)
-
-	// enforce default build directory if target is empty, current directory, or root directory
-	if target == "." || target == "" || target == string(os.PathSeparator) {
-		target = defaultBuildDirectory
-	}
-
-	// if target has no extension, it is assumed to be the target directory
-	if filepath.Ext(target) == "" {
-		targetDirectory = target
-	} else {
-		targetDirectory = filepath.Dir(target)
-	}
-
-	// enforce default build directory if target directory is empty, current directory, or root directory
-	if targetDirectory == "." || targetDirectory == "" || targetDirectory == string(os.PathSeparator) {
-		targetDirectory = defaultBuildDirectory
-	}
-
-	// 0755 is octal and means that the owner can read, write, and execute the file, and others can read and execute it
-	if err := os.MkdirAll(targetDirectory, 0755); err != nil {
-		return "", "", err
-	}
-
-	// return if target directory does not exist after trying to create it
-	if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
-		return "", "", err
-	}
-
-	// get base file name of target path without extension
-	baseFileName := filepath.Base(strings.TrimSuffix(target, filepath.Ext(target)))
-
-	// enforce default target file name if base file name is empty, current directory, or root directory
-	if baseFileName == "." || baseFileName == "" || baseFileName == string(os.PathSeparator) || baseFileName == target {
-		baseFileName = defaultTarget
-	}
-
-	// full file path of target with extension
-	targetFullPath := filepath.Join(targetDirectory, baseFileName) + ExtensionMap[Ensure]
-
-	// create and remove empty target file to proof write access
-	if targetFile, err := os.Create(targetFullPath); err != nil {
-		return "", "", err
-	} else {
-		defer func() {
-			targetFile.Close()
-			os.Remove(targetFullPath)
-		}()
-	}
-
-	return targetDirectory, baseFileName, nil
+	fmt.Fprintf(print, textDriverSourceTarget, source, target)
 }
 
 // Compile source code and return translation unit with all intermediate results and error handler.
@@ -246,17 +193,63 @@ func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
 	}
 }
 
-// Persist an assembly code unit to the given assembly target.
-func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) error {
-	var err error
-	var program *os.File
+// Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
+func CompileContent(content []byte) TranslationUnit {
+	// lexical analysis of content
+	tokenStream, scannerError := scn.NewScanner().Scan(content)
+	errorHandler := cor.NewErrorHandler(tokenStream)
+	errorHandler.AppendError(scannerError) // nil errors are ignored
 
-	if program, err = os.Create(target); err != nil {
+	// syntax analysis and semantic analysis of token stream
+	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
+	ana.NewNameAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
+
+	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
+	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
+		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil, nil}
+	}
+
+	// code generation based on the abstract syntax tree results in an intermediate code unit
+	generator := gen.NewGenerator(abstractSyntax)
+	generator.Generate()
+	intermediateCode := generator.GetIntermediateCodeUnit()
+
+	// build control flow graph from an intermediate code unit
+	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
+	controlFlow.Build()
+
+	// emit assembly code from the intermediate code unit
+	emitter := emi.NewEmitter(emi.Amd64, intermediateCode)
+	emitter.Emit()
+	assemblyCode := emitter.GetAssemblyCodeUnit()
+
+	// return translation unit with all intermediate results and error handler
+	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
+}
+
+// Persist the assembly code unit of the application.
+func PersistApplication(unit ac.AssemblyCodeUnit, application string) error {
+	return PersistAssemblyCodeUnit(unit, application)
+}
+
+// Persist the assembly code unit of the runtime.
+func PersistRuntime(runtime string) error {
+	assemblyCode := ac.NewAssemblyCodeUnit(ac.Runtime)
+	assemblyCode.AppendRuntime()
+	return PersistAssemblyCodeUnit(assemblyCode, runtime)
+}
+
+// Persist an assembly code unit to the given target file.
+func PersistAssemblyCodeUnit(unit ac.AssemblyCodeUnit, target string) error {
+	var err error
+	var output *os.File
+
+	if output, err = os.Create(target); err != nil {
 		return err
 	} else {
 		// safely close file and remove it if there is an error
 		defer func() {
-			program.Close()
+			output.Close()
 
 			if err != nil {
 				os.Remove(target)
@@ -264,7 +257,7 @@ func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) er
 		}()
 
 		// export the assembly code unit to the assembly target
-		if err = unit.Export(cor.Text, program); err != nil {
+		if err = unit.Export(cor.Text, output); err != nil {
 			return err
 		}
 	}
@@ -272,8 +265,8 @@ func PersistAssemblyCodeUnitToTarget(unit ac.AssemblyCodeUnit, target string) er
 	return nil
 }
 
-// Export all intermediate representations to the target path.
-func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
+// Export all intermediate representations to the target directory.
+func ExportIntermediateRepresentations(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
 	var anyError error
 
 	// create full intermediate directory path
@@ -385,6 +378,62 @@ func ExportIntermediateRepresentationsToTarget(translationUnit TranslationUnit, 
 	return anyError
 }
 
+// Ensure target path exists and create and remove empty ensure-file to proof write access.
+func EnsureTargetPath(target string) (string, string, error) {
+	var targetDirectory string
+	target = filepath.Clean(target)
+
+	// enforce default build directory if target is empty, current directory, or root directory
+	if target == "." || target == "" || target == string(os.PathSeparator) {
+		target = defaultBuildDirectory
+	}
+
+	// if target has no extension, it is assumed to be the target directory
+	if filepath.Ext(target) == "" {
+		targetDirectory = target
+	} else {
+		targetDirectory = filepath.Dir(target)
+	}
+
+	// enforce default build directory if target directory is empty, current directory, or root directory
+	if targetDirectory == "." || targetDirectory == "" || targetDirectory == string(os.PathSeparator) {
+		targetDirectory = defaultBuildDirectory
+	}
+
+	// 0755 is octal and means that the owner can read, write, and execute the file, and others can read and execute it
+	if err := os.MkdirAll(targetDirectory, 0755); err != nil {
+		return "", "", err
+	}
+
+	// return if target directory does not exist after trying to create it
+	if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	// get base file name of target path without extension
+	baseFileName := filepath.Base(strings.TrimSuffix(target, filepath.Ext(target)))
+
+	// enforce default target file name if base file name is empty, current directory, or root directory
+	if baseFileName == "." || baseFileName == "" || baseFileName == string(os.PathSeparator) || baseFileName == target {
+		baseFileName = defaultTarget
+	}
+
+	// full file path of target with extension
+	targetFullPath := filepath.Join(targetDirectory, baseFileName) + ExtensionMap[Ensure]
+
+	// create and remove empty target file to proof write access
+	if targetFile, err := os.Create(targetFullPath); err != nil {
+		return "", "", err
+	} else {
+		defer func() {
+			targetFile.Close()
+			os.Remove(targetFullPath)
+		}()
+	}
+
+	return targetDirectory, baseFileName, nil
+}
+
 // Return the full path of the target file with the given base file name and extensions.
 func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) string {
 	targetFullPath := filepath.Join(targetDirectory, baseFileName)
@@ -394,38 +443,4 @@ func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) 
 	}
 
 	return targetFullPath
-}
-
-// Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
-func CompileContent(content []byte) TranslationUnit {
-	// lexical analysis of content
-	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	errorHandler := cor.NewErrorHandler(tokenStream)
-	errorHandler.AppendError(scannerError) // nil errors are ignored
-
-	// syntax analysis and semantic analysis of token stream
-	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
-	ana.NewNameAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
-
-	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
-	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil, nil}
-	}
-
-	// code generation based on the abstract syntax tree results in an intermediate code unit
-	generator := gen.NewGenerator(abstractSyntax)
-	generator.Generate()
-	intermediateCode := generator.GetIntermediateCodeUnit()
-
-	// build control flow graph from an intermediate code unit
-	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
-	controlFlow.Build()
-
-	// emit assembly code from the intermediate code unit
-	emitter := emi.NewEmitter(emi.Amd64, intermediateCode)
-	emitter.Emit()
-	assemblyCode := emitter.GetAssemblyCodeUnit()
-
-	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
 }

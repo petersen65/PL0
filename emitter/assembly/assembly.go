@@ -16,8 +16,8 @@ import (
 const (
 	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
 	EntryPointLabel       = "main"                  // label for the entry point of the program
-	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime library function "create_static_link"
-	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime library function "follow_static_link"
+	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime function "create_static_link"
+	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"
 )
 
 // Operand kinds for instructions.
@@ -100,7 +100,7 @@ type (
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
-		AppendRuntimeLibrary()
+		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error

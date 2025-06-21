@@ -90,7 +90,7 @@ func (e *emitter) Emit() {
 			// new base pointer points to start of local variables in the activation record
 			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rbp), ac.NewRegisterOperand(ac.Rsp))
 
-			// call runtime library function to create static link which provides the compile-time block nesting hierarchy at runtime
+			// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
 			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
 
 		case ic.Epilogue: // function exit sequence
@@ -123,7 +123,7 @@ func (e *emitter) Emit() {
 					ac.NewRegisterOperand(ac.Rcx),
 					ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
 
-				// call runtime library function to follow static link to determine the 'variables base' pointer
+				// call runtime function to follow static link to determine the 'variables base' pointer
 				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
 
 				// push memory content at 'variables base - variable offset' onto runtime control stack
@@ -151,7 +151,7 @@ func (e *emitter) Emit() {
 					ac.NewRegisterOperand(ac.Rcx),
 					ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
 
-				// call runtime library function to follow static link to determine the 'variables base' pointer
+				// call runtime function to follow static link to determine the 'variables base' pointer
 				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
 
 				// pop content of the variable
