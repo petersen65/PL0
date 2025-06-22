@@ -119,7 +119,7 @@ var (
 		Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
 		Prologue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
 		Epilogue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Setup:            {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Setup:            {{Arg1: Literal, Arg2: Empty, Result: Empty}},
 		Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Empty}},
 		Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
 		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Metadata, Arg2: Empty, Result: Empty}},

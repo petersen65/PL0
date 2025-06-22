@@ -98,12 +98,18 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rbp))
 
 		case ic.Setup:
+			// panic if parsing of the metadata into its value fails (unsupported value or data type)
+			depth := i.ThreeAddressCode.Arg1.Parse().(int32)
+
 			e.assemblyCode.AppendInstruction(ac.Mov, l, 
 				ac.NewMemoryOperand(ac.Rbp, ac.Bits64, -ac.PointerSize), 
 				ac.NewImmediateOperand(ac.Bits32, int32(0)))
 
-			// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
-			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
+			// the main block has no parent procedure declaration
+			if depth > 0 {
+				// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
+				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
+			}
 
 		case ic.ValueCopy: // copy an immediate value to an address
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
