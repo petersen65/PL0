@@ -10,7 +10,6 @@ const (
 	_ = cor.Failure(iota + 8000)
 	unsupportedCpuTarget
 	unknownIntermediateCodeOperation
-	invalidSizeForOperandInCpuOperation
 	unexpectedNumberOfFunctionArguments
 )
 
@@ -18,6 +17,5 @@ const (
 var failureMap = map[cor.Failure]string{
 	unsupportedCpuTarget:                "unsupported CPU target: %v",
 	unknownIntermediateCodeOperation:    "unknown intermediate code operation: %v",
-	invalidSizeForOperandInCpuOperation: "invalid size for operand in CPU operation: %v",
 	unexpectedNumberOfFunctionArguments: "unexpected number of arguments for function call",
 }

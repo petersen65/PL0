@@ -136,6 +136,9 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		}
 	}
 
+	// initialize logical memory space and internal data structures for the block
+	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Setup, noAddress, noAddress, noAddress))
+
 	// statement of the block
 	bn.Statement.Accept(i)
 

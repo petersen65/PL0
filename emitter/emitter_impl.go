@@ -90,15 +90,20 @@ func (e *emitter) Emit() {
 			// new base pointer points to start of local variables in the activation record
 			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rbp), ac.NewRegisterOperand(ac.Rsp))
 
-			// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
-			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
-
 		case ic.Epilogue: // function exit sequence
 			// clean allocated local variables from the activation record
 			e.assemblyCode.AppendInstruction(ac.Mov, l, ac.NewRegisterOperand(ac.Rsp), ac.NewRegisterOperand(ac.Rbp))
 
 			// restore caller's base pointer
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rbp))
+
+		case ic.Setup:
+			e.assemblyCode.AppendInstruction(ac.Mov, l, 
+				ac.NewMemoryOperand(ac.Rbp, ac.Bits64, -ac.PointerSize), 
+				ac.NewImmediateOperand(ac.Bits32, int32(0)))
+
+			// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
+			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
 
 		case ic.ValueCopy: // copy an immediate value to an address
 			// panic if parsing of the literal into its value fails (unsupported value or data type)

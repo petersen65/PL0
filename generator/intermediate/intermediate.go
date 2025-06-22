@@ -52,6 +52,7 @@ const (
 	Call      // call function
 	Prologue  // function entry sequence inside the body of a function
 	Epilogue  // function exit sequence inside the body of a function
+	Setup     // setup function call by initializing logical memory space and internal data structures
 	Return    // return from function
 	Standard  // call function of the external standard library
 	Target    // target for any branching operation
