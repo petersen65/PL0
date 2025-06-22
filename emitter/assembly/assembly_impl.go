@@ -177,20 +177,87 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
 
-	// runtime function "create_static_link"
-
-	// take block nesting depth difference between caller and callee (calculated at compile time)
-	// hidden parameter provided intentionally in scratch register R10d as int32
+	/*
+	# ------------------------------------------------------------
+	# rt.create_static_link
+	#
+	# Purpose:
+	#   Computes and stores the static link for a newly entered procedure.
+	#
+	# Assumptions:
+	#   - r10d contains the lexical depth difference between the caller and callee.
+	#     (e.g., 0 = immediate parent, 1 = skip one static scope, etc.)
+	#   - The current stack frame is fully set up:
+	#       - rbp points to the current frame (callee's frame).
+	#       - [rbp] contains the saved rbp of the caller (dynamic link).
+	#
+	# Effects:
+	#   - Calls follow_static_link to resolve the static parent.
+	#   - Stores the resolved static link (frame pointer of parent scope) at [rbp-8].
+	#     This is assumed to be the callee’s first local variable (invisible to ABI).
+	#
+	# Clobbers:
+	#   - rax, rsi (internally used)
+	#   - r10d remains unchanged (caller-saved)
+	# ------------------------------------------------------------
+	rt.create_static_link:
+		mov         edi, r10d                    # Move depth difference into edi (used as counter)
+		mov         rsi, qword ptr [rbp]         # Load caller's rbp (dynamic link) into rsi
+		call        rt.follow_static_link.1      # Follow static chain depth times
+		mov         qword ptr [rbp-8], rax       # Store static link (resolved frame pointer) into callee’s locals
+		ret
+	*/
 	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
-
 	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
 	a.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
 	a.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
 	a.AppendInstruction(Ret, nil)
 
-	// runtime function "follow_static_link"
-
+	/*
+	# ------------------------------------------------------------
+	# rt.follow_static_link
+	#
+	# Purpose:
+	#   Entry point for static link traversal.
+	#
+	# Effects:
+	#   - Sets rsi = rbp (if needed for manual entry)
+	#   - Falls through into rt.follow_static_link.1
+	# ------------------------------------------------------------
+	rt.follow_static_link:
+		mov         rsi, rbp                     # Optional manual starting point for static chain
+                                           		 # Used if follow_static_link is called with current rbp	
+	*/
 	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+
+	/*
+	# ------------------------------------------------------------
+	# rt.follow_static_link.1
+	#
+	# Purpose:
+	#   Recursively follows the static link chain `edi` times.
+	#
+	# Assumptions:
+	#   - edi = depth difference (0 means: current level)
+	#   - rsi = starting frame pointer
+	#
+	# Result:
+	#   - rax = frame pointer of the statically enclosing scope
+	#
+	# Clobbers:
+	#   - rsi, edi
+	# ------------------------------------------------------------
+	rt.follow_static_link.1:
+		cmp         edi, 0                       # Have we reached the target scope?
+		je          rt.follow_static_link.2      # If so, jump to end
+		mov         rsi, qword ptr [rsi-8]       # Follow static link upward (stored at [rbp-8] in parent frame)
+		sub         edi, 1                       # Decrease depth count
+		jmp         rt.follow_static_link.1      # Repeat traversal
+
+	rt.follow_static_link.2:
+		mov         rax, rsi                     # Final resolved static frame address → rax
+		ret
+	*/
 	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(0)))
 	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
 	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rsi, Bits64, -PointerSize))

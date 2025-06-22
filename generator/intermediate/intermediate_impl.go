@@ -298,13 +298,14 @@ func (a *Address) Parse() any {
 			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
-				if a.DataType == Integer32 {
+				switch a.DataType {
+				case Integer32:
 					return int32(decoded)
-				} else if a.DataType == Integer16 {
+				case Integer16:
 					return int16(decoded)
-				} else if a.DataType == Integer8 {
+				case Integer8:
 					return int8(decoded)
-				} else {
+				default:
 					return decoded
 				}
 			}
@@ -324,13 +325,14 @@ func (a *Address) Parse() any {
 			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
-				if a.DataType == Unsigned32 {
+				switch a.DataType {
+				case Unsigned32:
 					return uint32(decoded)
-				} else if a.DataType == Unsigned16 {
+				case Unsigned16:
 					return uint16(decoded)
-				} else if a.DataType == Unsigned8 {
+				case Unsigned8:
 					return uint8(decoded)
-				} else {
+				default:
 					return decoded
 				}
 			}
