@@ -5,7 +5,8 @@ package assembly
 
 // Operation codes for assembly instructions of the AMD64 CPU.
 const (
-	_ = OperationCode(iota)
+	// used as empty prefix for the operation code
+	None = OperationCode(iota)
 
 	// assembly instructions for data copy operations
 	Push
@@ -17,7 +18,16 @@ const (
 	Cmp
 
 	// bitwise comparison assembly instruction for all bitwise logical operators and conditional jumps
-	Test 
+	Test
+
+	// clear the direction flag to ensure string operations (e.g., STOSQ) proceed from low to high memory addresses
+	Cld
+
+	// repeat prefix for string instructions: repeats the following operation (e.g., STOSQ) until RCX == 0
+	Rep
+
+	// store quadword: writes the value in RAX to the memory address pointed to by RDI, then increments RDI by 8
+	Stosq
 
 	// unconditional and conditional jump assembly instructions
 	Jmp

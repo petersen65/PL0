@@ -21,12 +21,16 @@ type assemblyCodeUnit struct {
 var (
 	// Map CPU operation codes to their string representation.
 	operationNames = map[OperationCode]string{
+		None:    "",
 		Push:    "push",
 		Pop:     "pop",
 		Mov:     "mov",
 		MovAbs:  "movabs",
 		Cmp:     "cmp",
 		Test:    "test",
+		Cld:     "cld",
+		Rep:     "rep",
+		Stosq:   "stosq",
 		Jmp:     "jmp",
 		Je:      "je",
 		Jne:     "jne",
@@ -159,18 +163,24 @@ func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	}
 }
 
-// Create a new assembly instruction with an operation code, some labels, and operands.
-func newInstruction(op OperationCode, labels []string, operands ...*Operand) *Instruction {
+// Create a new assembly instruction with a prefix, an operation code, some labels, and operands.
+func newInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
 	return &Instruction{
-		Operation: op,
+		Prefix:    prefix,
+		Operation: operation,
 		Operands:  operands,
 		Labels:    labels,
 	}
 }
 
 // Append an instruction to the assembly code unit.
-func (a *assemblyCodeUnit) AppendInstruction(op OperationCode, labels []string, operands ...*Operand) {
-	a.textSection = append(a.textSection, newInstruction(op, labels, operands...))
+func (a *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
+	a.textSection = append(a.textSection, newInstruction(None, operation, labels, operands...))
+}
+
+// Append a prefixed instruction to the assembly code unit.
+func (a *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
+	a.textSection = append(a.textSection, newInstruction(prefix, operation, labels, operands...))
 }
 
 // Append a set of instructions to create all runtime functions.
@@ -179,40 +189,40 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
 
 	/*
-	# -------------------------------------------------------------------------------
-	# rt.create_static_link
-	#
-	# Purpose:
-	#   Computes and stores the static link for a newly entered procedure.
-	#
-	# Assumptions:
-	#   - r10d contains the lexical depth difference between the caller and callee.
-	#     (e.g., 0 = immediate parent, 1 = skip one static scope, etc.)
-	#   - The current stack frame is fully set up:
-	#       - rbp points to the current frame (callee's frame).
-	#       - [rbp] contains the saved rbp of the caller (dynamic link).
-	#
-	# Effects:
-	#   - Calls follow_static_link to resolve the static parent.
-	#   - Stores the resolved static link (frame pointer of parent scope) at [rbp-8].
-	#     This is assumed to be the callee’s first local variable (invisible to ABI).
-	#
-	# Clobbers:
-	#   - rax, rsi (internally used)
-	#   - r10d remains unchanged (caller-saved)
-	#
-	# Details:
-	#   - The static link is a pointer to the frame of a lexical parent.
-	#   - The dynamic link is a pointer to the frame of the actual caller.
-	#   - They are equal only when: the caller is the immediate parent of the callee.
-	#   - r10d == 0 is not just a numerical fact, but a semantic assertion.
-	# -------------------------------------------------------------------------------
-	rt.create_static_link:
-		mov         edi, r10d                    # move depth difference into edi (used as counter)
-		mov         rsi, qword ptr [rbp]         # load caller's rbp (dynamic link) into rsi
-		call        rt.follow_static_link.1      # follow static chain depth times
-		mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
-		ret
+		# -------------------------------------------------------------------------------
+		# rt.create_static_link
+		#
+		# Purpose:
+		#   Computes and stores the static link for a newly entered procedure.
+		#
+		# Assumptions:
+		#   - r10d contains the lexical depth difference between the caller and callee.
+		#     (e.g., 0 = immediate parent, 1 = skip one static scope, etc.)
+		#   - The current stack frame is fully set up:
+		#       - rbp points to the current frame (callee's frame).
+		#       - [rbp] contains the saved rbp of the caller (dynamic link).
+		#
+		# Effects:
+		#   - Calls follow_static_link to resolve the static parent.
+		#   - Stores the resolved static link (frame pointer of parent scope) at [rbp-8].
+		#     This is assumed to be the callee’s first local variable (invisible to ABI).
+		#
+		# Clobbers:
+		#   - rax, rsi (internally used)
+		#   - r10d remains unchanged (caller-saved)
+		#
+		# Details:
+		#   - The static link is a pointer to the frame of a lexical parent.
+		#   - The dynamic link is a pointer to the frame of the actual caller.
+		#   - They are equal only when: the caller is the immediate parent of the callee.
+		#   - r10d == 0 is not just a numerical fact, but a semantic assertion.
+		# -------------------------------------------------------------------------------
+		rt.create_static_link:
+			mov         edi, r10d                    # move depth difference into edi (used as counter)
+			mov         rsi, qword ptr [rbp]         # load caller's rbp (dynamic link) into rsi
+			call        rt.follow_static_link.1      # follow static chain depth times
+			mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
+			ret
 	*/
 	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
 	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
@@ -221,52 +231,52 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 	a.AppendInstruction(Ret, nil)
 
 	/*
-	# -------------------------------------------------------------------------------
-	# rt.follow_static_link
-	#
-	# Purpose:
-	#   Entry point for static link traversal.
-	#
-	# Effects:
-	#   - Sets rsi = rbp (if needed for manual entry)
-	#   - Falls through into rt.follow_static_link.1
-	# -------------------------------------------------------------------------------
-	rt.follow_static_link:
-		mov         rsi, rbp                     # optional manual starting point for static chain
-                                           		 # used if follow_static_link is called with current rbp	
+			# -------------------------------------------------------------------------------
+			# rt.follow_static_link
+			#
+			# Purpose:
+			#   Entry point for static link traversal.
+			#
+			# Effects:
+			#   - Sets rsi = rbp (if needed for manual entry)
+			#   - Falls through into rt.follow_static_link.1
+			# -------------------------------------------------------------------------------
+			rt.follow_static_link:
+				mov         rsi, rbp                     # optional manual starting point for static chain
+		                                           		 # used if follow_static_link is called with current rbp
 	*/
 	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
 
 	/*
-	# -------------------------------------------------------------------------------
-	# rt.follow_static_link.1
-	#
-	# Purpose:
-	#   Recursively follows the static link chain `edi` times.
-	#
-	# Assumptions:
-	#   - edi = depth difference (0 means: current level)
-	#   - rsi = starting frame pointer
-	#
-	# Result:
-	#   - rax = frame pointer of the statically enclosing scope
-	#
-	# Clobbers:
-	#   - rsi, edi
-	# -------------------------------------------------------------------------------
-	rt.follow_static_link.1:
-		cmp         edi, 0                       # have we reached the target lexical depth (difference == 0)?
-		je          rt.follow_static_link.2      # yes → stop and return current frame pointer in rsi
-		mov   		rdx, qword ptr [rsi-8]		 # load the next static link from current frame
-    	test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static chain)
-    	je    		rt.follow_static_link.2      # if 0 → stop to avoid entering non-PL/0 frames (e.g., C runtime)
-		mov         rsi, qword ptr [rsi-8]       # follow the static link upward (i.e., to lexical parent frame)
-		sub         edi, 1                       # decrease remaining lexical distance
-		jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static chain ends
+			# -------------------------------------------------------------------------------
+			# rt.follow_static_link.1
+			#
+			# Purpose:
+			#   Recursively follows the static link chain `edi` times.
+			#
+			# Assumptions:
+			#   - edi = depth difference (0 means: current level)
+			#   - rsi = starting frame pointer
+			#
+			# Result:
+			#   - rax = frame pointer of the statically enclosing scope
+			#
+			# Clobbers:
+			#   - rsi, edi
+			# -------------------------------------------------------------------------------
+			rt.follow_static_link.1:
+				cmp         edi, 0                       # have we reached the target lexical depth (difference == 0)?
+				je          rt.follow_static_link.2      # yes → stop and return current frame pointer in rsi
+				mov   		rdx, qword ptr [rsi-8]		 # load the next static link from current frame
+		    	test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static chain)
+		    	je    		rt.follow_static_link.2      # if 0 → stop to avoid entering non-PL/0 frames (e.g., C runtime)
+				mov         rsi, qword ptr [rsi-8]       # follow the static link upward (i.e., to lexical parent frame)
+				sub         edi, 1                       # decrease remaining lexical distance
+				jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static chain ends
 
-	rt.follow_static_link.2:
-		mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
-		ret 									 # return to caller with rax = static link result
+			rt.follow_static_link.2:
+				mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
+				ret 									 # return to caller with rax = static link result
 	*/
 	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(0)))
 	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))

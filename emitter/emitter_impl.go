@@ -101,10 +101,6 @@ func (e *emitter) Emit() {
 			// panic if parsing of the metadata into its value fails (unsupported value or data type)
 			depth := i.ThreeAddressCode.Arg1.Parse().(int32)
 
-			e.assemblyCode.AppendInstruction(ac.Mov, l, 
-				ac.NewMemoryOperand(ac.Rbp, ac.Bits64, -ac.PointerSize), 
-				ac.NewImmediateOperand(ac.Bits32, int32(0)))
-
 			// the main block has no parent procedure declaration
 			if depth > 0 {
 				// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
@@ -368,6 +364,13 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 			e.assemblyCode.AppendInstruction(ac.Sub, labels,
 				ac.NewRegisterOperand(ac.Rsp),
 				ac.NewImmediateOperand(ac.Bits32, -offset))
+
+			// zero out the allocated space for local variables in the activation record
+			e.assemblyCode.AppendInstruction(ac.Cld, nil)
+			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rax), ac.NewImmediateOperand(ac.Bits32, int32(0)))
+			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rcx), ac.NewImmediateOperand(ac.Bits32, -offset/ac.QuadWordSize))
+			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rdi), ac.NewRegisterOperand(ac.Rsp))
+			e.assemblyCode.AppendPrefixedInstruction(ac.Rep, ac.Stosq, nil)
 
 			// set last processed intermediate code instruction and break
 			iterator.Skip(j)

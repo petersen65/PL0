@@ -15,6 +15,7 @@ import (
 
 const (
 	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
+	QuadWordSize          = 8                       // size of a quad word in bytes (64 bits)
 	EntryPointLabel       = "main"                  // label for the entry point of the program
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"
@@ -80,6 +81,7 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
+		Prefix    OperationCode `json:"prefix"`    // prefix for the instruction
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
 		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
@@ -99,7 +101,8 @@ type (
 
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
-		AppendInstruction(op OperationCode, labels []string, operands ...*Operand)
+		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
+		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
@@ -114,8 +117,13 @@ func NewAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 }
 
 // Create a new assembly instruction with an operation code, some labels, and operands.
-func NewInstruction(op OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return newInstruction(op, labels, operands...)
+func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
+	return newInstruction(None, operation, labels, operands...)
+}
+
+// Create a new assembly instruction with a prefix operation code, an operation code, some labels, and operands.
+func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
+	return newInstruction(prefix, operation, labels, operands...)
 }
 
 // Create a new register operand for an assembly instruction.
@@ -189,7 +197,7 @@ func (i *Instruction) String() string {
 		buffer.WriteString(":\n")
 	}
 
-	buffer.WriteString(fmt.Sprintf("  %-12v", i.Operation))
+	buffer.WriteString(fmt.Sprintf("  %-12v", strings.TrimSpace(fmt.Sprintf("%v %v", i.Prefix, i.Operation))))
 
 	for _, op := range i.Operands {
 		buffer.WriteString(op.String())
