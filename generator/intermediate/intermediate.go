@@ -70,9 +70,10 @@ const (
 	Temporary                 // temporary address holds a result of an operation
 	Literal                   // literal address holds a constant or literal value
 	Variable                  // variable address holds an argument of an operation
-	Label                     // label address used as target for jumps and calls is resolved by the linker
+	Label                     // label address used as target for jumps and calls will be resolved by a linker
 	Count                     // count address is used for counting purposes like the number of parameters in a function call
 	Code                      // code address holds a call code for the external standard library (e.g. readln, writeln)
+	Depth                     // depth address holds the block nesting depth of a block at compilation time
 )
 
 // Data types supported for an address of the three-address code concept.

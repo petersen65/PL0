@@ -42,6 +42,7 @@ var (
 		Label:     "lbl",
 		Count:     "cnt",
 		Code:      "cod",
+		Depth:     "dpt",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -119,7 +120,7 @@ var (
 		Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
 		Prologue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
 		Epilogue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Setup:            {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		Setup:            {{Arg1: Depth, Arg2: Empty, Result: Empty}},
 		Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Empty}},
 		Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
 		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Metadata, Arg2: Empty, Result: Empty}},
@@ -395,6 +396,19 @@ func (a *Address) Parse() any {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
 				return decoded
+			}
+
+		default:
+			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		}
+
+	case Depth:
+		switch a.DataType {
+		case Integer32:
+			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
+			} else {
+				return int32(decoded)
 			}
 
 		default:

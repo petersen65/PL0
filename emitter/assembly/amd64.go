@@ -16,6 +16,9 @@ const (
 	// comparison assembly instruction for all relational operators and conditional jumps
 	Cmp
 
+	// bitwise comparison assembly instruction for all bitwise logical operators and conditional jumps
+	Test 
+
 	// unconditional and conditional jump assembly instructions
 	Jmp
 	Je

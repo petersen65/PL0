@@ -139,7 +139,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// initialize logical memory space and internal data structures for the block
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(
 		ic.Setup, // setup of function call before the statement of the block is generated
-		ic.NewAddress(bn.Depth, ic.Literal, ic.Integer32), // block nesting depth
+		ic.NewAddress(bn.Depth, ic.Depth, ic.Integer32), // block nesting depth
 		noAddress,
 		noAddress))
 
