@@ -14,6 +14,9 @@ import (
 // Display name of entry point only used for informational purposes.
 const entryPointDisplayName = "@main"
 
+// Display name of the internal static link variable used to hold the static link of the current block.
+const staticLinkDisplayName = "@staticlink"
+
 // Abstract syntax extension for the symbol.
 const symbolExtension ast.ExtensionType = 16
 
@@ -128,6 +131,13 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// create entry sequence for the block
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Prologue, noAddress, noAddress, noAddress))
+
+	// create a hidden first local variable for the block that holds internal data structures
+	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+		ic.Allocate, 
+		ic.NewAddress(staticLinkDisplayName, ic.Metadata, ic.Unsigned64),
+		noAddress,
+		ic.NewAddress(staticLinkDisplayName, ic.Variable, ic.Unsigned64)))
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
