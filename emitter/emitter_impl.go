@@ -82,30 +82,19 @@ func (e *emitter) Emit() {
 			e.allocate(iterator, l)
 
 		case ic.Prologue: // function entry sequence
-			// save caller's base pointer because it will be changed
-			// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
-			// an alternative naming from literature is 'control link' that points to the activation record of the caller
-			e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewRegisterOperand(ac.Rbp))
-
-			// new base pointer points to start of local variables in the activation record
-			e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rbp), ac.NewRegisterOperand(ac.Rsp))
+			// emit assembly code to prepare the activation record for the function call
+			e.prologue(l)
 
 		case ic.Epilogue: // function exit sequence
-			// clean allocated local variables from the activation record
-			e.assemblyCode.AppendInstruction(ac.Mov, l, ac.NewRegisterOperand(ac.Rsp), ac.NewRegisterOperand(ac.Rbp))
+			// emit assembly code to restore the activation record of the caller
+			e.epilogue(l)
 
-			// restore caller's base pointer
-			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rbp))
-
-		case ic.Setup:
+		case ic.Setup: // initialize logical memory space and internal data structures
 			// panic if parsing of the metadata into its value fails (unsupported value or data type)
 			depth := i.ThreeAddressCode.Arg1.Parse().(int32)
 
-			// the main block has no parent procedure declaration
-			if depth > 0 {
-				// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
-				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
-			}
+			// emit assembly code to setup a function call
+			e.setup(depth)
 
 		case ic.ValueCopy: // copy an immediate value to an address
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
@@ -376,6 +365,32 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 			iterator.Skip(j)
 			break
 		}
+	}
+}
+
+// The function entry sequence is called prologue and prepares the activation record for the function call.
+func (e *emitter) prologue(labels []string) {
+	// save caller's base pointer because it will be changed
+	// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
+	// an alternative naming from literature is 'control link' that points to the activation record of the caller
+	e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewRegisterOperand(ac.Rbp))
+	e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Rbp), ac.NewRegisterOperand(ac.Rsp))
+}
+
+// The function exit sequence is called epilogue and restores the activation record of the caller.
+func (e *emitter) epilogue(labels []string) {
+	// clean allocated local variables from the activation record and restore caller's base pointer
+	e.assemblyCode.AppendInstruction(ac.Mov, labels, ac.NewRegisterOperand(ac.Rsp), ac.NewRegisterOperand(ac.Rbp))
+	e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rbp))
+}
+
+// Setup a function call by initializing the logical memory space and internal data structures.
+func (e *emitter) setup(depth int32) {
+	// only blocks with a depth greater than 0 have a static link
+	// the main block has depth 0, no lexical parent and therefore no static link
+	if depth > 0 {
+		// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
+		e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.CreateStaticLinkLabel))
 	}
 }
 
