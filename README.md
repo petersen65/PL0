@@ -47,7 +47,7 @@ Applied to the programming language PL/0, the grammar G is:
 
 The programming language PL/0 has the following productions (extended Backus-Naur form):
 
-| nonterminal symbol | terminal or nonterminal symbols
+| Nonterminal symbol | Terminal or nonterminal symbols
 |:-------------------|:-----------------------------------------------------------------------------------------
 | program            | block "."
 |                    | &nbsp;
@@ -109,6 +109,127 @@ The programming language PL/0 2025 supports the following features:
 | Multi-Line Comments           | { } or (* *)
 |                               | 
 
+## Dynamic Links and Static Links
+
+Every procedure or function call in PL/0 (or similar block-structured languages like Pascal or Modula) creates an activation record (also called a stack frame), which holds:
+
+- local variables
+- procedure or function parameters (if any)
+- return address
+- administrative data (links to other activation records)
+
+The activation record is pushed onto the call stack during a function call, and cleaned up upon return.
+
+### Dynamic Link: The Caller Chain
+
+The dynamic link is a stack pointer (usually stored at RBP in AMD64) that references the activation record of the calling procedure, regardless of the program’s lexical structure. It:
+
+- enables restoration of the previous base pointer RBP during a RET instruction
+- supports dynamic call chains at runtime
+- used to unwind the stack or print a backtrace
+
+Think of it as: who called me? Example: if M calls A, and A calls B, then the dynamic link of B points to the activation record of A. The dynamic link of A points to the activation record of M. This is named the "caller chain" from M to B (or dynamic link chain or dynamic chain).
+
+### Static Link: The Lexical Scope Chain
+
+The static link is a pointer that refers to the activation record of the lexically enclosing procedure. It:
+
+- enables access to non-local variables from parent activation records
+- used to preserve lexical scoping rules at compilation time
+- required for closures and proper variable binding
+
+Think of it as: who is my lexical parent? Example: if M has 2 local procedures A and B, then the static link of B points to the activation record of M. The static link of A points to the activation record of M. If a procedure is the direct lexical parent of another procedure (like M and A) and the parent calls this other procedure, then the static link is equal to the dynamic link. If there is a chain of parent procedures for a given procedure, then this can be named "lexical scope chain" from M to B or M to A (or static link chain or static chain).
+
+The static link does not change based on who calls a procedure, but where the procedure is defined in the source code. 
+
+### Dynamic Link versus Static Link
+
+The following table provides a comparision of dynamic and static links:
+
+| Feature          | Dynamic Link                        | Static Link                                       |
+|:-----------------|:------------------------------------|:--------------------------------------------------|
+| points to        | caller's activation record          | lexically enclosing procedure’s frame             |
+| used for         | stack unwinding, returns, backtrace | non-local variable access                         |
+| changes on call  | yes (based on runtime call chain)   | no (based on lexical nesting at compilation time) |
+| location (AMD64) | usually at RBP                      | in this project at RBP-8 (hidden local variable)  |
+
+### Static Link Computation
+
+The compiler determines how many lexical levels separate the current procedure's block from the variable's block — this is called the depth difference between variable use (procedure's block depth) and variable declaration (variable's block depth).
+
+Example:
+
+```pascal
+procedure A;
+  var x; 				(* block A: depth 1 *)
+  procedure B;
+    procedure C;
+    begin 				(* block C: depth 3 *)
+      x := 42;			(* depth difference blocks C and A: 2 *)
+    end;
+  begin 				(* block B: depth 2 *)
+    call C;
+  end;
+begin 					(* block A: depth 1 *)
+  call B;
+end;
+begin 					(* top level block of main: depth 0 *)
+  call A;
+end;
+
+```
+
+So, procedure C must walk 2 static links up to reach variable A. The depth difference between C and A is 2.
+
+### Implementation (Typical on x86_64)
+
+#### Frame Layout (Callee)
+
+```
+[rbp+16] → argument (e.g., depth difference)
+[rbp+8]  → return address
+[rbp]    → dynamic link (saved rbp from caller)
+[rbp-8]  → static link (pointer to lex parent)
+[rbp-...] → local variables
+```
+
+#### Static Link Setup
+
+1. Caller sets `r10d` (or pushes depth difference)
+2. Callee sets up frame and calls `create_static_link`
+3. `create_static_link` walks up static links to find lex parent
+4. Result stored at `[rbp-8]`
+
+### Accessing Non-Local Variables
+
+```asm
+mov     r10d, 2
+call    rt.follow_static_link
+mov     qword ptr [rax - 16], 42   ; x := 42
+```
+
+### Mental Model: "Two Chains"
+
+```
+Runtime call tree (dynamic):
+  main → A → B → C
+
+Lexical block tree (static):
+  main
+    └── A
+        └── C
+    └── B
+```
+
+Even though `C` is called by `B`, it *belongs to* `A` lexically — the static link must point to `A`, not `B`.
+
+### Summary
+
+- **Dynamic link** tracks *call history*
+- **Static link** tracks *lexical nesting*
+- Static links allow nested procedures to behave as if they were declared at top-level
+- Essential for implementing lexically scoped languages (like PL/0, Pascal)
+
 ## System V AMD64 ABI (target for PL/0 Compiler)
 
 The PL/0 compiler emits x86-64 assembly that conforms to the **System V AMD64 ABI** (the standard on Linux, BSD, and other Unix-like systems). This ensures that:
@@ -164,7 +285,7 @@ Register RSP must always be restored to its original value before returning.
 
 Proper stack alignment is crucial under the System V AMD64 ABI, both to satisfy the calling convention and to enable efficient, aligned memory and SIMD operations. In particular, the stack pointer (RSP) must be a multiple of 16 bytes immediately before any call, and a standard function prologue arranges this as shown below.  
 
-```asm
+```x86asm
     # --- caller does a CALL to a function ---
     call   pl0_function
     
