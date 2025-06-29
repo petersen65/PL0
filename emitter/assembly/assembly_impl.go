@@ -220,7 +220,7 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 		rt.create_static_link:
 			mov         edi, r10d                    # move depth difference into edi (used as counter)
 			mov         rsi, qword ptr [rbp]         # load caller's rbp (dynamic link) into rsi
-			call        rt.follow_static_link.1      # follow static chain depth times
+			call        rt.follow_static_link.1      # follow static link chain depth times
 			mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
 			ret
 	*/
@@ -242,7 +242,7 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 			#   - Falls through into rt.follow_static_link.1
 			# -------------------------------------------------------------------------------
 			rt.follow_static_link:
-				mov         rsi, rbp                     # optional manual starting point for static chain
+				mov         rsi, rbp                     # optional manual starting point for static link chain
 		                                           		 # used if follow_static_link is called with current rbp
 	*/
 	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
@@ -268,11 +268,11 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 				cmp         edi, 0                       # have we reached the target lexical depth (difference == 0)?
 				je          rt.follow_static_link.2      # yes → stop and return current frame pointer in rsi
 				mov   		rdx, qword ptr [rsi-8]		 # load the next static link from current frame
-		    	test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static chain)
+		    	test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static link chain)
 		    	je    		rt.follow_static_link.2      # if 0 → stop to avoid entering non-PL/0 frames (e.g., C runtime)
 				mov         rsi, qword ptr [rsi-8]       # follow the static link upward (i.e., to lexical parent frame)
 				sub         edi, 1                       # decrease remaining lexical distance
-				jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static chain ends
+				jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static link chain ends
 
 			rt.follow_static_link.2:
 				mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
