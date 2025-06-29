@@ -57,8 +57,8 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 |                    | statement
 |                    | &nbsp;
 | statement          | [identifier ":=" expression
-|				 	 | &nbsp;\| "call" identifier
-| 					 | &nbsp;\| "!" expression
+|				 	           | &nbsp;\| "call" identifier
+| 					         | &nbsp;\| "!" expression
 |                    | &nbsp;\| "?" identifier 
 |                    | &nbsp;\| "begin" statement {";" statement} "end"
 |                    | &nbsp;\| "if" condition "then" statement
@@ -70,7 +70,7 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 | expression         | term {( "+" \| "-") term}
 | term               | factor {("*" \| "/") factor}
 | factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
-|                    | 
+|                    |
 
 For PL/0, tokens define the set of accepting states of a finite automaton. There are four classes: 
 * identifiers = identifier
@@ -90,21 +90,21 @@ The programming language PL/0 2025 supports the following features:
 | Type System                   | no, only int64 numbers
 | Numerical Expressions         | yes
 | Statements                    | yes
-| Variable Definition	        | var
-| Constant Definition	        | const
-| Variable Assignment	        | :=
+| Variable Definition	          | var
+| Constant Definition	          | const
+| Variable Assignment	          | :=
 | Block	                        | begin … end;
 | Physical Equality             | =
 | Physical Inequality           | #
-| Comparison	                | <&nbsp;&nbsp;>&nbsp;&nbsp;<=&nbsp;&nbsp;>=
-| Function Definition	        | procedure \<name\>; \<body\>;
+| Comparison	                  | <&nbsp;&nbsp;>&nbsp;&nbsp;<=&nbsp;&nbsp;>=
+| Function Definition 	        | procedure \<name\>; \<body\>;
 | Function Call	                | call \<name\>;
 | Sequence	                    | ;
-| Read Number	                | ? \<stdin\>
+| Read Number	                  | ? \<stdin\>
 | Write Number	                | ! \<stdout\>
-| If Then	                    | if \<condition\> then \<true-block\>;
+| If Then	                      | if \<condition\> then \<true-block\>;
 | Loop Forever	                | while 1 = 1 do \<loop-body\>;
-| While Condition Do	        | while \<condition\> do \<loop-body\>;
+| While Condition Do	          | while \<condition\> do \<loop-body\>;
 | Program End                   | .
 | Multi-Line Comments           | { } or (* *)
 |                               | 
@@ -152,6 +152,7 @@ The following table provides a comparision of dynamic and static links:
 | used for         | stack unwinding, returns, backtrace | non-local variable access                         |
 | changes on call  | yes (based on runtime call chain)   | no (based on lexical nesting at compilation time) |
 | location (AMD64) | usually at RBP                      | in this project at RBP-8 (hidden local variable)  |
+|                  |                                     |                                                   |
 
 ### Static Link Computation
 
@@ -172,7 +173,7 @@ procedure A;
   end;
   procedure C;			(* block C: depth 3 *)
   begin
-	call B;
+	  call B;
   end;
 begin 					(* block A: depth 1 *)
   call B;
@@ -187,7 +188,7 @@ So, procedure D must walk 2 static links up to reach a variable in A. The depth 
 
 ### Mental Model: "Two Chains"
 
-Even though D is called by B, it belongs to A lexically — the static link of D must point to A, not B.
+When a procedure calls a nested procedure, it passes a pointer to the correct lexically enclosing procedure’s frame — the static link. Even though D is called by B, it belongs to A lexically — the static link of D must point to A, not B.
 
 ```
 Runtime call tree (dynamic):
@@ -197,11 +198,11 @@ Runtime call tree (dynamic):
   MAIN
 
 Lexical block tree (static):
-  MAIN
-    └── A
-        └── B
-            └── D
-        └── C
+  MAIN                  depth 0
+    └── A               depth 1
+        └── B           depth 2
+            └── D       depth 3
+        └── C           depth 2
 ```
 
 Summary:
@@ -256,6 +257,7 @@ The table below summarizes which registers belong to each category.
 | R9                      |                             |
 | R10                     |                             |
 | R11                     |                             |
+|                         |                             |
 
 Caller-saved registers may be freely clobbered by a function; if the caller needs them afterward, it must save/restore them.
 Callee-saved registers must be preserved by your function (push on entry, pop before return) if you modify them.
