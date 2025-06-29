@@ -163,72 +163,52 @@ Example:
 procedure A;
   var x; 				(* block A: depth 1 *)
   procedure B;
-    procedure C;
-    begin 				(* block C: depth 3 *)
-      x := 42;			(* depth difference blocks C and A: 2 *)
+    procedure D;
+    begin 				(* block D: depth 3 *)
+      x := 42;			(* depth difference blocks D and A: 2 *)
     end;
   begin 				(* block B: depth 2 *)
-    call C;
+    call D;
+  end;
+  procedure C;			(* block C: depth 3 *)
+  begin
+	call B;
   end;
 begin 					(* block A: depth 1 *)
   call B;
+  call C;
 end;
-begin 					(* top level block of main: depth 0 *)
+begin 					(* top level block MAIN: depth 0 *)
   call A;
-end;
-
+end.
 ```
 
-So, procedure C must walk 2 static links up to reach variable A. The depth difference between C and A is 2.
-
-### Implementation (Typical on x86_64)
-
-#### Frame Layout (Callee)
-
-```
-[rbp+16] → argument (e.g., depth difference)
-[rbp+8]  → return address
-[rbp]    → dynamic link (saved rbp from caller)
-[rbp-8]  → static link (pointer to lex parent)
-[rbp-...] → local variables
-```
-
-#### Static Link Setup
-
-1. Caller sets `r10d` (or pushes depth difference)
-2. Callee sets up frame and calls `create_static_link`
-3. `create_static_link` walks up static links to find lex parent
-4. Result stored at `[rbp-8]`
-
-### Accessing Non-Local Variables
-
-```asm
-mov     r10d, 2
-call    rt.follow_static_link
-mov     qword ptr [rax - 16], 42   ; x := 42
-```
+So, procedure D must walk 2 static links up to reach a variable in A. The depth difference between D and A is 2.
 
 ### Mental Model: "Two Chains"
 
+Even though D is called by B, it belongs to A lexically — the static link of D must point to A, not B.
+
 ```
 Runtime call tree (dynamic):
-  main → A → B → C
+  MAIN → A → B → D ⏎
+  	   → A → C → B → D ⏎
+	   → A ⏎ 
+  MAIN
 
 Lexical block tree (static):
-  main
+  MAIN
     └── A
+        └── B
+            └── D
         └── C
-    └── B
 ```
 
-Even though `C` is called by `B`, it *belongs to* `A` lexically — the static link must point to `A`, not `B`.
-
-### Summary
-
-- **Dynamic link** tracks *call history*
-- **Static link** tracks *lexical nesting*
-- Static links allow nested procedures to behave as if they were declared at top-level
-- Essential for implementing lexically scoped languages (like PL/0, Pascal)
+Summary:
+- dynamic link tracks call history
+- static link tracks lexical nesting
+- static links allow nested procedures to behave as if they were declared at top-level
+- essential for implementing lexically scoped languages (like PL/0, Pascal)
 
 ## System V AMD64 ABI (target for PL/0 Compiler)
 
@@ -289,38 +269,39 @@ Proper stack alignment is crucial under the System V AMD64 ABI, both to satisfy 
     # --- caller does a CALL to a function ---
     call   pl0_function
     
-	# after CALL, CPU pushed an 8-byte return address
-    #   RSP_before_call % 16 == 0
-    #   RSP_after_call  % 16 == 8
-
-    # stack layout
-    #    [ RSP    ]       ← return address (8 bytes)
-    #    [ RSP+8  ]       ← caller’s stack below
+	# while in CALL, within callee
+	# CPU pushed an 8-byte return address in its CALL instruction
+    #   RSP_before_call before CALL → 	   %16 == 0
+    #   RSP_within_call before prologue →  %16 == 8
 
 pl0_function:
     # prologue
     push   rbp            # RSP ← RSP - 8  → now %16 == 0
     mov    rbp, rsp       # RBP = current RSP
 
-    # allocate FRAME bytes (FRAME % 16 == 0) for locals + padding
+    # allocate FRAME bytes (FRAME %16 == 0) for locals + static link + padding
     sub    rsp, FRAME     # RSP ← RSP - FRAME → still %16 == 0
 
-    # new stack layout
-    #    [ RBP - 8    ]   ← first local or padding
+    # new stack layout (stack grows downwards)
+    #    [ RBP +16 ]   ← caller’s stack before CALL
+    #    [ RBP + 8 ]   ← return address of the caller
+    #    [ RBP + 0 ]   ← saved RBP of the caller (called dynamic link)
+    #    [ RBP - 8 ]   ← static link to lexical parent
+    #    [ RBP - 16 ]  ← first local variable aligned according its bit size
     #    ...
-    #    [ RBP - FRAME]   ← last byte of FRAME
-    #    [ RBP      ]     ← saved RBP
-    #    [ RBP + 8  ]     ← return address
-    #    [ RBP +16  ]     ← caller’s stack
+    #    [ RBP - FRAME + 8]  ← optional padding ensuring RSP - FRAME → %16 == 0
+    #    [ RBP - FRAME ]   	 ← last byte of FRAME
 
     # ... the code, possibly making further CALLs ...
     # since RSP %16 == 0 at each CALL, the ABI alignment rules hold
 
     # epilogue
-    mov    rsp, rbp       # undo sub rsp, FRAME
-    pop    rbp            # restore caller’s RBP; RSP ← RSP + 8 → %16 == 8
+    mov    rsp, rbp       # undo sub rsp, FRAME bytes allocation
+    pop    rbp            # restore caller´s RBP; RSP ← RSP + 8 → %16 == 8
     ret                   # pop return address → RIP; back in caller
 ```
+
+The assembly code above omits static link creation and initialization for clarity.
 
 ## Change Log
 
