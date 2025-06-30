@@ -415,6 +415,13 @@ var (
 		Variable:  "variable",
 		Procedure: "procedure",
 	}
+
+	// UsageNames maps usage modes to their string representation.
+	UsageNames = map[Usage]string{
+		Read:    "read",
+		Write:   "write",
+		Execute: "execute",
+	}
 )
 
 // NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.

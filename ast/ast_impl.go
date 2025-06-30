@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
@@ -264,6 +265,24 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 	panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
 }
 
+// String representation of a symbol entry kind.
+func (e Entry) String() string {
+	return KindNames[e]
+}
+
+// String representation of a usage mode bit-mask.
+func (u Usage) String() string {
+	var parts []string
+
+	for usage, name := range UsageNames {
+		if u&usage != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, "|")
+}
+
 // Return the unique identifier of the scope
 func (s *Scope) Id() int32 {
 	return s.id
@@ -337,7 +356,7 @@ func (b *BlockNode) SetParent(parent Node) {
 
 // String of the block node.
 func (b *BlockNode) String() string {
-	return fmt.Sprintf("block d=%v", b.Depth)
+	return fmt.Sprintf("block depth=%v", b.Depth)
 }
 
 // Parent node of the block node.
@@ -414,7 +433,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,v=%v,t=%v,u=%v)", KindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", KindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
 }
 
 // Parent node of the constant declaration node.
@@ -449,7 +468,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,t=%v,u=%v)", KindNames[Variable], d.Name, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", KindNames[Variable], d.Name, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -484,7 +503,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,n=%v,u=%v)", KindNames[Procedure], d.Name, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", KindNames[Procedure], d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
@@ -519,7 +538,7 @@ func (e *LiteralNode) SetParent(parent Node) {
 
 // String of the literal node.
 func (e *LiteralNode) String() string {
-	return fmt.Sprintf("literal(v=%v,t=%v)", e.Value, e.DataType)
+	return fmt.Sprintf("literal(value=%v,type=%v)", e.Value, e.DataType)
 }
 
 // Parent node of the literal node.
@@ -557,20 +576,21 @@ func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
 		switch symbol.Kind {
 		case Constant:
-			return fmt.Sprintf("use(k=c,n=%v,v=%v,u=%v)", symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
+			return fmt.Sprintf("use(kind=%v,name=%v,value=%v,usage=%v)", symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
 		case Variable:
-			return fmt.Sprintf("use(k=v,n=%v,u=%v)", symbol.Name, u.Use)
+			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
 		case Procedure:
-			return fmt.Sprintf("use(k=p,n=%v,u=%v)", symbol.Name, u.Use)
+			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
 		default:
 			panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))
 		}
 	}
 
-	return fmt.Sprintf("use(n=%v,u=%v)", u.Name, u.Use)
+	// if the symbol is not found, return a generic identifier-use string
+	return fmt.Sprintf("use(kind=unknown,name=%v,usage=%v)", u.Name, u.Use)
 }
 
 // Parent node of the identifier-use node.

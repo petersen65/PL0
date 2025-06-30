@@ -128,7 +128,7 @@ The dynamic link is a stack pointer (usually stored at RBP in AMD64) that refere
 - supports dynamic call chains at runtime
 - used to unwind the stack or print a backtrace
 
-Think of it as: who called me? Example: if M calls A, and A calls B, then the dynamic link of B points to the activation record of A. The dynamic link of A points to the activation record of M. This is named the "caller chain" from M to B (or dynamic link chain or dynamic chain).
+Think of it as: who called me? Example: if M calls A, and A calls B, then the dynamic link of B points to the activation record of A. The dynamic link of A points to the activation record of M. This is named the "caller chain" from M to B (or dynamic link chain).
 
 ### Static Link: The Lexical Scope Chain
 
@@ -138,7 +138,7 @@ The static link is a pointer that refers to the activation record of the lexical
 - used to preserve lexical scoping rules at compilation time
 - required for closures and proper variable binding
 
-Think of it as: who is my lexical parent? Example: if M has 2 local procedures A and B, then the static link of B points to the activation record of M. The static link of A points to the activation record of M. If a procedure is the direct lexical parent of another procedure (like M and A) and the parent calls this other procedure, then the static link is equal to the dynamic link. If there is a chain of parent procedures for a given procedure, then this can be named "lexical scope chain" from M to B or M to A (or static link chain or static chain).
+Think of it as: who is my lexical parent? Example: if M has 2 local procedures A and B, then the static link of B points to the activation record of M. The static link of A points to the activation record of M. If a procedure is the direct lexical parent of another procedure (like M and A) and the parent calls this other procedure, then the static link is equal to the dynamic link. If there is a chain of parent procedures for a given procedure, then this can be named "lexical scope chain" from M to B or M to A (or static link chain).
 
 The static link does not change based on who calls a procedure, but where the procedure is defined in the source code. 
 
@@ -162,24 +162,24 @@ Example:
 
 ```pascal
 procedure A;
-  var x; 				(* block A: depth 1 *)
+  var x;                (* block A: depth 1 *)
   procedure B;
     procedure D;
-    begin 				(* block D: depth 3 *)
-      x := 42;			(* depth difference blocks D and A: 2 *)
+    begin               (* block D: depth 3 *)
+      x := 42;          (* depth difference blocks D and A: 2 *)
     end;
-  begin 				(* block B: depth 2 *)
+  begin                 (* block B: depth 2 *)
     call D;
   end;
-  procedure C;			(* block C: depth 3 *)
-  begin
+  procedure C;
+  begin                 (* block C: depth 2 *)
 	  call B;
   end;
-begin 					(* block A: depth 1 *)
+begin                   (* block A: depth 1 *)
   call B;
   call C;
 end;
-begin 					(* top level block MAIN: depth 0 *)
+begin                   (* top level block MAIN: depth 0 *)
   call A;
 end.
 ```
