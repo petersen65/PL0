@@ -29,6 +29,11 @@ const (
 	// store quadword: writes the value in RAX to the memory address pointed to by RDI, then increments RDI by 8
 	Stosq
 
+	// assembly instructions for data conversion operations with sign and zero extensions
+	Movsxd
+	Movsx
+	Movzx
+
 	// unconditional and conditional jump assembly instructions
 	Jmp
 	Je

@@ -101,30 +101,17 @@ func (e *emitter) Emit() {
 			value := i.ThreeAddressCode.Arg1.Parse()
 
 			// emit assembly code to copy the value onto the top of the runtime control stack
-			e.valueCopy(value, i.ThreeAddressCode.Arg1.DataType, l)
+			e.valueCopy(i.ThreeAddressCode.Arg1.DataType, value, l)
 
 		case ic.VariableLoad: // load a variable from its runtime control stack address onto the top of the stack
 			// panic if parsing of the variable into nil fails (unsupported data type)
 			i.ThreeAddressCode.Arg1.Parse()
 
-			// determinde offset of the local variable in its activation record
+			// determine offset of the local variable in its activation record
 			offset := e.offsetTable[i.ThreeAddressCode.Arg1.Name]
 
-			if i.DepthDifference == 0 {
-				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewMemoryOperand(ac.Rbp, ac.Bits64, offset))
-			} else {
-				// block nesting depth difference between variable use and variable declaration
-				e.assemblyCode.AppendInstruction(ac.Mov, l,
-					ac.NewRegisterOperand(ac.Rcx),
-					ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
-
-				// call runtime function to follow static link to determine the 'variables base' pointer
-				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
-
-				// push memory content at 'variables base - variable offset' onto runtime control stack
-				e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewMemoryOperand(ac.Rbx, ac.Bits64, offset))
-			}
+			// emit assembly code to load the variable onto the runtime control stack
+			e.variableLoad(i.ThreeAddressCode.Arg1.DataType, offset, i.DepthDifference, l)
 
 		case ic.VariableStore: // store the top of the runtime control stack into a variable's stack address
 			// panic if parsing of the variable into nil fails (unsupported data type)
@@ -395,7 +382,7 @@ func (e *emitter) setup(depth int32) {
 }
 
 // Copy an immediate value onto the top of the runtime control stack.
-func (e *emitter) valueCopy(value any, dataType ic.DataType, labels []string) {
+func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 	// depending on the data type, the value is copied onto the runtime control stack as an immediate value or as a 64-bit value in the R10 register
 	switch dataType {
 	case ic.Integer64:
@@ -469,11 +456,151 @@ func (e *emitter) valueCopy(value any, dataType ic.DataType, labels []string) {
 		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
 
 	case ic.Boolean8:
-		// convert the boolean value to an 8-bit signed integer before pushing it onto the runtime control stack
+		// convert the boolean value to an 8-bit unsigned integer before pushing it onto the runtime control stack
 		if value.(bool) {
-			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, int8(1)))
+			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, uint8(1)))
 		} else {
-			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, int8(0)))
+			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, uint8(0)))
 		}
+	}
+}
+
+// Load a variable from its activation record onto the top of the runtime control stack.
+func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int32, labels []string) {
+	var basePointer ac.Register
+
+	// determine the correct activation record from which to load the variable
+	if depthDifference == 0 {
+		// use the variables base pointer of the current activation record
+		basePointer = ac.Rbp
+	} else {
+		// block nesting depth difference between variable use and variable declaration
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.Edi),
+			ac.NewImmediateOperand(ac.Bits32, depthDifference))
+
+		// follow the static link to determine the 'variables base' pointer of the correct lexical parent activation record
+		e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
+
+		// take the variables base pointer from the Rax register that is returned from the runtime function call
+		labels = nil
+		basePointer = ac.Rax
+	}
+
+	// depending on the data type, the variable is loaded from the activation record into the R10 register and then pushed onto the runtime control stack
+	switch dataType {
+	case ic.Integer64, ic.Unsigned64, ic.Float64:
+		// move the 64-bit integer/float from the activation record into the R10 register without any extension
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewMemoryOperand(basePointer, ac.Bits64, offset))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Integer32, ic.Rune32:
+		// move the 32-bit signed integer/rune from the activation record into the R10 register and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Movsxd, labels,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewMemoryOperand(basePointer, ac.Bits32, offset))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Unsigned32, ic.Float32:
+		// move the 32-bit unsigned integer/float from the activation record into the R10d register and zero-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewMemoryOperand(basePointer, ac.Bits32, offset))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Integer16:
+		// move the 16-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Movsx, labels,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewMemoryOperand(basePointer, ac.Bits16, offset))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Unsigned16:
+		// move the 16-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
+		e.assemblyCode.AppendInstruction(ac.Movzx, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewMemoryOperand(basePointer, ac.Bits16, offset))
+
+		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Integer8:
+		// move the 8-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Movsx, labels,
+			ac.NewRegisterOperand(ac.R10),
+			ac.NewMemoryOperand(basePointer, ac.Bits8, offset))
+
+		// push the R10 register onto the runtime control stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Unsigned8, ic.Boolean8:
+		// move the 8-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
+		e.assemblyCode.AppendInstruction(ac.Movzx, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewMemoryOperand(basePointer, ac.Bits8, offset))
+
+		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+	}
+}
+
+// Store the top of the runtime control stack into a variable's activation record.
+func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference int32, labels []string) {
+	var basePointer ac.Register
+
+	// determine the correct activation record to which to store the variable
+	if depthDifference == 0 {
+		// use the variables base pointer of the current activation record
+		basePointer = ac.Rbp
+	} else {
+		// block nesting depth difference between variable use and variable declaration
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.Edi),
+			ac.NewImmediateOperand(ac.Bits32, depthDifference))
+
+		// follow the static link to determine the 'variables base' pointer of the correct lexical parent activation record
+		e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
+
+		// take the variables base pointer from the Rax register that is returned from the runtime function call
+		labels = nil
+		basePointer = ac.Rax
+	}
+
+	// pop the top of the runtime control stack into the R10 register
+	e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R10))
+
+	// depending on the data type, the R10 register is stored into the activation record of the variable
+	switch dataType {
+	case ic.Integer64, ic.Unsigned64, ic.Float64:
+		e.assemblyCode.AppendInstruction(ac.Mov, nil,
+			ac.NewMemoryOperand(basePointer, ac.Bits64, offset),
+			ac.NewRegisterOperand(ac.R10))
+
+	case ic.Integer32, ic.Unsigned32, ic.Rune32, ic.Float32:
+		e.assemblyCode.AppendInstruction(ac.Mov, nil,
+			ac.NewMemoryOperand(basePointer, ac.Bits32, offset),
+			ac.NewRegisterOperand(ac.R10d))
+
+	case ic.Integer16, ic.Unsigned16:
+		e.assemblyCode.AppendInstruction(ac.Mov, nil,
+			ac.NewMemoryOperand(basePointer, ac.Bits16, offset),
+			ac.NewRegisterOperand(ac.R10w))
+
+	case ic.Integer8, ic.Unsigned8, ic.Boolean8:
+		e.assemblyCode.AppendInstruction(ac.Mov, nil,
+			ac.NewMemoryOperand(basePointer, ac.Bits8, offset),
+			ac.NewRegisterOperand(ac.R10b))
 	}
 }

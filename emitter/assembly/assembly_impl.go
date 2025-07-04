@@ -31,6 +31,9 @@ var (
 		Cld:     "cld",
 		Rep:     "rep",
 		Stosq:   "stosq",
+		Movsxd:  "movsxd",
+		Movsx:   "movsx",
+		Movzx:   "movzx",
 		Jmp:     "jmp",
 		Je:      "je",
 		Jne:     "jne",
@@ -231,52 +234,52 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 	a.AppendInstruction(Ret, nil)
 
 	/*
-			# -------------------------------------------------------------------------------
-			# rt.follow_static_link
-			#
-			# Purpose:
-			#   Entry point for static link traversal.
-			#
-			# Effects:
-			#   - Sets rsi = rbp (if needed for manual entry)
-			#   - Falls through into rt.follow_static_link.1
-			# -------------------------------------------------------------------------------
-			rt.follow_static_link:
-				mov         rsi, rbp                     # optional manual starting point for static link chain
-		                                           		 # used if follow_static_link is called with current rbp
+		# -------------------------------------------------------------------------------
+		# rt.follow_static_link
+		#
+		# Purpose:
+		#   Entry point for static link traversal.
+		#
+		# Effects:
+		#   - Sets rsi = rbp (if needed for manual entry)
+		#   - Falls through into rt.follow_static_link.1
+		# -------------------------------------------------------------------------------
+		rt.follow_static_link:
+			mov         rsi, rbp                     # optional manual starting point for static link chain
+													 # used if follow_static_link is called with current rbp
 	*/
 	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
 
 	/*
-			# -------------------------------------------------------------------------------
-			# rt.follow_static_link.1
-			#
-			# Purpose:
-			#   Recursively follows the static link chain `edi` times.
-			#
-			# Assumptions:
-			#   - edi = depth difference (0 means: current level)
-			#   - rsi = starting frame pointer
-			#
-			# Result:
-			#   - rax = frame pointer of the statically enclosing scope
-			#
-			# Clobbers:
-			#   - rsi, edi
-			# -------------------------------------------------------------------------------
-			rt.follow_static_link.1:
-				cmp         edi, 0                       # have we reached the target lexical depth (difference == 0)?
-				je          rt.follow_static_link.2      # yes → stop and return current frame pointer in rsi
-				mov   		rdx, qword ptr [rsi-8]		 # load the next static link from current frame
-		    	test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static link chain)
-		    	je    		rt.follow_static_link.2      # if 0 → stop to avoid entering non-PL/0 frames (e.g., C runtime)
-				mov         rsi, qword ptr [rsi-8]       # follow the static link upward (i.e., to lexical parent frame)
-				sub         edi, 1                       # decrease remaining lexical distance
-				jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static link chain ends
+		# -------------------------------------------------------------------------------
+		# rt.follow_static_link.1
+		#
+		# Purpose:
+		#   Recursively follows the static link chain `edi` times.
+		#
+		# Assumptions:
+		#   - edi = depth difference (0 means: current level)
+		#   - rsi = starting frame pointer
+		#
+		# Result:
+		#   - rax = frame pointer of the statically enclosing scope
+		#
+		# Clobbers:
+		#   - rsi, edi
+		# -------------------------------------------------------------------------------
+		rt.follow_static_link.1:
+			cmp         edi, 0                       # have we reached the target lexical depth (difference == 0)?
+			je          rt.follow_static_link.2      # yes → stop and return current frame pointer in rsi
+			mov   		rdx, qword ptr [rsi-8]		 # load the next static link from current frame
+			test  		rdx, rdx					 # check if the next static link is 0 (end of PL/0 static link chain)
+			je    		rt.follow_static_link.2      # if 0 → stop to avoid entering non-PL/0 frames (e.g., C runtime)
+			mov         rsi, qword ptr [rsi-8]       # follow the static link upward (i.e., to lexical parent frame)
+			sub         edi, 1                       # decrease remaining lexical distance
+			jmp         rt.follow_static_link.1      # repeat loop until depth is 0 or static link chain ends
 
-			rt.follow_static_link.2:
-				mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
-				ret 									 # return to caller with rax = static link result
+		rt.follow_static_link.2:
+			mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
+			ret 									 # return to caller with rax = static link result
 	*/
 	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(0)))
 	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
