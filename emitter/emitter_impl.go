@@ -120,31 +120,8 @@ func (e *emitter) Emit() {
 			// determine offset of the local variable in its activation record
 			offset := e.offsetTable[i.ThreeAddressCode.Result.Name]
 
-			if i.DepthDifference == 0 {
-				// pop content of the variable
-				e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rax))
-
-				// copy content of the variable into memory at 'variables base - variable offset'
-				e.assemblyCode.AppendInstruction(ac.Mov, nil,
-					ac.NewMemoryOperand(ac.Rbp, ac.Bits64, offset),
-					ac.NewRegisterOperand(ac.Rax))
-			} else {
-				// block nesting depth difference between variable use and variable declaration
-				e.assemblyCode.AppendInstruction(ac.Mov, l,
-					ac.NewRegisterOperand(ac.Rcx),
-					ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
-
-				// call runtime function to follow static link to determine the 'variables base' pointer
-				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(ac.FollowStaticLinkLabel))
-
-				// pop content of the variable
-				e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
-
-				// copy content of the variable into memory at 'variables base - variable offset'
-				e.assemblyCode.AppendInstruction(ac.Mov, nil,
-					ac.NewMemoryOperand(ac.Rbx, ac.Bits64, offset),
-					ac.NewRegisterOperand(ac.Rax))
-			}
+			// emit assembly code to store the top of the runtime control stack into the variable's activation record
+			e.variableStore(i.ThreeAddressCode.Result.DataType, offset, i.DepthDifference, l)
 
 		case ic.Negate: // negate the top of the runtime control stack and leave the result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
@@ -416,16 +393,34 @@ func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Unsigned32:
-		// push the 32-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, value.(uint32)))
+		// move the 32-bit unsigned integer into the R10d register and zero-extend to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewImmediateOperand(ac.Bits32, value.(uint32)))
+
+		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Unsigned16:
-		// convert the 16-bit unsigned integer to a 32-bit unsigned integer before pushing it onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint16))))
+		// move the 16-bit unsigned integer, converted to 32 bits, into the R10d register and zero-extend to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint16))))
+
+		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Unsigned8:
-		// push the 8-bit unsigned integer onto the runtime control stack and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, value.(uint8)))
+		// move the 8-bit unsigned integer, converted to 32 bits, into the R10d register and zero-extend to 64 bits
+		e.assemblyCode.AppendInstruction(ac.Mov, labels,
+			ac.NewRegisterOperand(ac.R10d),
+			ac.NewImmediateOperand(ac.Bits32, uint32(value.(uint8))))
+
+		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Float64:
 		// convert the 64-bit float value to its IEEE 754 binary representation
@@ -457,6 +452,7 @@ func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 
 	case ic.Boolean8:
 		// convert the boolean value to an 8-bit unsigned integer before pushing it onto the runtime control stack
+		// note: sign extension will have no effect because the boolean value is either 0 or 1
 		if value.(bool) {
 			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, uint8(1)))
 		} else {
@@ -490,7 +486,7 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 	// depending on the data type, the variable is loaded from the activation record into the R10 register and then pushed onto the runtime control stack
 	switch dataType {
 	case ic.Integer64, ic.Unsigned64, ic.Float64:
-		// move the 64-bit integer/float from the activation record into the R10 register without any extension
+		// move the 64-bit integer/float bitwise from the activation record into the R10 register
 		e.assemblyCode.AppendInstruction(ac.Mov, labels,
 			ac.NewRegisterOperand(ac.R10),
 			ac.NewMemoryOperand(basePointer, ac.Bits64, offset))
@@ -508,12 +504,13 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Unsigned32, ic.Float32:
-		// move the 32-bit unsigned integer/float from the activation record into the R10d register and zero-extend it to 64 bits
+		// move the 32-bit unsigned integer/float bitwise from the activation record into the R10d register and zero-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(ac.Mov, labels,
 			ac.NewRegisterOperand(ac.R10d),
 			ac.NewMemoryOperand(basePointer, ac.Bits32, offset))
 
 		// push the R10 register onto the runtime control stack
+		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Integer16:
@@ -584,21 +581,25 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 	// depending on the data type, the R10 register is stored into the activation record of the variable
 	switch dataType {
 	case ic.Integer64, ic.Unsigned64, ic.Float64:
+		// move the 64-bit integers/float bitwise from the R10 register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits64, offset),
 			ac.NewRegisterOperand(ac.R10))
 
 	case ic.Integer32, ic.Unsigned32, ic.Rune32, ic.Float32:
+		// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits32, offset),
 			ac.NewRegisterOperand(ac.R10d))
 
 	case ic.Integer16, ic.Unsigned16:
+		// move the 16-bit integers bitwise from the R10w register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits16, offset),
 			ac.NewRegisterOperand(ac.R10w))
 
 	case ic.Integer8, ic.Unsigned8, ic.Boolean8:
+		// move the 8-bit integers/boolean bitwise from the R10b register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits8, offset),
 			ac.NewRegisterOperand(ac.R10b))
