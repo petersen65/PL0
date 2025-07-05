@@ -76,24 +76,24 @@ const (
 	Depth                     // depth address holds the block nesting depth of a block at compilation time
 )
 
-// Data types supported for an address of the three-address code concept.
+// Datatypes supported for an address of the three-address code concept.
 const (
-	Void   = DataType(iota) // an address that does not have a data type
-	String                  // the string data type is used for labels in label addresses
+	Untyped   = DataType(iota) // an address that does not have a datatype
+	LabelName                  // the label-name datatype is used for labels in label addresses
 
-	// data types supported for constants, literals, variables, and temporaries (postfix specifies the bit size)
+	// datatypes supported for constants, literals, variables, and temporaries
 	Integer64  // signed 64-bit integer
 	Integer32  // signed 32-bit integer
 	Integer16  // signed 16-bit integer
 	Integer8   // signed 8-bit integer
-	Float64    // signed 64-bit floating point number
-	Float32    // signed 32-bit floating point number
+	Float64    // IEEE 754 64-bit floating-point number
+	Float32    // IEEE 754 32-bit floating-point number
 	Unsigned64 // unsigned 64-bit integer
 	Unsigned32 // unsigned 32-bit integer
 	Unsigned16 // unsigned 16-bit integer
 	Unsigned8  // unsigned 8-bit integer
-	Rune32     // signed 32-bit rune (UTF-8 character)
-	Boolean8   // signed 8-bit boolean value (true/false)
+	Unicode    // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
+	Boolean    // unsigned 8-bit boolean (0 or 1, false or true)
 )
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.
@@ -123,10 +123,10 @@ type (
 	// The variant type is used to distinguish between different kinds of addresses in the three-address code concept.
 	Variant int
 
-	// The data type of an address in the three-address code concept.
+	// The datatype of an address in the three-address code concept.
 	DataType int
 
-	// String representation of a data type.
+	// String representation of a datatype.
 	DataTypeRepresentation string
 
 	// Enumeration of prefixes used for names of addresses.
@@ -145,7 +145,7 @@ type (
 	Address struct {
 		Name     string   `json:"name"`      // name or value of an address (a value needs to be converted to a string)
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
-		DataType DataType `json:"data_type"` // data type of the address
+		DataType DataType `json:"data_type"` // datatype of the address
 	}
 
 	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
@@ -287,7 +287,7 @@ func (i *Instruction) String() string {
 
 // Supported data types for constants, literals, variables, and temporaries.
 func (dataType DataType) IsSupported() bool {
-	return dataType >= Integer64 && dataType <= Boolean8
+	return dataType >= Integer64 && dataType <= Boolean
 }
 
 // Check whether the datatype has a signed representation.
@@ -297,7 +297,7 @@ func (dataType DataType) IsSigned() bool {
 
 // Check whether the datatype has an unsigned representation.
 func (dataType DataType) IsUnsigned() bool {
-	return dataType >= Unsigned64 && dataType <= Boolean8
+	return dataType >= Unsigned64 && dataType <= Boolean
 }
 
 // Check whether the datatype is a signed integer.
@@ -320,12 +320,12 @@ func (dataType DataType) IsFloatingPoint() bool {
 	return dataType == Float64 || dataType == Float32
 }
 
-// Check whether the datatype is a character.
-func (dataType DataType) IsCharacter() bool {
-	return dataType == Rune32
+// Check whether the datatype is an Unicode code point.
+func (dataType DataType) IsUnicode() bool {
+	return dataType == Unicode
 }
 
 // Check whether the datatype is a boolean.
 func (dataType DataType) IsBoolean() bool {
-	return dataType == Boolean8
+	return dataType == Boolean
 }

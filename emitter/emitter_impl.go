@@ -41,8 +41,8 @@ var (
 		ic.Unsigned32: ac.Bits32,
 		ic.Unsigned16: ac.Bits16,
 		ic.Unsigned8:  ac.Bits8,
-		ic.Rune32:     ac.Bits32,
-		ic.Boolean8:   ac.Bits8,
+		ic.Unicode:    ac.Bits32,
+		ic.Boolean:    ac.Bits8,
 	}
 )
 
@@ -171,37 +171,37 @@ func (e *emitter) Emit() {
 			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
 			e.assemblyCode.AppendInstruction(ac.Cmp, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
 
-		case ic.Jump: // unconditionally jump to a label that is resolved by the linker
+		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jmp, l, ac.NewLabelOperand(name))
 
-		case ic.JumpEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were equal
+		case ic.JumpEqual: // jump if the Zero Flag (ZF) is set from the previous comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Je, l, ac.NewLabelOperand(name))
 
-		case ic.JumpNotEqual: // jump to a label if the CPU flags register indicates that the top two elements of the stack were not equal
+		case ic.JumpNotEqual: // jump if the Zero Flag (ZF) is clear from the previous comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jne, l, ac.NewLabelOperand(name))
 
-		case ic.JumpLess: // jump to a label if the CPU flags register indicates that the first element of the stack was less than the second top element
+		case ic.JumpLess: // jump if the Sign Flag (SF) and Overflow Flag (OF) indicate a signed less-than from the previous comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jl, l, ac.NewLabelOperand(name))
 
-		case ic.JumpLessEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was less than or equal to the second top element
+		case ic.JumpLessEqual: // jump if the previous comparison indicates less-than or equal (ZF set or SF ≠ OF), signed comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jle, l, ac.NewLabelOperand(name))
 
-		case ic.JumpGreater: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than the second top element
+		case ic.JumpGreater: // jump if the previous comparison indicates greater-than (ZF clear and SF = OF), signed comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jg, l, ac.NewLabelOperand(name))
 
-		case ic.JumpGreaterEqual: // jump to a label if the CPU flags register indicates that the first element of the stack was greater than or equal to the second top element
+		case ic.JumpGreaterEqual: // jump if the previous comparison indicates greater-than or equal (SF = OF), signed comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
 			e.assemblyCode.AppendInstruction(ac.Jge, l, ac.NewLabelOperand(name))
@@ -446,11 +446,11 @@ func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 		// push the 64-bit R10 register onto the runtime control stack (32-bit float value was zero-extended to 64 bits)
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
-	case ic.Rune32:
-		// convert the rune to a 32-bit signed integer before pushing it onto the runtime control stack
+	case ic.Unicode:
+		// convert the Unicode code point to a 32-bit signed integer before pushing it onto the runtime control stack
 		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
 
-	case ic.Boolean8:
+	case ic.Boolean:
 		// convert the boolean value to an 8-bit unsigned integer before pushing it onto the runtime control stack
 		// note: sign extension will have no effect because the boolean value is either 0 or 1
 		if value.(bool) {
@@ -494,7 +494,7 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 		// push the R10 register onto the runtime control stack
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
-	case ic.Integer32, ic.Rune32:
+	case ic.Integer32, ic.Unicode:
 		// move the 32-bit signed integer/rune from the activation record into the R10 register and sign-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(ac.Movsxd, labels,
 			ac.NewRegisterOperand(ac.R10),
@@ -541,7 +541,7 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 		// push the R10 register onto the runtime control stack
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
-	case ic.Unsigned8, ic.Boolean8:
+	case ic.Unsigned8, ic.Boolean:
 		// move the 8-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
 		e.assemblyCode.AppendInstruction(ac.Movzx, labels,
 			ac.NewRegisterOperand(ac.R10d),
@@ -586,7 +586,7 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 			ac.NewMemoryOperand(basePointer, ac.Bits64, offset),
 			ac.NewRegisterOperand(ac.R10))
 
-	case ic.Integer32, ic.Unsigned32, ic.Rune32, ic.Float32:
+	case ic.Integer32, ic.Unsigned32, ic.Unicode, ic.Float32:
 		// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits32, offset),
@@ -598,7 +598,7 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 			ac.NewMemoryOperand(basePointer, ac.Bits16, offset),
 			ac.NewRegisterOperand(ac.R10w))
 
-	case ic.Integer8, ic.Unsigned8, ic.Boolean8:
+	case ic.Integer8, ic.Unsigned8, ic.Boolean:
 		// move the 8-bit integers/boolean bitwise from the R10b register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits8, offset),

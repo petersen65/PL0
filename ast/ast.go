@@ -76,18 +76,18 @@ const (
 
 // Data types of literals, constants, and variables.
 const (
-	Integer64 = DataType(iota)
-	Integer32
-	Integer16
-	Integer8
-	Float64
-	Float32
-	Unsigned64
-	Unsigned32
-	Unsigned16
-	Unsigned8
-	Rune32
-	Boolean8
+	Integer64  = DataType(iota) // signed 64-bit integer
+	Integer32                   // signed 32-bit integer
+	Integer16                   // signed 16-bit integer
+	Integer8                    // signed 8-bit integer
+	Float64                     // IEEE 754 64-bit floating-point number
+	Float32                     // IEEE 754 32-bit floating-point number
+	Unsigned64                  // unsigned 64-bit integer
+	Unsigned32                  // unsigned 32-bit integer
+	Unsigned16                  // unsigned 16-bit integer
+	Unsigned8                   // unsigned 8-bit integer
+	Unicode                     // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
+	Boolean                     // unsigned 8-bit boolean (0 or 1, false or true)
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -375,18 +375,18 @@ type (
 var (
 	// DataTypeNames maps a data type to its string representation.
 	DataTypeNames = map[DataType]string{
-		Integer64:  "int64",
-		Integer32:  "int32",
-		Integer16:  "int16",
-		Integer8:   "int8",
-		Float64:    "float64",
-		Float32:    "float32",
-		Unsigned64: "uint64",
-		Unsigned32: "uint32",
-		Unsigned16: "uint16",
-		Unsigned8:  "uint8",
-		Rune32:     "rune32",
-		Boolean8:   "bool8",
+		Integer64:  "int64_t",
+		Integer32:  "int32_t",
+		Integer16:  "int16_t",
+		Integer8:   "int8_t",
+		Float64:    "double",
+		Float32:    "float",
+		Unsigned64: "uint64_t",
+		Unsigned32: "uint32_t",
+		Unsigned16: "uint16_t",
+		Unsigned8:  "uint8_t",
+		Unicode:    "char32_t",
+		Boolean:    "bool",
 	}
 
 	// NodeTypeNames maps node types to their string representation.

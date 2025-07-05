@@ -47,17 +47,20 @@ var (
 
 	// dataTypeNames maps an address datatype to its string representation.
 	dataTypeNames = map[DataType]string{
-		Void:       "void",
-		String:     "string",
-		Unsigned64: "uint64",
-		Integer64:  "int64",
-		Integer32:  "int32",
-		Integer16:  "int16",
-		Integer8:   "int8",
-		Float64:    "float64",
-		Float32:    "float32",
-		Rune32:     "rune32",
-		Boolean8:   "bool8",
+		Untyped:    "untyped",
+		LabelName:  "label",
+		Integer64:  "int64_t",
+		Integer32:  "int32_t",
+		Integer16:  "int16_t",
+		Integer8:   "int8_t",
+		Float64:    "double",
+		Float32:    "float",
+		Unsigned64: "uint64_t",
+		Unsigned32: "uint32_t",
+		Unsigned16: "uint16_t",
+		Unsigned8:  "uint8_t",
+		Unicode:    "char32_t",
+		Boolean:    "bool",
 	}
 
 	// Map three-address code operations of the intermediate code to their string representation.
@@ -285,7 +288,7 @@ func (a *Address) Parse() any {
 	switch a.Variant {
 	case Empty:
 		switch a.DataType {
-		case Void:
+		case Untyped:
 			return nil
 
 		default:
@@ -340,14 +343,14 @@ func (a *Address) Parse() any {
 				}
 			}
 
-		case Rune32:
+		case Unicode:
 			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
 			} else {
 				return decoded
 			}
 
-		case Boolean8:
+		case Boolean:
 			if decoded, err := strconv.ParseBool(a.Name); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
 			} else {
@@ -360,7 +363,7 @@ func (a *Address) Parse() any {
 
 	case Variable, Temporary:
 		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Rune32, Boolean8:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Unicode, Boolean:
 			return nil
 
 		default:
@@ -369,7 +372,7 @@ func (a *Address) Parse() any {
 
 	case Label:
 		switch a.DataType {
-		case String:
+		case LabelName:
 			return a.Name
 
 		default:
@@ -524,13 +527,13 @@ func (dataType DataType) bitSize() int {
 	case Integer64, Float64, Unsigned64:
 		return 64
 
-	case Integer32, Float32, Unsigned32, Rune32:
+	case Integer32, Float32, Unsigned32, Unicode:
 		return 32
 
 	case Integer16, Unsigned16:
 		return 16
 
-	case Integer8, Unsigned8, Boolean8:
+	case Integer8, Unsigned8, Boolean:
 		return 8
 
 	default:

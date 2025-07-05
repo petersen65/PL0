@@ -47,8 +47,8 @@ var (
 		ast.Unsigned32: ic.Unsigned32,
 		ast.Unsigned16: ic.Unsigned16,
 		ast.Unsigned8:  ic.Unsigned8,
-		ast.Rune32:     ic.Rune32,
-		ast.Boolean8:   ic.Boolean8,
+		ast.Unicode:    ic.Unicode,
+		ast.Boolean:    ic.Boolean,
 	}
 
 	// Prefixes used for names of addresses.
@@ -61,7 +61,7 @@ var (
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
-	noAddress = &ic.Address{Name: "-", Variant: ic.Empty, DataType: ic.Void}
+	noAddress = &ic.Address{Name: "-", Variant: ic.Empty, DataType: ic.Untyped}
 )
 
 // Create a new intermediate code generator.
@@ -104,7 +104,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(
 			ic.Target, // target for any branching operation
-			ic.NewAddress(entryPointDisplayName, ic.Metadata, ic.String), // branch-label with abstract syntax name
+			ic.NewAddress(entryPointDisplayName, ic.Metadata, ic.LabelName), // branch-label with abstract syntax name
 			noAddress,
 			noAddress,
 			blockBegin) // branch-label with flat unique name as target for any branching operation
@@ -117,7 +117,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(
 			ic.Target, // target for any branching operation
-			ic.NewAddress(astSymbol.Name, ic.Metadata, ic.String), // branch-label with abstract syntax name
+			ic.NewAddress(astSymbol.Name, ic.Metadata, ic.LabelName), // branch-label with abstract syntax name
 			noAddress,
 			noAddress,
 			blockBegin) // branch-label with flat unique name as target for any branching operation
@@ -134,7 +134,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// create a hidden first local variable for the block that holds internal data structures
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(
-		ic.Allocate, 
+		ic.Allocate,
 		ic.NewAddress(staticLinkDisplayName, ic.Metadata, ic.Unsigned64),
 		noAddress,
 		ic.NewAddress(staticLinkDisplayName, ic.Variable, ic.Unsigned64)))
@@ -571,8 +571,8 @@ func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// call the intermediate code function with 0 parameters
 	call := ic.NewInstruction(
 		ic.Call, // call to an intermediate code function
-		ic.NewAddress(0, ic.Count, ic.Unsigned64),    // number of parameters for the function
-		ic.NewAddress(codeName, ic.Label, ic.String), // label of intermediate code function to call
+		ic.NewAddress(0, ic.Count, ic.Unsigned64),       // number of parameters for the function
+		ic.NewAddress(codeName, ic.Label, ic.LabelName), // label of intermediate code function to call
 		noAddress,
 		callDepth-declarationDepth, // block nesting depth difference between procedure call and procedure declaration
 		s.TokenStreamIndex)         // call statement in the token stream
@@ -620,7 +620,7 @@ func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a jump instruction to jump back to the conditional expression instructions
-	beforeConditionAddress := ic.NewAddress(beforeCondition, ic.Label, ic.String)
+	beforeConditionAddress := ic.NewAddress(beforeCondition, ic.Label, ic.LabelName)
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Jump, beforeConditionAddress, noAddress, noAddress, s.TokenStreamIndex))
 
 	// append a target instruction behind the statement instructions
@@ -638,7 +638,7 @@ func (i *generator) VisitCompoundStatement(s *ast.CompoundStatementNode) {
 // Conditional jump instruction based on an expression that must be a unary or conditional operation node.
 func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *ic.Instruction
-	address := ic.NewAddress(label, ic.Label, ic.String)
+	address := ic.NewAddress(label, ic.Label, ic.LabelName)
 
 	// odd operation or conditional operations are valid for conditional jumps
 	switch condition := expression.(type) {
@@ -757,6 +757,6 @@ func configureSymbols(node ast.Node, code any) {
 	case *ast.ProcedureDeclarationNode:
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[ic.FunctionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		unit.Insert(ic.NewSymbol(name, ic.FunctionSymbol, ic.Void))
+		unit.Insert(ic.NewSymbol(name, ic.FunctionSymbol, ic.Untyped))
 	}
 }
