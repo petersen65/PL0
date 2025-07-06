@@ -372,58 +372,6 @@ type (
 	}
 )
 
-var (
-	// DataTypeNames maps a data type to its string representation.
-	DataTypeNames = map[DataType]string{
-		Integer64:  "int64_t",
-		Integer32:  "int32_t",
-		Integer16:  "int16_t",
-		Integer8:   "int8_t",
-		Float64:    "double",
-		Float32:    "float",
-		Unsigned64: "uint64_t",
-		Unsigned32: "uint32_t",
-		Unsigned16: "uint16_t",
-		Unsigned8:  "uint8_t",
-		Unicode:    "char32_t",
-		Boolean:    "bool",
-	}
-
-	// NodeTypeNames maps node types to their string representation.
-	NodeTypeNames = map[NodeType]string{
-		BlockType:                "block",
-		ConstantDeclarationType:  "constant",
-		VariableDeclarationType:  "variable",
-		ProcedureDeclarationType: "procedure",
-		LiteralType:              "literal",
-		IdentifierUseType:        "use",
-		UnaryOperationType:       "unary",
-		BinaryOperationType:      "binary",
-		ConditionalOperationType: "conditional",
-		AssignmentStatementType:  "assignment",
-		ReadStatementType:        "read",
-		WriteStatementType:       "write",
-		CallStatementType:        "call",
-		IfStatementType:          "if",
-		WhileStatementType:       "while",
-		CompoundStatementType:    "compound",
-	}
-
-	// KindNames maps symbol kinds to their string representation.
-	KindNames = map[Entry]string{
-		Constant:  "constant",
-		Variable:  "variable",
-		Procedure: "procedure",
-	}
-
-	// UsageNames maps usage modes to their string representation.
-	UsageNames = map[Usage]string{
-		Read:    "read",
-		Write:   "write",
-		Execute: "execute",
-	}
-)
-
 // NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
 func NewScope(uniqueId int32, outer *Scope) *Scope {
 	return newScope(uniqueId, outer)

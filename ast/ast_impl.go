@@ -12,6 +12,58 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+var (
+	// dataTypeNames maps a data type to its string representation.
+	dataTypeNames = map[DataType]string{
+		Integer64:  "int64_t",
+		Integer32:  "int32_t",
+		Integer16:  "int16_t",
+		Integer8:   "int8_t",
+		Float64:    "double",
+		Float32:    "float",
+		Unsigned64: "uint64_t",
+		Unsigned32: "uint32_t",
+		Unsigned16: "uint16_t",
+		Unsigned8:  "uint8_t",
+		Unicode:    "char32_t",
+		Boolean:    "bool",
+	}
+
+	// nodeTypeNames maps node types to their string representation.
+	nodeTypeNames = map[NodeType]string{
+		BlockType:                "block",
+		ConstantDeclarationType:  "constant",
+		VariableDeclarationType:  "variable",
+		ProcedureDeclarationType: "procedure",
+		LiteralType:              "literal",
+		IdentifierUseType:        "use",
+		UnaryOperationType:       "unary",
+		BinaryOperationType:      "binary",
+		ConditionalOperationType: "conditional",
+		AssignmentStatementType:  "assignment",
+		ReadStatementType:        "read",
+		WriteStatementType:       "write",
+		CallStatementType:        "call",
+		IfStatementType:          "if",
+		WhileStatementType:       "while",
+		CompoundStatementType:    "compound",
+	}
+
+	// kindNames maps symbol kinds to their string representation.
+	kindNames = map[Entry]string{
+		Constant:  "constant",
+		Variable:  "variable",
+		Procedure: "procedure",
+	}
+
+	// usageNames maps usage modes to their string representation.
+	usageNames = map[Usage]string{
+		Read:    "read",
+		Write:   "write",
+		Execute: "execute",
+	}
+)
+
 // NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
 func newScope(uniqueId int32, outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
@@ -39,7 +91,7 @@ func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
 // Create a new block node in the abstract syntax tree.
 func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
-		TypeName:     NodeTypeNames[BlockType],
+		TypeName:     nodeTypeNames[BlockType],
 		Depth:        depth,
 		Scope:        scope,
 		Declarations: declarations,
@@ -58,7 +110,7 @@ func newBlock(depth int32, scope *Scope, declarations []Declaration, statement S
 // Create a new constant declaration node in the abstract syntax tree.
 func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
 	return &ConstantDeclarationNode{
-		TypeName:         NodeTypeNames[ConstantDeclarationType],
+		TypeName:         nodeTypeNames[ConstantDeclarationType],
 		Name:             name,
 		Value:            value,
 		DataType:         dataType,
@@ -71,7 +123,7 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope *Sc
 // Create a new variable declaration node in the abstract syntax tree.
 func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
 	return &VariableDeclarationNode{
-		TypeName:         NodeTypeNames[VariableDeclarationType],
+		TypeName:         nodeTypeNames[VariableDeclarationType],
 		Name:             name,
 		DataType:         dataType,
 		Scope:            scope,
@@ -83,7 +135,7 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 // Create a new procedure declaration node in the abstract syntax tree.
 func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
 	return &ProcedureDeclarationNode{
-		TypeName:         NodeTypeNames[ProcedureDeclarationType],
+		TypeName:         nodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
 		Block:            block,
 		Scope:            scope,
@@ -95,7 +147,7 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
 	return &LiteralNode{
-		TypeName:         NodeTypeNames[LiteralType],
+		TypeName:         nodeTypeNames[LiteralType],
 		Value:            value,
 		DataType:         dataType,
 		Scope:            scope,
@@ -106,7 +158,7 @@ func newLiteral(value any, dataType DataType, scope *Scope, index int) Expressio
 // Create a new identifier-use node in the abstract syntax tree.
 func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
 	return &IdentifierUseNode{
-		TypeName:         NodeTypeNames[IdentifierUseType],
+		TypeName:         nodeTypeNames[IdentifierUseType],
 		Name:             name,
 		Scope:            scope,
 		Context:          context,
@@ -117,7 +169,7 @@ func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expre
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
 	unary := &UnaryOperationNode{
-		TypeName:         NodeTypeNames[UnaryOperationType],
+		TypeName:         nodeTypeNames[UnaryOperationType],
 		Operation:        operation,
 		Operand:          operand,
 		TokenStreamIndex: index,
@@ -130,7 +182,7 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) E
 // Create a new binary operation node in the abstract syntax tree.
 func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
 	binary := &BinaryOperationNode{
-		TypeName:         NodeTypeNames[BinaryOperationType],
+		TypeName:         nodeTypeNames[BinaryOperationType],
 		Operation:        operation,
 		Left:             left,
 		Right:            right,
@@ -145,7 +197,7 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression, index 
 // Create a new conditional operation node in the abstract syntax tree.
 func newConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
 	conditional := &ConditionalOperationNode{
-		TypeName:         NodeTypeNames[ConditionalOperationType],
+		TypeName:         nodeTypeNames[ConditionalOperationType],
 		Operation:        operation,
 		Left:             left,
 		Right:            right,
@@ -160,7 +212,7 @@ func newConditionalOperation(operation RelationalOperator, left, right Expressio
 // Create a new assignment statement node in the abstract syntax tree.
 func newAssignmentStatement(variable, expression Expression, index int) Statement {
 	assignment := &AssignmentStatementNode{
-		TypeName:         NodeTypeNames[AssignmentStatementType],
+		TypeName:         nodeTypeNames[AssignmentStatementType],
 		Variable:         variable,
 		Expression:       expression,
 		TokenStreamIndex: index,
@@ -174,7 +226,7 @@ func newAssignmentStatement(variable, expression Expression, index int) Statemen
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(variable Expression, index int) Statement {
 	read := &ReadStatementNode{
-		TypeName:         NodeTypeNames[ReadStatementType],
+		TypeName:         nodeTypeNames[ReadStatementType],
 		Variable:         variable,
 		TokenStreamIndex: index,
 	}
@@ -186,7 +238,7 @@ func newReadStatement(variable Expression, index int) Statement {
 // Create a new write statement node in the abstract syntax tree.
 func newWriteStatement(expression Expression, index int) Statement {
 	write := &WriteStatementNode{
-		TypeName:         NodeTypeNames[WriteStatementType],
+		TypeName:         nodeTypeNames[WriteStatementType],
 		Expression:       expression,
 		TokenStreamIndex: index,
 	}
@@ -198,7 +250,7 @@ func newWriteStatement(expression Expression, index int) Statement {
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(procedure Expression, index int) Statement {
 	call := &CallStatementNode{
-		TypeName:         NodeTypeNames[CallStatementType],
+		TypeName:         nodeTypeNames[CallStatementType],
 		Procedure:        procedure,
 		TokenStreamIndex: index,
 	}
@@ -210,7 +262,7 @@ func newCallStatement(procedure Expression, index int) Statement {
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement, index int) Statement {
 	ifStmt := &IfStatementNode{
-		TypeName:         NodeTypeNames[IfStatementType],
+		TypeName:         nodeTypeNames[IfStatementType],
 		Condition:        condition,
 		Statement:        statement,
 		TokenStreamIndex: index,
@@ -224,7 +276,7 @@ func newIfStatement(condition Expression, statement Statement, index int) Statem
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement, index int) Statement {
 	whileStmt := &WhileStatementNode{
-		TypeName:         NodeTypeNames[WhileStatementType],
+		TypeName:         nodeTypeNames[WhileStatementType],
 		Condition:        condition,
 		Statement:        statement,
 		TokenStreamIndex: index,
@@ -238,7 +290,7 @@ func newWhileStatement(condition Expression, statement Statement, index int) Sta
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement) Statement {
 	compound := &CompoundStatementNode{
-		TypeName:   NodeTypeNames[CompoundStatementType],
+		TypeName:   nodeTypeNames[CompoundStatementType],
 		Statements: statements,
 	}
 
@@ -251,12 +303,12 @@ func newCompoundStatement(statements []Statement) Statement {
 
 // String representation of a data type.
 func (dt DataType) String() string {
-	return DataTypeNames[dt]
+	return dataTypeNames[dt]
 }
 
 // Get a data type from its representation.
 func (dtr DataTypeRepresentation) DataType() DataType {
-	for dataType, representation := range DataTypeNames {
+	for dataType, representation := range dataTypeNames {
 		if representation == string(dtr) {
 			return dataType
 		}
@@ -267,14 +319,14 @@ func (dtr DataTypeRepresentation) DataType() DataType {
 
 // String representation of a symbol entry kind.
 func (e Entry) String() string {
-	return KindNames[e]
+	return kindNames[e]
 }
 
 // String representation of a usage mode bit-mask.
 func (u Usage) String() string {
 	var parts []string
 
-	for usage, name := range UsageNames {
+	for usage, name := range usageNames {
 		if u&usage != 0 {
 			parts = append(parts, name)
 		}
@@ -433,7 +485,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", KindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", kindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
 }
 
 // Parent node of the constant declaration node.
@@ -468,7 +520,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", KindNames[Variable], d.Name, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", kindNames[Variable], d.Name, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -503,7 +555,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", KindNames[Procedure], d.Name, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", kindNames[Procedure], d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
