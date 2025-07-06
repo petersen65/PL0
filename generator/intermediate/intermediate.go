@@ -82,17 +82,18 @@ const (
 	LabelName                  // the label-name datatype is used for labels in label addresses
 
 	// datatypes supported for constants, literals, variables, and temporaries
+	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
 	Integer64  // signed 64-bit integer
 	Integer32  // signed 32-bit integer
 	Integer16  // signed 16-bit integer
 	Integer8   // signed 8-bit integer
-	Float64    // IEEE 754 64-bit floating-point number
-	Float32    // IEEE 754 32-bit floating-point number
+	Float64    // signed IEEE 754 64-bit floating-point number
+	Float32    // signed IEEE 754 32-bit floating-point number
+	Unicode    // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
 	Unsigned64 // unsigned 64-bit integer
 	Unsigned32 // unsigned 32-bit integer
 	Unsigned16 // unsigned 16-bit integer
 	Unsigned8  // unsigned 8-bit integer
-	Unicode    // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
 	Boolean    // unsigned 8-bit boolean (0 or 1, false or true)
 )
 
@@ -292,7 +293,7 @@ func (dataType DataType) IsSupported() bool {
 
 // Check whether the datatype has a signed representation.
 func (dataType DataType) IsSigned() bool {
-	return dataType >= Integer64 && dataType <= Float32
+	return dataType >= Integer64 && dataType <= Unicode
 }
 
 // Check whether the datatype has an unsigned representation.

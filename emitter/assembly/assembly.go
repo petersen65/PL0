@@ -16,6 +16,7 @@ import (
 const (
 	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
 	QuadWordSize          = 8                       // size of a quad word in bytes (64 bits)
+	DoubleWordSize        = 4                       // size of a double word in bytes (32 bits)
 	EntryPointLabel       = "main"                  // label for the entry point of the program
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"

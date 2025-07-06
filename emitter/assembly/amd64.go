@@ -34,6 +34,14 @@ const (
 	Movsx
 	Movzx
 
+	// assembly instructions for data conversion operations with floating point numbers
+	Movsd
+	Movss
+	Movq
+	Movd
+	Xorpd
+	Xorps
+
 	// unconditional and conditional jump assembly instructions
 	Jmp
 	Je

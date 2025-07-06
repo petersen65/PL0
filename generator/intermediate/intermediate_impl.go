@@ -55,11 +55,11 @@ var (
 		Integer8:   "int8_t",
 		Float64:    "double",
 		Float32:    "float",
+		Unicode:    "char32_t",
 		Unsigned64: "uint64_t",
 		Unsigned32: "uint32_t",
 		Unsigned16: "uint16_t",
 		Unsigned8:  "uint8_t",
-		Unicode:    "char32_t",
 		Boolean:    "bool",
 	}
 
