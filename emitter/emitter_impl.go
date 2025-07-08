@@ -624,7 +624,6 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 
 	case ic.Float64:
 		// move the 64-bit floating-point value (IEEE 754 double precision) to the XMM0 register
-		// note: the Bits64 is redundant here because the 'Movsd' instruction always expects a 64-bit value
 		e.assemblyCode.AppendInstruction(ac.Movsd, labels,
 			ac.NewRegisterOperand(ac.Xmm0),
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, 0))
@@ -695,5 +694,83 @@ func (e *emitter) odd(dataType ic.DataType, labels []string) {
 
 		// test the least significant bit to determine oddness (64-bit 'Test' instruction is sufficient)
 		e.assemblyCode.AppendInstruction(ac.Test, nil, ac.NewRegisterOperand(ac.R10), ac.NewImmediateOperand(ac.Bits64, uint64(1)))
+	}
+}
+
+// Add the top two elements of the call stack depending on the data type and push the result.
+func (e *emitter) plus(dataType ic.DataType, labels []string) {
+	switch dataType {
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8:
+		// pop the right-hand integer value from the call stack into the R11 register
+		// note: all integer values must be correctly sign-extended to 64 bits before addition
+		e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R11))
+
+		// pop the left-hand integer value from the call stack into the R10 register
+		// note: all integer values must be correctly sign-extended to 64 bits before addition
+		e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.R10))
+
+		// add the two integer values in the R10 and R11 registers and leave the result in the R10 register
+		// note: flags from the 'Add' instruction are intentionally ignored and will be overwritten by the 'Push' instruction
+		e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
+
+		// push the result of the addition onto the call stack
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	case ic.Float64:
+		// move the right-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM1 register
+		e.assemblyCode.AppendInstruction(ac.Movsd, labels,
+			ac.NewRegisterOperand(ac.Xmm1),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, 0))
+
+		// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
+		e.assemblyCode.AppendInstruction(ac.Movsd, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, ac.PointerSize))
+
+		// add the two 64-bit floating-point values in the XMM0 and XMM1 registers and leave the result in the XMM0 register
+		e.assemblyCode.AppendInstruction(ac.Addsd, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewRegisterOperand(ac.Xmm1))
+
+		// remove the top element of the call stack (the right-hand value) by adjusting the stack pointer by 1 times the pointer size
+		e.assemblyCode.AppendInstruction(ac.Add, nil,
+			ac.NewRegisterOperand(ac.Rsp),
+			ac.NewImmediateOperand(ac.Bits32, ac.PointerSize))
+
+		// move the result of the addition back onto the top of the call stack and overwrite the left-hand value
+		e.assemblyCode.AppendInstruction(ac.Movsd, nil,
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, 0),
+			ac.NewRegisterOperand(ac.Xmm0))
+
+	case ic.Float32:
+		// move the right-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM1 register
+		e.assemblyCode.AppendInstruction(ac.Movss, labels,
+			ac.NewRegisterOperand(ac.Xmm1),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, 0))
+
+		// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
+		e.assemblyCode.AppendInstruction(ac.Movss, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.PointerSize))
+
+		// add the two 32-bit floating-point values in the XMM0 and XMM1 registers and leave the result in the XMM0 register
+		e.assemblyCode.AppendInstruction(ac.Addss, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewRegisterOperand(ac.Xmm1))
+
+		// remove the top element of the call stack (the right-hand value) by adjusting the stack pointer by 1 times the pointer size
+		e.assemblyCode.AppendInstruction(ac.Add, nil,
+			ac.NewRegisterOperand(ac.Rsp),
+			ac.NewImmediateOperand(ac.Bits32, ac.PointerSize))
+
+		// move the result of the addition back onto the top of the call stack and overwrite the left-hand value's lower 32 bits
+		e.assemblyCode.AppendInstruction(ac.Movss, nil,
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, 0),
+			ac.NewRegisterOperand(ac.Xmm0))
+
+		// clear the upper 32 bits from [RSP] to maintain a clean 64-bit call stack slot
+		e.assemblyCode.AppendInstruction(ac.Mov, nil,
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.DoubleWordSize),
+			ac.NewImmediateOperand(ac.Bits32, 0))
 	}
 }
