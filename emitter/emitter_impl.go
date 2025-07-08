@@ -148,24 +148,15 @@ func (e *emitter) Emit() {
 			_ = i.ThreeAddressCode.Arg1.Parse()
 			_ = i.ThreeAddressCode.Arg2.Parse()
 
-			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rbx))
-			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
+			// it is required that both temporaries are of the same data type
+			dataType := i.ThreeAddressCode.Arg1.DataType
 
-			switch i.ThreeAddressCode.Operation {
-			case ic.Plus:
-				e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
-
-			case ic.Minus:
-				e.assemblyCode.AppendInstruction(ac.Sub, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
-
-			case ic.Times:
-				e.assemblyCode.AppendInstruction(ac.Imul, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
-
-			case ic.Divide:
-				e.assemblyCode.AppendInstruction(ac.Idiv, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
+			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
+			if i.ThreeAddressCode.Operation == ic.Divide && dataType.IsInteger() {
+				e.integerDivide(dataType, l)
+			} else {
+				e.arithmeticOperation(dataType, i.ThreeAddressCode.Operation, l)
 			}
-
-			e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
 
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the call stack, remove them, and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
@@ -686,6 +677,7 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 
 // Check if the top of the call stack is odd depending on the data type.
 func (e *emitter) odd(dataType ic.DataType, labels []string) {
+	// depending on the data type, the top of the call stack is popped into the correct register and checked for oddness
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
 		// all integer 64-bit, 32-bit, 16-bit and 8-bit values are checked for oddness the same way
@@ -697,23 +689,36 @@ func (e *emitter) odd(dataType ic.DataType, labels []string) {
 	}
 }
 
-// Add the top two elements of the call stack depending on the data type and push the result.
-func (e *emitter) plus(dataType ic.DataType, labels []string) {
+// Perform the arithmetic operations 'Plus', 'Minus', 'Times' on the top two elements of the call stack and replace them with one result on the stack.
+func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operation, labels []string) {
+	// depending on the data type, the top two elements of the call stack are popped into the correct registers and the arithmetic operation is performed
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8:
 		// pop the right-hand integer value from the call stack into the R11 register
-		// note: all integer values must be correctly sign-extended to 64 bits before addition
+		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
 		e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R11))
 
 		// pop the left-hand integer value from the call stack into the R10 register
-		// note: all integer values must be correctly sign-extended to 64 bits before addition
+		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
 		e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.R10))
 
-		// add the two integer values in the R10 and R11 registers and leave the result in the R10 register
-		// note: flags from the 'Add' instruction are intentionally ignored and will be overwritten by the 'Push' instruction
-		e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
+		// the R10 and R11 registers are used to perform the arithmetic operation which leaves the result in the R10 register
+		switch operation {
+		case ic.Plus:
+			// add the right-hand integer value in the R11 register to the left-hand integer value in the R10 register
+			e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
 
-		// push the result of the addition onto the call stack
+		case ic.Minus:
+			// subtract the right-hand integer value in the R11 register from the left-hand integer value in the R10 register
+			e.assemblyCode.AppendInstruction(ac.Sub, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
+
+		case ic.Times:
+			// multiply the left-hand integer value in the R10 register with the right-hand integer value in the R11 register
+			e.assemblyCode.AppendInstruction(ac.Imul, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
+		}
+
+		// push the result of the arithmetic operation onto the call stack
+		// note: flags from the 'Add', 'Sub', and 'Imul' instructions are intentionally ignored and will be overwritten by the 'Push' instruction
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
 	case ic.Float64:
@@ -727,17 +732,39 @@ func (e *emitter) plus(dataType ic.DataType, labels []string) {
 			ac.NewRegisterOperand(ac.Xmm0),
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, ac.PointerSize))
 
-		// add the two 64-bit floating-point values in the XMM0 and XMM1 registers and leave the result in the XMM0 register
-		e.assemblyCode.AppendInstruction(ac.Addsd, nil,
-			ac.NewRegisterOperand(ac.Xmm0),
-			ac.NewRegisterOperand(ac.Xmm1))
+		// the XMM0 and XMM1 registers are used to perform the arithmetic operation which leaves the result in the XMM0 register
+		switch operation {
+		case ic.Plus:
+			// add the right-hand floating-point value in the XMM1 register to the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Addsd, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Minus:
+			// subtract the right-hand floating-point value in the XMM1 register from the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Subsd, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Times:
+			// multiply the right-hand floating-point value in the XMM1 register with the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Mulsd, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Divide:
+			// divide the left-hand floating-point value in the XMM0 register by the right-hand floating-point value in the XMM1 register
+			e.assemblyCode.AppendInstruction(ac.Divsd, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+		}
 
 		// remove the top element of the call stack (the right-hand value) by adjusting the stack pointer by 1 times the pointer size
 		e.assemblyCode.AppendInstruction(ac.Add, nil,
 			ac.NewRegisterOperand(ac.Rsp),
 			ac.NewImmediateOperand(ac.Bits32, ac.PointerSize))
 
-		// move the result of the addition back onto the top of the call stack and overwrite the left-hand value
+		// move the result of the arithmetic operation back onto the top of the call stack, overwriting the left-hand value
 		e.assemblyCode.AppendInstruction(ac.Movsd, nil,
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, 0),
 			ac.NewRegisterOperand(ac.Xmm0))
@@ -753,17 +780,39 @@ func (e *emitter) plus(dataType ic.DataType, labels []string) {
 			ac.NewRegisterOperand(ac.Xmm0),
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.PointerSize))
 
-		// add the two 32-bit floating-point values in the XMM0 and XMM1 registers and leave the result in the XMM0 register
-		e.assemblyCode.AppendInstruction(ac.Addss, nil,
-			ac.NewRegisterOperand(ac.Xmm0),
-			ac.NewRegisterOperand(ac.Xmm1))
+		// the XMM0 and XMM1 registers are used to perform the arithmetic operation which leaves the result in the XMM0 register
+		switch operation {
+		case ic.Plus:
+			// add the right-hand floating-point value in the XMM1 register to the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Addss, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Minus:
+			// subtract the right-hand floating-point value in the XMM1 register from the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Subss, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Times:
+			// multiply the right-hand floating-point value in the XMM1 register with the left-hand floating-point value in the XMM0 register
+			e.assemblyCode.AppendInstruction(ac.Mulss, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+
+		case ic.Divide:
+			// divide the left-hand floating-point value in the XMM0 register by the right-hand floating-point value in the XMM1 register
+			e.assemblyCode.AppendInstruction(ac.Divss, nil,
+				ac.NewRegisterOperand(ac.Xmm0),
+				ac.NewRegisterOperand(ac.Xmm1))
+		}
 
 		// remove the top element of the call stack (the right-hand value) by adjusting the stack pointer by 1 times the pointer size
 		e.assemblyCode.AppendInstruction(ac.Add, nil,
 			ac.NewRegisterOperand(ac.Rsp),
 			ac.NewImmediateOperand(ac.Bits32, ac.PointerSize))
 
-		// move the result of the addition back onto the top of the call stack and overwrite the left-hand value's lower 32 bits
+		// // move the result of the arithmetic operation back onto the top of the call stack and overwrite the left-hand value's lower 32 bits
 		e.assemblyCode.AppendInstruction(ac.Movss, nil,
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, 0),
 			ac.NewRegisterOperand(ac.Xmm0))
@@ -772,5 +821,49 @@ func (e *emitter) plus(dataType ic.DataType, labels []string) {
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.DoubleWordSize),
 			ac.NewImmediateOperand(ac.Bits32, 0))
+	}
+}
+
+// Perform the arithmetic operation 'Divide' on the top two elements of the call stack and replace them with one result on the stack.
+func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
+	switch dataType {
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
+		// pop the right-hand integer value (divisor) from the call stack into the R11 register
+		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
+		e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R11))
+
+		// pop the left-hand integer value (dividend) from the call stack into the RAX register (required by IDIV)
+		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
+		e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
+
+		// sign-extend RAX to RDX:RAX by using the 'Cqo' instruction for a signed division (convert quadword to octword)
+		// note: CQO operates on 64-bit operands but is safe to use with smaller types, as long as the value in RAX is properly sign-extended to 64 bits beforehand
+		e.assemblyCode.AppendInstruction(ac.Cqo, nil)
+
+		// divide the 128-bit dividend in RDX:RAX by the 64-bit divisor in R11 (signed division)
+		// note: the quotient is stored in RAX and the remainder in RDX
+		e.assemblyCode.AppendInstruction(ac.Idiv, nil, ac.NewRegisterOperand(ac.R11))
+
+		// push the result onto the stack (quotient)
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	case ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8:
+		// pop the right-hand integer value (divisor) from the call stack into the R11 register
+		// note: all unsigned integer values must be correctly zero-extended to 64 bits before arithmetic operations
+		e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R11))
+
+		// pop the left-hand integer value (dividend) from the call stack into the RAX register (required by DIV)
+		// note: all unsigned integer values must be correctly zero-extended to 64 bits before arithmetic operations
+		e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
+
+		// zero-extend RAX to RDX:RAX by using the 'Xor' instruction for an unsigned division (clear RDX)
+		e.assemblyCode.AppendInstruction(ac.Xor, nil, ac.NewRegisterOperand(ac.Rdx), ac.NewRegisterOperand(ac.Rdx))
+
+		// divide the 128-bit dividend in RDX:RAX by the 64-bit divisor in R11 (unsigned division)
+		// note: the quotient is stored in RAX and the remainder in RDX
+		e.assemblyCode.AppendInstruction(ac.Div, nil, ac.NewRegisterOperand(ac.R11))
+
+		// push the result onto the stack (quotient)
+		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
 	}
 }

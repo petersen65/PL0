@@ -35,10 +35,13 @@ const (
 	Jge    // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
 	Neg    // negates the operand (two’s complement), equivalent to subtracting it from zero
 	And    // performs bitwise AND between destination and source; result stored in destination
+	Xor    // performs bitwise XOR between destination and source; result stored in destination
+	Cqo    // sign-extend RAX into the 128-bit dividend in RDX:RAX; required before IDIV for signed 64-bit division
 	Add    // adds source to destination; result stored in destination
 	Sub    // subtracts source from destination; result stored in destination
 	Imul   // multiplies two signed integers; result stored in destination
-	Idiv   // divides accumulator by source operand; quotient and remainder in standard registers
+	Div    // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Idiv   // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
 	Addsd  // adds two scalar double-precision floats; result stored in destination XMM register
 	Addss  // adds two scalar single-precision floats; result stored in destination XMM register
 	Subsd  // subtracts one scalar double-precision float from another
