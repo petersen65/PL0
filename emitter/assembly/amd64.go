@@ -8,50 +8,52 @@ const (
 	// used as empty prefix for the operation code
 	None = OperationCode(iota)
 
-	Push   // pushes a register or immediate value onto the stack; decrements RSP by operand size
-	Pop    // pops the top value from the stack into a register or memory; increments RSP by operand size
-	Mov    // copies data from source to destination without modifying the source
-	MovAbs // moves a 64-bit immediate constant into a 64-bit register (required for full 64-bit immediates)
-	Cmp    // subtracts source from destination, updates CPU flags for comparisons; result is discarded
-	Test   // performs bitwise AND between operands, updates CPU flags for bit tests; result is discarded
-	Cld    // clears the Direction Flag (DF) to make string operations increment address registers
-	Rep    // repeats the following string instruction until RCX == 0
-	Stosq  // stores RAX to [RDI]; increments or decrements RDI by 8 depending on DF
-	Movsxd // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
-	Movsx  // sign-extends a smaller integer operand to a larger register size
-	Movzx  // zero-extends a smaller integer operand to a larger register size
-	Movsd  // moves a scalar 64-bit double-precision float between XMM registers or memory
-	Movss  // moves a scalar 32-bit single-precision float between XMM registers or memory
-	Movq   // moves a 64-bit integer or float between XMM registers or memory
-	Movd   // moves a 32-bit integer between a general-purpose register and an XMM register
-	Xorpd  // performs bitwise XOR on double-precision values in XMM registers
-	Xorps  // performs bitwise XOR on single-precision values in XMM registers
-	Jmp    // performs an unconditional jump to a label or address
-	Je     // jumps if Zero Flag (ZF) is set, meaning operands were equal
-	Jne    // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
-	Jl     // jumps if Sign Flag ≠ Overflow Flag, meaning destination < source (signed)
-	Jle    // jumps if Zero Flag is set or Sign Flag ≠ Overflow Flag, meaning destination ≤ source (signed)
-	Jg     // jumps if Zero Flag is clear and Sign Flag == Overflow Flag, meaning destination > source (signed)
-	Jge    // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
-	Neg    // negates the operand (two’s complement), equivalent to subtracting it from zero
-	And    // performs bitwise AND between destination and source; result stored in destination
-	Xor    // performs bitwise XOR between destination and source; result stored in destination
-	Cqo    // sign-extend RAX into the 128-bit dividend in RDX:RAX; required before IDIV for signed 64-bit division
-	Add    // adds source to destination; result stored in destination
-	Sub    // subtracts source from destination; result stored in destination
-	Imul   // multiplies two signed integers; result stored in destination
-	Div    // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
-	Idiv   // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
-	Addsd  // adds two scalar double-precision floats; result stored in destination XMM register
-	Addss  // adds two scalar single-precision floats; result stored in destination XMM register
-	Subsd  // subtracts one scalar double-precision float from another
-	Subss  // subtracts one scalar single-precision float from another
-	Mulsd  // multiplies two scalar double-precision floats
-	Mulss  // multiplies two scalar single-precision floats
-	Divsd  // divides one scalar double-precision float by another
-	Divss  // divides one scalar single-precision float by another
-	Call   // pushes return address onto the stack and jumps to a subroutine
-	Ret    // pops return address from the stack and jumps to it, returning from a subroutine
+	Push    // pushes a register or immediate value onto the stack; decrements RSP by operand size
+	Pop     // pops the top value from the stack into a register or memory; increments RSP by operand size
+	Cmp     // subtracts source from destination, updates CPU flags for comparisons; result is discarded
+	Ucomisd // compares scalar double-precision floats and sets CPU flags
+	Ucomiss // compares scalar single-precision floats and sets CPU flags
+	Test    // performs bitwise AND between operands, updates CPU flags for bit tests; result is discarded
+	Cld     // clears the Direction Flag (DF) to make string operations increment address registers
+	Rep     // repeats the following string instruction until RCX == 0
+	Stosq   // stores RAX to [RDI]; increments or decrements RDI by 8 depending on DF
+	Mov     // copies data from source to destination without modifying the source
+	MovAbs  // moves a 64-bit immediate constant into a 64-bit register (required for full 64-bit immediates)
+	Movsxd  // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
+	Movsx   // sign-extends a smaller integer operand to a larger register size
+	Movzx   // zero-extends a smaller integer operand to a larger register size
+	Movsd   // moves a scalar 64-bit double-precision float between XMM registers or memory
+	Movss   // moves a scalar 32-bit single-precision float between XMM registers or memory
+	Movq    // moves a 64-bit integer or float between XMM registers or memory
+	Movd    // moves a 32-bit integer between a general-purpose register and an XMM register
+	Xorpd   // performs bitwise XOR on double-precision values in XMM registers
+	Xorps   // performs bitwise XOR on single-precision values in XMM registers
+	Jmp     // performs an unconditional jump to a label or address
+	Je      // jumps if Zero Flag (ZF) is set, meaning operands were equal
+	Jne     // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
+	Jl      // jumps if Sign Flag ≠ Overflow Flag, meaning destination < source (signed)
+	Jle     // jumps if Zero Flag is set or Sign Flag ≠ Overflow Flag, meaning destination ≤ source (signed)
+	Jg      // jumps if Zero Flag is clear and Sign Flag == Overflow Flag, meaning destination > source (signed)
+	Jge     // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
+	Neg     // negates the operand (two’s complement), equivalent to subtracting it from zero
+	And     // performs bitwise AND between destination and source; result stored in destination
+	Xor     // performs bitwise XOR between destination and source; result stored in destination
+	Cqo     // sign-extend RAX into the 128-bit dividend in RDX:RAX; required before IDIV for signed 64-bit division
+	Add     // adds source to destination; result stored in destination
+	Sub     // subtracts source from destination; result stored in destination
+	Imul    // multiplies two signed integers; result stored in destination
+	Div     // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Idiv    // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Addsd   // adds two scalar double-precision floats; result stored in destination XMM register
+	Addss   // adds two scalar single-precision floats; result stored in destination XMM register
+	Subsd   // subtracts one scalar double-precision float from another
+	Subss   // subtracts one scalar single-precision float from another
+	Mulsd   // multiplies two scalar double-precision floats
+	Mulss   // multiplies two scalar single-precision floats
+	Divsd   // divides one scalar double-precision float by another
+	Divss   // divides one scalar single-precision float by another
+	Call    // pushes return address onto the stack and jumps to a subroutine
+	Ret     // pops return address from the stack and jumps to it, returning from a subroutine
 
 	StdCall // to be removed, used for calling standard library functions
 )

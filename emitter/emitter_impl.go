@@ -163,9 +163,11 @@ func (e *emitter) Emit() {
 			_ = i.ThreeAddressCode.Arg1.Parse()
 			_ = i.ThreeAddressCode.Arg2.Parse()
 
-			e.assemblyCode.AppendInstruction(ac.Pop, l, ac.NewRegisterOperand(ac.Rbx))
-			e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.Rax))
-			e.assemblyCode.AppendInstruction(ac.Cmp, nil, ac.NewRegisterOperand(ac.Rax), ac.NewRegisterOperand(ac.Rbx))
+			// it is required that both temporaries are of the same data type
+			dataType := i.ThreeAddressCode.Arg1.DataType
+
+			// emit assembly code to compare the top two elements of the call stack
+			e.compare(dataType, l)
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if parsing of the label into a string fails (unsupported data type)
@@ -826,6 +828,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 
 // Perform the arithmetic operation 'Divide' on the top two elements of the call stack and replace them with one result on the stack.
 func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
+	// depending on the data type, the top two elements of the call stack are popped into the correct registers and the division operation is performed
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
 		// pop the right-hand integer value (divisor) from the call stack into the R11 register
@@ -865,5 +868,73 @@ func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
 
 		// push the result onto the stack (quotient)
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+	}
+}
+
+// Compare the top two elements of the call stack and update the CPU flags.
+func (e *emitter) compare(dataType ic.DataType, labels []string) {
+	// depending on the data type, the top two elements of the call stack are popped into the correct registers and compared
+	switch dataType {
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unicode, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
+		// pop the right-hand integer value from the call stack into the R11 register
+		// note: all integer values must be extended to 64 bits before arithmetic operations
+		//       - sign-extended for signed integers (includes Unicode)
+		//       - zero-extended for unsigned integers (includes Boolean)
+		e.assemblyCode.AppendInstruction(ac.Pop, labels, ac.NewRegisterOperand(ac.R11))
+
+		// pop the left-hand integer value from the call stack into the R10 register
+		// note: all integer values must be extended to 64 bits before arithmetic operations
+		//       - sign-extended for signed integers (includes Unicode)
+		//       - zero-extended for unsigned integers (includes Boolean)
+		e.assemblyCode.AppendInstruction(ac.Pop, nil, ac.NewRegisterOperand(ac.R10))
+
+		// compare the left-hand integer value in R10 with the right-hand integer value in R11 (R10 - R11)
+		// note: the 'Cmp' instruction itself does not distinguish between signed and unsigned values
+		//       conditional jump instructions interpret the CPU flags according to signedness
+		e.assemblyCode.AppendInstruction(ac.Cmp, nil, ac.NewRegisterOperand(ac.R10), ac.NewRegisterOperand(ac.R11))
+
+	case ic.Float64:
+		// move the right-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM1 register
+		e.assemblyCode.AppendInstruction(ac.Movsd, labels,
+			ac.NewRegisterOperand(ac.Xmm1),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, 0))
+
+		// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
+		e.assemblyCode.AppendInstruction(ac.Movsd, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits64, ac.PointerSize))
+
+		// remove both top elements of the call stack (right-hand and left-hand value) by adjusting the stack pointer by 2 times the pointer size
+		e.assemblyCode.AppendInstruction(ac.Add, nil,
+			ac.NewRegisterOperand(ac.Rsp),
+			ac.NewImmediateOperand(ac.Bits32, 2*ac.PointerSize))
+
+		// compare the left-hand floating-point value in the XMM0 register with the right-hand floating-point value in the XMM1 register
+		// note: the 'Ucomisd' instruction compares the two values and sets the CPU flags accordingly
+		//       it does not raise an exception for NaN values, but sets the CPU flags to indicate unordered comparisons
+		e.assemblyCode.AppendInstruction(ac.Ucomisd, nil, ac.NewRegisterOperand(ac.Xmm0), ac.NewRegisterOperand(ac.Xmm1))
+
+	case ic.Float32:
+		// move the right-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM1 register
+		// note: the value is stored in a 64-bit stack slot (lower 32 bits contain the float)
+		e.assemblyCode.AppendInstruction(ac.Movss, labels,
+			ac.NewRegisterOperand(ac.Xmm1),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, 0))
+
+		// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
+		// note: the value is stored in a 64-bit stack slot (lower 32 bits contain the float)
+		e.assemblyCode.AppendInstruction(ac.Movss, nil,
+			ac.NewRegisterOperand(ac.Xmm0),
+			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.PointerSize))
+
+		// remove both top elements of the call stack (right-hand and left-hand value) by adjusting the stack pointer by 2 times the pointer size
+		e.assemblyCode.AppendInstruction(ac.Add, nil,
+			ac.NewRegisterOperand(ac.Rsp),
+			ac.NewImmediateOperand(ac.Bits32, 2*ac.PointerSize))
+
+		// compare the left-hand floating-point value in the XMM0 register with the right-hand floating-point value in the XMM1 register
+		// note: the 'Ucomiss' instruction compares the two values and sets the CPU flags accordingly
+		//       it does not raise an exception for NaN values, but sets the CPU flags to indicate unordered comparisons
+		e.assemblyCode.AppendInstruction(ac.Ucomiss, nil, ac.NewRegisterOperand(ac.Xmm0), ac.NewRegisterOperand(ac.Xmm1))
 	}
 }
