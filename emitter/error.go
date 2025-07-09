@@ -8,14 +8,14 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Failure codes for the emitter.
 const (
 	_ cor.Failure = iota + 8000
-	unsupportedCpuTarget
+	unsupportedTargetPlatform
 	unknownIntermediateCodeOperation
 	unexpectedNumberOfFunctionArguments
 )
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unsupportedCpuTarget:                "unsupported CPU target: %v",
+	unsupportedTargetPlatform:           "unsupported target platform: %v",
 	unknownIntermediateCodeOperation:    "unknown intermediate code operation: %v",
 	unexpectedNumberOfFunctionArguments: "unexpected number of arguments for function call",
 }

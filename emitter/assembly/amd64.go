@@ -8,11 +8,10 @@ const (
 	// used as empty prefix for the operation code
 	None OperationCode = iota
 
+	// instruction set architecture: ISA_Base
 	Push    // pushes a register or immediate value onto the stack; decrements RSP by operand size
 	Pop     // pops the top value from the stack into a register or memory; increments RSP by operand size
 	Cmp     // subtracts source from destination, updates CPU flags for comparisons; result is discarded
-	Ucomisd // compares scalar double-precision floats and sets CPU flags
-	Ucomiss // compares scalar single-precision floats and sets CPU flags
 	Test    // performs bitwise AND between operands, updates CPU flags for bit tests; result is discarded
 	Cld     // clears the Direction Flag (DF) to make string operations increment address registers
 	Rep     // repeats the following string instruction until RCX == 0
@@ -22,12 +21,6 @@ const (
 	Movsxd  // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
 	Movsx   // sign-extends a smaller integer operand to a larger register size
 	Movzx   // zero-extends a smaller integer operand to a larger register size
-	Movsd   // moves a scalar 64-bit double-precision float between XMM registers or memory
-	Movss   // moves a scalar 32-bit single-precision float between XMM registers or memory
-	Movq    // moves a 64-bit integer or float between XMM registers or memory
-	Movd    // moves a 32-bit integer between a general-purpose register and an XMM register
-	Xorpd   // performs bitwise XOR on double-precision values in XMM registers
-	Xorps   // performs bitwise XOR on single-precision values in XMM registers
 	Jmp     // performs an unconditional jump to a label or address
 	Je      // jumps if Zero Flag (ZF) is set, meaning operands were equal
 	Jne     // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
@@ -48,6 +41,18 @@ const (
 	Imul    // multiplies two signed integers; result stored in destination
 	Div     // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
 	Idiv    // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Call    // pushes return address onto the stack and jumps to a subroutine
+	Ret     // pops return address from the stack and jumps to it, returning from a subroutine
+
+	// instruction set architecture: ISA_SSE2
+	Ucomisd // compares scalar double-precision floats and sets CPU flags
+	Ucomiss // compares scalar single-precision floats and sets CPU flags
+	Movsd   // moves a scalar 64-bit double-precision float between XMM registers or memory
+	Movss   // moves a scalar 32-bit single-precision float between XMM registers or memory
+	Movq    // moves a 64-bit integer or float between XMM registers or memory
+	Movd    // moves a 32-bit integer between a general-purpose register and an XMM register
+	Xorpd   // performs bitwise XOR on double-precision values in XMM registers
+	Xorps   // performs bitwise XOR on single-precision values in XMM registers
 	Addsd   // adds two scalar double-precision floats; result stored in destination XMM register
 	Addss   // adds two scalar single-precision floats; result stored in destination XMM register
 	Subsd   // subtracts one scalar double-precision float from another
@@ -56,8 +61,6 @@ const (
 	Mulss   // multiplies two scalar single-precision floats
 	Divsd   // divides one scalar double-precision float by another
 	Divss   // divides one scalar single-precision float by another
-	Call    // pushes return address onto the stack and jumps to a subroutine
-	Ret     // pops return address from the stack and jumps to it, returning from a subroutine
 
 	StdCall // to be removed, used for calling standard library functions
 )
@@ -138,42 +141,34 @@ const (
 	R14b // 8-bit general purpose register (bits 0-7 of R14)
 	R15b // 8-bit general purpose register (bits 0-7 of R15)
 
-	// 256 bit AVX registers of the AMD64 CPU (advanced vector extensions, AVX).
-	Ymm0  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm1  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm2  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm3  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm4  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm5  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm6  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm7  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm8  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm9  // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm10 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm11 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm12 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm13 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm14 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-	Ymm15 // floating point register (256 bits, 8 x 32-bits or 4 x 64-bits floating point numbers)
-
 	// 128-bit SSE registers of the AMD64 CPU (streaming single instructions multiple data extensions, SSE).
-	Xmm0  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm0)
-	Xmm1  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm1)
-	Xmm2  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm2)
-	Xmm3  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm3)
-	Xmm4  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm4)
-	Xmm5  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm5)
-	Xmm6  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm6)
-	Xmm7  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm7)
-	Xmm8  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm8)
-	Xmm9  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm9)
-	Xmm10 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm10)
-	Xmm11 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm11)
-	Xmm12 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm12)
-	Xmm13 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm13)
-	Xmm14 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm14)
-	Xmm15 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers, bits 0-127 of Ymm15)
+	Xmm0  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm1  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm2  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm3  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm4  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm5  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm6  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm7  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm8  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm9  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm10 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm11 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm12 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm13 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm14 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
+	Xmm15 // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
 )
+
+// Check if the operation code is an ISA_Base operation code.
+func (o OperationCode) IsIsaBase() bool {
+	return o >= Push && o <= Ret 
+}
+
+// Check if the operation code is an ISA_SSE2 operation code.
+func (o OperationCode) IsIsaSse2() bool {
+	return o >= Ucomisd && o <= Divss
+}
 
 // Check if the register is a general purpose 64-bit register.
 func (r Register) IsGeneralPurpose64() bool {
@@ -208,11 +203,6 @@ func (r Register) IsGeneralPurposeHigh8() bool {
 // Check if the register is any general purpose register.
 func (r Register) IsGeneralPurpose() bool {
 	return r.IsGeneralPurpose64() || r.IsGeneralPurpose32() || r.IsGeneralPurpose16() || r.IsGeneralPurpose8()
-}
-
-// Check if the register is a advanced vector extensions register.
-func (r Register) IsAvx() bool {
-	return r >= Ymm0 && r <= Ymm15
 }
 
 // Check if the register is a streaming single instructions multiple data extensions register.

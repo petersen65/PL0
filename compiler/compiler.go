@@ -102,20 +102,29 @@ var ExtensionMap = map[Extension]string{
 	Ensure:    ".ensure",
 }
 
-// Driver for the compilation process with the given options, source, target, and print writer.
-func Driver(options DriverOption, source, target string, print io.Writer) {
-	var translationUnit TranslationUnit
+// Driver for the compilation process with the given options, source path, target path, and print writer.
+func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer) {
+	var targetPlatform emi.TargetPlatform
 	var targetDirectory, baseFileName, runtime string
+	var translationUnit TranslationUnit
 	var err error
 
+	// set target platform for the compilation process
+	// note: only Linux with AMD64 CPU and SSE2 instruction set is supported for now
+	targetPlatform = emi.TargetPlatform{
+		OperatingSystem: emi.Linux,
+		Cpu:             emi.Amd64,
+		InstructionSet:  emi.ISA_SSE2,
+	}
+
 	// ensure target path exists and print persistence error message if an error occurred
-	if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
-		fmt.Fprintf(print, textErrorPersisting, target, err)
+	if targetDirectory, baseFileName, err = EnsureTargetPath(targetPath); err != nil {
+		fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 		return
 	}
 
 	// cleaned and validated target and runtime paths
-	target = GetFullPath(targetDirectory, baseFileName, Assembly)
+	targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
 	runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
@@ -126,25 +135,25 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 		// repeat ensuring existance of target path only if compile option is set
 		if options&Compile != 0 {
 			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
-			if targetDirectory, baseFileName, err = EnsureTargetPath(target); err != nil {
-				fmt.Fprintf(print, textErrorPersisting, target, err)
+			if targetDirectory, baseFileName, err = EnsureTargetPath(targetPath); err != nil {
+				fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 				return
 			}
 
 			// cleaned and validated target and runtime paths after cleaning
-			target = GetFullPath(targetDirectory, baseFileName, Assembly)
+			targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
 			runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 		}
 	}
 
 	// compile source code to translation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
-		fmt.Fprintf(print, textCompiling, source, target)
-		translationUnit, err = CompileSourceToTranslationUnit(source)
+		fmt.Fprintf(print, textCompiling, sourcePath, targetPath)
+		translationUnit, err = CompileSourceToTranslationUnit(sourcePath, targetPlatform)
 
 		// print error message if an I/O error occurred during compilation
 		if err != nil {
-			fmt.Fprintf(print, textErrorCompiling, source, err)
+			fmt.Fprintf(print, textErrorCompiling, sourcePath, err)
 			return
 		}
 
@@ -153,7 +162,7 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 		// print abandon compilation message if any error occurred during compilation
 		if translationUnit.ErrorHandler.HasErrors() {
-			fmt.Fprintf(print, textErrorCompiling, source, textAbortCompilation)
+			fmt.Fprintf(print, textErrorCompiling, sourcePath, textAbortCompilation)
 		}
 	}
 
@@ -170,8 +179,8 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 
 	// persist application and runtime as target files and print persistence error message if an error occurred
 	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
-		if err = PersistApplication(translationUnit.AssemblyCode, target); err != nil {
-			fmt.Fprintf(print, textErrorPersisting, target, err)
+		if err = PersistApplication(translationUnit.AssemblyCode, targetPath); err != nil {
+			fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 			return
 		}
 		if err = PersistRuntime(runtime); err != nil {
@@ -181,20 +190,20 @@ func Driver(options DriverOption, source, target string, print io.Writer) {
 	}
 
 	// print driver completion message
-	fmt.Fprintf(print, textDriverSourceTarget, source, target)
+	fmt.Fprintf(print, textDriverSourceTarget, sourcePath, targetPath)
 }
 
 // Compile source code and return translation unit with all intermediate results and error handler.
-func CompileSourceToTranslationUnit(source string) (TranslationUnit, error) {
-	if content, err := os.ReadFile(source); err != nil {
+func CompileSourceToTranslationUnit(sourcePath string, targetPlatform emi.TargetPlatform) (TranslationUnit, error) {
+	if content, err := os.ReadFile(sourcePath); err != nil {
 		return TranslationUnit{}, err
 	} else {
-		return CompileContent(content), nil
+		return CompileContent(content, targetPlatform), nil
 	}
 }
 
 // Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
-func CompileContent(content []byte) TranslationUnit {
+func CompileContent(content []byte, targetPlatform emi.TargetPlatform) TranslationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler(tokenStream)
@@ -218,8 +227,8 @@ func CompileContent(content []byte) TranslationUnit {
 	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
 	controlFlow.Build()
 
-	// emit assembly code from the intermediate code unit
-	emitter := emi.NewEmitter(emi.Amd64, intermediateCode)
+	// emit assembly code for a target platform from the intermediate code unit
+	emitter := emi.NewEmitter(targetPlatform, intermediateCode)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 

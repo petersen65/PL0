@@ -24,15 +24,37 @@ const float32SignBitMask uint32 = 0x80000000
 // Implementation of the assembly code emitter.
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
-	assemblyCode     ac.AssemblyCodeUnit     // assembly code unit for the CPU target
-	cpu              CentralProcessingUnit   // target CPU for the emitter
+	assemblyCode     ac.AssemblyCodeUnit     // assembly code unit for the target platform
+	targetPlatform   TargetPlatform          // target platform for the emitter
 	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
 var (
-	// Map CPU targets to their string representation.
-	cpuNames = map[CentralProcessingUnit]string{
-		Amd64: "amd64",
+	// Map target operating systems to their names.
+	operatingSystemNames = map[OperatingSystem]string{
+		MacOS:   "macOS",
+		Linux:   "Linux",
+		Windows: "Windows",
+	}
+
+	// Map CPU families to their names.
+	cpuFamilyNames = map[CentralProcessingUnitFamily]string{
+		Amd64: "AMD64",
+		Arm64: "ARM64",
+	}
+
+	// Map instruction set architectures to their names.
+	instructionSetArchitectureNames = map[InstructionSetArchitecture]string{
+		ISA_Base:    "Base",
+		ISA_SSE2:    "SSE2",
+		ISA_SSE4_2:  "SSE4.2",
+		ISA_AVX:     "AVX",
+		ISA_AVX2:    "AVX2",
+		ISA_AVX512:  "AVX512",
+		ISA_ARMv8:   "ARMv8",
+		ISA_ARMv8_2: "ARMv8.2",
+		ISA_ARMv9:   "ARMv9",
+		ISA_ARMv9_2: "ARMv9.2",
 	}
 
 	// Map intermediate code datatypes to assembly code bit sizes.
@@ -53,20 +75,20 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
-	if cpu != Amd64 {
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedCpuTarget, cpu, nil))
+func newEmitter(target TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
+	if target.OperatingSystem != Linux || target.Cpu != Amd64 || target.InstructionSet != ISA_SSE2 {
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, target, nil))
 	}
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
 		assemblyCode:     ac.NewAssemblyCodeUnit(ac.Application),
-		cpu:              cpu,
+		targetPlatform:   target,
 		offsetTable:      make(map[string]int32),
 	}
 }
 
-// Emit assembly code for the CPU target.
+// Emit assembly code for the target platform.
 func (e *emitter) Emit() {
 	iterator := e.intermediateCode.GetIterator()
 	comparison := ac.ComparisonNone
