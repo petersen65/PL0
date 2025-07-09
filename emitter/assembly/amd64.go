@@ -6,7 +6,7 @@ package assembly
 // Operation codes for assembly instructions of the AMD64 CPU.
 const (
 	// used as empty prefix for the operation code
-	None = OperationCode(iota)
+	None OperationCode = iota
 
 	Push    // pushes a register or immediate value onto the stack; decrements RSP by operand size
 	Pop     // pops the top value from the stack into a register or memory; increments RSP by operand size
@@ -64,7 +64,7 @@ const (
 
 // Register enumeration for the 256 bit, 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the AMD64 CPU.
 const (
-	_ = Register(iota)
+	_ Register = iota
 
 	// 64-bit flags and pointer registers of the AMD64 CPU (used for control flow).
 	Rflags // flags register contains the current state of the CPU and reflects the result of arithmetic operations

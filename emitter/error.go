@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the emitter.
 const (
-	_ = cor.Failure(iota + 8000)
+	_ cor.Failure = iota + 8000
 	unsupportedCpuTarget
 	unknownIntermediateCodeOperation
 	unexpectedNumberOfFunctionArguments

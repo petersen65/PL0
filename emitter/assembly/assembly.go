@@ -24,11 +24,11 @@ const (
 
 // Operand kinds for instructions.
 const (
-	RegisterOperand  = OperandKind(iota) // register operands are used for arithmetic and logical operations
-	ImmediateOperand                     // constant values are literals in various bit sizes
-	MemoryOperand                        // memory addresses are specified indirectly through registers
-	LabelOperand                         // labels are used to specify jump targets and must be replaced by absolute addresses before execution
-	JumpOperand                          // destinations for jump instructions that are specified as absolute addresses
+	RegisterOperand  OperandKind = iota // register operands are used for arithmetic and logical operations
+	ImmediateOperand                    // constant values are literals in various bit sizes
+	MemoryOperand                       // memory addresses are specified indirectly through registers
+	LabelOperand                        // labels are used to specify jump targets and must be replaced by absolute addresses before execution
+	JumpOperand                         // destinations for jump instructions that are specified as absolute addresses
 )
 
 // Operand sizes in bits.
@@ -41,21 +41,21 @@ const (
 
 // Comparison types used to interpret the CPU flags in conditional jumps.
 const (
-	ComparisonNone            = ComparisonType(iota) // no comparison instruction, used for unconditional jumps
-	ComparisonIntegerSigned                          // signed integer comparison (Cmp instruction)
-	ComparisonIntegerUnsigned                        // unsigned integer comparison (Cmp instruction)
-	ComparisonFloat                                  // floating-point comparison (Ucomisd/Ucomiss instructions)
+	ComparisonNone            ComparisonType = iota // no comparison instruction, used for unconditional jumps
+	ComparisonIntegerSigned                         // signed integer comparison (Cmp instruction)
+	ComparisonIntegerUnsigned                       // unsigned integer comparison (Cmp instruction)
+	ComparisonFloat                                 // floating-point comparison (Ucomisd/Ucomiss instructions)
 )
 
 // Call codes for the programming language standard library.
 const (
-	Readln = StandardCall(iota)
+	Readln StandardCall = iota
 	Writeln
 )
 
 // Kind of output that is produced by the assembly code.
 const (
-	Application = OutputKind(iota)
+	Application OutputKind = iota
 	Runtime
 )
 

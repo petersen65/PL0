@@ -20,7 +20,7 @@ const NoLabel = ""
 
 // Three-address code operations of the intermediate code.
 const (
-	_ = Operation(iota)
+	_ Operation = iota
 
 	// x = op y, where op is a unary arithmetic or logical operation and x, y are addresses
 	Odd    // unary logical operation 'odd'
@@ -65,21 +65,21 @@ const (
 
 // Variants of an address in the three-address code concept.
 const (
-	Empty     = Variant(iota) // empty address holds no address
-	Metadata                  // metadata address used to store any additional information about an operation
-	Temporary                 // temporary address holds a result of an operation
-	Literal                   // literal address holds a constant or literal value
-	Variable                  // variable address holds an argument of an operation
-	Label                     // label address used as target for jumps and calls will be resolved by a linker
-	Count                     // count address is used for counting purposes like the number of parameters in a function call
-	Code                      // code address holds a call code for the external standard library (e.g. readln, writeln)
-	Depth                     // depth address holds the block nesting depth of a block at compilation time
+	Empty     Variant = iota // empty address holds no address
+	Metadata                 // metadata address used to store any additional information about an operation
+	Temporary                // temporary address holds a result of an operation
+	Literal                  // literal address holds a constant or literal value
+	Variable                 // variable address holds an argument of an operation
+	Label                    // label address used as target for jumps and calls will be resolved by a linker
+	Count                    // count address is used for counting purposes like the number of parameters in a function call
+	Code                     // code address holds a call code for the external standard library (e.g. readln, writeln)
+	Depth                    // depth address holds the block nesting depth of a block at compilation time
 )
 
 // Datatypes supported for an address of the three-address code concept.
 const (
-	Untyped   = DataType(iota) // an address that does not have a datatype
-	LabelName                  // the label-name datatype is used for labels in label addresses
+	Untyped   DataType = iota // an address that does not have a datatype
+	LabelName                 // the label-name datatype is used for labels in label addresses
 
 	// datatypes supported for constants, literals, variables, and temporaries
 	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
@@ -99,16 +99,16 @@ const (
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.
 const (
-	LabelPrefix    = PrefixType(iota) // the label prefix is used for instruction labels and the address variant 'Label'
-	ResultPrefix                      // an address variant 'Temporary' always has a name that starts with prefix 'ResultPrefix'
-	ConstantPrefix                    // the constant prefix is used for constance names in the intermediate code
-	VariablePrefix                    // the variable prefix is used for variable names in the intermediate code
-	FunctionPrefix                    // the function prefix is used for function names in the intermediate code
+	LabelPrefix    PrefixType = iota // the label prefix is used for instruction labels and the address variant 'Label'
+	ResultPrefix                     // an address variant 'Temporary' always has a name that starts with prefix 'ResultPrefix'
+	ConstantPrefix                   // the constant prefix is used for constance names in the intermediate code
+	VariablePrefix                   // the variable prefix is used for variable names in the intermediate code
+	FunctionPrefix                   // the function prefix is used for function names in the intermediate code
 )
 
 // Kind of supported symbol entry.
 const (
-	ConstantSymbol = Entry(iota)
+	ConstantSymbol Entry = iota
 	VariableSymbol
 	FunctionSymbol
 )
@@ -116,8 +116,8 @@ const (
 // External standard functions provided for the programming language.
 // needs to be alligned with call codes for the programming language standard library
 const (
-	ReadLn  = StandardFunction(iota) // readln function reads a line from the standard input stream
-	WriteLn                          // writeln function writes a line to the standard output stream
+	ReadLn  StandardFunction = iota // readln function reads a line from the standard input stream
+	WriteLn                         // writeln function writes a line to the standard output stream
 )
 
 type (

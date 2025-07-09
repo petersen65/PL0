@@ -18,7 +18,7 @@ const EmptyConstantName = "@constant"
 
 // Types of nodes in the abstract syntax tree.
 const (
-	BlockType = NodeType(iota)
+	BlockType NodeType = iota
 	ConstantDeclarationType
 	VariableDeclarationType
 	ProcedureDeclarationType
@@ -38,7 +38,7 @@ const (
 
 // Traverse the abstract syntax tree in specific orders.
 const (
-	PreOrder = TraversalOrder(iota)
+	PreOrder TraversalOrder = iota
 	InOrder
 	PostOrder
 	LevelOrder
@@ -46,19 +46,19 @@ const (
 
 // Search parent block nodes in the abstract syntax tree.
 const (
-	CurrentBlock = BlockSearchMode(iota)
+	CurrentBlock BlockSearchMode = iota
 	RootBlock
 )
 
 // Operators with one operand.
 const (
-	Odd = UnaryOperator(iota)
+	Odd UnaryOperator = iota
 	Negate
 )
 
 // Operators with two operands.
 const (
-	Plus = BinaryOperator(iota)
+	Plus BinaryOperator = iota
 	Minus
 	Times
 	Divide
@@ -66,7 +66,7 @@ const (
 
 // Operators for comparison.
 const (
-	Equal = RelationalOperator(iota)
+	Equal RelationalOperator = iota
 	NotEqual
 	Less
 	LessEqual
@@ -76,18 +76,18 @@ const (
 
 // Data types of literals, constants, and variables.
 const (
-	Integer64  = DataType(iota) // signed 64-bit integer
-	Integer32                   // signed 32-bit integer
-	Integer16                   // signed 16-bit integer
-	Integer8                    // signed 8-bit integer
-	Float64                     // IEEE 754 64-bit floating-point number
-	Float32                     // IEEE 754 32-bit floating-point number
-	Unsigned64                  // unsigned 64-bit integer
-	Unsigned32                  // unsigned 32-bit integer
-	Unsigned16                  // unsigned 16-bit integer
-	Unsigned8                   // unsigned 8-bit integer
-	Unicode                     // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
-	Boolean                     // unsigned 8-bit boolean (0 or 1, false or true)
+	Integer64  DataType = iota // signed 64-bit integer
+	Integer32                  // signed 32-bit integer
+	Integer16                  // signed 16-bit integer
+	Integer8                   // signed 8-bit integer
+	Float64                    // IEEE 754 64-bit floating-point number
+	Float32                    // IEEE 754 32-bit floating-point number
+	Unsigned64                 // unsigned 64-bit integer
+	Unsigned32                 // unsigned 32-bit integer
+	Unsigned16                 // unsigned 16-bit integer
+	Unsigned8                  // unsigned 8-bit integer
+	Unicode                    // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
+	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
 )
 
 // Kind of supported symbol entry as bit-mask.

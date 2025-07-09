@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the assembly code.
 const (
-	_ = cor.Failure(iota + 9000)
+	_ cor.Failure = iota + 9000
 	unknownKindOfOperandInCpuOperation
 	unexpectedKindOfOperandInCpuOperation
 	unresolvedLabelReferenceInAssemblyCode

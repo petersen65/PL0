@@ -7,7 +7,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 
 // Failure codes for the intermediate code.
 const (
-	_ = cor.Failure(iota + 6000)
+	_ cor.Failure = iota + 6000
 	invalidAddressesContract
 	unsupportedDataTypeInIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress

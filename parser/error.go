@@ -10,7 +10,7 @@ const blockNestingMax = 8
 
 // Failure codes for the PL/0 parser.
 const (
-	_ = cor.Failure(iota + 2000)
+	_ cor.Failure = iota + 2000
 	invalidParserState
 	eofReached
 	notFullyParsed

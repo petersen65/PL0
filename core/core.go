@@ -14,7 +14,7 @@ const eof Token = -1
 
 // Tokens of the PL/0 programming language.
 const (
-	Unknown = Token(iota)
+	Unknown Token = iota
 	Identifier
 	Number
 	Plus
@@ -51,7 +51,7 @@ const (
 
 // Export formats for the compiler which can be used to export intermediate results.
 const (
-	Json = ExportFormat(iota)
+	Json ExportFormat = iota
 	Text
 	Binary
 )

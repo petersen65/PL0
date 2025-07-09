@@ -5,7 +5,7 @@ package core
 
 // Failure codes for core components of the PL/0 compiler.
 const (
-	_ = Failure(iota + 100)
+	_ Failure = iota + 100
 	errorKindNotSupported
 	unknownExportFormat
 	errorReportExportFailed
