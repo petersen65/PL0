@@ -69,6 +69,7 @@ func newEmitter(cpu CentralProcessingUnit, intermediateCodeUnit ic.IntermediateC
 // Emit assembly code for the CPU target.
 func (e *emitter) Emit() {
 	iterator := e.intermediateCode.GetIterator()
+	comparison := ac.ComparisonNone
 
 	// compile-time parameters list for standard library function calls (procedures do not support parameters yet)
 	parameters := list.New()
@@ -166,43 +167,25 @@ func (e *emitter) Emit() {
 			// it is required that both temporaries are of the same data type
 			dataType := i.ThreeAddressCode.Arg1.DataType
 
-			// emit assembly code to compare the top two elements of the call stack
-			e.compare(dataType, l)
+			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
+			comparison = e.compare(dataType, l)
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jmp, l, ac.NewLabelOperand(name))
 
-		case ic.JumpEqual: // jump if the Zero Flag (ZF) is set from the previous comparison
+			// emit assembly code to perform an unconditional jump to the specified label
+			e.unconditionalJump(name, l)
+
+		case ic.JumpEqual, ic.JumpNotEqual, ic.JumpLess, ic.JumpLessEqual, ic.JumpGreater, ic.JumpGreaterEqual: // conditional jump to a label resolved at link-time based on the CPU flags set by the previous comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
 			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Je, l, ac.NewLabelOperand(name))
 
-		case ic.JumpNotEqual: // jump if the Zero Flag (ZF) is clear from the previous comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jne, l, ac.NewLabelOperand(name))
+			// emit assembly code to perform a conditional jump based on the CPU flags set by the previous comparison
+			e.conditionalJump(comparison, i.ThreeAddressCode.Operation, name, l)
 
-		case ic.JumpLess: // jump if the Sign Flag (SF) and Overflow Flag (OF) indicate a signed less-than from the previous comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jl, l, ac.NewLabelOperand(name))
-
-		case ic.JumpLessEqual: // jump if the previous comparison indicates less-than or equal (ZF set or SF ≠ OF), signed comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jle, l, ac.NewLabelOperand(name))
-
-		case ic.JumpGreater: // jump if the previous comparison indicates greater-than (ZF clear and SF = OF), signed comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jg, l, ac.NewLabelOperand(name))
-
-		case ic.JumpGreaterEqual: // jump if the previous comparison indicates greater-than or equal (SF = OF), signed comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
-			e.assemblyCode.AppendInstruction(ac.Jge, l, ac.NewLabelOperand(name))
+			// reset the comparison type after a conditional jump
+			comparison = ac.ComparisonNone
 
 		case ic.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			// panic if parsing of the temporary into nil fails (unsupported data type)
@@ -872,7 +855,22 @@ func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
 }
 
 // Compare the top two elements of the call stack and update the CPU flags.
-func (e *emitter) compare(dataType ic.DataType, labels []string) {
+func (e *emitter) compare(dataType ic.DataType, labels []string) ac.ComparisonType {
+	var comparisonType ac.ComparisonType
+
+	// depending on the data type, evaluate the comparison type for the conditional jump instructions
+	// note: the comparison type is used to determine how the CPU flags are interpreted by following conditional jump instructions
+	switch dataType {
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unicode:
+		comparisonType = ac.ComparisonIntegerSigned
+
+	case ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
+		comparisonType = ac.ComparisonIntegerUnsigned
+
+	case ic.Float64, ic.Float32:
+		comparisonType = ac.ComparisonFloat
+	}
+
 	// depending on the data type, the top two elements of the call stack are popped into the correct registers and compared
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unicode, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
@@ -937,4 +935,82 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) {
 		//       it does not raise an exception for NaN values, but sets the CPU flags to indicate unordered comparisons
 		e.assemblyCode.AppendInstruction(ac.Ucomiss, nil, ac.NewRegisterOperand(ac.Xmm0), ac.NewRegisterOperand(ac.Xmm1))
 	}
+
+	// return the comparison type that was used to set the CPU flags
+	return comparisonType
+}
+
+// Perform an unconditional jump to the specified label.
+func (e *emitter) unconditionalJump(name string, labels []string) {
+	e.assemblyCode.AppendInstruction(ac.Jmp, labels, ac.NewLabelOperand(name))
+}
+
+// Perform a conditional jump based on the CPU flags set by the previous comparison operation.
+func (e *emitter) conditionalJump(comparisonType ac.ComparisonType, jump ic.Operation, name string, labels []string) {
+	// Select the correct jump instruction based on comparison type and operation
+	var opcode ac.OperationCode
+
+	// determine the opcode for the conditional jump instruction based on the comparison type and jump operation
+	switch jump {
+	case ic.JumpEqual:
+		// left-hand value is equal to right-hand value
+		// note: valid for all comparison types (ZF=1)
+		opcode = ac.Je
+
+	case ic.JumpNotEqual:
+		// left-hand value is not equal to right-hand value
+		// note: valid for all comparison types (ZF=0)
+		opcode = ac.Jne
+
+	case ic.JumpLess:
+		// left-hand value is less than right-hand value
+		switch comparisonType {
+		case ac.ComparisonIntegerUnsigned, ac.ComparisonFloat:
+			// note: valid for unsigned integers and floats (CF=1)
+			opcode = ac.Jb
+
+		case ac.ComparisonIntegerSigned:
+			// note: valid for signed integers (SF≠OF)
+			opcode = ac.Jl
+		}
+
+	case ic.JumpLessEqual:
+		// left-hand value is less than or equal to right-hand value
+		switch comparisonType {
+		case ac.ComparisonIntegerUnsigned, ac.ComparisonFloat:
+			// note: valid for unsigned integers and floats (CF=1 or ZF=1)
+			opcode = ac.Jbe
+
+		case ac.ComparisonIntegerSigned:
+			// note: valid for signed integers (SF≠OF or ZF=1)
+			opcode = ac.Jle
+		}
+
+	case ic.JumpGreater:
+		// left-hand value is greater than right-hand value
+		switch comparisonType {
+		case ac.ComparisonIntegerUnsigned, ac.ComparisonFloat:
+			// note: valid for unsigned integers and floats (CF=0 and ZF=0)
+			opcode = ac.Ja
+
+		case ac.ComparisonIntegerSigned:
+			// note: valid for signed integers (SF=OF and ZF=0)
+			opcode = ac.Jg
+		}
+
+	case ic.JumpGreaterEqual:
+		// left-hand value is greater than or equal to right-hand value
+		switch comparisonType {
+		case ac.ComparisonIntegerUnsigned, ac.ComparisonFloat:
+			// note: valid for unsigned integers and floats (CF=0)
+			opcode = ac.Jae
+
+		case ac.ComparisonIntegerSigned:
+			// note: valid for signed integers (SF=OF)
+			opcode = ac.Jge
+		}
+	}
+
+	// emit assembly code for the conditional jump instruction
+	e.assemblyCode.AppendInstruction(opcode, labels, ac.NewLabelOperand(name))
 }

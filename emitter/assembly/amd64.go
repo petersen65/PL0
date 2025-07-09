@@ -35,6 +35,10 @@ const (
 	Jle     // jumps if Zero Flag is set or Sign Flag ≠ Overflow Flag, meaning destination ≤ source (signed)
 	Jg      // jumps if Zero Flag is clear and Sign Flag == Overflow Flag, meaning destination > source (signed)
 	Jge     // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
+	Jb      // jumps if Carry Flag (CF) is set, meaning destination < source (unsigned)
+	Jbe     // jumps if Zero Flag is set or Carry Flag is set, meaning destination ≤ source (unsigned)
+	Ja      // jumps if Zero Flag is clear and Carry Flag is clear, meaning destination > source (unsigned)
+	Jae     // jumps if Carry Flag is clear, meaning destination ≥ source (unsigned)
 	Neg     // negates the operand (two’s complement), equivalent to subtracting it from zero
 	And     // performs bitwise AND between destination and source; result stored in destination
 	Xor     // performs bitwise XOR between destination and source; result stored in destination

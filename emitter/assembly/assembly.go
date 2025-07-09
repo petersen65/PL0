@@ -39,6 +39,14 @@ const (
 	Bits64 = OperandSize(64)
 )
 
+// Comparison types used to interpret the CPU flags in conditional jumps.
+const (
+	ComparisonNone            = ComparisonType(iota) // no comparison instruction, used for unconditional jumps
+	ComparisonIntegerSigned                          // signed integer comparison (Cmp instruction)
+	ComparisonIntegerUnsigned                        // unsigned integer comparison (Cmp instruction)
+	ComparisonFloat                                  // floating-point comparison (Ucomisd/Ucomiss instructions)
+)
+
 // Call codes for the programming language standard library.
 const (
 	Readln = StandardCall(iota)
@@ -60,6 +68,9 @@ type (
 
 	// Type for sizes of an operand in bits.
 	OperandSize int
+
+	// Comparison types for conditional jumps.
+	ComparisonType int
 
 	// Enumeration of registers of the CPU.
 	Register int
