@@ -20,12 +20,24 @@ const staticLinkDisplayName = "@staticlink"
 // Abstract syntax extension for the symbol.
 const symbolExtension ast.ExtensionType = 16
 
+// Prefixes for address names in the three-address code concept if a name does not contain a value.
+const (
+	labelPrefix    prefixType = iota // the label prefix is used for instruction labels and the address variant 'Label'
+	registerPrefix                   // the register prefix is used virtual registers contained in the address variant 'Register'
+	constantPrefix                   // the constant prefix is used for flattened constant names in the intermediate code
+	variablePrefix                   // the variable prefix is used for flattened variable names in the intermediate code
+	functionPrefix                   // the function prefix is used for flattened function names in the intermediate code
+)
+
 type (
+	// Enumeration of prefixes used for names of addresses.
+	prefixType int
+
 	// Intermediate code generation compiler phase. It implements the Visitor interface to traverse the AST and generates code.
 	generator struct {
 		abstractSyntax   ast.Block               // abstract syntax tree to generate intermediate code for
 		intermediateCode ic.IntermediateCodeUnit // intermediate code unit to store the generated intermediate code
-		results          *list.List              // last-in-first-out results-list holding temporary results from expressions
+		results          *list.List              // last-in-first-out results-list holding results from expressions
 	}
 
 	// Metadata for each symbol in the abstract syntax tree.
@@ -52,12 +64,12 @@ var (
 	}
 
 	// Prefixes used for names of addresses.
-	prefix = map[ic.PrefixType]rune{
-		ic.LabelPrefix:    'l',
-		ic.ResultPrefix:   't',
-		ic.ConstantPrefix: 'c',
-		ic.VariablePrefix: 'v',
-		ic.FunctionPrefix: 'f',
+	prefix = map[prefixType]rune{
+		labelPrefix:    'l',
+		registerPrefix: 'r',
+		constantPrefix: 'c',
+		variablePrefix: 'v',
+		functionPrefix: 'f',
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
@@ -99,7 +111,7 @@ func (i *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
-		blockBegin := bn.Scope.NewIdentifier(prefix[ic.FunctionPrefix])
+		blockBegin := bn.Scope.NewIdentifier(prefix[functionPrefix])
 
 		// append a target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(
@@ -215,15 +227,15 @@ func (i *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) 
 
 // Generate code for a literal.
 func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
-	// create a value copy instruction to store the literal in an temporary result
+	// create a value copy instruction to store the literal in a virtual register
 	instruction := ic.NewInstruction(
-		ic.ValueCopy, // copy the value of the literal to a temporary result
+		ic.ValueCopy, // copy the value of the literal to a virtual register
 		ic.NewAddress(ln.Value, ic.Literal, dataTypeMap[ln.DataType]), // literal value
 		noAddress,
-		ic.NewAddress(ln.Scope.NewIdentifier(prefix[ic.ResultPrefix]), ic.Temporary, dataTypeMap[ln.DataType]), // temporary result
+		ic.NewAddress(ln.Scope.NewIdentifier(prefix[registerPrefix]), ic.Register, dataTypeMap[ln.DataType]), // virtual register
 		ln.TokenStreamIndex) // literal use in the token stream
 
-	// push the temporary result onto the results-list and append the instruction to the intermediate code unit
+	// push the virtual register onto the results-list and append the instruction to the intermediate code unit
 	i.pushResult(instruction.ThreeAddressCode.Result)
 	i.intermediateCode.AppendInstruction(instruction)
 }
@@ -241,15 +253,15 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
 		codeSymbol := i.intermediateCode.Lookup(codeName)
 
-		// create a value copy instruction to store the constant value in an temporary result
+		// create a value copy instruction to store the constant value in a virtual register
 		instruction := ic.NewInstruction(
-			ic.ValueCopy, // copy the value of the constant to a temporary result
+			ic.ValueCopy, // copy the value of the constant to a virtual register
 			ic.NewAddress(constantDeclaration.Value, ic.Literal, dataTypeMap[constantDeclaration.DataType]), // literal value
 			noAddress,
-			ic.NewAddress(iu.Scope.NewIdentifier(prefix[ic.ResultPrefix]), ic.Temporary, codeSymbol.DataType), // temporary result
+			ic.NewAddress(iu.Scope.NewIdentifier(prefix[registerPrefix]), ic.Register, codeSymbol.DataType), // virtual register
 			iu.TokenStreamIndex) // constant use in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
+		// push the virtual register onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -269,16 +281,16 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax variable declaration
 		codeSymbol := i.intermediateCode.Lookup(codeName)
 
-		// create a variable load instruction to load the variable value into a temporary result
+		// create a variable load instruction to load the variable value into a virtual register
 		instruction := ic.NewInstruction(
-			ic.VariableLoad, // load the value of the variable into a temporary result
+			ic.VariableLoad, // load the value of the variable into a virtual register
 			ic.NewAddress(codeSymbol.Name, ic.Variable, codeSymbol.DataType), // variable with flat unique name
 			noAddress,
-			ic.NewAddress(iu.Scope.NewIdentifier(prefix[ic.ResultPrefix]), ic.Temporary, codeSymbol.DataType), // temporary result
+			ic.NewAddress(iu.Scope.NewIdentifier(prefix[registerPrefix]), ic.Register, codeSymbol.DataType), // virtual register
 			useDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 			iu.TokenStreamIndex)       // variable use in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
+		// push the virtual register onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -292,34 +304,34 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 // Generate code for a unary operation.
 func (i *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// load the temporary result of the expression from the results-list
+	// load the result of the expression from the results-list
 	uo.Operand.Accept(i)
 	result := i.popResult()
 
-	// perform the unary operation on the temporary result
+	// perform the unary operation on the result
 	switch uo.Operation {
 	case ast.Odd:
-		// create an odd instruction to check if the temporary result is odd
+		// create an odd instruction to check if the result is odd
 		instruction := ic.NewInstruction(
 			ic.Odd,
-			result, // consumed temporary result
+			result, // consumed result
 			noAddress,
-			noAddress,           // consumed temporary result is checked in-place, boolean result must be hold externally
+			noAddress,           // consumed result is checked in-place, boolean result must be hold externally
 			uo.TokenStreamIndex) // unary operation in the token stream
 
 		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
 		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Negate:
-		// create a negate instruction to negate the temporary result
+		// create a negate instruction to negate the result
 		instruction := ic.NewInstruction(
 			ic.Negate,
-			result, // consumed temporary result
+			result, // consumed result
 			noAddress,
-			result,              // consumed temporary result is negated in-place (read, negate, write back negated result)
+			result,              // consumed result is negated in-place (read, negate, write back negated result)
 			uo.TokenStreamIndex) // unary operation in the token stream
 
-		// push the temporary result onto the results-list and append the instruction to the intermediate code unit
+		// push the result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -333,13 +345,13 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// determine block and its scope where the binary operation is located
 	scope := ast.SearchBlock(ast.CurrentBlock, bo).Scope
 
-	// load the temporary results of the left and right expressions from the results-list
+	// load the results of the left and right expressions from the results-list
 	bo.Left.Accept(i)
 	bo.Right.Accept(i)
 	right := i.popResult()
 	left := i.popResult()
 
-	// perform the binary arithmetic operation on the left- and right-hand-side temporary results
+	// perform the binary arithmetic operation on the left- and right-hand-side results
 	switch bo.Operation {
 	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
 		var operation ic.Operation
@@ -362,12 +374,12 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side results
 		instruction := ic.NewInstruction(
 			operation,
-			left,  // consumed left-hand-side temporary result
-			right, // consumed right-hand-side temporary result
-			ic.NewAddress(scope.NewIdentifier(prefix[ic.ResultPrefix]), ic.Temporary, left.DataType), // arithmetic operation result
+			left,  // consumed left-hand-side result
+			right, // consumed right-hand-side result
+			ic.NewAddress(scope.NewIdentifier(prefix[registerPrefix]), ic.Register, left.DataType), // arithmetic operation result
 			bo.TokenStreamIndex) // arithmetic operation in the token stream
 
-		// push the temporary result result onto the results-list and append the instruction to the intermediate code unit
+		// push the result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.ThreeAddressCode.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -378,13 +390,13 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 // Generate code for a binary relational operation.
 func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
-	// load the temporary results of the left and right expressions from the results-list
+	// load the results of the left and right expressions from the results-list
 	co.Left.Accept(i)
 	co.Right.Accept(i)
 	right := i.popResult()
 	left := i.popResult()
 
-	// perform the binary relational operation on the left- and right-hand-side temporary results
+	// perform the binary relational operation on the left- and right-hand-side results
 	switch co.Operation {
 	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
 		var operation ic.Operation
@@ -413,9 +425,9 @@ func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
 		instruction := ic.NewInstruction(
 			operation,
-			left,                // consumed left-hand-side temporary result
-			right,               // consumed right-hand-side temporary result
-			noAddress,           // consumed temporary results are checked in-place, boolean result must be hold externally
+			left,                // consumed left-hand-side result
+			right,               // consumed right-hand-side result
+			noAddress,           // consumed results are checked in-place, boolean result must be hold externally
 			co.TokenStreamIndex) // conditional operation in the token stream
 
 		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
@@ -428,7 +440,7 @@ func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 // Generate code for an assignment statement.
 func (i *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
-	// load the value from the temporary result of the right-hand-side expression of the assignment
+	// load the value from the result of the right-hand-side expression of the assignment
 	s.Expression.Accept(i)
 	right := i.popResult()
 
@@ -450,8 +462,8 @@ func (i *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 
 	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 	instruction := ic.NewInstruction(
-		ic.VariableStore, // store the value of the temporary result into a variable
-		right,            // consumed right-hand-side temporary result
+		ic.VariableStore, // store the value of the result into a variable
+		right,            // consumed right-hand-side result
 		noAddress,
 		ic.NewAddress(codeSymbol.Name, ic.Variable, codeSymbol.DataType),
 		assignmentDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
@@ -482,19 +494,19 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.intermediateCode.Lookup(codeName)
 
-	// create a variable load instruction to load the variable value into a temporary result
+	// create a variable load instruction to load the variable value into a virtual register
 	load := ic.NewInstruction(
-		ic.VariableLoad, // load the value of the variable into a temporary result
+		ic.VariableLoad, // load the value of the variable into a virtual register
 		ic.NewAddress(codeSymbol.Name, ic.Variable, codeSymbol.DataType), // variable with flat unique name
 		noAddress,
-		ic.NewAddress(scope.NewIdentifier(prefix[ic.ResultPrefix]), ic.Temporary, codeSymbol.DataType), // temporary result
+		ic.NewAddress(scope.NewIdentifier(prefix[registerPrefix]), ic.Register, codeSymbol.DataType), // virtual register
 		readDepth-declarationDepth, // block nesting depth difference between variable use and variable declaration
 		s.TokenStreamIndex)         // read statement in the token stream
 
 	// parameter 1 for the readln standard function
 	param := ic.NewInstruction(
 		ic.Parameter,                 // parameter for a standard function
-		load.ThreeAddressCode.Result, // temporary result will be replaced by the standard function resultant value
+		load.ThreeAddressCode.Result, // result will be replaced by the standard function resultant value
 		noAddress,
 		noAddress,
 		s.TokenStreamIndex) // read statement in the token stream
@@ -535,7 +547,7 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// parameter 1 for the writeln standard function
 	param := ic.NewInstruction(
 		ic.Parameter, // parameter for a standard function
-		right,        // consumed right-hand-side temporary result
+		right,        // consumed right-hand-side result
 		noAddress,
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
@@ -585,7 +597,7 @@ func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
 	// determine block and its scope where the if-then statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
-	behindStatement := scope.NewIdentifier(prefix[ic.LabelPrefix])
+	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(i)
@@ -604,8 +616,8 @@ func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
 func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// determine block and its scope where the while-do statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
-	beforeCondition := scope.NewIdentifier(prefix[ic.LabelPrefix])
-	behindStatement := scope.NewIdentifier(prefix[ic.LabelPrefix])
+	beforeCondition := scope.NewIdentifier(prefix[labelPrefix])
+	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
 
 	// append a target instruction before the conditional expression instructions
 	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Target, noAddress, noAddress, noAddress, beforeCondition, s.TokenStreamIndex))
@@ -714,12 +726,12 @@ func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 	i.intermediateCode.AppendInstruction(jump)
 }
 
-// Push a result onto the results-list of temporary results.
+// Push an expression result onto the results-list.
 func (i *generator) pushResult(result *ic.Address) {
 	i.results.PushBack(result)
 }
 
-// Pop a result from the results-list of temporary results.
+// Pop an expression result from the results-list.
 func (i *generator) popResult() *ic.Address {
 	result := i.results.Back()
 
@@ -737,7 +749,7 @@ func configureSymbols(node ast.Node, code any) {
 
 	switch n := node.(type) {
 	case *ast.ConstantDeclarationNode:
-		name := n.Scope.NewIdentifier(prefix[ic.ConstantPrefix])
+		name := n.Scope.NewIdentifier(prefix[constantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.ConstantSymbol, dataTypeMap[n.DataType]))
 
@@ -746,7 +758,7 @@ func configureSymbols(node ast.Node, code any) {
 		}
 
 	case *ast.VariableDeclarationNode:
-		name := n.Scope.NewIdentifier(prefix[ic.VariablePrefix])
+		name := n.Scope.NewIdentifier(prefix[variablePrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.VariableSymbol, dataTypeMap[n.DataType]))
 
@@ -755,7 +767,7 @@ func configureSymbols(node ast.Node, code any) {
 		}
 
 	case *ast.ProcedureDeclarationNode:
-		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[ic.FunctionPrefix])
+		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.FunctionSymbol, ic.Untyped))
 	}

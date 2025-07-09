@@ -65,15 +65,15 @@ const (
 
 // Variants of an address in the three-address code concept.
 const (
-	Empty     Variant = iota // empty address holds no address
-	Metadata                 // metadata address used to store any additional information about an operation
-	Temporary                // temporary address holds a result of an operation
-	Literal                  // literal address holds a constant or literal value
-	Variable                 // variable address holds an argument of an operation
-	Label                    // label address used as target for jumps and calls will be resolved by a linker
-	Count                    // count address is used for counting purposes like the number of parameters in a function call
-	Code                     // code address holds a call code for the external standard library (e.g. readln, writeln)
-	Depth                    // depth address holds the block nesting depth of a block at compilation time
+	Empty    Variant = iota // empty address holds no address
+	Metadata                // metadata address used to store any additional information about an operation
+	Register                // virtual register address holds a result from an operation
+	Literal                 // literal address holds a constant or literal value
+	Variable                // variable address holds an argument of an operation
+	Label                   // label address used as target for jumps and calls will be resolved by a linker
+	Count                   // count address is used for counting purposes like the number of parameters in a function call
+	Code                    // code address holds a call code for the external standard library (e.g. readln, writeln)
+	Depth                   // depth address holds the block nesting depth of a block at compilation time
 )
 
 // Datatypes supported for an address of the three-address code concept.
@@ -81,7 +81,7 @@ const (
 	Untyped   DataType = iota // an address that does not have a datatype
 	LabelName                 // the label-name datatype is used for labels in label addresses
 
-	// datatypes supported for constants, literals, variables, and temporaries
+	// datatypes supported for constants, literals, variables, and registers
 	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
 	Integer64  // signed 64-bit integer
 	Integer32  // signed 32-bit integer
@@ -95,15 +95,6 @@ const (
 	Unsigned16 // unsigned 16-bit integer
 	Unsigned8  // unsigned 8-bit integer
 	Boolean    // unsigned 8-bit boolean (0 or 1, false or true)
-)
-
-// Prefixes for address names in the three-address code concept if a name does not contain a value.
-const (
-	LabelPrefix    PrefixType = iota // the label prefix is used for instruction labels and the address variant 'Label'
-	ResultPrefix                     // an address variant 'Temporary' always has a name that starts with prefix 'ResultPrefix'
-	ConstantPrefix                   // the constant prefix is used for constance names in the intermediate code
-	VariablePrefix                   // the variable prefix is used for variable names in the intermediate code
-	FunctionPrefix                   // the function prefix is used for function names in the intermediate code
 )
 
 // Kind of supported symbol entry.
@@ -129,9 +120,6 @@ type (
 
 	// String representation of a datatype.
 	DataTypeRepresentation string
-
-	// Enumeration of prefixes used for names of addresses.
-	PrefixType int
 
 	// Type for three-address code operations.
 	Operation int
@@ -251,8 +239,8 @@ func (a *Address) String() string {
 		representation = ""
 	}
 
-	if len(representation) > 22 {
-		representation = representation[:22]
+	if len(representation) > 25 {
+		representation = representation[:25]
 	}
 
 	return representation
@@ -265,7 +253,7 @@ func (o Operation) String() string {
 
 // String representation of a three-address code quadruple.
 func (q *Quadruple) String() string {
-	return fmt.Sprintf("%-12v %-22v %-22v %-22v", q.Operation, q.Arg1, q.Arg2, q.Result)
+	return fmt.Sprintf("%-12v %-25v %-25v %-25v", q.Operation, q.Arg1, q.Arg2, q.Result)
 }
 
 // String representation of an intermediate code instruction.
@@ -277,7 +265,7 @@ func (i *Instruction) String() string {
 	}
 
 	return fmt.Sprintf(
-		"%-8v %4v    %-12v   %-22v   %-22v   %-22v",
+		"%-8v %4v    %-12v   %-25v   %-25v   %-25v",
 		i.Label,
 		depthDifference,
 		i.ThreeAddressCode.Operation,
@@ -286,7 +274,7 @@ func (i *Instruction) String() string {
 		i.ThreeAddressCode.Result)
 }
 
-// Supported data types for constants, literals, variables, and temporaries.
+// Supported data types for constants, literals, variables, and registers.
 func (dataType DataType) IsSupported() bool {
 	return dataType >= Integer64 && dataType <= Boolean
 }

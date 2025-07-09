@@ -34,15 +34,15 @@ type (
 var (
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
-		Empty:     "ety",
-		Metadata:  "mtd",
-		Temporary: "tmp",
-		Literal:   "lit",
-		Variable:  "var",
-		Label:     "lbl",
-		Count:     "cnt",
-		Code:      "cod",
-		Depth:     "dpt",
+		Empty:    "ety",
+		Metadata: "mtd",
+		Register: "reg",
+		Literal:  "lit",
+		Variable: "var",
+		Label:    "lbl",
+		Count:    "cnt",
+		Code:     "cod",
+		Depth:    "dpt",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -100,18 +100,18 @@ var (
 
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
 	intermediateCodeContract = map[Operation][]AddressesContract{
-		Odd:              {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-		Negate:           {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
-		Plus:             {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Minus:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Times:            {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Divide:           {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Equal:            {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		NotEqual:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		Less:             {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		LessEqual:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		Greater:          {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		GreaterEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		Odd:              {{Arg1: Register, Arg2: Empty, Result: Empty}},
+		Negate:           {{Arg1: Register, Arg2: Empty, Result: Register}},
+		Plus:             {{Arg1: Register, Arg2: Register, Result: Register}},
+		Minus:            {{Arg1: Register, Arg2: Register, Result: Register}},
+		Times:            {{Arg1: Register, Arg2: Register, Result: Register}},
+		Divide:           {{Arg1: Register, Arg2: Register, Result: Register}},
+		Equal:            {{Arg1: Register, Arg2: Register, Result: Empty}},
+		NotEqual:         {{Arg1: Register, Arg2: Register, Result: Empty}},
+		Less:             {{Arg1: Register, Arg2: Register, Result: Empty}},
+		LessEqual:        {{Arg1: Register, Arg2: Register, Result: Empty}},
+		Greater:          {{Arg1: Register, Arg2: Register, Result: Empty}},
+		GreaterEqual:     {{Arg1: Register, Arg2: Register, Result: Empty}},
 		Jump:             {{Arg1: Label, Arg2: Empty, Result: Empty}},
 		JumpEqual:        {{Arg1: Label, Arg2: Empty, Result: Empty}},
 		JumpNotEqual:     {{Arg1: Label, Arg2: Empty, Result: Empty}},
@@ -119,7 +119,7 @@ var (
 		JumpLessEqual:    {{Arg1: Label, Arg2: Empty, Result: Empty}},
 		JumpGreater:      {{Arg1: Label, Arg2: Empty, Result: Empty}},
 		JumpGreaterEqual: {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		Parameter:        {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Parameter:        {{Arg1: Register, Arg2: Empty, Result: Empty}},
 		Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
 		Prologue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
 		Epilogue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
@@ -128,9 +128,9 @@ var (
 		Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
 		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Metadata, Arg2: Empty, Result: Empty}},
 		Allocate:         {{Arg1: Metadata, Arg2: Empty, Result: Variable}},
-		ValueCopy:        {{Arg1: Literal, Arg2: Empty, Result: Temporary}},
-		VariableLoad:     {{Arg1: Variable, Arg2: Empty, Result: Temporary}},
-		VariableStore:    {{Arg1: Temporary, Arg2: Empty, Result: Variable}},
+		ValueCopy:        {{Arg1: Literal, Arg2: Empty, Result: Register}},
+		VariableLoad:     {{Arg1: Variable, Arg2: Empty, Result: Register}},
+		VariableStore:    {{Arg1: Register, Arg2: Empty, Result: Variable}},
 	}
 )
 
@@ -361,7 +361,7 @@ func (a *Address) Parse() any {
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
-	case Variable, Temporary:
+	case Variable, Register:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Unicode, Boolean:
 			return nil
