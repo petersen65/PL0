@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/go
 {
-    "name": "PL/0 Compiler",
+    "name": "Go and C/C++ Development",
     "dockerFile": "Dockerfile",
     "containerUser": "vscode",
     "context": ".",
