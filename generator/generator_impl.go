@@ -769,6 +769,6 @@ func configureSymbols(node ast.Node, code any) {
 	case *ast.ProcedureDeclarationNode:
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		unit.Insert(ic.NewSymbol(name, ic.FunctionSymbol, ic.Untyped))
+		unit.Insert(ic.NewSymbol(name, ic.ProcedureSymbol, ic.Untyped))
 	}
 }

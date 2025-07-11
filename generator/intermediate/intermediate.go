@@ -67,21 +67,21 @@ const (
 const (
 	Empty    Variant = iota // empty address holds no address
 	Metadata                // metadata address used to store any additional information about an operation
-	Register                // virtual register address holds a result from an operation
+	Register                // virtual register address holds a result from an expression
 	Literal                 // literal address holds a constant or literal value
 	Variable                // variable address holds an argument of an operation
 	Label                   // label address used as target for jumps and calls will be resolved by a linker
+	Depth                   // depth address holds the block nesting depth of a block at compilation time
 	Count                   // count address is used for counting purposes like the number of parameters in a function call
 	Code                    // code address holds a call code for the external standard library (e.g. readln, writeln)
-	Depth                   // depth address holds the block nesting depth of a block at compilation time
 )
 
-// Datatypes supported for an address of the three-address code concept.
+// Datatypes supported for an address of the three-address code concept (occupy bit range 0-7).
 const (
 	Untyped   DataType = iota // an address that does not have a datatype
 	LabelName                 // the label-name datatype is used for labels in label addresses
 
-	// datatypes supported for constants, literals, variables, and registers
+	// datatypes supported for symbol entries, registers, literals, and variables
 	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
 	Integer64  // signed 64-bit integer
 	Integer32  // signed 32-bit integer
@@ -97,11 +97,17 @@ const (
 	Boolean    // unsigned 8-bit boolean (0 or 1, false or true)
 )
 
+// Datatype flags for pointer and reference modifiers (bits 8+).
+const (
+	Pointer   DataType = 1 << 8 // bit 8: pointer type (^T)
+	Reference DataType = 1 << 9 // bit 9: reference type (&T)
+)
+
 // Kind of supported symbol entry.
 const (
 	ConstantSymbol Entry = iota
 	VariableSymbol
-	FunctionSymbol
+	ProcedureSymbol
 )
 
 // External standard functions provided for the programming language.
@@ -117,9 +123,6 @@ type (
 
 	// The datatype of an address in the three-address code concept.
 	DataType int
-
-	// String representation of a datatype.
-	DataTypeRepresentation string
 
 	// Type for three-address code operations.
 	Operation int
@@ -215,20 +218,17 @@ func (v Variant) String() string {
 	return variantNames[v]
 }
 
-// String representation of a datatype.
+// String representation of a datatype with its modifiers.
 func (dt DataType) String() string {
-	return dataTypeNames[dt]
-}
+	var prefix string
 
-// Get a datatype from its representation.
-func (dtr DataTypeRepresentation) DataType() DataType {
-	for dataType, representation := range dataTypeNames {
-		if representation == string(dtr) {
-			return dataType
-		}
+	if dt.IsPointer() {
+		prefix = "ptr "
+	} else if dt.IsReference() {
+		prefix = "ref "
 	}
 
-	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
 }
 
 // String representation of the three-address code address.
@@ -274,29 +274,69 @@ func (i *Instruction) String() string {
 		i.ThreeAddressCode.Result)
 }
 
-// Supported data types for constants, literals, variables, and registers.
+// Return the plain datatype without modifiers.
+func (dataType DataType) AsPlain() DataType {
+	return dataType & 0xFF
+}
+
+// Check whether the datatype is a plain datatype without modifiers.
+func (dataType DataType) IsPlain() bool {
+	return dataType == dataType.AsPlain()
+}
+
+// Return the plain datatype with a pointer modifier.
+func (dataType DataType) AsPointer() DataType {
+	return dataType.AsPlain() | Pointer
+}
+
+// Check whether the datatype is a pointer type.
+func (dataType DataType) IsPointer() bool {
+	return dataType&Pointer != 0
+}
+
+// Return the plain datatype with a reference modifier.
+func (dataType DataType) AsReference() DataType {
+	return dataType.AsPlain() | Reference
+}
+
+// Check whether the datatype is a reference type.
+func (dataType DataType) IsReference() bool {
+	return dataType&Reference != 0
+}
+
+// Check whether the datatype is untyped.
+func (dataType DataType) IsUntyped() bool {
+	return dataType.AsPlain() == Untyped
+}
+
+// Check whether the datatype is a label name.
+func (dataType DataType) IsLabelName() bool {
+	return dataType.AsPlain() == LabelName
+}
+
+// Supported data types for symbol entries, registers, literals, and variables.
 func (dataType DataType) IsSupported() bool {
-	return dataType >= Integer64 && dataType <= Boolean
+	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Boolean
 }
 
 // Check whether the datatype has a signed representation.
 func (dataType DataType) IsSigned() bool {
-	return dataType >= Integer64 && dataType <= Unicode
+	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Unicode
 }
 
 // Check whether the datatype has an unsigned representation.
 func (dataType DataType) IsUnsigned() bool {
-	return dataType >= Unsigned64 && dataType <= Boolean
+	return dataType.AsPlain() >= Unsigned64 && dataType.AsPlain() <= Boolean
 }
 
 // Check whether the datatype is a signed integer.
 func (dataType DataType) IsSignedInteger() bool {
-	return dataType >= Integer64 && dataType <= Integer8
+	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Integer8
 }
 
 // Check whether the datatype is an unsigned integer.
 func (dataType DataType) IsUnsignedInteger() bool {
-	return dataType >= Unsigned64 && dataType <= Unsigned8
+	return dataType.AsPlain() >= Unsigned64 && dataType.AsPlain() <= Unsigned8
 }
 
 // Check whether the datatype is an integer.
@@ -306,15 +346,15 @@ func (dataType DataType) IsInteger() bool {
 
 // Check whether the datatype is a floating point number.
 func (dataType DataType) IsFloatingPoint() bool {
-	return dataType == Float64 || dataType == Float32
+	return dataType.AsPlain() == Float64 || dataType == Float32
 }
 
 // Check whether the datatype is an Unicode code point.
 func (dataType DataType) IsUnicode() bool {
-	return dataType == Unicode
+	return dataType.AsPlain() == Unicode
 }
 
 // Check whether the datatype is a boolean.
 func (dataType DataType) IsBoolean() bool {
-	return dataType == Boolean
+	return dataType.AsPlain() == Boolean
 }

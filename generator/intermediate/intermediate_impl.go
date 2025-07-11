@@ -40,9 +40,9 @@ var (
 		Literal:  "lit",
 		Variable: "var",
 		Label:    "lbl",
+		Depth:    "dpt",
 		Count:    "cnt",
 		Code:     "cod",
-		Depth:    "dpt",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -100,37 +100,103 @@ var (
 
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
 	intermediateCodeContract = map[Operation][]AddressesContract{
-		Odd:              {{Arg1: Register, Arg2: Empty, Result: Empty}},
-		Negate:           {{Arg1: Register, Arg2: Empty, Result: Register}},
-		Plus:             {{Arg1: Register, Arg2: Register, Result: Register}},
-		Minus:            {{Arg1: Register, Arg2: Register, Result: Register}},
-		Times:            {{Arg1: Register, Arg2: Register, Result: Register}},
-		Divide:           {{Arg1: Register, Arg2: Register, Result: Register}},
-		Equal:            {{Arg1: Register, Arg2: Register, Result: Empty}},
-		NotEqual:         {{Arg1: Register, Arg2: Register, Result: Empty}},
-		Less:             {{Arg1: Register, Arg2: Register, Result: Empty}},
-		LessEqual:        {{Arg1: Register, Arg2: Register, Result: Empty}},
-		Greater:          {{Arg1: Register, Arg2: Register, Result: Empty}},
-		GreaterEqual:     {{Arg1: Register, Arg2: Register, Result: Empty}},
-		Jump:             {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpEqual:        {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpNotEqual:     {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpLess:         {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpLessEqual:    {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpGreater:      {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		JumpGreaterEqual: {{Arg1: Label, Arg2: Empty, Result: Empty}},
-		Parameter:        {{Arg1: Register, Arg2: Empty, Result: Empty}},
-		Call:             {{Arg1: Count, Arg2: Label, Result: Empty}},
-		Prologue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Epilogue:         {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Setup:            {{Arg1: Depth, Arg2: Empty, Result: Empty}},
-		Return:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Empty}},
-		Standard:         {{Arg1: Count, Arg2: Code, Result: Empty}},
-		Target:           {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Metadata, Arg2: Empty, Result: Empty}},
-		Allocate:         {{Arg1: Metadata, Arg2: Empty, Result: Variable}},
-		ValueCopy:        {{Arg1: Literal, Arg2: Empty, Result: Register}},
-		VariableLoad:     {{Arg1: Variable, Arg2: Empty, Result: Register}},
-		VariableStore:    {{Arg1: Register, Arg2: Empty, Result: Variable}},
+		Odd: {
+			{Arg1: Register, Arg2: Empty, Result: Empty},
+		},
+		Negate: {
+			{Arg1: Register, Arg2: Empty, Result: Register},
+		},
+		Plus: {
+			{Arg1: Register, Arg2: Register, Result: Register},
+		},
+		Minus: {
+			{Arg1: Register, Arg2: Register, Result: Register},
+		},
+		Times: {
+			{Arg1: Register, Arg2: Register, Result: Register},
+		},
+		Divide: {
+			{Arg1: Register, Arg2: Register, Result: Register},
+		},
+		Equal: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		NotEqual: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		Less: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		LessEqual: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		Greater: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		GreaterEqual: {
+			{Arg1: Register, Arg2: Register, Result: Empty},
+		},
+		Jump: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpEqual: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpNotEqual: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpLess: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpLessEqual: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpGreater: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		JumpGreaterEqual: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
+		},
+		Parameter: {
+			{Arg1: Register, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
+			{Arg1: Variable, Arg2: Empty, Result: Empty},
+		},
+		Call:          {
+			{Arg1: Count, Arg2: Label, Result: Empty},
+		},
+		Prologue:      {
+			{Arg1: Empty, Arg2: Empty, Result: Empty},
+		},
+		Epilogue:      {
+			{Arg1: Empty, Arg2: Empty, Result: Empty},
+		},
+		Setup:         {
+			{Arg1: Depth, Arg2: Empty, Result: Empty},
+		},
+		Return:        {
+			{Arg1: Empty, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
+		},
+		Standard:      {
+			{Arg1: Count, Arg2: Code, Result: Empty},
+		},
+		Target:        {
+			{Arg1: Empty, Arg2: Empty, Result: Empty},
+			{Arg1: Metadata, Arg2: Empty, Result: Empty},
+		},
+		Allocate:      {
+			{Arg1: Metadata, Arg2: Empty, Result: Variable},
+		},
+		ValueCopy:     {
+			{Arg1: Literal, Arg2: Empty, Result: Register},
+		},
+		VariableLoad:  {
+			{Arg1: Variable, Arg2: Empty, Result: Register},
+		},
+		VariableStore: {
+			{Arg1: Register, Arg2: Empty, Result: Variable},
+		},
 	}
 )
 
@@ -152,6 +218,7 @@ func newInstruction(operation Operation, arg1, arg2, result *Address, options ..
 		ThreeAddressCode: Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
 	}
 
+	// evaluate the options and set the instruction properties accordingly
 	for _, option := range options {
 		switch opt := option.(type) {
 		case string:
