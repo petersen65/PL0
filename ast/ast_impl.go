@@ -15,17 +15,17 @@ import (
 var (
 	// dataTypeNames maps a data type to its string representation.
 	dataTypeNames = map[DataType]string{
-		Integer64:  "int64_t",
-		Integer32:  "int32_t",
-		Integer16:  "int16_t",
-		Integer8:   "int8_t",
-		Float64:    "double",
-		Float32:    "float",
-		Unsigned64: "uint64_t",
-		Unsigned32: "uint32_t",
-		Unsigned16: "uint16_t",
-		Unsigned8:  "uint8_t",
-		Unicode:    "char32_t",
+		Integer64:  "int64",
+		Integer32:  "int32",
+		Integer16:  "int16",
+		Integer8:   "int8",
+		Float64:    "float64",
+		Float32:    "float32",
+		Unicode:    "int32",
+		Unsigned64: "uint64",
+		Unsigned32: "uint32",
+		Unsigned16: "uint16",
+		Unsigned8:  "uint8",
 		Boolean:    "bool",
 	}
 

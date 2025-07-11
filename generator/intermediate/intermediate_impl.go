@@ -49,17 +49,17 @@ var (
 	dataTypeNames = map[DataType]string{
 		Untyped:    "untyped",
 		LabelName:  "label",
-		Integer64:  "int64_t",
-		Integer32:  "int32_t",
-		Integer16:  "int16_t",
-		Integer8:   "int8_t",
-		Float64:    "double",
-		Float32:    "float",
-		Unicode:    "char32_t",
-		Unsigned64: "uint64_t",
-		Unsigned32: "uint32_t",
-		Unsigned16: "uint16_t",
-		Unsigned8:  "uint8_t",
+		Integer64:  "int64",
+		Integer32:  "int32",
+		Integer16:  "int16",
+		Integer8:   "int8",
+		Float64:    "float64",
+		Float32:    "float32",
+		Unicode:    "int32",
+		Unsigned64: "uint64",
+		Unsigned32: "uint32",
+		Unsigned16: "uint16",
+		Unsigned8:  "uint8",
 		Boolean:    "bool",
 	}
 
@@ -394,6 +394,13 @@ func (a *Address) Parse() any {
 				}
 			}
 
+		case Unicode:
+			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
+				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
+			} else {
+				return decoded
+			}
+
 		case Unsigned64, Unsigned32, Unsigned16, Unsigned8:
 			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
@@ -410,13 +417,6 @@ func (a *Address) Parse() any {
 				}
 			}
 
-		case Unicode:
-			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
-			} else {
-				return decoded
-			}
-
 		case Boolean:
 			if decoded, err := strconv.ParseBool(a.Name); err != nil {
 				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
@@ -430,7 +430,7 @@ func (a *Address) Parse() any {
 
 	case Variable, Register:
 		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Unicode, Boolean:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unicode, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Boolean:
 			return nil
 
 		default:
@@ -594,7 +594,7 @@ func (dataType DataType) bitSize() int {
 	case Integer64, Float64, Unsigned64:
 		return 64
 
-	case Integer32, Float32, Unsigned32, Unicode:
+	case Integer32, Float32, Unicode, Unsigned32:
 		return 32
 
 	case Integer16, Unsigned16:

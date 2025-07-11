@@ -55,11 +55,11 @@ var (
 		ast.Integer8:   ic.Integer8,
 		ast.Float64:    ic.Float64,
 		ast.Float32:    ic.Float32,
+		ast.Unicode:    ic.Unicode,
 		ast.Unsigned64: ic.Unsigned64,
 		ast.Unsigned32: ic.Unsigned32,
 		ast.Unsigned16: ic.Unsigned16,
 		ast.Unsigned8:  ic.Unsigned8,
-		ast.Unicode:    ic.Unicode,
 		ast.Boolean:    ic.Boolean,
 	}
 

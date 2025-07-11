@@ -65,11 +65,11 @@ var (
 		ic.Integer8:   ac.Bits8,
 		ic.Float64:    ac.Bits64,
 		ic.Float32:    ac.Bits32,
+		ic.Unicode:    ac.Bits32,
 		ic.Unsigned64: ac.Bits64,
 		ic.Unsigned32: ac.Bits32,
 		ic.Unsigned16: ac.Bits16,
 		ic.Unsigned8:  ac.Bits8,
-		ic.Unicode:    ac.Bits32,
 		ic.Boolean:    ac.Bits8,
 	}
 )
@@ -589,7 +589,7 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 			ac.NewMemoryOperand(basePointer, ac.Bits64, offset),
 			ac.NewRegisterOperand(ac.R10))
 
-	case ic.Integer32, ic.Unsigned32, ic.Unicode, ic.Float32:
+	case ic.Integer32, ic.Unsigned32, ic.Float32, ic.Unicode:
 		// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits32, offset),

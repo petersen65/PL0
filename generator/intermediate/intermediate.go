@@ -89,7 +89,7 @@ const (
 	Integer8   // signed 8-bit integer
 	Float64    // signed IEEE 754 64-bit floating-point number
 	Float32    // signed IEEE 754 32-bit floating-point number
-	Unicode    // signed 32-bit Unicode code point (U+0000 ... U+10FFFF)
+	Unicode    // signed 32-bit integer Unicode code point (U+0000 ... U+10FFFF)
 	Unsigned64 // unsigned 64-bit integer
 	Unsigned32 // unsigned 32-bit integer
 	Unsigned16 // unsigned 16-bit integer
