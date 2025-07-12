@@ -23,7 +23,7 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unknownDataTypeRepresentation:   "unknown data type representation: %v",
+	unknownDataTypeRepresentation:   "unknown datatype representation: %v",
 	unknownSymbolKind:               "unknown symbol kind",
 	unknownUnaryOperation:           "unknown unary operation",
 	unknownBinaryOperation:          "unknown binary operation",

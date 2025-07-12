@@ -82,12 +82,13 @@ const (
 	Integer8                   // signed 8-bit integer
 	Float64                    // IEEE 754 64-bit floating-point number
 	Float32                    // IEEE 754 32-bit floating-point number
-	Unicode                    // signed 32-bit integer Unicode code point (U+0000 ... U+10FFFF)
 	Unsigned64                 // unsigned 64-bit integer
 	Unsigned32                 // unsigned 32-bit integer
 	Unsigned16                 // unsigned 16-bit integer
 	Unsigned8                  // unsigned 8-bit integer
 	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
+	Character                  // UTF-32 encoded character (32-bit signed integer, Unicode code point, U+0000 ... U+10FFFF)
+	String                     // UTF-32 encoded string (sequence of UTF-32 characters)
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -123,10 +124,10 @@ type (
 	// Take two operands and perform a comparison on them.
 	RelationalOperator int
 
-	// The data type of a symbol.
+	// The datatype of a symbol.
 	DataType int
 
-	// String representation of a data type.
+	// String representation of a datatype.
 	DataTypeRepresentation string
 
 	// Kind of symbol entries (bit-mask).
@@ -212,7 +213,7 @@ type (
 		ParentNode       Node         `json:"-"`                  // parent node of the constant declaration
 		Name             string       `json:"name"`               // name of the constant
 		Value            any          `json:"value"`              // value of constant
-		DataType         DataType     `json:"data_type"`          // data type of the constant
+		DataType         DataType     `json:"data_type"`          // datatype of the constant
 		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
 		Usage            []Expression `json:"-"`                  // all usages of the constant
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
@@ -223,7 +224,7 @@ type (
 		TypeName         string       `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
-		DataType         DataType     `json:"data_type"`          // data type of the variable
+		DataType         DataType     `json:"data_type"`          // datatype of the variable
 		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
 		Usage            []Expression `json:"-"`                  // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
@@ -245,7 +246,7 @@ type (
 		TypeName         string   `json:"type"`               // type name of the literal node
 		ParentNode       Node     `json:"-"`                  // parent node of the literal
 		Value            any      `json:"value"`              // literal value
-		DataType         DataType `json:"data_type"`          // data type of the literal
+		DataType         DataType `json:"data_type"`          // datatype of the literal
 		Scope            *Scope   `json:"-"`                  // scope of the literal usage
 		TokenStreamIndex int      `json:"token_stream_index"` // index of the token in the token stream
 	}

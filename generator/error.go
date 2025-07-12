@@ -21,8 +21,8 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	intermediateCodeGenerationFailed:         "intermediate code generation failed",
-	unsupportedDataTypeInConstantDeclaration: "unsupported data type in constant declaration: %v",
-	unsupportedDataTypeInVariableDeclaration: "unsupported data type in variable declaration: %v",
+	unsupportedDataTypeInConstantDeclaration: "unsupported datatype in constant declaration: %v",
+	unsupportedDataTypeInVariableDeclaration: "unsupported datatype in variable declaration: %v",
 	invalidContextInIdentifierUse:            "invalid context in identifier use",
 	unknownUnaryOperation:                    "unknown unary operation",
 	unknownBinaryOperation:                   "unknown binary operation",

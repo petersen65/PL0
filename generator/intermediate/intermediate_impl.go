@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	cor "github.com/petersen65/PL0/v2/core"
@@ -35,32 +34,28 @@ var (
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
 		Empty:    "ety",
-		Metadata: "mtd",
 		Register: "reg",
 		Literal:  "lit",
 		Variable: "var",
 		Label:    "lbl",
-		Depth:    "dpt",
-		Count:    "cnt",
-		Code:     "cod",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
 	dataTypeNames = map[DataType]string{
 		Untyped:    "untyped",
-		LabelName:  "label",
 		Integer64:  "int64",
 		Integer32:  "int32",
 		Integer16:  "int16",
 		Integer8:   "int8",
 		Float64:    "float64",
 		Float32:    "float32",
-		Unicode:    "int32",
 		Unsigned64: "uint64",
 		Unsigned32: "uint32",
 		Unsigned16: "uint16",
 		Unsigned8:  "uint8",
 		Boolean:    "bool",
+		Character:  "char32",
+		String:     "string",
 	}
 
 	// Map three-address code operations of the intermediate code to their string representation.
@@ -71,31 +66,30 @@ var (
 		Minus:            "subtract",
 		Times:            "multiply",
 		Divide:           "divide",
-		Equal:            "eq",
-		NotEqual:         "neq",
-		Less:             "lss",
-		LessEqual:        "lssEq",
-		Greater:          "gtr",
-		GreaterEqual:     "gtrEq",
-		Jump:             "jmp",
-		JumpEqual:        "jmpEq",
-		JumpNotEqual:     "jmpNeq",
-		JumpLess:         "jmpLss",
-		JumpLessEqual:    "jmpLssEq",
-		JumpGreater:      "jmpGtr",
-		JumpGreaterEqual: "jmpGtrEq",
-		Parameter:        "param",
+		Equal:            "equal",
+		NotEqual:         "notEqual",
+		Less:             "less",
+		LessEqual:        "lessEqual",
+		Greater:          "greater",
+		GreaterEqual:     "greaterEqual",
+		Jump:             "jump",
+		JumpEqual:        "jumpEqual",
+		JumpNotEqual:     "jumpNotEqual",
+		JumpLess:         "jumpLess",
+		JumpLessEqual:    "jumpLessEqual",
+		JumpGreater:      "jumpGreater",
+		JumpGreaterEqual: "jumpGreaterEqual",
+		Parameter:        "parameter",
 		Call:             "call",
 		Prologue:         "prologue",
 		Epilogue:         "epilogue",
 		Setup:            "setup",
 		Return:           "return",
-		Standard:         "standard",
-		Target:           "target",
-		Allocate:         "alloc",
-		ValueCopy:        "valCopy",
-		VariableLoad:     "varLoad",
-		VariableStore:    "varStore",
+		BranchTarget:     "branchTarget",
+		AllocateVariable: "allocateVariable",
+		CopyLiteral:      "copyLiteral",
+		LoadVariable:     "loadVariable",
+		StoreVariable:    "storeVariable",
 	}
 
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
@@ -162,39 +156,35 @@ var (
 			{Arg1: Literal, Arg2: Empty, Result: Empty},
 			{Arg1: Variable, Arg2: Empty, Result: Empty},
 		},
-		Call:          {
-			{Arg1: Count, Arg2: Label, Result: Empty},
+		Call: {
+			{Arg1: Label, Arg2: Empty, Result: Empty},
 		},
-		Prologue:      {
+		Prologue: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
 		},
-		Epilogue:      {
+		Epilogue: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
 		},
-		Setup:         {
-			{Arg1: Depth, Arg2: Empty, Result: Empty},
+		Setup: {
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
-		Return:        {
+		Return: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
 			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
-		Standard:      {
-			{Arg1: Count, Arg2: Code, Result: Empty},
+		BranchTarget: {
+			{Arg1: Empty, Arg2: Empty, Result: Label},
 		},
-		Target:        {
-			{Arg1: Empty, Arg2: Empty, Result: Empty},
-			{Arg1: Metadata, Arg2: Empty, Result: Empty},
+		AllocateVariable: {
+			{Arg1: Empty, Arg2: Empty, Result: Variable},
 		},
-		Allocate:      {
-			{Arg1: Metadata, Arg2: Empty, Result: Variable},
-		},
-		ValueCopy:     {
+		CopyLiteral: {
 			{Arg1: Literal, Arg2: Empty, Result: Register},
 		},
-		VariableLoad:  {
+		LoadVariable: {
 			{Arg1: Variable, Arg2: Empty, Result: Register},
 		},
-		VariableStore: {
+		StoreVariable: {
 			{Arg1: Register, Arg2: Empty, Result: Variable},
 		},
 	}
@@ -213,17 +203,13 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 // Create a new instruction for the intermediate code.
 func newInstruction(operation Operation, arg1, arg2, result *Address, options ...any) *Instruction {
 	instruction := &Instruction{
-		Label:            NoLabel,
-		DepthDifference:  UnusedDifference,
-		ThreeAddressCode: Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
+		DepthDifference: UnusedDifference,
+		Quadruple:       Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
 	}
 
 	// evaluate the options and set the instruction properties accordingly
 	for _, option := range options {
 		switch opt := option.(type) {
-		case string:
-			instruction.Label = opt
-
 		case int32:
 			instruction.DepthDifference = opt
 
@@ -362,9 +348,6 @@ func (a *Address) Parse() any {
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
 		}
 
-	case Metadata:
-		return a.Name
-
 	case Literal:
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8:
@@ -392,13 +375,6 @@ func (a *Address) Parse() any {
 				} else {
 					return decoded
 				}
-			}
-
-		case Unicode:
-			if decoded, _ := utf8.DecodeRuneInString(a.Name); decoded == utf8.RuneError {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, nil))
-			} else {
-				return decoded
 			}
 
 		case Unsigned64, Unsigned32, Unsigned16, Unsigned8:
@@ -430,7 +406,7 @@ func (a *Address) Parse() any {
 
 	case Variable, Register:
 		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unicode, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Boolean:
+		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Boolean:
 			return nil
 
 		default:
@@ -439,47 +415,8 @@ func (a *Address) Parse() any {
 
 	case Label:
 		switch a.DataType {
-		case LabelName:
+		case Untyped:
 			return a.Name
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Count:
-		switch a.DataType {
-		case Unsigned64:
-			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				return decoded
-			}
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Code:
-		switch a.DataType {
-		case Integer64:
-			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				return decoded
-			}
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Depth:
-		switch a.DataType {
-		case Integer32:
-			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				return int32(decoded)
-			}
 
 		default:
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
@@ -588,13 +525,13 @@ func (i *iterator) Peek(offset int) *Instruction {
 	return element.Value.(*Instruction)
 }
 
-// Determine the bit size of a data type or return 0 if there is no defined bit size.
+// Determine the bit size of a datatype or return -1 if there is no defined bit size.
 func (dataType DataType) bitSize() int {
 	switch dataType {
 	case Integer64, Float64, Unsigned64:
 		return 64
 
-	case Integer32, Float32, Unicode, Unsigned32:
+	case Integer32, Float32, Unsigned32, Character:
 		return 32
 
 	case Integer16, Unsigned16:
@@ -604,6 +541,6 @@ func (dataType DataType) bitSize() int {
 		return 8
 
 	default:
-		return 0
+		return -1 // no defined bit size for this datatype
 	}
 }

@@ -21,10 +21,10 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	invalidAddressesContract:                     "invalid addresses contract: %v",
-	unsupportedDataTypeInIntermediateCodeAddress: "unsupported data type in intermediate code address: %v",
+	unsupportedDataTypeInIntermediateCodeAddress: "unsupported datatype in intermediate code address: %v",
 	unexceptedVariantInIntermediateCodeAddress:   "unexcepted variant in intermediate code address: %v",
 	unknownInstructionOption:                     "unknown instruction option: %v",
-	unknownDataTypeRepresentation:                "unknown data type representation: %v",
+	unknownDataTypeRepresentation:                "unknown datatype representation: %v",
 	intermediateCodeAddressParsingError:          "value of intermediate code address cannot be parsed: %v",
 	unknownExportFormat:                          "unknown export format: %v",
 	intermediateCodeExportFailed:                 "failed to export intermediate code",

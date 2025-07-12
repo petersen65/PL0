@@ -78,7 +78,7 @@ func (cfg *controlFlowGraph) Build() {
 			fallthrough
 
 		// any instruction that is the target of a conditional or unconditional jump is a leader
-		case i.ThreeAddressCode.Operation == ic.Target:
+		case i.Quadruple.Operation == ic.BranchTarget:
 			// append the previous basic block to the control flow graph if it is not nil
 			cfg.AppendBasicBlock(block)
 
@@ -87,13 +87,13 @@ func (cfg *controlFlowGraph) Build() {
 			block.AppendInstruction(i)
 
 		// any instruction that immediately follows a conditional or unconditional jump is a leader
-		case i.ThreeAddressCode.Operation == ic.Jump ||
-			i.ThreeAddressCode.Operation == ic.JumpEqual ||
-			i.ThreeAddressCode.Operation == ic.JumpNotEqual ||
-			i.ThreeAddressCode.Operation == ic.JumpLess ||
-			i.ThreeAddressCode.Operation == ic.JumpLessEqual ||
-			i.ThreeAddressCode.Operation == ic.JumpGreater ||
-			i.ThreeAddressCode.Operation == ic.JumpGreaterEqual:
+		case i.Quadruple.Operation == ic.Jump ||
+			i.Quadruple.Operation == ic.JumpEqual ||
+			i.Quadruple.Operation == ic.JumpNotEqual ||
+			i.Quadruple.Operation == ic.JumpLess ||
+			i.Quadruple.Operation == ic.JumpLessEqual ||
+			i.Quadruple.Operation == ic.JumpGreater ||
+			i.Quadruple.Operation == ic.JumpGreaterEqual:
 
 			// append the current instruction to the current basic block
 			block.AppendInstruction(i)

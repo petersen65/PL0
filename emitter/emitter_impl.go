@@ -99,14 +99,14 @@ func (e *emitter) Emit() {
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		// panic if the intermediate code instruction has not a valid addresses contract
-		c := i.ThreeAddressCode.ValidateAddressesContract()
+		c := i.Quadruple.ValidateAddressesContract()
 
-		switch i.ThreeAddressCode.Operation {
-		case ic.Target: // target for any branching operation
+		switch i.Quadruple.Operation {
+		case ic.BranchTarget: // target for any branching operation
 			// append labels for the directly following non 'Target' instruction
 			l = append(l, i.Label)
 
-		case ic.Allocate: // allocate memory for all variables in their logical memory space
+		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
 			// emit assembly code to allocate space for local variables in the activation record
 			e.allocate(iterator, l)
 
@@ -120,106 +120,106 @@ func (e *emitter) Emit() {
 
 		case ic.Setup: // initialize logical memory space and internal data structures
 			// panic if parsing of the metadata into its value fails (unsupported value or data type)
-			depth := i.ThreeAddressCode.Arg1.Parse().(int32)
+			depth := i.Quadruple.Arg1.Parse().(int32)
 
 			// emit assembly code to setup a function call
 			e.setup(depth)
 
-		case ic.ValueCopy: // copy an immediate value to an address
+		case ic.CopyLiteral: // copy an immediate value to an address
 			// panic if parsing of the literal into its value fails (unsupported value or data type)
-			value := i.ThreeAddressCode.Arg1.Parse()
+			value := i.Quadruple.Arg1.Parse()
 
 			// emit assembly code to copy the value onto the top of the call stack
-			e.valueCopy(i.ThreeAddressCode.Arg1.DataType, value, l)
+			e.valueCopy(i.Quadruple.Arg1.DataType, value, l)
 
-		case ic.VariableLoad: // load a variable from its call stack address onto the top of the stack
+		case ic.LoadVariable: // load a variable from its call stack address onto the top of the stack
 			// panic if parsing of the variable into nil fails (unsupported data type)
-			i.ThreeAddressCode.Arg1.Parse()
+			i.Quadruple.Arg1.Parse()
 
 			// determine offset of the local variable in its activation record
-			offset := e.offsetTable[i.ThreeAddressCode.Arg1.Name]
+			offset := e.offsetTable[i.Quadruple.Arg1.Name]
 
 			// emit assembly code to load the variable onto the call stack
-			e.variableLoad(i.ThreeAddressCode.Arg1.DataType, offset, i.DepthDifference, l)
+			e.variableLoad(i.Quadruple.Arg1.DataType, offset, i.DepthDifference, l)
 
-		case ic.VariableStore: // store the top of the call stack into a variable's stack address
+		case ic.StoreVariable: // store the top of the call stack into a variable's stack address
 			// panic if parsing of the variable into nil fails (unsupported data type)
-			i.ThreeAddressCode.Result.Parse()
+			i.Quadruple.Result.Parse()
 
 			// determine offset of the local variable in its activation record
-			offset := e.offsetTable[i.ThreeAddressCode.Result.Name]
+			offset := e.offsetTable[i.Quadruple.Result.Name]
 
 			// emit assembly code to store the top of the call stack into the variable's activation record
-			e.variableStore(i.ThreeAddressCode.Result.DataType, offset, i.DepthDifference, l)
+			e.variableStore(i.Quadruple.Result.DataType, offset, i.DepthDifference, l)
 
 		case ic.Negate: // negate the top of the call stack and leave the result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.ThreeAddressCode.Arg1.Parse()
+			_ = i.Quadruple.Arg1.Parse()
 
 			// emit assembly code to negate the top of the call stack
-			e.negate(i.ThreeAddressCode.Arg1.DataType, l)
+			e.negate(i.Quadruple.Arg1.DataType, l)
 
 		case ic.Odd: // check if the top of the call stack is an odd number and set the Zero Flag (ZF clear if odd, set if even)
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.ThreeAddressCode.Arg1.Parse()
+			_ = i.Quadruple.Arg1.Parse()
 
 			// emit assembly code to check if the top of the call stack is odd
-			e.odd(i.ThreeAddressCode.Arg1.DataType, l)
+			e.odd(i.Quadruple.Arg1.DataType, l)
 
 		case ic.Plus, ic.Minus, ic.Times, ic.Divide: // perform an arithmetic operation on the top two elements of the call stack and replace them with one result on the stack
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.ThreeAddressCode.Arg1.Parse()
-			_ = i.ThreeAddressCode.Arg2.Parse()
+			_ = i.Quadruple.Arg1.Parse()
+			_ = i.Quadruple.Arg2.Parse()
 
 			// it is required that both temporaries are of the same data type
-			dataType := i.ThreeAddressCode.Arg1.DataType
+			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
-			if i.ThreeAddressCode.Operation == ic.Divide && dataType.IsInteger() {
+			if i.Quadruple.Operation == ic.Divide && dataType.IsInteger() {
 				e.integerDivide(dataType, l)
 			} else {
-				e.arithmeticOperation(dataType, i.ThreeAddressCode.Operation, l)
+				e.arithmeticOperation(dataType, i.Quadruple.Operation, l)
 			}
 
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the call stack, remove them, and leave the result in the CPU flags register
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.ThreeAddressCode.Arg1.Parse()
-			_ = i.ThreeAddressCode.Arg2.Parse()
+			_ = i.Quadruple.Arg1.Parse()
+			_ = i.Quadruple.Arg2.Parse()
 
 			// it is required that both temporaries are of the same data type
-			dataType := i.ThreeAddressCode.Arg1.DataType
+			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
 			comparison = e.compare(dataType, l)
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
+			name := i.Quadruple.Arg1.Parse().(string)
 
 			// emit assembly code to perform an unconditional jump to the specified label
 			e.unconditionalJump(name, l)
 
 		case ic.JumpEqual, ic.JumpNotEqual, ic.JumpLess, ic.JumpLessEqual, ic.JumpGreater, ic.JumpGreaterEqual: // conditional jump to a label resolved at link-time based on the CPU flags set by the previous comparison
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg1.Parse().(string)
+			name := i.Quadruple.Arg1.Parse().(string)
 
 			// emit assembly code to perform a conditional jump based on the CPU flags set by the previous comparison
-			e.conditionalJump(comparison, i.ThreeAddressCode.Operation, name, l)
+			e.conditionalJump(comparison, i.Quadruple.Operation, name, l)
 
 			// reset the comparison type after a conditional jump
 			comparison = ac.ComparisonNone
 
 		case ic.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
 			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.ThreeAddressCode.Arg1.Parse()
+			_ = i.Quadruple.Arg1.Parse()
 			parameters.PushBack(i)
 
 		case ic.Call: // call a function with 0 arguments by jumping to the function's label
 			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
-			count := i.ThreeAddressCode.Arg1.Parse().(uint64)
+			count := i.Quadruple.Arg1.Parse().(uint64)
 
 			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.ThreeAddressCode.Arg2.Parse().(string)
+			name := i.Quadruple.Arg2.Parse().(string)
 
 			if count != 0 {
 				// procedures do not support parameters yet
@@ -244,7 +244,7 @@ func (e *emitter) Emit() {
 			// check if the function has a literal return value
 			if c.Arg1 == ic.Literal {
 				// panic if parsing of the literal into its value fails (unsupported value or data type)
-				value := i.ThreeAddressCode.Arg1.Parse().(int32)
+				value := i.Quadruple.Arg1.Parse().(int32)
 
 				// move the literal return value into the EAX register as the return value of the function (what the C runtime expects)
 				e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Eax), ac.NewImmediateOperand(ac.Bits32, value))
@@ -252,39 +252,12 @@ func (e *emitter) Emit() {
 
 			e.assemblyCode.AppendInstruction(ac.Ret, nil)
 
-		case ic.Standard:
-			// a standard function represents a function that is provided by the standard library of the programming language
-			// the standard function has 2 direct parameters that are part of the intermediate code instruction at compile-time
-			// the first parameter holds the number of parameters that the standard function expects
-			// the second parameter holds the call code of the standard function in the programming language's standard library
-
-			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
-			count := i.ThreeAddressCode.Arg1.Parse().(uint64)
-
-			// panic if parsing of the call code into an integer fails (unsupported value or data type)
-			code := i.ThreeAddressCode.Arg2.Parse().(int64)
-
-			// parameter instruction for the standard library function call
-			pi := parameters.Back().Value.(*ic.Instruction)
-			parameters.Remove(parameters.Back())
-
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = pi.ThreeAddressCode.Arg1.Parse()
-
-			if count != 1 {
-				// current standard library functions expect 1 parameter on the call stack
-				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedNumberOfFunctionArguments, nil, nil))
-			} else {
-				// the top element of the call stack is either consumed or updated by the standard library function
-				e.assemblyCode.AppendInstruction(ac.StdCall, l, ac.NewImmediateOperand(ac.Bits64, code))
-			}
-
 		default:
-			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.ThreeAddressCode.Operation, nil))
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Quadruple.Operation, nil))
 		}
 
 		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
-		if i.ThreeAddressCode.Operation != ic.Target {
+		if i.Quadruple.Operation != ic.BranchTarget {
 			l = make([]string, 0)
 		}
 	}
@@ -299,9 +272,9 @@ func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
-		if iterator.Peek(j).ThreeAddressCode.Operation == ic.Allocate {
+		if iterator.Peek(j).Quadruple.Operation == ic.AllocateVariable {
 			// local variable to allocate space for
-			result := iterator.Peek(j).ThreeAddressCode.Result
+			result := iterator.Peek(j).Quadruple.Result
 
 			// calculate memory size and allignment of the local variable
 			byteSize := int32(dataTypeToBits[result.DataType]) / 8
@@ -312,7 +285,7 @@ func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
 		}
 
 		// break if all local variables int the activiation record have been allocated
-		if iterator.Peek(j+1) != nil && iterator.Peek(j+1).ThreeAddressCode.Operation != ic.Allocate {
+		if iterator.Peek(j+1) != nil && iterator.Peek(j+1).Quadruple.Operation != ic.AllocateVariable {
 			// align the offset and use it as the size required for storing all local variables
 			offset = ac.Align(offset, callStackAlignment)
 

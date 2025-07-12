@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// dataTypeNames maps a data type to its string representation.
+	// dataTypeNames maps a datatype to its string representation.
 	dataTypeNames = map[DataType]string{
 		Integer64:  "int64",
 		Integer32:  "int32",
@@ -21,12 +21,13 @@ var (
 		Integer8:   "int8",
 		Float64:    "float64",
 		Float32:    "float32",
-		Unicode:    "int32",
 		Unsigned64: "uint64",
 		Unsigned32: "uint32",
 		Unsigned16: "uint16",
 		Unsigned8:  "uint8",
 		Boolean:    "bool",
+		Character:  "char32",
+		String:     "string",
 	}
 
 	// nodeTypeNames maps node types to their string representation.
@@ -301,12 +302,12 @@ func newCompoundStatement(statements []Statement) Statement {
 	return compound
 }
 
-// String representation of a data type.
+// String representation of a datatype.
 func (dt DataType) String() string {
 	return dataTypeNames[dt]
 }
 
-// Get a data type from its representation.
+// Get a datatype from its representation.
 func (dtr DataTypeRepresentation) DataType() DataType {
 	for dataType, representation := range dataTypeNames {
 		if representation == string(dtr) {

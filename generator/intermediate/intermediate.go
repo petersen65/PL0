@@ -12,11 +12,14 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// NoName is a constant for an empty name in an address.
+const NoName = ""
+
+// NoValue is a constant for an empty value in an address.
+const NoValue = ""
+
 // UnusedDifference states that an intermediate code instruction does not use a block nesting depth difference.
 const UnusedDifference = -1
-
-// NoLabel is a constant for an empty label in an intermediate code instruction.
-const NoLabel = ""
 
 // Three-address code operations of the intermediate code.
 const (
@@ -31,8 +34,8 @@ const (
 	Minus        // binary arithmetic operation '-'
 	Times        // binary arithmetic operation '*'
 	Divide       // binary arithmetic operation '/'
-	Equal        // binary relational operation '='
-	NotEqual     // binary relational operation '#'
+	Equal        // binary relational operation '=='
+	NotEqual     // binary relational operation '!='
 	Less         // binary relational operation '<'
 	LessEqual    // binary relational operation '<='
 	Greater      // binary relational operation '>'
@@ -40,102 +43,87 @@ const (
 
 	// an unconditional or conditional jump goto L: the instruction with label L is the next to be executed
 	Jump             // unconditional jump
-	JumpEqual        // conditional jump '='
-	JumpNotEqual     // conditional jump '#'
+	JumpEqual        // conditional jump '=='
+	JumpNotEqual     // conditional jump '!='
 	JumpLess         // conditional jump '<'
 	JumpLessEqual    // conditional jump '<='
 	JumpGreater      // conditional jump '>'
 	JumpGreaterEqual // conditional jump '>='
 
 	// call f, n and y = call f, n for function calls, n is the number of actual parameters in "call f, n"
-	Parameter // pass parameter to function
-	Call      // call function
-	Prologue  // function entry sequence inside the body of a function
-	Epilogue  // function exit sequence inside the body of a function
-	Setup     // setup function call by initializing logical memory space and internal data structures
-	Return    // return from function
-	Standard  // call function of the external standard library
-	Target    // target for any branching operation
+	Parameter    // pass parameter to function
+	Call         // call function
+	Prologue     // function entry sequence inside the body of a function
+	Epilogue     // function exit sequence inside the body of a function
+	Setup        // setup function call by initializing logical memory space and internal data structures
+	Return       // return from function
+	BranchTarget // target for any code branch operation: conditional, unconditional, or call
 
-	Allocate      // allocate memory for a variable in its logical memory space
-	ValueCopy     // copy the value of a constant or literal into an address
-	VariableLoad  // load variable value from the logical memory space into an address
-	VariableStore // store variable value from an address into the logical memory space
+	AllocateVariable // allocate memory for a variable in its logical memory space
+	CopyLiteral      // copy the value of a literal into an address
+	LoadVariable     // load variable value from the logical memory space into an address
+	StoreVariable    // store variable value from an address into the logical memory space
 )
 
-// Variants of an address in the three-address code concept.
+// Three-address code address variants of the intermediate code.
 const (
-	Empty    Variant = iota // empty address holds no address
-	Metadata                // metadata address used to store any additional information about an operation
-	Register                // virtual register address holds a result from an expression
-	Literal                 // literal address holds a constant or literal value
-	Variable                // variable address holds an argument of an operation
-	Label                   // label address used as target for jumps and calls will be resolved by a linker
-	Depth                   // depth address holds the block nesting depth of a block at compilation time
-	Count                   // count address is used for counting purposes like the number of parameters in a function call
-	Code                    // code address holds a call code for the external standard library (e.g. readln, writeln)
+	Empty    Variant = iota // the address does not have a variant and does not hold any value
+	Register                // virtual register address holds the result from an expression and has a name and a datatype
+	Literal                 // literal address holds a literal value and its datatype
+	Variable                // variable address holds a variable name and its datatype
+	Label                   // label address serves as a name for a branch into code or a reference to data
 )
 
-// Datatypes supported for an address of the three-address code concept (occupy bit range 0-7).
+// Datatype of an address in the three-address code concept.
+// The first 8 bits (0-7) are used for the plain datatype, the next bits (8+) are used for modifiers.
 const (
-	Untyped   DataType = iota // an address that does not have a datatype
-	LabelName                 // the label-name datatype is used for labels in label addresses
-
-	// datatypes supported for symbol entries, registers, literals, and variables
 	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
-	Integer64  // signed 64-bit integer
-	Integer32  // signed 32-bit integer
-	Integer16  // signed 16-bit integer
-	Integer8   // signed 8-bit integer
-	Float64    // signed IEEE 754 64-bit floating-point number
-	Float32    // signed IEEE 754 32-bit floating-point number
-	Unicode    // signed 32-bit integer Unicode code point (U+0000 ... U+10FFFF)
-	Unsigned64 // unsigned 64-bit integer
-	Unsigned32 // unsigned 32-bit integer
-	Unsigned16 // unsigned 16-bit integer
-	Unsigned8  // unsigned 8-bit integer
-	Boolean    // unsigned 8-bit boolean (0 or 1, false or true)
+	Untyped    DataType = iota // the address does not have a datatype
+	Integer64                  // signed 64-bit integer
+	Integer32                  // signed 32-bit integer
+	Integer16                  // signed 16-bit integer
+	Integer8                   // signed 8-bit integer
+	Float64                    // signed IEEE 754 64-bit floating-point number
+	Float32                    // signed IEEE 754 32-bit floating-point number
+	Unsigned64                 // unsigned 64-bit integer
+	Unsigned32                 // unsigned 32-bit integer
+	Unsigned16                 // unsigned 16-bit integer
+	Unsigned8                  // unsigned 8-bit integer
+	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
+	Character                  // UTF-32 encoded character (32-bit signed integer, Unicode code point, U+0000 ... U+10FFFF)
+	String                     // UTF-32 encoded string (sequence of UTF-32 characters)
 )
 
-// Datatype flags for pointer and reference modifiers (bits 8+).
+// Datatype bit flags for pointer and reference modifiers (bits 8+).
 const (
 	Pointer   DataType = 1 << 8 // bit 8: pointer type (^T)
 	Reference DataType = 1 << 9 // bit 9: reference type (&T)
 )
 
-// Kind of supported symbol entry.
+// Kind of supported symbol entry in the intermediate code.
 const (
 	ConstantSymbol Entry = iota
 	VariableSymbol
-	ProcedureSymbol
-)
-
-// External standard functions provided for the programming language.
-// needs to be alligned with call codes for the programming language standard library
-const (
-	ReadLn  StandardFunction = iota // readln function reads a line from the standard input stream
-	WriteLn                         // writeln function writes a line to the standard output stream
+	FunctionSymbol
 )
 
 type (
+	// Operation represents a three-address code operation in the quadruple.
+	Operation int
+
 	// The variant type is used to distinguish between different kinds of addresses in the three-address code concept.
 	Variant int
 
 	// The datatype of an address in the three-address code concept.
 	DataType int
 
-	// Type for three-address code operations.
-	Operation int
-
-	// Kind of symbol entries.
+	// Kind of symbol entries with flattened names in the intermediate code.
 	Entry int
 
-	// Enumeration of standard functions that belong to the external standard library.
-	StandardFunction int64
-
-	// Address is the data structure of an address in the three-address code concept.
+	// Address is the data structure for an argument or a result in the three-address code concept.
 	Address struct {
-		Name     string   `json:"name"`      // name or value of an address (a value needs to be converted to a string)
+		Name     string   `json:"name"`      // name of an address
+		Value    any      `json:"value"`     // value of the address
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
 		DataType DataType `json:"data_type"` // datatype of the address
 	}
@@ -157,13 +145,13 @@ type (
 
 	// Instruction represents a single three-address code operation with its required metadata (e.g. label, block nesting depth difference).
 	Instruction struct {
-		Label            string    `json:"label"`              // branch-label for any branching operation
+		Quadruple        Quadruple `json:"quadruple"`          // three-address code operation with its three addresses
 		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
 		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
-		ThreeAddressCode Quadruple `json:"code"`               // three-address code operation
 	}
 
-	// A Symbol represents a flattened name in the intermediate code.
+	// A symbol is a data structure that stores all necessary information related to a declared identifier in the intermediate code.
+	// A declared identifier in the intermediate code has a flattened name and was derived from an identifier in the abstract syntax tree.
 	Symbol struct {
 		Name       string        // flattened name in the intermediate code
 		Kind       Entry         // kind of symbol entry
@@ -172,6 +160,7 @@ type (
 	}
 
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
+	// It manages a list of instructions and a symbol table with all declared identifiers in this unit of the intermediate code.
 	IntermediateCodeUnit interface {
 		AppendInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
@@ -204,8 +193,8 @@ func NewInstruction(operation Operation, arg1, arg2, result *Address, options ..
 }
 
 // Create a new three-address code argument or result address.
-func NewAddress(name any, variant Variant, dataType DataType) *Address {
-	return &Address{Name: fmt.Sprintf("%v", name), Variant: variant, DataType: dataType}
+func NewAddress(name string, value any, variant Variant, dataType DataType) *Address {
+	return &Address{Name: name, Value: value, Variant: variant, DataType: dataType}
 }
 
 // Create new symbol for the intermediate code.
@@ -233,14 +222,14 @@ func (dt DataType) String() string {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
+	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Name, a.Value)
 
 	if a.Variant == Empty {
 		representation = ""
 	}
 
-	if len(representation) > 25 {
-		representation = representation[:25]
+	if len(representation) > 30 {
+		representation = representation[:30]
 	}
 
 	return representation
@@ -253,7 +242,7 @@ func (o Operation) String() string {
 
 // String representation of a three-address code quadruple.
 func (q *Quadruple) String() string {
-	return fmt.Sprintf("%-12v %-25v %-25v %-25v", q.Operation, q.Arg1, q.Arg2, q.Result)
+	return fmt.Sprintf("%-12v %-30v %-30v %-30v", q.Operation, q.Arg1, q.Arg2, q.Result)
 }
 
 // String representation of an intermediate code instruction.
@@ -265,13 +254,12 @@ func (i *Instruction) String() string {
 	}
 
 	return fmt.Sprintf(
-		"%-8v %4v    %-12v   %-25v   %-25v   %-25v",
-		i.Label,
+		"%4v    %-12v   %-30v   %-30v   %-30v",
 		depthDifference,
-		i.ThreeAddressCode.Operation,
-		i.ThreeAddressCode.Arg1,
-		i.ThreeAddressCode.Arg2,
-		i.ThreeAddressCode.Result)
+		i.Quadruple.Operation,
+		i.Quadruple.Arg1,
+		i.Quadruple.Arg2,
+		i.Quadruple.Result)
 }
 
 // Return the plain datatype without modifiers.
@@ -309,19 +297,14 @@ func (dataType DataType) IsUntyped() bool {
 	return dataType.AsPlain() == Untyped
 }
 
-// Check whether the datatype is a label name.
-func (dataType DataType) IsLabelName() bool {
-	return dataType.AsPlain() == LabelName
-}
-
 // Supported data types for symbol entries, registers, literals, and variables.
 func (dataType DataType) IsSupported() bool {
-	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Boolean
+	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= String
 }
 
 // Check whether the datatype has a signed representation.
 func (dataType DataType) IsSigned() bool {
-	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Unicode
+	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Float32
 }
 
 // Check whether the datatype has an unsigned representation.
@@ -349,12 +332,17 @@ func (dataType DataType) IsFloatingPoint() bool {
 	return dataType.AsPlain() == Float64 || dataType == Float32
 }
 
-// Check whether the datatype is an Unicode code point.
-func (dataType DataType) IsUnicode() bool {
-	return dataType.AsPlain() == Unicode
-}
-
 // Check whether the datatype is a boolean.
 func (dataType DataType) IsBoolean() bool {
 	return dataType.AsPlain() == Boolean
+}
+
+// Check whether the datatype is a character.
+func (dataType DataType) IsCharacter() bool {
+	return dataType.AsPlain() == Character
+}
+
+// Check whether the datatype is a string.
+func (dataType DataType) IsString() bool {
+	return dataType.AsPlain() == String
 }
