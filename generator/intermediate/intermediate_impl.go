@@ -37,7 +37,6 @@ var (
 		Register: "reg",
 		Literal:  "lit",
 		Variable: "var",
-		Label:    "lbl",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -131,25 +130,25 @@ var (
 			{Arg1: Register, Arg2: Register, Result: Empty},
 		},
 		Jump: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpEqual: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpNotEqual: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpLess: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpLessEqual: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpGreater: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		JumpGreaterEqual: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		Parameter: {
 			{Arg1: Register, Arg2: Empty, Result: Empty},
@@ -157,7 +156,7 @@ var (
 			{Arg1: Variable, Arg2: Empty, Result: Empty},
 		},
 		Call: {
-			{Arg1: Label, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		Prologue: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
@@ -173,7 +172,7 @@ var (
 			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		BranchTarget: {
-			{Arg1: Empty, Arg2: Empty, Result: Label},
+			{Arg1: Empty, Arg2: Empty, Result: Literal},
 		},
 		AllocateVariable: {
 			{Arg1: Empty, Arg2: Empty, Result: Variable},
@@ -201,27 +200,11 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 }
 
 // Create a new instruction for the intermediate code.
-func newInstruction(operation Operation, arg1, arg2, result *Address, options ...any) *Instruction {
-	instruction := &Instruction{
-		DepthDifference: UnusedDifference,
-		Quadruple:       Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
+func newInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *Instruction {
+	return &Instruction{
+		Quadruple:        Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
+		TokenStreamIndex: tokenStreamIndex,
 	}
-
-	// evaluate the options and set the instruction properties accordingly
-	for _, option := range options {
-		switch opt := option.(type) {
-		case int32:
-			instruction.DepthDifference = opt
-
-		case int:
-			instruction.TokenStreamIndex = opt
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownInstructionOption, option, nil))
-		}
-	}
-
-	return instruction
 }
 
 // Append an instruction to the intermediate code.
@@ -408,15 +391,6 @@ func (a *Address) Parse() any {
 		switch a.DataType {
 		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Boolean:
 			return nil
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Label:
-		switch a.DataType {
-		case Untyped:
-			return a.Name
 
 		default:
 			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))

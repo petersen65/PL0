@@ -12,15 +12,6 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// NoName is a constant for an empty name in an address.
-const NoName = ""
-
-// NoValue is a constant for an empty value in an address.
-const NoValue = ""
-
-// UnusedDifference states that an intermediate code instruction does not use a block nesting depth difference.
-const UnusedDifference = -1
-
 // Three-address code operations of the intermediate code.
 const (
 	_ Operation = iota
@@ -71,7 +62,6 @@ const (
 	Register                // virtual register address holds the result from an expression and has a name and a datatype
 	Literal                 // literal address holds a literal value and its datatype
 	Variable                // variable address holds a variable name and its datatype
-	Label                   // label address serves as a name for a branch into code or a reference to data
 )
 
 // Datatype of an address in the three-address code concept.
@@ -122,10 +112,10 @@ type (
 
 	// Address is the data structure for an argument or a result in the three-address code concept.
 	Address struct {
-		Name     string   `json:"name"`      // name of an address
-		Value    any      `json:"value"`     // value of the address
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
 		DataType DataType `json:"data_type"` // datatype of the address
+		Name     string   `json:"name"`      // name of an address
+		Value    any      `json:"value"`     // value of the address
 	}
 
 	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
@@ -143,10 +133,9 @@ type (
 		Result Variant // third address variant
 	}
 
-	// Instruction represents a single three-address code operation with its required metadata (e.g. label, block nesting depth difference).
+	// Instruction represents a single three-address code operation with its required metadata (e.g. token stream index).
 	Instruction struct {
 		Quadruple        Quadruple `json:"quadruple"`          // three-address code operation with its three addresses
-		DepthDifference  int32     `json:"depth_difference"`   // block nesting depth difference between variable use and variable declaration
 		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -187,14 +176,24 @@ func NewIntermediateCodeUnit() IntermediateCodeUnit {
 	return newIntermediateCodeUnit()
 }
 
-// Create a new three-address code instruction with an operation, two arguments, a result, and some options.
-func NewInstruction(operation Operation, arg1, arg2, result *Address, options ...any) *Instruction {
-	return newInstruction(operation, arg1, arg2, result, options...)
+// Create a new three-address code instruction with an operation, two arguments, a result, and its token stream index.
+func NewInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *Instruction {
+	return newInstruction(operation, arg1, arg2, result, tokenStreamIndex)
 }
 
-// Create a new three-address code argument or result address.
-func NewAddress(name string, value any, variant Variant, dataType DataType) *Address {
-	return &Address{Name: name, Value: value, Variant: variant, DataType: dataType}
+// Create a new three-address code register address.
+func NewRegisterAddress(dataType DataType, name string) *Address {
+	return &Address{Variant: Register, DataType: dataType, Name: name}
+}
+
+// Create a new three-address code literal address.
+func NewLiteralAddress(dataType DataType, value any) *Address {
+	return &Address{Variant: Literal, DataType: dataType, Value: value}
+}
+
+// Create a new three-address code variable address.
+func NewVariableAddress(dataType DataType, name string) *Address {
+	return &Address{Variant: Variable, DataType: dataType, Name: name}
 }
 
 // Create new symbol for the intermediate code.
@@ -247,19 +246,7 @@ func (q *Quadruple) String() string {
 
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
-	var depthDifference any = i.DepthDifference
-
-	if i.DepthDifference == UnusedDifference {
-		depthDifference = ""
-	}
-
-	return fmt.Sprintf(
-		"%4v    %-12v   %-30v   %-30v   %-30v",
-		depthDifference,
-		i.Quadruple.Operation,
-		i.Quadruple.Arg1,
-		i.Quadruple.Arg2,
-		i.Quadruple.Result)
+	return fmt.Sprintf("%4v%v", i.TokenStreamIndex, i.Quadruple)
 }
 
 // Return the plain datatype without modifiers.
