@@ -28,15 +28,14 @@ const (
 	ImmediateOperand                    // constant values are literals in various bit sizes
 	MemoryOperand                       // memory addresses are specified indirectly through registers
 	LabelOperand                        // labels are used to specify jump targets and must be replaced by absolute addresses before execution
-	JumpOperand                         // destinations for jump instructions that are specified as absolute addresses
 )
 
 // Operand sizes in bits.
 const (
-	Bits8  = OperandSize(8)
-	Bits16 = OperandSize(16)
-	Bits32 = OperandSize(32)
-	Bits64 = OperandSize(64)
+	Bits8  OperandSize = 8
+	Bits16 OperandSize = 16
+	Bits32 OperandSize = 32
+	Bits64 OperandSize = 64
 )
 
 // Comparison types used to interpret the CPU flags in conditional jumps.
@@ -192,9 +191,6 @@ func (o *Operand) String() string {
 	case LabelOperand:
 		return o.Label
 
-	case JumpOperand:
-		return fmt.Sprintf("%v", o.Jump)
-
 	default:
 		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
 	}
@@ -217,4 +213,19 @@ func (i *Instruction) String() string {
 	}
 
 	return strings.TrimSuffix(buffer.String(), ", ")
+}
+
+// Round up or down an offset to its next alignment boundary. If something is wrong with the offset or alignment, return 0 (offset has a +/- 2GB limit).
+func Align(offset, alignment int32) int32 {
+	// validate and make sure the alignment is a power of 2
+	if alignment <= 0 || alignment&(alignment-1) != 0 {
+		return 0
+	}
+
+	// calculate the alignment of the offset depending on its sign (round up or down)
+	if offset >= 0 {
+		return (offset + alignment - 1) & ^(alignment - 1)
+	} else {
+		return -(((-offset) + alignment - 1) & ^(alignment - 1))
+	}
 }

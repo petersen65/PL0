@@ -57,20 +57,38 @@ var (
 		ISA_ARMv9_2: "ARMv9.2",
 	}
 
-	// Map intermediate code datatypes to assembly code bit sizes.
-	dataTypeToBits = map[ic.DataType]ac.OperandSize{
-		ic.Integer64:  ac.Bits64,
-		ic.Integer32:  ac.Bits32,
-		ic.Integer16:  ac.Bits16,
-		ic.Integer8:   ac.Bits8,
-		ic.Float64:    ac.Bits64,
-		ic.Float32:    ac.Bits32,
-		ic.Unicode:    ac.Bits32,
-		ic.Unsigned64: ac.Bits64,
-		ic.Unsigned32: ac.Bits32,
-		ic.Unsigned16: ac.Bits16,
-		ic.Unsigned8:  ac.Bits8,
-		ic.Boolean:    ac.Bits8,
+	// Map intermediate code datatypes to their sizes in bytes in the assembly code.
+	dataTypeSize = map[ic.DataType]int32{
+		ic.Integer64:  8,
+		ic.Integer32:  4,
+		ic.Integer16:  2,
+		ic.Integer8:   1,
+		ic.Float64:    8,
+		ic.Float32:    4,
+		ic.Unsigned64: 8,
+		ic.Unsigned32: 4,
+		ic.Unsigned16: 2,
+		ic.Unsigned8:  1,
+		ic.Boolean:    1,
+		ic.Character:  4,
+		ic.String:     16,
+	}
+
+	// Map intermediate code datatypes to their alignment in bytes in the assembly code.
+	dataTypeAlignment = map[ic.DataType]int32{
+		ic.Integer64:  8,
+		ic.Integer32:  4,
+		ic.Integer16:  2,
+		ic.Integer8:   1,
+		ic.Float64:    8,
+		ic.Float32:    4,
+		ic.Unsigned64: 8,
+		ic.Unsigned32: 4,
+		ic.Unsigned16: 2,
+		ic.Unsigned8:  1,
+		ic.Boolean:    1,
+		ic.Character:  4,
+		ic.String:     8,
 	}
 )
 
@@ -104,11 +122,11 @@ func (e *emitter) Emit() {
 		switch i.Quadruple.Operation {
 		case ic.BranchTarget: // target for any branching operation
 			// append labels for the directly following non 'Target' instruction
-			l = append(l, i.Label)
+			l = append(l, i.Quadruple.Result.Value.(string))
 
 		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
 			// emit assembly code to allocate space for local variables in the activation record
-			e.allocate(iterator, l)
+			e.allocateVariable(iterator, l)
 
 		case ic.Prologue: // function entry sequence
 			// emit assembly code to prepare the activation record for the function call
@@ -269,16 +287,28 @@ func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 }
 
 // Allocate space for local variables in the activation record of a function and remember their offsets.
-func (e *emitter) allocate(iterator ic.Iterator, labels []string) {
+func (e *emitter) allocateVariable(iterator ic.Iterator, labels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
 		if iterator.Peek(j).Quadruple.Operation == ic.AllocateVariable {
+			// memory size of the local variable
+			var byteSize int32
+
 			// local variable to allocate space for
 			result := iterator.Peek(j).Quadruple.Result
 
-			// calculate memory size and allignment of the local variable
-			byteSize := int32(dataTypeToBits[result.DataType]) / 8
-			offset = dataTypeToBits[result.DataType].Alignment(offset - byteSize)
+			// check whether data type of the local variable has modifiers
+			if result.DataType.IsPointer() || result.DataType.IsReference() {
+				// pointer or reference data types always have the size of a pointer
+				byteSize = ac.PointerSize
+			} else {
+				// all other data types have a size that is determined by the data type itself
+				byteSize = dataTypeSize[result.DataType.AsPlain()]
+			}
+
+			// align the offset for the variable's alignment requirement
+			alignment := dataTypeAlignment[result.DataType.AsPlain()]
+			offset = ac.Align(offset - byteSize, alignment)
 
 			// remember offset of the local variable in its activation record
 			e.offsetTable[result.Name] = offset

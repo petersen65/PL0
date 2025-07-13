@@ -26,7 +26,7 @@ var (
 		Unsigned16: "uint16",
 		Unsigned8:  "uint8",
 		Boolean:    "bool",
-		Character:  "char32",
+		Character:  "char",
 		String:     "string",
 	}
 

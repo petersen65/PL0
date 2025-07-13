@@ -87,8 +87,8 @@ const (
 	Unsigned16                 // unsigned 16-bit integer
 	Unsigned8                  // unsigned 8-bit integer
 	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
-	Character                  // UTF-32 encoded character (32-bit signed integer, Unicode code point, U+0000 ... U+10FFFF)
-	String                     // UTF-32 encoded string (sequence of UTF-32 characters)
+	Character                  // Unicode code point (signed 32-bit integer, U+0000 ... U+10FFFF)
+	String                     // Encoded string (sequence of UTF encoded characters)
 )
 
 // Kind of supported symbol entry as bit-mask.

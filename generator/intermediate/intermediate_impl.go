@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/google/uuid"
 	cor "github.com/petersen65/PL0/v2/core"
@@ -53,7 +52,7 @@ var (
 		Unsigned16: "uint16",
 		Unsigned8:  "uint8",
 		Boolean:    "bool",
-		Character:  "char32",
+		Character:  "char",
 		String:     "string",
 	}
 
@@ -156,7 +155,7 @@ var (
 			{Arg1: Variable, Arg2: Empty, Result: Empty},
 		},
 		Call: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
+			{Arg1: Literal, Arg2: Literal, Result: Empty},
 		},
 		Prologue: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
@@ -181,10 +180,10 @@ var (
 			{Arg1: Literal, Arg2: Empty, Result: Register},
 		},
 		LoadVariable: {
-			{Arg1: Variable, Arg2: Empty, Result: Register},
+			{Arg1: Variable, Arg2: Literal, Result: Register},
 		},
 		StoreVariable: {
-			{Arg1: Register, Arg2: Empty, Result: Variable},
+			{Arg1: Register, Arg2: Literal, Result: Variable},
 		},
 	}
 )
@@ -319,92 +318,17 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 	}
 }
 
-// Parse a three-address code address into a value based on its variant and datatype.
-func (a *Address) Parse() any {
-	switch a.Variant {
-	case Empty:
-		switch a.DataType {
-		case Untyped:
-			return nil
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Literal:
-		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8:
-			if decoded, err := strconv.ParseInt(a.Name, 10, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				switch a.DataType {
-				case Integer32:
-					return int32(decoded)
-				case Integer16:
-					return int16(decoded)
-				case Integer8:
-					return int8(decoded)
-				default:
-					return decoded
-				}
-			}
-
-		case Float64, Float32:
-			if decoded, err := strconv.ParseFloat(a.Name, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				if a.DataType == Float32 {
-					return float32(decoded)
-				} else {
-					return decoded
-				}
-			}
-
-		case Unsigned64, Unsigned32, Unsigned16, Unsigned8:
-			if decoded, err := strconv.ParseUint(a.Name, 10, a.DataType.bitSize()); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				switch a.DataType {
-				case Unsigned32:
-					return uint32(decoded)
-				case Unsigned16:
-					return uint16(decoded)
-				case Unsigned8:
-					return uint8(decoded)
-				default:
-					return decoded
-				}
-			}
-
-		case Boolean:
-			if decoded, err := strconv.ParseBool(a.Name); err != nil {
-				panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, intermediateCodeAddressParsingError, a, err))
-			} else {
-				return decoded
-			}
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	case Variable, Register:
-		switch a.DataType {
-		case Integer64, Integer32, Integer16, Integer8, Float64, Float32, Unsigned64, Unsigned32, Unsigned16, Unsigned8, Boolean:
-			return nil
-
-		default:
-			panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
-		}
-
-	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
-	}
-}
-
-// Validate the set of address variants for a three-address code operation and return the index of the contract.
+// Validate the set of addresses for a three-address code operation and return the index of the contract.
 func (q *Quadruple) ValidateAddressesContract() AddressesContract {
-	contract := intermediateCodeContract[q.Operation]
+	// validate each address in the quadruple
+	q.Arg1.Validate()
+	q.Arg2.Validate()
+	q.Result.Validate()
 
+	// determine the contract for the operation
+	contract := intermediateCodeContract[q.Operation]
+	
+	// check whether the addresses of the operation match any of its contracts
 	for _, addresses := range contract {
 		if addresses.Arg1 == q.Arg1.Variant && addresses.Arg2 == q.Arg2.Variant && addresses.Result == q.Result.Variant {
 			return addresses
@@ -412,6 +336,20 @@ func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	}
 
 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
+}
+
+// Validate data types for a three-address code address and return a boolean indicating whether the address is valid.
+func (a *Address) Validate() bool {
+	switch a.Variant {
+	case Empty:
+		return a.DataType.IsUntyped()
+
+	case Register, Literal, Variable:
+		return a.DataType.IsSupported()
+
+	default:
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+	}
 }
 
 // Get the instruction at the current position in the list.
@@ -497,24 +435,4 @@ func (i *iterator) Peek(offset int) *Instruction {
 	}
 
 	return element.Value.(*Instruction)
-}
-
-// Determine the bit size of a datatype or return -1 if there is no defined bit size.
-func (dataType DataType) bitSize() int {
-	switch dataType {
-	case Integer64, Float64, Unsigned64:
-		return 64
-
-	case Integer32, Float32, Unsigned32, Character:
-		return 32
-
-	case Integer16, Unsigned16:
-		return 16
-
-	case Integer8, Unsigned8, Boolean:
-		return 8
-
-	default:
-		return -1 // no defined bit size for this datatype
-	}
 }
