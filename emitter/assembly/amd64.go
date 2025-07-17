@@ -61,8 +61,6 @@ const (
 	Mulss   // multiplies two scalar single-precision floats
 	Divsd   // divides one scalar double-precision float by another
 	Divss   // divides one scalar single-precision float by another
-
-	StdCall // to be removed, used for calling standard library functions
 )
 
 // Register enumeration for the 256 bit, 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the AMD64 CPU.

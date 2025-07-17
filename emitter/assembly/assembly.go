@@ -82,12 +82,11 @@ type (
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
-		Kind      OperandKind     `json:"kind"`          // kind of the operand
-		Register  Register        `json:"register"`      // register with various bit sizes
-		Immediate ImmediateDetail `json:"value"`         // additional details about the immediate operand
-		Memory    MemoryDetail    `json:"memory_detail"` // additional details about the memory operand
-		Label     string          `json:"label"`         // labels for jump instructions will be replaced by an address
-		Jump      uint64          `json:"jump"`          // destinations for jump instructions are specified as absolute addresses
+		Kind      OperandKind  `json:"kind"`          // kind of the operand
+		Register  Register     `json:"register"`      // register with various bit sizes
+		Immediate any          `json:"immediate"`     // value of the immediate operand
+		Memory    MemoryDetail `json:"memory_detail"` // additional details about the memory operand
+		Label     string       `json:"label"`         // labels for jump instructions will be replaced by an address
 	}
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
@@ -96,12 +95,6 @@ type (
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
 		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
-	}
-
-	// Additional details about the bit size and value of immediate operands.
-	ImmediateDetail struct {
-		Size  OperandSize `json:"size"`  // bit size of the value
-		Value any         `json:"value"` // value of the immediate operand
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -143,8 +136,8 @@ func NewRegisterOperand(register Register) *Operand {
 }
 
 // Create a new immediate operand for an assembly instruction.
-func NewImmediateOperand(size OperandSize, value any) *Operand {
-	return &Operand{Kind: ImmediateOperand, Immediate: ImmediateDetail{Size: size, Value: value}}
+func NewImmediateOperand(value any) *Operand {
+	return &Operand{Kind: ImmediateOperand, Immediate: value}
 }
 
 // Ceate a new memory operand for an assembly instruction.
@@ -179,7 +172,7 @@ func (o *Operand) String() string {
 		return o.Register.String()
 
 	case ImmediateOperand:
-		return fmt.Sprintf("%v", o.Immediate.Value)
+		return fmt.Sprintf("%v", o.Immediate)
 
 	case MemoryOperand:
 		if o.Memory.Displacement != 0 {

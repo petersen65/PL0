@@ -72,7 +72,6 @@ var (
 		Mulss:   "mulss",
 		Divsd:   "divsd",
 		Divss:   "divss",
-		StdCall: "stdcall",
 	}
 
 	// Map CPU registers to their string representation.
@@ -288,13 +287,13 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 			mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
 			ret 									 # return to caller with rax = static link result
 	*/
-	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(0)))
+	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(int32(0)))
 	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
 	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rdx), NewMemoryOperand(Rsi, Bits64, -PointerSize))
 	a.AppendInstruction(Test, nil, NewRegisterOperand(Rdx), NewRegisterOperand(Rdx))
 	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
 	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewRegisterOperand(Rdx))
-	a.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(Bits32, int32(1)))
+	a.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
 	a.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
 	a.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
 	a.AppendInstruction(Ret, nil)

@@ -183,7 +183,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 		i.intermediateCode.AppendInstruction(instruction)
 	} else {
-		// return from other blocks with no result
+		// return from other blocks
 		i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Return, noAddress, noAddress, noAddress, 0))
 	}
 
