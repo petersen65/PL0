@@ -193,7 +193,7 @@ func (e *emitter) Emit() {
 		case ic.Plus, ic.Minus, ic.Times, ic.Divide: // perform an arithmetic operation on the top two elements of the call stack and replace them with one result on the stack
 			// extract the data type of the first value to perform the arithmetic operation on
 			dataType := i.Quadruple.Arg1.DataType
-		
+
 			// it is required that the first and second value are of the same data type
 			if dataType != i.Quadruple.Arg2.DataType {
 				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeInArithmeticOperation, dataType, nil))
@@ -201,7 +201,7 @@ func (e *emitter) Emit() {
 
 			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
 			if i.Quadruple.Operation == ic.Divide && dataType.IsInteger() {
-				e.integerDivide(dataType, l)
+				e.divideInteger(dataType, l)
 			} else {
 				e.arithmeticOperation(dataType, i.Quadruple.Operation, l)
 			}
@@ -209,7 +209,7 @@ func (e *emitter) Emit() {
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the call stack, remove them, and leave the result in the CPU flags register
 			// extract the data type of the first value to perform the comparison operation on
 			dataType := i.Quadruple.Arg1.DataType
-		
+
 			// it is required that the first and second value are of the same data type
 			if dataType != i.Quadruple.Arg2.DataType {
 				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeInComparisonOperation, dataType, nil))
@@ -238,20 +238,15 @@ func (e *emitter) Emit() {
 		case ic.Parameter: // push a parameter onto the compile-time parameters list for a function call
 			parameters.PushBack(i)
 
-		case ic.Call: // call a function with 0 arguments by jumping to the function's label
+		case ic.Call: // call a function by jumping to the function's label
 			// panic if the label name is not a string
 			name := i.Quadruple.Arg1.Value.(string)
 
-			// extract the depth difference between function call and function declaration
+			// extract the depth difference between function call and function declaration and panic if it is not a signed integer
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
-			// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
-			e.assemblyCode.AppendInstruction(ac.Mov, l,
-				ac.NewRegisterOperand(ac.R10d),
-				ac.NewImmediateOperand(ac.Bits32, int32(depthDifference)))
-
-			// push return address on call stack and jump to callee
-			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(name))
+			// emit assembly code to call the function with the given name
+			e.callFunction(name, depthDifference, l)
 
 		case ic.Return: // return from a function to its caller
 			// check if the function has a literal return value
@@ -854,7 +849,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 }
 
 // Perform the arithmetic operation 'Divide' on the top two elements of the call stack and replace them with one result on the stack.
-func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
+func (e *emitter) divideInteger(dataType ic.DataType, labels []string) {
 	// depending on the data type, the top two elements of the call stack are popped into the correct registers and the division operation is performed
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
@@ -1073,4 +1068,25 @@ func (e *emitter) conditionalJump(comparisonType ac.ComparisonType, jump ic.Oper
 
 	// emit assembly code for the conditional jump instruction
 	e.assemblyCode.AppendInstruction(opcode, labels, ac.NewLabelOperand(name))
+}
+
+func (e *emitter) callFunction(name string, depthDifference int32, labels []string) {
+	// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
+	e.assemblyCode.AppendInstruction(ac.Mov, labels,
+		ac.NewRegisterOperand(ac.R10d),
+		ac.NewImmediateOperand(ac.Bits32, depthDifference))
+
+	// push return address on call stack and jump to callee
+	e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(name))
+}
+
+func (e *emitter) returnFromFunction(dataType ic.DataType, value any, labels []string) {
+	// depending on the data type, the return value is moved into to correct register
+	switch dataType {
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+	}
+
+	e.assemblyCode.AppendInstruction(ac.Ret, nil)
 }
