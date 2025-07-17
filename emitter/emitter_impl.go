@@ -111,7 +111,7 @@ func (e *emitter) Emit() {
 	iterator := e.intermediateCode.GetIterator()
 	comparison := ac.ComparisonNone
 
-	// compile-time parameters list for standard library function calls (procedures do not support parameters yet)
+	// compile-time parameters list for function calls
 	parameters := list.New()
 
 	// perform an assembly instruction selection for each intermediate code instruction
@@ -121,12 +121,12 @@ func (e *emitter) Emit() {
 
 		switch i.Quadruple.Operation {
 		case ic.BranchTarget: // target for any branching operation
-			// append labels for the directly following non 'Target' instruction
+			// append labels for the directly following non 'BranchTarget' instruction
 			l = append(l, i.Quadruple.Result.Value.(string))
 
 		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
 			// emit assembly code to allocate space for local variables in the activation record
-			e.allocateVariable(iterator, l)
+			e.allocateVariables(iterator, l)
 
 		case ic.Prologue: // function entry sequence
 			// emit assembly code to prepare the activation record for the function call
@@ -137,60 +137,67 @@ func (e *emitter) Emit() {
 			e.epilogue(l)
 
 		case ic.Setup: // initialize logical memory space and internal data structures
-			// panic if parsing of the metadata into its value fails (unsupported value or data type)
-			depth := i.Quadruple.Arg1.Parse().(int32)
+			// panic if the depth of the block is not a valid signed integer
+			depth := i.Quadruple.Arg1.Value.(int32)
 
 			// emit assembly code to setup a function call
 			e.setup(depth)
 
 		case ic.CopyLiteral: // copy an immediate value to an address
-			// panic if parsing of the literal into its value fails (unsupported value or data type)
-			value := i.Quadruple.Arg1.Parse()
+			// extract the literal value from the quadruple
+			literal := i.Quadruple.Arg1.Value
 
-			// emit assembly code to copy the value onto the top of the call stack
-			e.valueCopy(i.Quadruple.Arg1.DataType, value, l)
+			// emit assembly code to copy the literal onto the top of the call stack
+			e.copyLiteral(i.Quadruple.Arg1.DataType, literal, l)
 
 		case ic.LoadVariable: // load a variable from its call stack address onto the top of the stack
-			// panic if parsing of the variable into nil fails (unsupported data type)
-			i.Quadruple.Arg1.Parse()
+			// extract the data type of the variable
+			dataType := i.Quadruple.Arg1.DataType
 
 			// determine offset of the local variable in its activation record
 			offset := e.offsetTable[i.Quadruple.Arg1.Name]
 
+			// extract the depth difference between variable use and variable declaration
+			depthDifference := i.Quadruple.Arg2.Value.(int32)
+
 			// emit assembly code to load the variable onto the call stack
-			e.variableLoad(i.Quadruple.Arg1.DataType, offset, i.DepthDifference, l)
+			e.loadVariable(dataType, offset, depthDifference, l)
 
 		case ic.StoreVariable: // store the top of the call stack into a variable's stack address
-			// panic if parsing of the variable into nil fails (unsupported data type)
-			i.Quadruple.Result.Parse()
+			// extract the data type of the variable
+			dataType := i.Quadruple.Result.DataType
 
 			// determine offset of the local variable in its activation record
 			offset := e.offsetTable[i.Quadruple.Result.Name]
 
+			// extract the depth difference between variable use and variable declaration
+			depthDifference := i.Quadruple.Arg2.Value.(int32)
+
 			// emit assembly code to store the top of the call stack into the variable's activation record
-			e.variableStore(i.Quadruple.Result.DataType, offset, i.DepthDifference, l)
+			e.storeVariable(dataType, offset, depthDifference, l)
 
 		case ic.Negate: // negate the top of the call stack and leave the result on the stack
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Quadruple.Arg1.Parse()
+			// extract the data type of the value to negate
+			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to negate the top of the call stack
-			e.negate(i.Quadruple.Arg1.DataType, l)
+			e.negate(dataType, l)
 
 		case ic.Odd: // check if the top of the call stack is an odd number and set the Zero Flag (ZF clear if odd, set if even)
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Quadruple.Arg1.Parse()
+			// extract the data type of the value to check for oddness
+			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to check if the top of the call stack is odd
-			e.odd(i.Quadruple.Arg1.DataType, l)
+			e.odd(dataType, l)
 
 		case ic.Plus, ic.Minus, ic.Times, ic.Divide: // perform an arithmetic operation on the top two elements of the call stack and replace them with one result on the stack
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Quadruple.Arg1.Parse()
-			_ = i.Quadruple.Arg2.Parse()
-
-			// it is required that both temporaries are of the same data type
+			// extract the data type of the first value to perform the arithmetic operation on
 			dataType := i.Quadruple.Arg1.DataType
+		
+			// it is required that the first and second value are of the same data type
+			if dataType != i.Quadruple.Arg2.DataType {
+				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeInArithmeticOperation, dataType, nil))
+			}
 
 			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
 			if i.Quadruple.Operation == ic.Divide && dataType.IsInteger() {
@@ -200,26 +207,27 @@ func (e *emitter) Emit() {
 			}
 
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the call stack, remove them, and leave the result in the CPU flags register
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Quadruple.Arg1.Parse()
-			_ = i.Quadruple.Arg2.Parse()
-
-			// it is required that both temporaries are of the same data type
+			// extract the data type of the first value to perform the comparison operation on
 			dataType := i.Quadruple.Arg1.DataType
+		
+			// it is required that the first and second value are of the same data type
+			if dataType != i.Quadruple.Arg2.DataType {
+				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeInComparisonOperation, dataType, nil))
+			}
 
 			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
 			comparison = e.compare(dataType, l)
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Quadruple.Arg1.Parse().(string)
+			// panic if the label name is not a string
+			name := i.Quadruple.Arg1.Value.(string)
 
 			// emit assembly code to perform an unconditional jump to the specified label
 			e.unconditionalJump(name, l)
 
 		case ic.JumpEqual, ic.JumpNotEqual, ic.JumpLess, ic.JumpLessEqual, ic.JumpGreater, ic.JumpGreaterEqual: // conditional jump to a label resolved at link-time based on the CPU flags set by the previous comparison
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Quadruple.Arg1.Parse().(string)
+			// panic if the label name is not a string
+			name := i.Quadruple.Arg1.Value.(string)
 
 			// emit assembly code to perform a conditional jump based on the CPU flags set by the previous comparison
 			e.conditionalJump(comparison, i.Quadruple.Operation, name, l)
@@ -227,42 +235,29 @@ func (e *emitter) Emit() {
 			// reset the comparison type after a conditional jump
 			comparison = ac.ComparisonNone
 
-		case ic.Parameter: // push a parameter onto the compile-time parameters list for a standard library function call
-			// panic if parsing of the temporary into nil fails (unsupported data type)
-			_ = i.Quadruple.Arg1.Parse()
+		case ic.Parameter: // push a parameter onto the compile-time parameters list for a function call
 			parameters.PushBack(i)
 
 		case ic.Call: // call a function with 0 arguments by jumping to the function's label
-			// panic if parsing of the parameters count into an unsigned integer fails (unsupported value or data type)
-			count := i.Quadruple.Arg1.Parse().(uint64)
+			// panic if the label name is not a string
+			name := i.Quadruple.Arg1.Value.(string)
 
-			// panic if parsing of the label into a string fails (unsupported data type)
-			name := i.Quadruple.Arg2.Parse().(string)
+			// extract the depth difference between function call and function declaration
+			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
-			if count != 0 {
-				// procedures do not support parameters yet
-				panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unexpectedNumberOfFunctionArguments, nil, nil))
-			} else {
-				// push difference between use depth and declaration depth on call stack
-				// e.assemblyCode.AppendInstruction(ac.Push, l, ac.NewImmediateOperand(ac.Bits64, int64(i.DepthDifference)))
+			// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
+			e.assemblyCode.AppendInstruction(ac.Mov, l,
+				ac.NewRegisterOperand(ac.R10d),
+				ac.NewImmediateOperand(ac.Bits32, int32(depthDifference)))
 
-				// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
-				e.assemblyCode.AppendInstruction(ac.Mov, l,
-					ac.NewRegisterOperand(ac.R10d),
-					ac.NewImmediateOperand(ac.Bits32, int32(i.DepthDifference)))
-
-				// push return address on call stack and jump to callee
-				e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(name))
-
-				// remove difference from call stack after return from callee
-				// e.assemblyCode.AppendInstruction(ac.Add, nil, ac.NewRegisterOperand(ac.Rsp), ac.NewImmediateOperand(ac.Bits64, int64(1)))
-			}
+			// push return address on call stack and jump to callee
+			e.assemblyCode.AppendInstruction(ac.Call, nil, ac.NewLabelOperand(name))
 
 		case ic.Return: // return from a function to its caller
 			// check if the function has a literal return value
 			if c.Arg1 == ic.Literal {
-				// panic if parsing of the literal into its value fails (unsupported value or data type)
-				value := i.Quadruple.Arg1.Parse().(int32)
+				// panic if the literal value is not a signed integer
+				value := i.Quadruple.Arg1.Value.(int32)
 
 				// move the literal return value into the EAX register as the return value of the function (what the C runtime expects)
 				e.assemblyCode.AppendInstruction(ac.Mov, nil, ac.NewRegisterOperand(ac.Eax), ac.NewImmediateOperand(ac.Bits32, value))
@@ -287,7 +282,7 @@ func (e *emitter) GetAssemblyCodeUnit() ac.AssemblyCodeUnit {
 }
 
 // Allocate space for local variables in the activation record of a function and remember their offsets.
-func (e *emitter) allocateVariable(iterator ic.Iterator, labels []string) {
+func (e *emitter) allocateVariables(iterator ic.Iterator, labels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
 		if iterator.Peek(j).Quadruple.Operation == ic.AllocateVariable {
@@ -308,7 +303,7 @@ func (e *emitter) allocateVariable(iterator ic.Iterator, labels []string) {
 
 			// align the offset for the variable's alignment requirement
 			alignment := dataTypeAlignment[result.DataType.AsPlain()]
-			offset = ac.Align(offset - byteSize, alignment)
+			offset = ac.Align(offset-byteSize, alignment)
 
 			// remember offset of the local variable in its activation record
 			e.offsetTable[result.Name] = offset
@@ -365,7 +360,7 @@ func (e *emitter) setup(depth int32) {
 }
 
 // Copy an immediate value onto the top of the call stack.
-func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
+func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) {
 	// depending on the data type, the value is copied onto the call stack as an immediate value or as a 64-bit value in the R10 register
 	switch dataType {
 	case ic.Integer64:
@@ -452,7 +447,7 @@ func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 		// push the 64-bit R10 register onto the call stack (32-bit float value was zero-extended to 64 bits)
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
-	case ic.Unicode:
+	case ic.Character:
 		// convert the Unicode code point to a 32-bit signed integer before pushing it onto the call stack
 		e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits32, int32(value.(rune))))
 
@@ -464,11 +459,15 @@ func (e *emitter) valueCopy(dataType ic.DataType, value any, labels []string) {
 		} else {
 			e.assemblyCode.AppendInstruction(ac.Push, labels, ac.NewImmediateOperand(ac.Bits8, uint8(0)))
 		}
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
 // Load a variable from its activation record onto the top of the call stack.
-func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int32, labels []string) {
+func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int32, labels []string) {
 	var basePointer ac.Register
 
 	// determine the correct activation record from which to load the variable
@@ -500,7 +499,7 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
 
-	case ic.Integer32, ic.Unicode:
+	case ic.Integer32, ic.Character:
 		// move the 32-bit signed integer/rune from the activation record into the R10 register and sign-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(ac.Movsxd, labels,
 			ac.NewRegisterOperand(ac.R10),
@@ -556,11 +555,15 @@ func (e *emitter) variableLoad(dataType ic.DataType, offset, depthDifference int
 		// push the R10 register onto the call stack
 		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.R10))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
 // Store the top of the call stack into a variable's activation record.
-func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference int32, labels []string) {
+func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference int32, labels []string) {
 	var basePointer ac.Register
 
 	// determine the correct activation record to which to store the variable
@@ -592,7 +595,7 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 			ac.NewMemoryOperand(basePointer, ac.Bits64, offset),
 			ac.NewRegisterOperand(ac.R10))
 
-	case ic.Integer32, ic.Unsigned32, ic.Float32, ic.Unicode:
+	case ic.Integer32, ic.Unsigned32, ic.Float32, ic.Character:
 		// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits32, offset),
@@ -609,6 +612,10 @@ func (e *emitter) variableStore(dataType ic.DataType, offset, depthDifference in
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(basePointer, ac.Bits8, offset),
 			ac.NewRegisterOperand(ac.R10b))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
@@ -682,6 +689,10 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.DoubleWordSize),
 			ac.NewImmediateOperand(ac.Bits32, 0))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
@@ -696,6 +707,10 @@ func (e *emitter) odd(dataType ic.DataType, labels []string) {
 
 		// test the least significant bit to determine oddness (64-bit 'Test' instruction is sufficient)
 		e.assemblyCode.AppendInstruction(ac.Test, nil, ac.NewRegisterOperand(ac.R10), ac.NewImmediateOperand(ac.Bits64, uint64(1)))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
@@ -831,6 +846,10 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 		e.assemblyCode.AppendInstruction(ac.Mov, nil,
 			ac.NewMemoryOperand(ac.Rsp, ac.Bits32, ac.DoubleWordSize),
 			ac.NewImmediateOperand(ac.Bits32, 0))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
@@ -876,6 +895,10 @@ func (e *emitter) integerDivide(dataType ic.DataType, labels []string) {
 
 		// push the result onto the stack (quotient)
 		e.assemblyCode.AppendInstruction(ac.Push, nil, ac.NewRegisterOperand(ac.Rax))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 }
 
@@ -886,7 +909,7 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) ac.ComparisonTy
 	// depending on the data type, evaluate the comparison type for the conditional jump instructions
 	// note: the comparison type is used to determine how the CPU flags are interpreted by following conditional jump instructions
 	switch dataType {
-	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unicode:
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Character:
 		comparisonType = ac.ComparisonIntegerSigned
 
 	case ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
@@ -894,11 +917,15 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) ac.ComparisonTy
 
 	case ic.Float64, ic.Float32:
 		comparisonType = ac.ComparisonFloat
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 
 	// depending on the data type, the top two elements of the call stack are popped into the correct registers and compared
 	switch dataType {
-	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unicode, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
+	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Character, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8, ic.Boolean:
 		// pop the right-hand integer value from the call stack into the R11 register
 		// note: all integer values must be extended to 64 bits before arithmetic operations
 		//       - sign-extended for signed integers (includes Unicode)
@@ -959,6 +986,10 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) ac.ComparisonTy
 		// note: the 'Ucomiss' instruction compares the two values and sets the CPU flags accordingly
 		//       it does not raise an exception for NaN values, but sets the CPU flags to indicate unordered comparisons
 		e.assemblyCode.AppendInstruction(ac.Ucomiss, nil, ac.NewRegisterOperand(ac.Xmm0), ac.NewRegisterOperand(ac.Xmm1))
+
+	default:
+		// panic if the data type is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 	}
 
 	// return the comparison type that was used to set the CPU flags
@@ -1034,6 +1065,10 @@ func (e *emitter) conditionalJump(comparisonType ac.ComparisonType, jump ic.Oper
 			// note: valid for signed integers (SF=OF)
 			opcode = ac.Jge
 		}
+
+	default:
+		// panic if the jump operation is not supported for the intermediate code operation
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedJumpOperationForConditionalJump, jump, nil))
 	}
 
 	// emit assembly code for the conditional jump instruction
