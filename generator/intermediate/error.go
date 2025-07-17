@@ -9,23 +9,21 @@ import cor "github.com/petersen65/PL0/v2/core"
 const (
 	_ cor.Failure = iota + 6000
 	invalidAddressesContract
-	unsupportedDataTypeInIntermediateCodeAddress
+	invalidIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress
 	unknownInstructionOption
 	unknownDataTypeRepresentation
-	intermediateCodeAddressParsingError
 	unknownExportFormat
 	intermediateCodeExportFailed
 )
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	invalidAddressesContract:                     "invalid addresses contract: %v",
-	unsupportedDataTypeInIntermediateCodeAddress: "unsupported datatype in intermediate code address: %v",
-	unexceptedVariantInIntermediateCodeAddress:   "unexcepted variant in intermediate code address: %v",
-	unknownInstructionOption:                     "unknown instruction option: %v",
-	unknownDataTypeRepresentation:                "unknown datatype representation: %v",
-	intermediateCodeAddressParsingError:          "value of intermediate code address cannot be parsed: %v",
-	unknownExportFormat:                          "unknown export format: %v",
-	intermediateCodeExportFailed:                 "failed to export intermediate code",
+	invalidAddressesContract:                   "invalid addresses contract: %v",
+	invalidIntermediateCodeAddress:             "invalid intermediate code address: %v",
+	unexceptedVariantInIntermediateCodeAddress: "unexcepted variant in intermediate code address: %v",
+	unknownInstructionOption:                   "unknown instruction option: %v",
+	unknownDataTypeRepresentation:              "unknown datatype representation: %v",
+	unknownExportFormat:                        "unknown export format: %v",
+	intermediateCodeExportFailed:               "failed to export intermediate code",
 }

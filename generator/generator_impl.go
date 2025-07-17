@@ -173,15 +173,28 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
+		// return value of the main block, which is always 0
+		returnValue := int32(0)
+
+		// create a copy-literal instruction to store the return value in a virtual register
+		copyLiteral := ic.NewInstruction(
+			ic.CopyLiteral, // copy the value of the literal to a virtual register
+			ic.NewLiteralAddress(ic.Integer32, returnValue), // literal value for the return value
+			noAddress,
+			ic.NewRegisterAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+			0)
+
 		// return from the main block with a final result
-		instruction := ic.NewInstruction(
+		returnFromMain := ic.NewInstruction(
 			ic.Return,
-			ic.NewLiteralAddress(ic.Integer32, int32(0)), // final result of the main block
+			ic.NewRegisterAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name),
 			noAddress,
 			noAddress,
 			0)
 
-		i.intermediateCode.AppendInstruction(instruction)
+		// append the instructions to the intermediate code unit
+		i.intermediateCode.AppendInstruction(copyLiteral)
+		i.intermediateCode.AppendInstruction(returnFromMain)
 	} else {
 		// return from other blocks
 		i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Return, noAddress, noAddress, noAddress, 0))

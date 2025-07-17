@@ -32,10 +32,10 @@ type (
 var (
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
-		Empty:    "ety",
-		Register: "reg",
-		Literal:  "lit",
-		Variable: "var",
+		Empty:    "empty",
+		Register: "register",
+		Literal:  "literal",
+		Variable: "variable",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -168,7 +168,7 @@ var (
 		},
 		Return: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
+			{Arg1: Register, Arg2: Empty, Result: Empty},
 		},
 		BranchTarget: {
 			{Arg1: Empty, Arg2: Empty, Result: Literal},
@@ -321,13 +321,13 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 // Validate the set of addresses for a three-address code operation and return the index of the contract.
 func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	// validate each address in the quadruple
-	q.Arg1.Validate()
-	q.Arg2.Validate()
-	q.Result.Validate()
+	if !q.Arg1.Validate() || !q.Arg2.Validate() || !q.Result.Validate() {
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidIntermediateCodeAddress, q, nil))
+	}
 
 	// determine the contract for the operation
 	contract := intermediateCodeContract[q.Operation]
-	
+
 	// check whether the addresses of the operation match any of its contracts
 	for _, addresses := range contract {
 		if addresses.Arg1 == q.Arg1.Variant && addresses.Arg2 == q.Arg2.Variant && addresses.Result == q.Result.Variant {
@@ -338,7 +338,7 @@ func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
 }
 
-// Validate data types for a three-address code address and return a boolean indicating whether the address is valid.
+// Validate variants and data types for a three-address code address and return a boolean indicating whether the address is valid.
 func (a *Address) Validate() bool {
 	switch a.Variant {
 	case Empty:
@@ -348,7 +348,7 @@ func (a *Address) Validate() bool {
 		return a.DataType.IsSupported()
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unsupportedDataTypeInIntermediateCodeAddress, a, nil))
+		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
 	}
 }
 

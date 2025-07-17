@@ -277,8 +277,13 @@ func (e *emitter) Emit() {
 			e.callFunction(name, depthDifference, l)
 
 		case ic.Return: // return from a function to its caller
-			// emit assembly code to return from the function with our without a return value
-			e.returnFromFunction(i.Quadruple.Arg1.DataType, l)
+			if c.Arg1 == ic.Register {
+				// emit assembly code to return from the function with a return value
+				e.returnFromFunction(i.Quadruple.Arg1.DataType, l)
+			} else {
+				// emit assembly code to return from the function without a return value
+				e.returnFromFunction(ic.Untyped, l)
+			}
 
 		default:
 			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Quadruple.Operation, nil))
