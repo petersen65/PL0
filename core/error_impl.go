@@ -92,7 +92,7 @@ var (
 		Intermediate:       "intermediate",
 		ControlFlowGraph:   "cfg",
 		Emitter:            "emitter",
-		Assembly:           "assembly",
+		Amd64:              "amd64",
 	}
 )
 

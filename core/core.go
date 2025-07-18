@@ -67,7 +67,7 @@ const (
 	Intermediate
 	ControlFlowGraph
 	Emitter
-	Assembly
+	Amd64
 	AllComponents = Component(^uint64(0))
 )
 

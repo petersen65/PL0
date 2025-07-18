@@ -182,6 +182,102 @@ func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	}
 }
 
+// String representation of an operand kind of CPU operations.
+func (o *Operand) string() string {
+	switch o.Kind {
+	case RegisterOperand:
+		return o.Register.String()
+
+	case ImmediateOperand:
+		return fmt.Sprintf("%v", o.Immediate)
+
+	case MemoryOperand:
+		if o.Memory.Displacement != 0 {
+			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Register, o.Memory.Displacement)
+		}
+
+		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Register)
+
+	case LabelOperand:
+		return o.Label
+
+	default:
+		panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
+	}
+}
+
+// String representation of an assembly instruction.
+func (i *Instruction) string() string {
+	// create a string builder to efficiently build the string representation
+	var builder strings.Builder
+
+	// write the labels first
+	for _, label := range i.Labels {
+		builder.WriteString(label)
+		builder.WriteString(":\n")
+	}
+
+	// write the prefix and operation code
+	builder.WriteString(fmt.Sprintf("  %-12v", strings.TrimSpace(fmt.Sprintf("%v %v", i.Prefix, i.Operation))))
+
+	// write the operands
+	for _, op := range i.Operands {
+		builder.WriteString(op.String())
+		builder.WriteString(", ")
+	}
+
+	return strings.TrimSuffix(builder.String(), ", ")
+}
+
+// String representation of a read-only data item.
+func (rdi *ReadOnlyDataItem) string() string {
+	// create a string builder to efficiently build the string representation
+	var builder strings.Builder
+
+	// write the labels first
+	for _, label := range rdi.Labels {
+		builder.WriteString(label)
+		builder.WriteString(":\n")
+	}
+
+	// encode different kinds of read-only data
+	switch rdi.Kind {
+	case ReadOnlyUtf32:
+		var utf32 []rune
+
+		// encode to UTF-32 string based on the Go data type
+		switch v := rdi.Value.(type) {
+		case string:
+			utf32 = []rune(v)
+
+		case []rune:
+			utf32 = v
+
+		default:
+			panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
+		}
+
+		for _, r := range utf32 {
+			builder.WriteString(fmt.Sprintf("    .long 0x%08X\n", r))
+		}
+
+	case ReadOnlyInt64:
+		// encode to 64-bit integer based on supported Go data types
+		switch v := rdi.Value.(type) {
+		case int64, uint64:
+			builder.WriteString(fmt.Sprintf("    .quad 0x%016X\n", v))
+
+		default:
+			panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
+		}
+
+	default:
+		panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, unknownKindOfReadOnlyData, rdi.Kind, nil))
+	}
+
+	return builder.String()
+}
+
 // String representation of a rodata section.
 func (rs rodataSection) String() string {
 	// if the rodata section is empty, return an empty string
@@ -383,12 +479,12 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	}
 
 	if _, err := fmt.Fprint(print, header); err != nil {
-		return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		return cor.NewGeneralError(cor.Amd64, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 	}
 
 	for _, instr := range a.textSection {
 		if _, err := fmt.Fprintf(print, "%v\n", instr); err != nil {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Amd64, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
@@ -403,12 +499,12 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 		if raw, err := json.MarshalIndent(struct {
 			TextSection []*Instruction `json:"text_section"`
 		}{TextSection: a.textSection}, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+			return cor.NewGeneralError(cor.Amd64, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.Assembly, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+				err = cor.NewGeneralError(cor.Amd64, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 			}
 
 			return err
@@ -424,10 +520,10 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 			return a.Print(print, CreateStaticLinkLabel, FollowStaticLinkLabel)
 
 		default:
-			panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownExportFormat, a.outputKind, nil))
+			panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, unknownExportFormat, a.outputKind, nil))
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(cor.NewGeneralError(cor.Amd64, failureMap, cor.Fatal, unknownExportFormat, format, nil))
 	}
 }

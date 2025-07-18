@@ -5,10 +5,7 @@
 package amd64
 
 import (
-	"bytes"
-	"fmt"
 	"io"
-	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
 )
@@ -28,40 +25,40 @@ const (
 	None OperationCode = iota
 
 	// instruction set architecture: ISA_Base
-	Push    // pushes a register or immediate value onto the stack; decrements RSP by operand size
-	Pop     // pops the top value from the stack into a register or memory; increments RSP by operand size
-	Cmp     // subtracts source from destination, updates CPU flags for comparisons; result is discarded
-	Test    // performs bitwise AND between operands, updates CPU flags for bit tests; result is discarded
-	Cld     // clears the Direction Flag (DF) to make string operations increment address registers
-	Rep     // repeats the following string instruction until RCX == 0
-	Stosq   // stores RAX to [RDI]; increments or decrements RDI by 8 depending on DF
-	Mov     // copies data from source to destination without modifying the source
-	MovAbs  // moves a 64-bit immediate constant into a 64-bit register (required for full 64-bit immediates)
-	Movsxd  // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
-	Movsx   // sign-extends a smaller integer operand to a larger register size
-	Movzx   // zero-extends a smaller integer operand to a larger register size
-	Jmp     // performs an unconditional jump to a label or address
-	Je      // jumps if Zero Flag (ZF) is set, meaning operands were equal
-	Jne     // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
-	Jl      // jumps if Sign Flag ≠ Overflow Flag, meaning destination < source (signed)
-	Jle     // jumps if Zero Flag is set or Sign Flag ≠ Overflow Flag, meaning destination ≤ source (signed)
-	Jg      // jumps if Zero Flag is clear and Sign Flag == Overflow Flag, meaning destination > source (signed)
-	Jge     // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
-	Jb      // jumps if Carry Flag (CF) is set, meaning destination < source (unsigned)
-	Jbe     // jumps if Zero Flag is set or Carry Flag is set, meaning destination ≤ source (unsigned)
-	Ja      // jumps if Zero Flag is clear and Carry Flag is clear, meaning destination > source (unsigned)
-	Jae     // jumps if Carry Flag is clear, meaning destination ≥ source (unsigned)
-	Neg     // negates the operand (two’s complement), equivalent to subtracting it from zero
-	And     // performs bitwise AND between destination and source; result stored in destination
-	Xor     // performs bitwise XOR between destination and source; result stored in destination
-	Cqo     // sign-extend RAX into the 128-bit dividend in RDX:RAX; required before IDIV for signed 64-bit division
-	Add     // adds source to destination; result stored in destination
-	Sub     // subtracts source from destination; result stored in destination
-	Imul    // multiplies two signed integers; result stored in destination
-	Div     // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
-	Idiv    // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
-	Call    // pushes return address onto the stack and jumps to a subroutine
-	Ret     // pops return address from the stack and jumps to it, returning from a subroutine
+	Push   // pushes a register or immediate value onto the stack; decrements RSP by operand size
+	Pop    // pops the top value from the stack into a register or memory; increments RSP by operand size
+	Cmp    // subtracts source from destination, updates CPU flags for comparisons; result is discarded
+	Test   // performs bitwise AND between operands, updates CPU flags for bit tests; result is discarded
+	Cld    // clears the Direction Flag (DF) to make string operations increment address registers
+	Rep    // repeats the following string instruction until RCX == 0
+	Stosq  // stores RAX to [RDI]; increments or decrements RDI by 8 depending on DF
+	Mov    // copies data from source to destination without modifying the source
+	MovAbs // moves a 64-bit immediate constant into a 64-bit register (required for full 64-bit immediates)
+	Movsxd // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
+	Movsx  // sign-extends a smaller integer operand to a larger register size
+	Movzx  // zero-extends a smaller integer operand to a larger register size
+	Jmp    // performs an unconditional jump to a label or address
+	Je     // jumps if Zero Flag (ZF) is set, meaning operands were equal
+	Jne    // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
+	Jl     // jumps if Sign Flag ≠ Overflow Flag, meaning destination < source (signed)
+	Jle    // jumps if Zero Flag is set or Sign Flag ≠ Overflow Flag, meaning destination ≤ source (signed)
+	Jg     // jumps if Zero Flag is clear and Sign Flag == Overflow Flag, meaning destination > source (signed)
+	Jge    // jumps if Sign Flag == Overflow Flag, meaning destination ≥ source (signed)
+	Jb     // jumps if Carry Flag (CF) is set, meaning destination < source (unsigned)
+	Jbe    // jumps if Zero Flag is set or Carry Flag is set, meaning destination ≤ source (unsigned)
+	Ja     // jumps if Zero Flag is clear and Carry Flag is clear, meaning destination > source (unsigned)
+	Jae    // jumps if Carry Flag is clear, meaning destination ≥ source (unsigned)
+	Neg    // negates the operand (two’s complement), equivalent to subtracting it from zero
+	And    // performs bitwise AND between destination and source; result stored in destination
+	Xor    // performs bitwise XOR between destination and source; result stored in destination
+	Cqo    // sign-extend RAX into the 128-bit dividend in RDX:RAX; required before IDIV for signed 64-bit division
+	Add    // adds source to destination; result stored in destination
+	Sub    // subtracts source from destination; result stored in destination
+	Imul   // multiplies two signed integers; result stored in destination
+	Div    // divides the 128-bit unsigned dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Idiv   // divides the 128-bit signed dividend in RDX:RAX by the source operand; quotient in RAX, remainder in RDX
+	Call   // pushes return address onto the stack and jumps to a subroutine
+	Ret    // pops return address from the stack and jumps to it, returning from a subroutine
 
 	// instruction set architecture: ISA_SSE2
 	Ucomisd // compares scalar double-precision floats and sets CPU flags
@@ -82,7 +79,7 @@ const (
 	Divss   // divides one scalar single-precision float by another
 )
 
-// Register enumeration for the 256 bit, 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the AMD64 CPU.
+// Register enumeration for the 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the AMD64 CPU.
 const (
 	_ Register = iota
 
@@ -205,7 +202,6 @@ const (
 const (
 	ReadOnlyUtf32 ReadOnlyDataKind = iota // UTF-32 encoded strings
 	ReadOnlyInt64                         // 64-bit integer literals (signed and unsigned)
-	ReadOnlyBytes                         // static raw byte arrays
 )
 
 // Kind of output that is produced by the assembly code.
@@ -336,50 +332,22 @@ func (s OperandSize) String() string {
 
 // String representation of an operand kind of CPU operations.
 func (o *Operand) String() string {
-	switch o.Kind {
-	case RegisterOperand:
-		return o.Register.String()
-
-	case ImmediateOperand:
-		return fmt.Sprintf("%v", o.Immediate)
-
-	case MemoryOperand:
-		if o.Memory.Displacement != 0 {
-			return fmt.Sprintf("%v ptr [%v%+d]", o.Memory.Size, o.Register, o.Memory.Displacement)
-		}
-
-		return fmt.Sprintf("%v ptr [%v]", o.Memory.Size, o.Register)
-
-	case LabelOperand:
-		return o.Label
-
-	default:
-		panic(cor.NewGeneralError(cor.Assembly, failureMap, cor.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
-	}
+	return o.string()
 }
 
 // String representation of an assembly instruction.
 func (i *Instruction) String() string {
-	var buffer bytes.Buffer
+	return i.string()
+}
 
-	for _, label := range i.Labels {
-		buffer.WriteString(label)
-		buffer.WriteString(":\n")
-	}
-
-	buffer.WriteString(fmt.Sprintf("  %-12v", strings.TrimSpace(fmt.Sprintf("%v %v", i.Prefix, i.Operation))))
-
-	for _, op := range i.Operands {
-		buffer.WriteString(op.String())
-		buffer.WriteString(", ")
-	}
-
-	return strings.TrimSuffix(buffer.String(), ", ")
+// String representation of a read-only data item.
+func (rdi *ReadOnlyDataItem) String() string {
+	return rdi.string()
 }
 
 // Check if the operation code is an ISA_Base operation code.
 func (o OperationCode) IsIsaBase() bool {
-	return o >= Push && o <= Ret 
+	return o >= Push && o <= Ret
 }
 
 // Check if the operation code is an ISA_SSE2 operation code.
