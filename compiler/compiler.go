@@ -17,7 +17,7 @@ import (
 	cfg "github.com/petersen65/PL0/v2/cfg"
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
-	ac "github.com/petersen65/PL0/v2/emitter/assembly"
+	amd "github.com/petersen65/PL0/v2/emitter/amd64"
 	gen "github.com/petersen65/PL0/v2/generator"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 	par "github.com/petersen65/PL0/v2/parser"
@@ -83,7 +83,7 @@ type (
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
-		AssemblyCode     ac.AssemblyCodeUnit     // assembly code of the intermediate code unit
+		AssemblyCode     amd.AssemblyCodeUnit    // assembly code of the intermediate code unit
 	}
 )
 
@@ -237,19 +237,19 @@ func CompileContent(content []byte, targetPlatform emi.TargetPlatform) Translati
 }
 
 // Persist the assembly code unit of the application.
-func PersistApplication(unit ac.AssemblyCodeUnit, application string) error {
+func PersistApplication(unit amd.AssemblyCodeUnit, application string) error {
 	return PersistAssemblyCodeUnit(unit, application)
 }
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(runtime string) error {
-	assemblyCode := ac.NewAssemblyCodeUnit(ac.Runtime)
+	assemblyCode := amd.NewAssemblyCodeUnit(amd.Runtime)
 	assemblyCode.AppendRuntime()
 	return PersistAssemblyCodeUnit(assemblyCode, runtime)
 }
 
 // Persist an assembly code unit to the given target file.
-func PersistAssemblyCodeUnit(unit ac.AssemblyCodeUnit, target string) error {
+func PersistAssemblyCodeUnit(unit amd.AssemblyCodeUnit, target string) error {
 	var err error
 	var output *os.File
 

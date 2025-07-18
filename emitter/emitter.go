@@ -7,7 +7,7 @@ package emitter
 import (
 	"fmt"
 
-	ac "github.com/petersen65/PL0/v2/emitter/assembly"
+	amd "github.com/petersen65/PL0/v2/emitter/amd64"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
@@ -63,7 +63,7 @@ type (
 	// The Emitter interface provides methods for emitting assembly code for the target platform.
 	Emitter interface {
 		Emit()
-		GetAssemblyCodeUnit() ac.AssemblyCodeUnit
+		GetAssemblyCodeUnit() amd.AssemblyCodeUnit
 	}
 )
 
