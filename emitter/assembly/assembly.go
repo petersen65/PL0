@@ -46,10 +46,11 @@ const (
 	ComparisonFloat                                 // floating-point comparison (Ucomisd/Ucomiss instructions)
 )
 
-// Call codes for the programming language standard library.
+// Kind of read-only data to be stored in a read-only section.
 const (
-	Readln StandardCall = iota
-	Writeln
+	ReadOnlyUtf32 ReadOnlyDataKind = iota // UTF-32 encoded strings
+	ReadOnlyInt64                         // 64-bit integer literals (signed and unsigned)
+	ReadOnlyBytes                         // static raw byte arrays
 )
 
 // Kind of output that is produced by the assembly code.
@@ -74,8 +75,8 @@ type (
 	// Enumeration of registers of the CPU.
 	Register int
 
-	// Type for standard library call codes.
-	StandardCall int
+	// Kind of read-only static data.
+	ReadOnlyDataKind int
 
 	// Output kind of the assembly code.
 	OutputKind int
@@ -103,10 +104,18 @@ type (
 		Displacement int32       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
+	// A read-only data item is a constant binary value that is not modified during program execution.
+	ReadOnlyDataItem struct {
+		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
+		Labels []string         `json:"labels"` // labels to access the read-only data item
+		Value  any              `json:"value"`  // the value will be stored in a read-only section and encoded based on its kind
+	}
+
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
+		AppendReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
@@ -122,12 +131,12 @@ func NewAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 
 // Create a new assembly instruction with an operation code, some labels, and operands.
 func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return newInstruction(None, operation, labels, operands...)
+	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels}
 }
 
 // Create a new assembly instruction with a prefix operation code, an operation code, some labels, and operands.
 func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return newInstruction(prefix, operation, labels, operands...)
+	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
 }
 
 // Create a new register operand for an assembly instruction.
@@ -148,6 +157,11 @@ func NewMemoryOperand(register Register, size OperandSize, displacement int32) *
 // Create a new label operand for an assembly instruction.
 func NewLabelOperand(label string) *Operand {
 	return &Operand{Kind: LabelOperand, Label: label}
+}
+
+// Create a new read-only data item for a read-only section.
+func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any) *ReadOnlyDataItem {
+	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Value: value}
 }
 
 // String representation of a CPU operation code.

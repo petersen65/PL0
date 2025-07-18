@@ -12,11 +12,20 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Private implementation of the assembly code unit.
-type assemblyCodeUnit struct {
-	outputKind  OutputKind     // kind of output that is produced by the assembly code
-	textSection []*Instruction // text section with assembly instructions
-}
+type (
+	// All static data items in the read-only data section of the assembly code unit.
+	rodataSection []*ReadOnlyDataItem
+
+	// All assembly instructions in the text section of the assembly code unit.
+	textSection []*Instruction
+
+	// Private implementation of the assembly code unit.
+	assemblyCodeUnit struct {
+		outputKind    OutputKind    // kind of output that is produced by the assembly code
+		rodataSection rodataSection // read-only data section for static data items
+		textSection   textSection   // text section with assembly instructions
+	}
+)
 
 var (
 	// Map CPU operation codes to their string representation.
@@ -167,29 +176,70 @@ var (
 // Create a new assembly code unit and and set the kind of output it produces.
 func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	return &assemblyCodeUnit{
-		outputKind:  outputKind,
-		textSection: make([]*Instruction, 0),
+		outputKind:    outputKind,
+		rodataSection: make(rodataSection, 0),
+		textSection:   make(textSection, 0),
 	}
 }
 
-// Create a new assembly instruction with a prefix, an operation code, some labels, and operands.
-func newInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{
-		Prefix:    prefix,
-		Operation: operation,
-		Operands:  operands,
-		Labels:    labels,
+// String representation of a rodata section.
+func (rs rodataSection) String() string {
+	// if the rodata section is empty, return an empty string
+	if len(rs) == 0 {
+		return ""
 	}
+
+	// create a string builder to efficiently build the string representation
+	var builder strings.Builder
+
+	// write the section header
+	builder.WriteString(".section .rodata.str4.4,\"a\",@progbits\n")
+	builder.WriteString(".p2align 2\n")
+
+	// iterate over all data items in the rodata section and append their string representation
+	for _, dataItem := range rs {
+		fmt.Fprintf(&builder, "%v\n", dataItem)
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
+}
+
+// String representation of a text section.
+func (ts textSection) String() string {
+	// if the text section is empty, return an empty string
+	if len(ts) == 0 {
+		return ""
+	}
+
+	// create a string builder to efficiently build the string representation
+	var builder strings.Builder
+
+	// write the section header
+	builder.WriteString(".text\n")
+
+	// iterate over all instructions in the text section and append their string representation
+	for _, instruction := range ts {
+		builder.WriteString(instruction.String())
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
 }
 
 // Append an instruction to the assembly code unit.
 func (a *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection = append(a.textSection, newInstruction(None, operation, labels, operands...))
+	a.textSection = append(a.textSection, NewInstruction(operation, labels, operands...))
 }
 
 // Append a prefixed instruction to the assembly code unit.
 func (a *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection = append(a.textSection, newInstruction(prefix, operation, labels, operands...))
+	a.textSection = append(a.textSection, NewPrefixedInstruction(prefix, operation, labels, operands...))
+}
+
+// Append a read-only data item to the assembly code unit.
+func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any) {
+	a.rodataSection = append(a.rodataSection, NewReadOnlyDataItem(kind, labels, value))
 }
 
 // Append a set of instructions to create all runtime functions.
