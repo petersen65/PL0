@@ -36,7 +36,7 @@ const intermediateDirectory = "obj"
 // Text messages for the compilation driver.
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling source '%v' to target '%v'\n"
+	textCompiling          = "Compiling source '%v' to target '%v' for platform '%v'\n"
 	textErrorCompiling     = "Error compiling source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
 	textErrorPersisting    = "Error persisting target file '%v': %v"
@@ -148,7 +148,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 
 	// compile source code to translation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
-		fmt.Fprintf(print, textCompiling, sourcePath, targetPath)
+		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
 		translationUnit, err = CompileSourceToTranslationUnit(sourcePath, targetPlatform)
 
 		// print error message if an I/O error occurred during compilation

@@ -88,6 +88,6 @@ func (isa InstructionSetArchitecture) String() string {
 }
 
 // String representation of the target platform.
-func (t *TargetPlatform) String() string {
+func (t TargetPlatform) String() string {
 	return fmt.Sprintf("%v %v %v", t.OperatingSystem, t.Cpu, t.InstructionSet)
 }
