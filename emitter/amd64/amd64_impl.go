@@ -171,6 +171,15 @@ var (
 		Bits32: "dword",
 		Bits64: "qword",
 	}
+
+	// Map read-only data kinds to their section representation and alignment.
+	sectionDetails = map[ReadOnlyDataKind]struct {
+		name      string
+		alignment string
+	}{
+		ReadOnlyUtf32: {name: ".section .rodata.str4.4,\"a\",@progbits", alignment: ".p2align 2"},
+		ReadOnlyInt64: {name: ".section .rodata.int8.8,\"a\",@progbits", alignment: ".p2align 3"},
+	}
 )
 
 // Create a new assembly code unit and and set the kind of output it produces.
@@ -285,17 +294,27 @@ func (rs rodataSection) String() string {
 		return ""
 	}
 
+	// create a map to group read-only data items by their kind
+	groupedByKind := make(map[ReadOnlyDataKind][]*ReadOnlyDataItem)
+
+	// group read-only data items by their kind because each kind has its own section header
+	for _, item := range rs {
+		groupedByKind[item.Kind] = append(groupedByKind[item.Kind], item)
+	}
+
 	// create a string builder to efficiently build the string representation
 	var builder strings.Builder
 
-	// write the section header
-	builder.WriteString(".section .rodata.str4.4,\"a\",@progbits\n")
-	builder.WriteString(".p2align 2\n")
+	// each kind of read-only data item has its own section, so iterate over the item groups
+	for kind, items := range groupedByKind {
+		// write the section header for the current kind of read-only data
+		builder.WriteString(sectionDetails[kind].name + "\n")
+		builder.WriteString(sectionDetails[kind].alignment + "\n")
 
-	// iterate over all data items in the rodata section and append their string representation
-	for _, dataItem := range rs {
-		fmt.Fprintf(&builder, "%v\n", dataItem)
-		builder.WriteString("\n")
+		// write each item in the group below its section header
+		for _, item := range items {
+			builder.WriteString(item.String())
+		}
 	}
 
 	return builder.String()
