@@ -109,7 +109,7 @@ func (i *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
-		blockBegin := bn.Scope.NewIdentifier(prefix[functionPrefix])
+		blockBegin := cor.EntryPointLabel
 
 		// append a branch-target instruction with a branch-label to mark the beginning of the block
 		instruction := ic.NewInstruction(

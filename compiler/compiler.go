@@ -183,6 +183,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 			return
 		}
+		
 		if err = PersistRuntime(runtime); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, runtime, err)
 			return

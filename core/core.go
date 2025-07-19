@@ -9,6 +9,9 @@ import (
 	"slices"
 )
 
+// Label for the entry point of an application.
+const EntryPointLabel = "main"
+
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof Token = -1
 
