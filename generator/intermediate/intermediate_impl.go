@@ -201,7 +201,7 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 // Create a new instruction for the intermediate code.
 func newInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *Instruction {
 	return &Instruction{
-		Quadruple:        Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
+		Quadruple:        &Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
 		TokenStreamIndex: tokenStreamIndex,
 	}
 }

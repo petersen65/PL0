@@ -329,21 +329,6 @@ func (s OperandSize) String() string {
 	return operandSizeNames[s]
 }
 
-// String representation of an operand kind of CPU operations.
-func (o *Operand) String() string {
-	return o.string()
-}
-
-// String representation of an assembly instruction.
-func (i *Instruction) String() string {
-	return i.string()
-}
-
-// String representation of a read-only data item.
-func (rdi *ReadOnlyDataItem) String() string {
-	return rdi.string()
-}
-
 // Check if the operation code is an ISA_Base operation code.
 func (o OperationCode) IsIsaBase() bool {
 	return o >= Push && o <= Ret

@@ -198,7 +198,7 @@ func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 }
 
 // String representation of an operand kind of CPU operations.
-func (o *Operand) string() string {
+func (o *Operand) String() string {
 	switch o.Kind {
 	case RegisterOperand:
 		return o.Register.String()
@@ -222,7 +222,7 @@ func (o *Operand) string() string {
 }
 
 // String representation of an assembly instruction.
-func (i *Instruction) string() string {
+func (i *Instruction) String() string {
 	// create a string builder to efficiently build the string representation
 	var builder strings.Builder
 
@@ -245,7 +245,7 @@ func (i *Instruction) string() string {
 }
 
 // String representation of a read-only data item.
-func (rdi *ReadOnlyDataItem) string() string {
+func (rdi *ReadOnlyDataItem) String() string {
 	// create a string builder to efficiently build the string representation
 	var builder strings.Builder
 

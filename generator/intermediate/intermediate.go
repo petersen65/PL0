@@ -135,8 +135,8 @@ type (
 
 	// Instruction represents a single three-address code operation with its required metadata (e.g. token stream index).
 	Instruction struct {
-		Quadruple        Quadruple `json:"quadruple"`          // three-address code operation with its three addresses
-		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
+		Quadruple        *Quadruple `json:"quadruple"`          // three-address code operation with its three addresses
+		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// A symbol is a data structure that stores all necessary information related to a declared identifier in the intermediate code.
@@ -221,14 +221,28 @@ func (dt DataType) String() string {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	representation := fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Name, a.Value)
+	const maxLength = 30
+	var representation string
 
-	if a.Variant == Empty {
-		representation = ""
+	switch {
+	case a.Variant == Empty:
+		representation = fmt.Sprintf("%v", a.Variant)
+
+	case len(a.Name) > 0 && a.Value != nil:
+		representation = fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Name, a.Value)
+
+	case len(a.Name) > 0:
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
+
+	case a.Value != nil:
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Value)
+
+	default:
+		representation = fmt.Sprintf("%v %v", a.Variant, a.DataType)
 	}
 
-	if len(representation) > 30 {
-		representation = representation[:30]
+	if len(representation) > maxLength {
+		representation = representation[:maxLength]
 	}
 
 	return representation
@@ -241,12 +255,21 @@ func (o Operation) String() string {
 
 // String representation of a three-address code quadruple.
 func (q *Quadruple) String() string {
-	return fmt.Sprintf("%-12v %-30v %-30v %-30v", q.Operation, q.Arg1, q.Arg2, q.Result)
+	const operationWidth = 20
+	const argWidth = 30
+
+	return fmt.Sprintf(
+		"%-*v %-*v %-*v %-*v",
+		operationWidth, q.Operation,
+		argWidth, q.Arg1,
+		argWidth, q.Arg2,
+		argWidth, q.Result)
 }
 
 // String representation of an intermediate code instruction.
 func (i *Instruction) String() string {
-	return fmt.Sprintf("%4v%v", i.TokenStreamIndex, i.Quadruple)
+	const tokenStreamIndexWidth = 6
+	return fmt.Sprintf("%*v    %v", tokenStreamIndexWidth, i.TokenStreamIndex, i.Quadruple)
 }
 
 // Return the plain datatype without modifiers.

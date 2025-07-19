@@ -71,7 +71,7 @@ var (
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
-	noAddress = &ic.Address{Name: "-", Variant: ic.Empty, DataType: ic.Untyped}
+	noAddress = &ic.Address{Variant: ic.Empty, DataType: ic.Untyped}
 )
 
 // Create a new intermediate code generator.
