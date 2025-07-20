@@ -14,17 +14,21 @@ import (
 )
 
 type (
-	// All static data items in the read-only data section of the assembly code unit.
-	rodataSection *elf.AssemblySection[*elf.ReadOnlyDataItem]
+	// All static UTF-32 strings in its read-only data section of the assembly code unit.
+	roUtf32Section *elf.AssemblySection[*elf.ReadOnlyDataItem]
+
+	// All static 64-bit integers in its read-only data section of the assembly code unit.
+	roInt64Section *elf.AssemblySection[*elf.ReadOnlyDataItem]
 
 	// All assembly instructions in the text section of the assembly code unit.
-	textSection []*Instruction
+	textSection *elf.AssemblySection[*Instruction]
 
 	// Private implementation of the assembly code unit.
 	assemblyCodeUnit struct {
-		outputKind    OutputKind    // kind of output that is produced by the assembly code
-		rodataSection rodataSection // read-only data section for static data items
-		textSection   textSection   // text section with assembly instructions
+		outputKind     OutputKind     // kind of output that is produced by the assembly code
+		roUtf32Section roUtf32Section // read-only data section for static UTF-32 strings
+		roInt64Section roInt64Section // read-only data section for static 64-bit integers
+		textSection    textSection    // text section with assembly instructions
 	}
 )
 
@@ -174,18 +178,25 @@ var (
 	}
 )
 
-// Create a new assembly code unit and and set the kind of output it produces.
+// Create a new assembly code unit with its sections and and set the kind of output it produces.
 func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	return &assemblyCodeUnit{
-		outputKind:    outputKind,
-		
-		rodataSection: 
-			elf.NewAssemblySection[*elf.ReadOnlyDataItem](
-				[]elf.Directive{elf.Section, elf.Utf32}, 
-				[]elf.Attribute{elf.Allocatable, elf.ProgramBits}, 
-				3),
-		
-		textSection:   make(textSection, 0),
+		outputKind: outputKind,
+
+		roUtf32Section: elf.NewAssemblySection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.Utf32},
+			[]elf.Attribute{elf.Allocatable, elf.ProgramBits},
+			2),
+
+		roInt64Section: elf.NewAssemblySection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.Int64},
+			[]elf.Attribute{elf.Allocatable, elf.ProgramBits},
+			3),
+
+		textSection: elf.NewAssemblySection[*Instruction](
+			[]elf.Directive{elf.Section, elf.Text},
+			[]elf.Attribute{},
+			4),
 	}
 }
 
@@ -237,72 +248,28 @@ func (i *Instruction) String() string {
 	return strings.TrimSuffix(builder.String(), ", ")
 }
 
-// String representation of a rodata section.
-func (rs rodataSection) String() string {
-	var builder strings.Builder
-
-	// if the rodata section is empty, return an empty string
-	if len(rs) == 0 {
-		return ""
-	}
-
-	// create a map to group read-only data items by their kind
-	groupedByKind := make(map[elf.ReadOnlyDataKind][]*elf.ReadOnlyDataItem)
-
-	// group read-only data items by their kind because each kind has its own section header
-	for _, item := range rs {
-		groupedByKind[item.Kind] = append(groupedByKind[item.Kind], item)
-	}
-
-	// each kind of read-only data item has its own section, so iterate over the item groups
-	for kind, items := range groupedByKind {
-		// write the section header for the current kind of read-only data
-		builder.WriteString(kind.Detail().Section + "\n")
-		builder.WriteString(kind.Detail().Alignment + "\n")
-
-		// write each item in the group below its section header
-		for _, item := range items {
-			builder.WriteString(item.String())
-		}
-	}
-
-	return builder.String()
-}
-
-// String representation of a text section.
-func (ts textSection) String() string {
-	var builder strings.Builder
-
-	// if the text section is empty, return an empty string
-	if len(ts) == 0 {
-		return ""
-	}
-
-	// write the text section header
-	builder.WriteString(fmt.Sprintf("%v\n", elf.TextSectionDetails))
-
-	// iterate over all instructions in the text section and append their string representation
-	for _, instruction := range ts {
-		builder.WriteString(instruction.String())
-		builder.WriteString("\n")
-	}
-
-	return builder.String()
-}
-
 // Append an instruction to the assembly code unit.
 func (a *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection = append(a.textSection, NewInstruction(operation, labels, operands...))
+	a.textSection.Content = append(a.textSection.Content, NewInstruction(operation, labels, operands...))
 }
 
 // Append a prefixed instruction to the assembly code unit.
 func (a *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection = append(a.textSection, NewPrefixedInstruction(prefix, operation, labels, operands...))
+	a.textSection.Content = append(a.textSection.Content, NewPrefixedInstruction(prefix, operation, labels, operands...))
 }
 
 // Append a read-only data item to the assembly code unit.
 func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any) {
-	a.rodataSection = append(a.rodataSection, elf.NewReadOnlyDataItem(kind, labels, value))
+	switch kind {
+	case elf.ReadOnlyUtf32:
+		a.roUtf32Section.Content = append(a.roUtf32Section.Content, elf.NewReadOnlyDataItem(kind, labels, value))
+
+	case elf.ReadOnlyInt64:
+		a.roInt64Section.Content = append(a.roInt64Section.Content, elf.NewReadOnlyDataItem(kind, labels, value))
+
+	default:
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, kind, nil))
+	}
 }
 
 // Append a set of instructions to create all runtime functions.
@@ -414,12 +381,12 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 
 // Return the number of instructions in the assembly code unit.
 func (a *assemblyCodeUnit) Length() int {
-	return len(a.textSection)
+	return len(a.textSection.Content)
 }
 
 // Return the instruction at the specified index in the assembly code unit.
 func (a *assemblyCodeUnit) GetInstruction(index int) *Instruction {
-	return a.textSection[index]
+	return a.textSection.Content[index]
 }
 
 // Print the assembly code to the specified writer and optionally accept global symbols as arguments.
@@ -442,15 +409,22 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 		return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 	}
 
-	// write the read-only data section to the print writer
-	if len(a.rodataSection) > 0 {
-		if _, err := fmt.Fprintf(print, "%v", a.rodataSection); err != nil {
+	// write the read-only UTF-32 strings data section to the print writer
+	if len(a.roUtf32Section.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v", a.roUtf32Section); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the read-only 64-bit integer data section to the print writer
+	if len(a.roInt64Section.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v", a.roInt64Section); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
 	// write the text section to the print writer
-	if len(a.textSection) > 0 {
+	if len(a.textSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v", a.textSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
@@ -465,9 +439,10 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 	case cor.Json:
 		// export the text section as a JSON object and wrap it in a struct to provide a field name for each section
 		if raw, err := json.MarshalIndent(struct {
-			RoDataSection rodataSection `json:"rodata_section"`
-			TextSection   textSection   `json:"text_section"`
-		}{RoDataSection: a.rodataSection, TextSection: a.textSection}, "", "  "); err != nil {
+			RoUtf32Section roUtf32Section `json:"rodata_utf32_section"`
+			RoInt64Section roInt64Section `json:"rodata_int64_section"`
+			TextSection    textSection    `json:"text_section"`
+		}{RoUtf32Section: a.roUtf32Section, RoInt64Section: a.roInt64Section, TextSection: a.textSection}, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
