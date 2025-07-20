@@ -9,8 +9,6 @@ import cor "github.com/petersen65/PL0/v2/core"
 const (
 	_ cor.Failure = iota + 9000
 	unknownKindOfOperandInCpuOperation
-	invalidReadOnlyDataValue
-	unknownKindOfReadOnlyData
 	unknownExportFormat
 	assemblyCodeExportFailed
 )
@@ -18,8 +16,6 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
 	unknownKindOfOperandInCpuOperation: "unknown kind of operand in CPU operation: %v",
-	invalidReadOnlyDataValue:           "invalid read-only data value: %v",
-	unknownKindOfReadOnlyData:          "unknown kind of read-only data: %v",
 	unknownExportFormat:                "unknown export format: %v",
 	assemblyCodeExportFailed:           "failed to export assembly code",
 }

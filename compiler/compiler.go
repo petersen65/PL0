@@ -17,7 +17,7 @@ import (
 	cfg "github.com/petersen65/PL0/v2/cfg"
 	cor "github.com/petersen65/PL0/v2/core"
 	emi "github.com/petersen65/PL0/v2/emitter"
-	amd "github.com/petersen65/PL0/v2/emitter/amd64"
+	x64 "github.com/petersen65/PL0/v2/emitter/x86_64"
 	gen "github.com/petersen65/PL0/v2/generator"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 	par "github.com/petersen65/PL0/v2/parser"
@@ -83,7 +83,7 @@ type (
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
-		AssemblyCode     amd.AssemblyCodeUnit    // assembly code of the intermediate code unit
+		AssemblyCode     x64.AssemblyCodeUnit    // assembly code of the intermediate code unit
 	}
 )
 
@@ -110,10 +110,10 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 	var err error
 
 	// set target platform for the compilation process
-	// note: only Linux with AMD64 CPU and SSE2 instruction set is supported for now
+	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
 	targetPlatform = emi.TargetPlatform{
 		OperatingSystem:            emi.Linux,
-		InstructionSetArchitecture: emi.Amd64,
+		InstructionSetArchitecture: emi.X86_64,
 		InstructionSet:             emi.ISA_SSE2,
 	}
 
@@ -238,19 +238,19 @@ func CompileContent(content []byte, targetPlatform emi.TargetPlatform) Translati
 }
 
 // Persist the assembly code unit of the application.
-func PersistApplication(unit amd.AssemblyCodeUnit, application string) error {
+func PersistApplication(unit x64.AssemblyCodeUnit, application string) error {
 	return PersistAssemblyCodeUnit(unit, application)
 }
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(runtime string) error {
-	assemblyCode := amd.NewAssemblyCodeUnit(amd.Runtime)
+	assemblyCode := x64.NewAssemblyCodeUnit(x64.Runtime)
 	assemblyCode.AppendRuntime()
 	return PersistAssemblyCodeUnit(assemblyCode, runtime)
 }
 
 // Persist an assembly code unit to the given target file.
-func PersistAssemblyCodeUnit(unit amd.AssemblyCodeUnit, target string) error {
+func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, target string) error {
 	var err error
 	var output *os.File
 

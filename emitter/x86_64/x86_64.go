@@ -19,7 +19,7 @@ const (
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"
 )
 
-// Operation codes for assembly instructions of the AMD64 CPU.
+// Operation codes for assembly instructions of the x86_64 ISA.
 const (
 	// used as empty prefix for the operation code
 	None OperationCode = iota
@@ -79,17 +79,17 @@ const (
 	Divss   // divides one scalar single-precision float by another
 )
 
-// Register enumeration for the 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the AMD64 CPU.
+// Register enumeration for the 128-bit, 64-bit, 32-bit, 16-bit, and 8-bit registers of the x86_64 CPU.
 const (
 	_ Register = iota
 
-	// 64-bit flags and pointer registers of the AMD64 CPU (used for control flow).
+	// 64-bit flags and pointer registers of the x86_64 ISA (used for control flow).
 	Rflags // flags register contains the current state of the CPU and reflects the result of arithmetic operations
 	Rip    // instruction pointer is pointing to the next instruction to be executed
 	Rsp    // stack pointer is pointing to the top of the control stack
 	Rbp    // base pointer is pointing to the base of an activation record
 
-	// 64-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
+	// 64-bit general purpose registers of the x86_64 ISA (used for arithmetic and logical operations).
 	Rax // accumulator is used for intermediate results of arithmetic operations
 	Rbx // base register can be used for addressing variables
 	Rcx // counter register can be used for counting iterations of loops
@@ -105,7 +105,7 @@ const (
 	R14 // 64-bit general purpose register
 	R15 // 64-bit general purpose register
 
-	// 32-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
+	// 32-bit general purpose registers of the x86_64 ISA (used for arithmetic and logical operations).
 	Eax  // accumulator is used for intermediate results of arithmetic operations (bits 0-31 of Rax)
 	Ebx  // base register can be used for addressing variables (bits 0-31 of Rbx)
 	Ecx  // counter register can be used for counting iterations of loops (bits 0-31 of Rcx)
@@ -121,7 +121,7 @@ const (
 	R14d // 32-bit general purpose register (bits 0-31 of R14)
 	R15d // 32-bit general purpose register (bits 0-31 of R15)
 
-	// 16-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
+	// 16-bit general purpose registers of the x86_64 ISA (used for arithmetic and logical operations).
 	Ax   // accumulator is used for intermediate results of arithmetic operations (bits 0-15 of Rax)
 	Bx   // base register can be used for addressing variables (bits 0-15 of Rbx)
 	Cx   // counter register can be used for counting iterations of loops (bits 0-15 of Rcx)
@@ -137,7 +137,7 @@ const (
 	R14w // 16-bit general purpose register (bits 0-15 of R14)
 	R15w // 16-bit general purpose register (bits 0-15 of R15)
 
-	// 8-bit general purpose registers of the AMD64 CPU (used for arithmetic and logical operations).
+	// 8-bit general purpose registers of the x86_64 ISA (used for arithmetic and logical operations).
 	Al   // accumulator is used for intermediate results of arithmetic operations (bits 0-7 of Rax)
 	Bl   // base register can be used for addressing variables (bits 0-7 of Rbx)
 	Cl   // counter register can be used for counting iterations of loops (bits 0-7 of Rcx)
@@ -155,7 +155,7 @@ const (
 	R14b // 8-bit general purpose register (bits 0-7 of R14)
 	R15b // 8-bit general purpose register (bits 0-7 of R15)
 
-	// 128-bit SSE registers of the AMD64 CPU (streaming single instructions multiple data extensions, SSE).
+	// 128-bit SSE registers of the x86_64 ISA (streaming single instructions multiple data extensions, SSE).
 	Xmm0  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
 	Xmm1  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)
 	Xmm2  // floating point register (4 x 32-bits or 2 x 64-bits floating point numbers)

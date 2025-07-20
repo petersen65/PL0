@@ -15,7 +15,7 @@ import (
 
 type (
 	// All static data items in the read-only data section of the assembly code unit.
-	rodataSection []*elf.ReadOnlyDataItem
+	rodataSection *elf.AssemblySection[*elf.ReadOnlyDataItem]
 
 	// All assembly instructions in the text section of the assembly code unit.
 	textSection []*Instruction
@@ -178,7 +178,13 @@ var (
 func newAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
 	return &assemblyCodeUnit{
 		outputKind:    outputKind,
-		rodataSection: make(rodataSection, 0),
+		
+		rodataSection: 
+			elf.NewAssemblySection[*elf.ReadOnlyDataItem](
+				[]elf.Directive{elf.Section, elf.Utf32}, 
+				[]elf.Attribute{elf.Allocatable, elf.ProgramBits}, 
+				3),
+		
 		textSection:   make(textSection, 0),
 	}
 }
@@ -251,8 +257,8 @@ func (rs rodataSection) String() string {
 	// each kind of read-only data item has its own section, so iterate over the item groups
 	for kind, items := range groupedByKind {
 		// write the section header for the current kind of read-only data
-		builder.WriteString(readOnlySectionDetails[kind].name + "\n")
-		builder.WriteString(readOnlySectionDetails[kind].alignment + "\n")
+		builder.WriteString(kind.Detail().Section + "\n")
+		builder.WriteString(kind.Detail().Alignment + "\n")
 
 		// write each item in the group below its section header
 		for _, item := range items {

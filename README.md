@@ -122,7 +122,7 @@ The activation record is pushed onto the call stack during a function call, and 
 
 ### Dynamic Link: The Caller Chain
 
-The dynamic link is a stack pointer (usually stored at RBP in AMD64) that references the activation record of the calling procedure, regardless of the program’s lexical structure. It:
+The dynamic link is a stack pointer (usually stored at RBP in x86_64) that references the activation record of the calling procedure, regardless of the program’s lexical structure. It:
 
 - enables restoration of the previous base pointer RBP during a RET instruction
 - supports dynamic call chains at runtime
@@ -146,13 +146,13 @@ The static link does not change based on who calls a procedure, but where the pr
 
 The following table provides a comparision of dynamic and static links:
 
-| Feature          | Dynamic Link                        | Static Link                                       |
-|:-----------------|:------------------------------------|:--------------------------------------------------|
-| points to        | caller's activation record          | lexically enclosing procedure’s frame             |
-| used for         | stack unwinding, returns, backtrace | non-local variable access                         |
-| changes on call  | yes (based on runtime call chain)   | no (based on lexical nesting at compilation time) |
-| location (AMD64) | usually at RBP                      | in this project at RBP-8 (hidden local variable)  |
-|                  |                                     |                                                   |
+| Feature           | Dynamic Link                        | Static Link                                       |
+|:------------------|:------------------------------------|:--------------------------------------------------|
+| points to         | caller's activation record          | lexically enclosing procedure’s frame             |
+| used for          | stack unwinding, returns, backtrace | non-local variable access                         |
+| changes on call   | yes (based on runtime call chain)   | no (based on lexical nesting at compilation time) |
+| location (x86_64) | usually at RBP                      | in this project at RBP-8 (hidden local variable)  |
+|                   |                                     |                                                   |
 
 ### Static Link Computation
 

@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	// Map directive kinds to their string representation.
-	directiveKindNames = map[DirectiveKind]string{
+	// Map directives to their string representation.
+	directiveNames = map[Directive]string{
 		Global:       ".globl",
 		Type:         ".type",
 		Size:         ".size",
@@ -28,6 +28,8 @@ var (
 		Data:         ".data",
 		Rodata:       ".rodata",
 		Bss:          ".bss",
+		Utf32:        ".rodata.str4.4",
+		Int64:        ".rodata.int8.8",
 		P2Align:      ".p2align",
 		Align:        ".align",
 		Balign:       ".balign",
@@ -47,12 +49,46 @@ var (
 		CfiOffset:    ".cfi_offset",
 	}
 
-	// Map read-only data kinds to their section and alignment representations.
-	readOnlyDataKindDetails = map[ReadOnlyDataKind]ReadOnlyDataItemDetails{
-		ReadOnlyUtf32: {Section: ".section .rodata.str4.4,\"a\",@progbits", Alignment: ".p2align 2"},
-		ReadOnlyInt64: {Section: ".section .rodata.int8.8,\"a\",@progbits", Alignment: ".p2align 3"},
+	// Map attributes to their string representation.
+	attributeNames = map[Attribute]string{
+		Allocatable: "\"a\"",
+		Writable:    "\"w\"",
+		Executable:  "\"x\"",
+		ProgramBits: "@progbits",
+		NoBits:      "@nobits",
 	}
 )
+
+// String representation of an assembly section.
+func (s *AssemblySection[T]) String() string {
+	var parts []string
+	var builder strings.Builder
+
+	// Write all directives with space separation into the builder and append a newline.
+	parts = make([]string, len(s.Directives))
+
+	for i := range s.Directives {
+		parts[i] = s.Directives[i].String()
+	}
+	
+	builder.WriteString(strings.Join(parts, " ") + "\n")
+
+	// Write all attributes with space separation into the builder and append a newline.
+	parts = make([]string, len(s.Attributes))
+
+	for i := range s.Attributes {
+		parts[i] = s.Attributes[i].String()
+	}
+
+	builder.WriteString(strings.Join(parts, " ") + "\n")
+
+	// Write all contents with a newline after each item.
+	for _, content := range s.Content {
+		builder.WriteString(content.String() + "\n")
+	}
+
+	return builder.String()
+}
 
 // String representation of a read-only data item.
 func (rdi *ReadOnlyDataItem) String() string {

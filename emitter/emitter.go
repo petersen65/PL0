@@ -48,7 +48,7 @@ type (
 	// CPU instruction set architecture (ISA) represents the CPU family for which assembly code is generated.
 	InstructionSetArchitecture int
 
-	// Determine the specific instruction set features available on the target CPU family.
+	// Determine the specific instruction set features available on the target ISA.
 	InstructionSet int
 
 	// TargetPlatform defines the target platform for which assembly code is generated.
