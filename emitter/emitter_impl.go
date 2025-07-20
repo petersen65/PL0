@@ -8,7 +8,7 @@ import (
 	"math"
 
 	cor "github.com/petersen65/PL0/v2/core"
-	amd "github.com/petersen65/PL0/v2/emitter/amd64"
+	amd "github.com/petersen65/PL0/v2/emitter/x86_64"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
@@ -32,19 +32,19 @@ type emitter struct {
 var (
 	// Map target operating systems to their names.
 	operatingSystemNames = map[OperatingSystem]string{
-		MacOS:   "macOS",
 		Linux:   "Linux",
+		MacOS:   "macOS",
 		Windows: "Windows",
 	}
 
 	// Map CPU families to their names.
-	cpuFamilyNames = map[CentralProcessingUnitFamily]string{
-		Amd64: "AMD64",
-		Arm64: "ARM64",
+	instructionSetArchitectureNames = map[InstructionSetArchitecture]string{
+		X86_64: "x86_64",
+		AArch64: "AArch64",
 	}
 
-	// Map instruction set architectures to their names.
-	instructionSetArchitectureNames = map[InstructionSetArchitecture]string{
+	// Map instruction sets to their names.
+	instructionSetNames = map[InstructionSet]string{
 		ISA_Base:    "Base",
 		ISA_SSE2:    "SSE2",
 		ISA_SSE4_2:  "SSE4.2",
@@ -122,7 +122,7 @@ var (
 
 // Return the interface of the emitter implementation.
 func newEmitter(target TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
-	if target.OperatingSystem != Linux || target.Cpu != Amd64 || target.InstructionSet != ISA_SSE2 {
+	if target.OperatingSystem != Linux || target.InstructionSetArchitecture != X86_64 || target.InstructionSet != ISA_SSE2 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, target, nil))
 	}
 

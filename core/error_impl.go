@@ -83,16 +83,17 @@ var (
 
 	// Map compiler components to their corresponding names.
 	componentMap = map[Component]string{
-		Core:               "core",
-		Scanner:            "scanner",
-		Parser:             "parser",
-		AbstractSyntaxTree: "ast",
-		Analyzer:           "analyzer",
-		Generator:          "generator",
-		Intermediate:       "intermediate",
-		ControlFlowGraph:   "cfg",
-		Emitter:            "emitter",
-		Amd64:              "amd64",
+		Core:                     "core",
+		Scanner:                  "scanner",
+		Parser:                   "parser",
+		AbstractSyntaxTree:       "ast",
+		Analyzer:                 "analyzer",
+		Generator:                "generator",
+		Intermediate:             "intermediate",
+		ControlFlowGraph:         "cfg",
+		Emitter:                  "emitter",
+		Intel:                    "x86_64",
+		ExecutableLinkableFormat: "elf",
 	}
 )
 

@@ -1,13 +1,14 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package amd64 implements the assembly code language which is based on the AMD64 CPU family.
-package amd64
+// Package x86_64 implements the assembly code language which is based on the x86_64 instruction set architecture.
+package x86_64
 
 import (
 	"io"
 
 	cor "github.com/petersen65/PL0/v2/core"
+	elf "github.com/petersen65/PL0/v2/emitter/elf"
 )
 
 const (
@@ -197,12 +198,6 @@ const (
 	ComparisonFloat                                 // floating-point comparison (Ucomisd/Ucomiss instructions)
 )
 
-// Kind of read-only data to be stored in a read-only section.
-const (
-	ReadOnlyUtf32 ReadOnlyDataKind = iota // UTF-32 encoded strings
-	ReadOnlyInt64                         // 64-bit integer literals (signed and unsigned)
-)
-
 // Kind of output that is produced by the assembly code.
 const (
 	Application OutputKind = iota
@@ -224,9 +219,6 @@ type (
 
 	// Enumeration of registers of the CPU.
 	Register int
-
-	// Kind of read-only static data.
-	ReadOnlyDataKind int
 
 	// Output kind of the assembly code.
 	OutputKind int
@@ -254,18 +246,11 @@ type (
 		Displacement int32       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
 	}
 
-	// A read-only data item is a constant value that is not modified during program execution.
-	ReadOnlyDataItem struct {
-		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
-		Labels []string         `json:"labels"` // labels to access the read-only data item
-		Value  any              `json:"value"`  // the value will be stored in a read-only section and encoded based on its kind
-	}
-
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
-		AppendReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any)
+		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
@@ -307,11 +292,6 @@ func NewMemoryOperand(register Register, size OperandSize, displacement int32) *
 // Create a new label operand for an assembly instruction.
 func NewLabelOperand(label string) *Operand {
 	return &Operand{Kind: LabelOperand, Label: label}
-}
-
-// Create a new read-only data item for a read-only section.
-func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any) *ReadOnlyDataItem {
-	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Value: value}
 }
 
 // String representation of a CPU operation code.

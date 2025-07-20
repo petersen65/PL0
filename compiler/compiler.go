@@ -112,9 +112,9 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 	// set target platform for the compilation process
 	// note: only Linux with AMD64 CPU and SSE2 instruction set is supported for now
 	targetPlatform = emi.TargetPlatform{
-		OperatingSystem: emi.Linux,
-		Cpu:             emi.Amd64,
-		InstructionSet:  emi.ISA_SSE2,
+		OperatingSystem:            emi.Linux,
+		InstructionSetArchitecture: emi.Amd64,
+		InstructionSet:             emi.ISA_SSE2,
 	}
 
 	// ensure target path exists and print persistence error message if an error occurred
@@ -183,7 +183,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 			return
 		}
-		
+
 		if err = PersistRuntime(runtime); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, runtime, err)
 			return

@@ -70,7 +70,8 @@ const (
 	Intermediate
 	ControlFlowGraph
 	Emitter
-	Amd64
+	Intel
+	ExecutableLinkableFormat
 	AllComponents = Component(^uint64(0))
 )
 

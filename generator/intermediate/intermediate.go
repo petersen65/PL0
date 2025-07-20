@@ -221,7 +221,7 @@ func (dt DataType) String() string {
 
 // String representation of the three-address code address.
 func (a *Address) String() string {
-	const maxLength = 30
+	const maxWidth = 30
 	var representation string
 
 	switch {
@@ -241,8 +241,8 @@ func (a *Address) String() string {
 		representation = fmt.Sprintf("%v %v", a.Variant, a.DataType)
 	}
 
-	if len(representation) > maxLength {
-		representation = representation[:maxLength]
+	if len(representation) > maxWidth {
+		representation = representation[:maxWidth]
 	}
 
 	return representation
