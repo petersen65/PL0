@@ -10,15 +10,10 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-const (
-	// Provide a string representation for the text section.
-	textSectionDetails = ".section .text"
-)
-
 var (
 	// Map directives to their string representation.
 	directiveNames = map[Directive]string{
-		Global:       ".globl",
+		Global:       ".global",
 		Type:         ".type",
 		Size:         ".size",
 		Weak:         ".weak",
@@ -30,7 +25,7 @@ var (
 		Bss:          ".bss",
 		Utf32:        ".rodata.str4.4",
 		Int64:        ".rodata.int8.8",
-		P2Align:      ".p2align",
+		P2align:      ".p2align",
 		Align:        ".align",
 		Balign:       ".balign",
 		Byte:         ".byte",
@@ -64,29 +59,54 @@ func (s *AssemblySection[T]) String() string {
 	var parts []string
 	var builder strings.Builder
 
-	// Write all directives with space separation into the builder and append a newline.
-	parts = make([]string, len(s.Directives))
+	// write all directives with space separation into the builder
+	if len(s.Directives) > 0 {
+		parts = make([]string, len(s.Directives))
 
-	for i := range s.Directives {
-		parts[i] = s.Directives[i].String()
+		for i := range s.Directives {
+			parts[i] = s.Directives[i].String()
+		}
+
+		builder.WriteString(strings.Join(parts, " "))
+
+		// write all attributes with comma separation into the builder
+		if len(s.Attributes) > 0 {
+			parts = make([]string, len(s.Attributes))
+
+			for i := range s.Attributes {
+				parts[i] = s.Attributes[i].String()
+			}
+
+			builder.WriteString("," + strings.Join(parts, ","))
+		}
+
+		// only write a newline if an alignment is specified or the content is not empty
+		if s.Alignment >= P2align1 || len(s.Content) > 0 {
+			builder.WriteString("\n")
+		}
 	}
-	
-	builder.WriteString(strings.Join(parts, " ") + "\n")
 
-	// Write all attributes with space separation into the builder and append a newline.
-	parts = make([]string, len(s.Attributes))
+	// write the alignment directive if the alignment is greater than or equal to P2align1
+	// note: P2align1 is 0, which means no alignment
+	if s.Alignment >= P2align1 {
+		builder.WriteString(fmt.Sprintf("%v %v", P2align, s.Alignment))
 
-	for i := range s.Attributes {
-		parts[i] = s.Attributes[i].String()
+		// only write a newline if the content is not empty
+		if len(s.Content) > 0 {
+			builder.WriteString("\n")
+		}
 	}
 
-	builder.WriteString(strings.Join(parts, " ") + "\n")
+	// write all contents with a newline after each item (expect the last one)
+	for i, content := range s.Content {
+		builder.WriteString(content.String())
 
-	// Write all contents with a newline after each item.
-	for _, content := range s.Content {
-		builder.WriteString(content.String() + "\n")
+		if i < len(s.Content)-1 {
+			builder.WriteString("\n")
+		}
 	}
 
+	// the section string representation does not end with a newline
 	return builder.String()
 }
 
@@ -116,15 +136,23 @@ func (rdi *ReadOnlyDataItem) String() string {
 			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
 		}
 
-		for _, r := range utf32 {
-			builder.WriteString(fmt.Sprintf("  .long 0x%08X\n", r))
+		// write all code points with a newline after each item (expect the last one)
+		for i, r := range utf32 {
+			builder.WriteString(fmt.Sprintf("  %v 0x%08X", Long, uint32(r)))
+
+			if i < len(utf32)-1 {
+				builder.WriteString("\n")
+			}
 		}
 
 	case ReadOnlyInt64:
 		// encode to 64-bit integer based on supported Go data types
 		switch v := rdi.Value.(type) {
-		case int64, uint64:
-			builder.WriteString(fmt.Sprintf("  .quad %v\n", v))
+		case int64:
+			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(v)))
+
+		case uint64:
+			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, v))
 
 		default:
 			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
@@ -134,5 +162,6 @@ func (rdi *ReadOnlyDataItem) String() string {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, rdi.Kind, nil))
 	}
 
+	// the read-only data item string representation does not end with a newline
 	return builder.String()
 }

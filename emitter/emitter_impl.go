@@ -39,7 +39,7 @@ var (
 
 	// Map CPU families to their names.
 	instructionSetArchitectureNames = map[InstructionSetArchitecture]string{
-		X86_64: "x86_64",
+		X86_64:  "x86_64",
 		AArch64: "AArch64",
 	}
 
