@@ -260,8 +260,8 @@ type (
 )
 
 // Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit(outputKind OutputKind) AssemblyCodeUnit {
-	return newAssemblyCodeUnit(outputKind)
+func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKind) AssemblyCodeUnit {
+	return newAssemblyCodeUnit(targetPlatform, outputKind)
 }
 
 // Create a new assembly instruction with an operation code, some labels, and operands.

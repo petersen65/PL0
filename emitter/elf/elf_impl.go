@@ -137,13 +137,12 @@ func (rdi *ReadOnlyDataItem) String() string {
 		}
 
 		// write all code points with a newline after each item (expect the last one)
-		for i, r := range utf32 {
-			builder.WriteString(fmt.Sprintf("  %v 0x%08X", Long, uint32(r)))
-
-			if i < len(utf32)-1 {
-				builder.WriteString("\n")
-			}
+		for _, r := range utf32 {
+			builder.WriteString(fmt.Sprintf("  %v 0x%08X\n", Long, uint32(r)))
 		}
+
+		// write the zero terminator to the UTF-32 string
+		builder.WriteString(fmt.Sprintf("  %v 0x%08X", Long, uint32(0)))
 
 	case ReadOnlyInt64:
 		// encode to 64-bit integer based on supported Go data types

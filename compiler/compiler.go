@@ -184,7 +184,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			return
 		}
 
-		if err = PersistRuntime(runtime); err != nil {
+		if err = PersistRuntime(runtime, targetPlatform); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, runtime, err)
 			return
 		}
@@ -243,8 +243,8 @@ func PersistApplication(unit x64.AssemblyCodeUnit, application string) error {
 }
 
 // Persist the assembly code unit of the runtime.
-func PersistRuntime(runtime string) error {
-	assemblyCode := x64.NewAssemblyCodeUnit(x64.Runtime)
+func PersistRuntime(runtime string, targetPlatform cor.TargetPlatform) error {
+	assemblyCode := x64.NewAssemblyCodeUnit(targetPlatform, x64.Runtime)
 	assemblyCode.AppendRuntime()
 	return PersistAssemblyCodeUnit(assemblyCode, runtime)
 }

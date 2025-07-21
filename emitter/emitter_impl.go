@@ -94,15 +94,17 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(target cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
-	if target.OperatingSystem != cor.Linux || target.InstructionSetArchitecture != cor.X86_64 || target.InstructionSet != cor.ISA_SSE2 {
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, target, nil))
+func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
+	if targetPlatform.OperatingSystem != cor.Linux ||
+		targetPlatform.InstructionSetArchitecture != cor.X86_64 ||
+		targetPlatform.InstructionSet != cor.ISA_SSE2 {
+		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, targetPlatform, nil))
 	}
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     x64.NewAssemblyCodeUnit(x64.Application),
-		targetPlatform:   target,
+		assemblyCode:     x64.NewAssemblyCodeUnit(targetPlatform, x64.Application),
+		targetPlatform:   targetPlatform,
 		offsetTable:      make(map[string]int32),
 	}
 }
