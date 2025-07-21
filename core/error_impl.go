@@ -20,6 +20,15 @@ const (
 	textRemarks     = "Remarks:"
 )
 
+// Failure codes for core components of the PL/0 compiler.
+const (
+	_ Failure = iota + 100
+	errorKindNotSupported
+	unknownExportFormat
+	errorReportExportFailed
+	tokenStreamExportFailed
+)
+
 type (
 	// ErrorReport is a list of errors that occurred during the compilation process.
 	errorReport []error
@@ -81,19 +90,12 @@ var (
 		Fatal:   "fatal",
 	}
 
-	// Map compiler components to their corresponding names.
-	componentMap = map[Component]string{
-		Core:                     "core",
-		Scanner:                  "scanner",
-		Parser:                   "parser",
-		AbstractSyntaxTree:       "ast",
-		Analyzer:                 "analyzer",
-		Generator:                "generator",
-		Intermediate:             "intermediate",
-		ControlFlowGraph:         "cfg",
-		Emitter:                  "emitter",
-		Intel:                    "x86_64",
-		ExecutableLinkableFormat: "elf",
+	// Map failure codes to error messages.
+	failureMap = map[Failure]string{
+		errorKindNotSupported:   "error kind not supported: %v",
+		unknownExportFormat:     "unknown export format: %v",
+		errorReportExportFailed: "failed to export the error report",
+		tokenStreamExportFailed: "failed to export the token stream",
 	}
 )
 

@@ -25,38 +25,11 @@ const float32SignBitMask uint32 = 0x80000000
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     x64.AssemblyCodeUnit    // assembly code unit for the target platform
-	targetPlatform   TargetPlatform          // target platform for the emitter
+	targetPlatform   cor.TargetPlatform      // target platform for the emitter
 	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
 var (
-	// Map target operating systems to their names.
-	operatingSystemNames = map[OperatingSystem]string{
-		Linux:   "Linux",
-		MacOS:   "macOS",
-		Windows: "Windows",
-	}
-
-	// Map CPU families to their names.
-	instructionSetArchitectureNames = map[InstructionSetArchitecture]string{
-		X86_64:  "x86_64",
-		AArch64: "AArch64",
-	}
-
-	// Map instruction sets to their names.
-	instructionSetNames = map[InstructionSet]string{
-		ISA_Base:    "Base",
-		ISA_SSE2:    "SSE2",
-		ISA_SSE4_2:  "SSE4.2",
-		ISA_AVX:     "AVX",
-		ISA_AVX2:    "AVX2",
-		ISA_AVX512:  "AVX512",
-		ISA_ARMv8:   "ARMv8",
-		ISA_ARMv8_2: "ARMv8.2",
-		ISA_ARMv9:   "ARMv9",
-		ISA_ARMv9_2: "ARMv9.2",
-	}
-
 	// Map intermediate code datatypes to their sizes in bytes in the assembly code.
 	dataTypeSize = map[ic.DataType]int32{
 		ic.Integer64:  8,
@@ -121,8 +94,8 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(target TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
-	if target.OperatingSystem != Linux || target.InstructionSetArchitecture != X86_64 || target.InstructionSet != ISA_SSE2 {
+func newEmitter(target cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
+	if target.OperatingSystem != cor.Linux || target.InstructionSetArchitecture != cor.X86_64 || target.InstructionSet != cor.ISA_SSE2 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, target, nil))
 	}
 

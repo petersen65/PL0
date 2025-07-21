@@ -104,17 +104,17 @@ var ExtensionMap = map[Extension]string{
 
 // Driver for the compilation process with the given options, source path, target path, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer) {
-	var targetPlatform emi.TargetPlatform
+	var targetPlatform cor.TargetPlatform
 	var targetDirectory, baseFileName, runtime string
 	var translationUnit TranslationUnit
 	var err error
 
 	// set target platform for the compilation process
 	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
-	targetPlatform = emi.TargetPlatform{
-		OperatingSystem:            emi.Linux,
-		InstructionSetArchitecture: emi.X86_64,
-		InstructionSet:             emi.ISA_SSE2,
+	targetPlatform = cor.TargetPlatform{
+		OperatingSystem:            cor.Linux,
+		InstructionSetArchitecture: cor.X86_64,
+		InstructionSet:             cor.ISA_SSE2,
 	}
 
 	// ensure target path exists and print persistence error message if an error occurred
@@ -195,7 +195,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 }
 
 // Compile source code and return translation unit with all intermediate results and error handler.
-func CompileSourceToTranslationUnit(sourcePath string, targetPlatform emi.TargetPlatform) (TranslationUnit, error) {
+func CompileSourceToTranslationUnit(sourcePath string, targetPlatform cor.TargetPlatform) (TranslationUnit, error) {
 	if content, err := os.ReadFile(sourcePath); err != nil {
 		return TranslationUnit{}, err
 	} else {
@@ -204,7 +204,7 @@ func CompileSourceToTranslationUnit(sourcePath string, targetPlatform emi.Target
 }
 
 // Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
-func CompileContent(content []byte, targetPlatform emi.TargetPlatform) TranslationUnit {
+func CompileContent(content []byte, targetPlatform cor.TargetPlatform) TranslationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler(tokenStream)

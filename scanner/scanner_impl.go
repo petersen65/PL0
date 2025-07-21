@@ -111,7 +111,7 @@ func (s *scanner) scan() (cor.TokenStream, error) {
 
 		tokenStream = append(tokenStream, cor.TokenDescription{
 			Token:       token,
-			TokenName:   cor.TokenNames[token],
+			TokenName:   token.String(),
 			TokenValue:  s.lastValue,
 			Line:        s.line,
 			Column:      s.column,

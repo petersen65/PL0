@@ -142,7 +142,7 @@ func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.T
 	//   a semicolon is expected to separate the block from the parent block
 	//   or a program-end is expected to end the program
 	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
-	p.tokenHandler.Recover(unexpectedTokens, expected, cor.Empty)
+	p.tokenHandler.Recover(unexpectedTokens, expected, cor.Tokens{})
 
 	// return a new block node in the abstract syntax tree
 	all = append(append(append(all, constants...), variables...), procedures...)
@@ -479,7 +479,7 @@ func (p *parser) statement(scope *ast.Scope, anchors cor.Tokens) (ast.Statement,
 	//   or the end of the program
 	//   or the end of the parent block
 	//   or the parser would forward to all block-tokens as anchors in the case of a syntax error
-	if p.tokenHandler.Recover(unexpectedTokensAfterStatement, anchors, cor.Empty) {
+	if p.tokenHandler.Recover(unexpectedTokensAfterStatement, anchors, cor.Tokens{}) {
 		// in case of a parsing error, return an empty statement
 		if statement == nil {
 			statement = ast.NewEmptyStatement()
