@@ -21,6 +21,12 @@ type (
 	// Error levels that are used to categorize errors (bit-mask).
 	Severity uint64
 
+	// A component error is an error that provides additional context about the error, such as its severity and the component it originated from.
+	ComponentError interface {
+		HasSeverity(severity Severity) bool
+		FromComponent(component Component) bool
+	}
+
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
 		AppendError(err error) error
@@ -34,8 +40,13 @@ type (
 )
 
 // Return the interface to a new error handler.
-func NewErrorHandler(tokenStream TokenStream) ErrorHandler {
-	return newErrorHandler(tokenStream)
+func NewErrorHandler() ErrorHandler {
+	return newErrorHandler()
+}
+
+// Create a new Go error with an optional value that can be used to format the error message based on failure code and map.
+func NewGoError(failureMap map[Failure]string, code Failure, value any) error {
+	return newGoError(failureMap, code, value)
 }
 
 // Create a new general error with a severity level (a general error can wrap any other error).
@@ -51,9 +62,4 @@ func NewLineColumnError(component Component, failureMap map[Failure]string, seve
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
 func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
 	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
-}
-
-// Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
-func NewTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
-	return newTokenError(component, failureMap, severity, code, value, tokenStream, index)
 }

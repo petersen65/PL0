@@ -7,20 +7,33 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 )
 
-// Token handler manages the current and next token in the token stream.
-type tokenHandler struct {
-	tokenStreamIndex     int                // index of the current token in the token stream table
-	tokenStream          TokenStream        // token stream to parse
-	lastTokenDescription TokenDescription   // description of the last token that was read
-	component            Component          // component of the compiler that is using the token handler
-	failureMap           map[Failure]string // map failure codes to error messages
-	errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
-}
+type (
+	// Token handler manages the current and next token in the token stream.
+	tokenHandler struct {
+		tokenStreamIndex     int                // index of the current token in the token stream table
+		tokenStream          TokenStream        // token stream to parse
+		lastTokenDescription TokenDescription   // description of the last token that was read
+		component            Component          // component of the compiler that is using the token handler
+		failureMap           map[Failure]string // map failure codes to error messages
+		errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
+	}
+
+	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
+	tokenError struct {
+		Err              error       `json:"-"`                  // error message
+		Code             Failure     `json:"code"`               // failure code of the error
+		Component        Component   `json:"component"`          // component that generated the error
+		Severity         Severity    `json:"severity"`           // severity of the error
+		TokenStreamIndex int64       `json:"token_stream_index"` // index of the token in the token stream where the error occurred
+		TokenStream      TokenStream `json:"-"`                  // token stream that is used to connect errors to a location in the source code
+	}
+)
 
 // Map tokens to their string representation.
 var tokenNames = map[Token]string{
@@ -67,6 +80,12 @@ func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 		failureMap:   failureMap,
 		errorHandler: errorHandler,
 	}
+}
+
+// Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
+func newTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
+	err := NewGoError(failureMap, code, value)
+	return &tokenError{Err: err, Code: code, Component: component, Severity: severity, TokenStreamIndex: int64(index), TokenStream: tokenStream}
 }
 
 // Marshal the token description to a JSON object.
@@ -283,12 +302,12 @@ func (t *tokenHandler) SetFullyParsed() {
 
 // Create a new error by mapping the error code to its corresponding error message.
 func (t *tokenHandler) NewError(severity Severity, code Failure, value any) error {
-	return NewTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, t.tokenStreamIndex-1)
+	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, t.tokenStreamIndex-1)
 }
 
 // Create a new error by mapping the error code to its corresponding error message and provide a token stream index for the error location.
 func (t *tokenHandler) NewErrorOnIndex(severity Severity, code Failure, value any, index int) error {
-	return NewTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
+	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
 }
 
 // Append an error to the error report of the underlying error handler which is used to store all errors that occured during parsing.
@@ -301,4 +320,81 @@ func (t *tokenHandler) AppendError(err error) error {
 func (t *tokenHandler) ReplaceComponent(component Component, failureMap map[Failure]string) {
 	t.component = component
 	t.failureMap = failureMap
+}
+
+// Implement the error interface for the token error so that it can be used like a native Go error.
+func (e *tokenError) Error() string {
+	td := e.TokenStream[e.TokenStreamIndex]
+	message := e.Err.Error()
+	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, td.Line, td.Column, message)
+
+	linePrefix := fmt.Sprintf("%5v: ", td.Line)
+	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \t\n\r")
+	trimmedLen := len(string(td.CurrentLine)) - len(trimmedLine)
+	indentionLen := len(linePrefix) + int(td.Column) - trimmedLen - 1 // valid column numbers are greater than 'trimmedLen'
+
+	// corner cases for errors that have a non-valid column number
+	if indentionLen < 0 {
+		indentionLen = len(linePrefix)
+	}
+
+	sourceLine := fmt.Sprintf("%v%v\n", linePrefix, trimmedLine)
+	errorLine := fmt.Sprintf("%v^ %v\n", strings.Repeat(" ", indentionLen), message)
+	return sourceLine + errorLine
+}
+
+// Marshal the token error to a JSON object.
+func (e *tokenError) MarshalJSON() ([]byte, error) {
+	type Embedded tokenError
+
+	// replace the error interface with an error message string
+	ej := &struct {
+		ErrorMessage string `json:"error"`
+		*Embedded
+		TokenDescription TokenDescription `json:"token_description"`
+	}{
+		ErrorMessage:     e.Err.Error(),
+		Embedded:         (*Embedded)(e),
+		TokenDescription: e.TokenStream[e.TokenStreamIndex],
+	}
+
+	return json.Marshal(ej)
+}
+
+// Unmarshal the token error from a JSON object.
+func (e *tokenError) UnmarshalJSON(raw []byte) error {
+	type Embedded tokenError
+
+	// struct to unmarshal the JSON object to
+	ej := &struct {
+		ErrorMessage string `json:"error"`
+		*Embedded
+		TokenDescription TokenDescription `json:"token_description"`
+	}{
+		Embedded: (*Embedded)(e),
+	}
+
+	if err := json.Unmarshal(raw, ej); err != nil {
+		return err
+	}
+
+	// replace the error message string with an error interface
+	e.Err = errors.New(ej.ErrorMessage)
+	e.Code = ej.Code
+	e.Component = ej.Component
+	e.Severity = ej.Severity
+	e.TokenStreamIndex = ej.TokenStreamIndex
+	e.TokenStream = []TokenDescription{ej.TokenDescription}
+
+	return nil
+}
+
+// Check if the token error has a specific severity level.
+func (e *tokenError) HasSeverity(severity Severity) bool {
+	return e.Severity&severity != 0
+}
+
+// Check if the token error comes from a specific component.
+func (e *tokenError) FromComponent(component Component) bool {
+	return e.Component&component != 0
 }

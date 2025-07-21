@@ -207,7 +207,7 @@ func CompileSourceToTranslationUnit(sourcePath string, targetPlatform cor.Target
 func CompileContent(content []byte, targetPlatform cor.TargetPlatform) TranslationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	errorHandler := cor.NewErrorHandler(tokenStream)
+	errorHandler := cor.NewErrorHandler()
 	errorHandler.AppendError(scannerError) // nil errors are ignored
 
 	// syntax analysis and semantic analysis of token stream
