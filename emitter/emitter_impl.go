@@ -6,6 +6,7 @@ package emitter
 import (
 	"container/list"
 	"math"
+	"unicode/utf8"
 
 	cor "github.com/petersen65/PL0/v2/core"
 	"github.com/petersen65/PL0/v2/emitter/elf"
@@ -117,6 +118,8 @@ func (e *emitter) Emit() {
 
 	// compile-time parameters list for function calls
 	parameters := list.New()
+
+	e.copyLiteral(ic.String, "PL/0 Compiler", "l1.1", []string{"bl1.1"})
 
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
@@ -463,7 +466,40 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		}
 
 	case ic.String:
+		// get the descriptor label from the literal data label
+		ldDescriptor := elf.ToDescriptor(ldLabel)
+
+		// calculate the 64-bit unsigned integer length of the string
+		runeCount := uint64(utf8.RuneCountInString(value.(string)))
+
+		// append the string value to a read-only data section of the assembly code
 		e.assemblyCode.AppendReadOnlyDataItem(elf.ReadOnlyUtf32, []string{ldLabel}, value.(string))
+
+		// append the string descriptor to a read-only data section of the assembly code (string address and length)
+		e.assemblyCode.AppendReadOnlyDataItem(elf.ReadOnlyStrDesc, []string{ldDescriptor}, []any{ldLabel, runeCount})
+
+		// load the address of the string descriptor into the Rsi register
+		e.assemblyCode.AppendInstruction(x64.Lea, btLabels,
+			x64.NewRegisterOperand(x64.Rsi),
+			x64.NewMemoryOperand(x64.Rip, x64.Bits64, ldDescriptor))
+
+		// load the address of the string into the R10 register
+		// note: the string address is stored at the first 8 bytes of the string descriptor (64-bit address)
+		e.assemblyCode.AppendInstruction(x64.Mov, nil,
+			x64.NewRegisterOperand(x64.R10),
+			x64.NewMemoryOperand(x64.Rsi, x64.Bits64))
+
+		// load the length of the string into the R11 register
+		// note: the string length is stored at the second 8 bytes of the string descriptor (64-bit unsigned integer)
+		e.assemblyCode.AppendInstruction(x64.Mov, nil,
+			x64.NewRegisterOperand(x64.R11),
+			x64.NewMemoryOperand(x64.Rsi, x64.Bits64, x64.PointerSize))
+
+		// push the R11 register onto the call stack (contains the length of the string)
+		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R11))
+
+		// push the R10 register onto the call stack (contains the address of the string)
+		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
@@ -639,7 +675,7 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 		// move the 64-bit floating-point value (IEEE 754 double precision) to the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, labels,
 			x64.NewRegisterOperand(x64.Xmm0),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits64))
 
 		// move the 64-bit floating-point sign bit mask into the R10 register
 		e.assemblyCode.AppendInstruction(x64.Mov, nil,
@@ -659,7 +695,7 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 
 		// move the negated 64-bit floating-point value back onto the top of the call stack
 		e.assemblyCode.AppendInstruction(x64.Movsd, nil,
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0),
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits64),
 			x64.NewRegisterOperand(x64.Xmm0))
 
 	case ic.Float32:
@@ -667,7 +703,7 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 		// note: the Bits32 is redundant here because the 'Movss' instruction always expects a 32-bit value
 		e.assemblyCode.AppendInstruction(x64.Movss, labels,
 			x64.NewRegisterOperand(x64.Xmm0),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits32))
 
 		// move the 32-bit floating-point sign bit mask into the R10d register
 		e.assemblyCode.AppendInstruction(x64.Mov, nil,
@@ -687,7 +723,7 @@ func (e *emitter) negate(dataType ic.DataType, labels []string) {
 
 		// move the negated 32-bit floating-point value back onto the top of the call stack
 		e.assemblyCode.AppendInstruction(x64.Movss, nil,
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0),
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits32),
 			x64.NewRegisterOperand(x64.Xmm0))
 
 		// clear the upper 32 bits from [RSP] to maintain a clean 64-bit call stack slot
@@ -755,7 +791,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 		// move the right-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM1 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, labels,
 			x64.NewRegisterOperand(x64.Xmm1),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits64))
 
 		// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, nil,
@@ -796,14 +832,14 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 
 		// move the result of the arithmetic operation back onto the top of the call stack, overwriting the left-hand value
 		e.assemblyCode.AppendInstruction(x64.Movsd, nil,
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0),
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits64),
 			x64.NewRegisterOperand(x64.Xmm0))
 
 	case ic.Float32:
 		// move the right-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM1 register
 		e.assemblyCode.AppendInstruction(x64.Movss, labels,
 			x64.NewRegisterOperand(x64.Xmm1),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits32))
 
 		// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movss, nil,
@@ -844,7 +880,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 
 		// // move the result of the arithmetic operation back onto the top of the call stack and overwrite the left-hand value's lower 32 bits
 		e.assemblyCode.AppendInstruction(x64.Movss, nil,
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0),
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits32),
 			x64.NewRegisterOperand(x64.Xmm0))
 
 		// clear the upper 32 bits from [RSP] to maintain a clean 64-bit call stack slot
@@ -952,7 +988,7 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) x64.ComparisonT
 		// move the right-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM1 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, labels,
 			x64.NewRegisterOperand(x64.Xmm1),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits64))
 
 		// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, nil,
@@ -974,7 +1010,7 @@ func (e *emitter) compare(dataType ic.DataType, labels []string) x64.ComparisonT
 		// note: the value is stored in a 64-bit stack slot (lower 32 bits contain the float)
 		e.assemblyCode.AppendInstruction(x64.Movss, labels,
 			x64.NewRegisterOperand(x64.Xmm1),
-			x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0))
+			x64.NewMemoryOperand(x64.Rsp, x64.Bits32))
 
 		// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
 		// note: the value is stored in a 64-bit stack slot (lower 32 bits contain the float)
@@ -1101,13 +1137,13 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, labels []string) {
 				// move the top of the call stack into the specified floating-point return register
 				e.assemblyCode.AppendInstruction(x64.Movsd, labels,
 					x64.NewRegisterOperand(register),
-					x64.NewMemoryOperand(x64.Rsp, x64.Bits64, 0))
+					x64.NewMemoryOperand(x64.Rsp, x64.Bits64))
 
 			case register.IsSse() && dataType.AsPlain() == ic.Float32:
 				// move the top of the call stack into the specified floating-point return register
 				e.assemblyCode.AppendInstruction(x64.Movss, labels,
 					x64.NewRegisterOperand(register),
-					x64.NewMemoryOperand(x64.Rsp, x64.Bits32, 0))
+					x64.NewMemoryOperand(x64.Rsp, x64.Bits32))
 
 			case register.IsGeneralPurpose() && (dataType.IsInteger() || dataType.IsCharacter() || dataType.IsBoolean() || dataType.IsString()):
 				// pop the top of the call stack into the specified general-purpose return register

@@ -37,6 +37,7 @@ const (
 	Movsxd // sign-extends a 32-bit value to 64 bits when moving into a 64-bit register
 	Movsx  // sign-extends a smaller integer operand to a larger register size
 	Movzx  // zero-extends a smaller integer operand to a larger register size
+	Lea    // loads an effective address into a register, useful for pointer arithmetic
 	Jmp    // performs an unconditional jump to a label or address
 	Je     // jumps if Zero Flag (ZF) is set, meaning operands were equal
 	Jne    // jumps if Zero Flag (ZF) is clear, meaning operands were not equal
@@ -242,15 +243,16 @@ type (
 
 	// Additional details about the bit size and displacement for memory operands.
 	MemoryDetail struct {
-		Size         OperandSize `json:"size"`         // bit size of the value in the memory space
-		Displacement int32       `json:"displacement"` // used by the memory operand for "base plus displacement" addressing
+		Size   OperandSize `json:"size"`   // bit size of the value in the memory space
+		Symbol string      `json:"symbol"` // displacement symbol for the memory operand
+		Offset int32       `json:"offset"` // displacement offset in bytes for the memory operand
 	}
 
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
-		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any)
+		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
@@ -274,9 +276,9 @@ func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, op
 	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
 }
 
-// Create a new read-only data item with a kind, some literal data labels, and a value with a supported data type.
-func NewReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any) *elf.ReadOnlyDataItem {
-	return elf.NewReadOnlyDataItem(kind, labels, value)
+// Create a new read-only data item with a kind, some literal data labels, and values with supported data types.
+func NewReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any) *elf.ReadOnlyDataItem {
+	return elf.NewReadOnlyDataItem(kind, labels, values)
 }
 
 // Create a new register operand for an assembly instruction.
@@ -289,9 +291,9 @@ func NewImmediateOperand(value any) *Operand {
 	return &Operand{Kind: ImmediateOperand, Immediate: value}
 }
 
-// Ceate a new memory operand for an assembly instruction.
-func NewMemoryOperand(register Register, size OperandSize, displacement int32) *Operand {
-	return &Operand{Kind: MemoryOperand, Register: register, Memory: MemoryDetail{Size: size, Displacement: displacement}}
+// Create a new memory operand for an assembly instruction.
+func NewMemoryOperand(register Register, size OperandSize, displacements ...any) *Operand {
+	return newMemoryOperand(register, size, displacements...)
 }
 
 // Create a new label operand for an assembly instruction.

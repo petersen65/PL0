@@ -10,6 +10,8 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+const descriptorLabel = "%v.desc"
+
 var (
 	// Map directives to their string representation.
 	directiveNames = map[Directive]string{
@@ -25,6 +27,7 @@ var (
 		Bss:          ".bss",
 		Utf32:        ".rodata.str4.4",
 		Int64:        ".rodata.int8.8",
+		StrDesc:      ".rodata.strdesc",
 		P2align:      ".p2align",
 		Align:        ".align",
 		Balign:       ".balign",
@@ -110,6 +113,11 @@ func (s *AssemblySection[T]) String() string {
 	return builder.String()
 }
 
+// Append content to the assembly section.
+func (s *AssemblySection[T]) Append(content T) {
+	s.Content = append(s.Content, content)
+}
+
 // String representation of a read-only data item.
 func (rdi *ReadOnlyDataItem) String() string {
 	var builder strings.Builder
@@ -119,21 +127,26 @@ func (rdi *ReadOnlyDataItem) String() string {
 		builder.WriteString(fmt.Sprintf(".L%v:\n", label))
 	}
 
+	// check if the values are nil, which is not allowed for read-only data items
+	if rdi.Values == nil {
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, nil, nil))
+	}
+
 	// encode different kinds of read-only data
 	switch rdi.Kind {
 	case ReadOnlyUtf32:
 		var utf32 []rune
 
-		// encode to UTF-32 string based on the Go data type
-		switch v := rdi.Value.(type) {
+		// encode to UTF-32 string based on supported Go data types
+		switch values := rdi.Values.(type) {
 		case string:
-			utf32 = []rune(v)
+			utf32 = []rune(values)
 
 		case []rune:
-			utf32 = v
+			utf32 = values
 
 		default:
-			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
+			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
 		}
 
 		// write all code points with a newline after each item (expect the last one)
@@ -145,16 +158,62 @@ func (rdi *ReadOnlyDataItem) String() string {
 		builder.WriteString(fmt.Sprintf("  %v 0x%08X", Long, uint32(0)))
 
 	case ReadOnlyInt64:
-		// encode to 64-bit integer based on supported Go data types
-		switch v := rdi.Value.(type) {
+		// encode to 64-bit integers based on supported Go data types
+		switch values := rdi.Values.(type) {
 		case int64:
-			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(v)))
+			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(values)))
 
 		case uint64:
-			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, v))
+			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, values))
+
+		case []int64:
+			for i, value := range values {
+				builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(value)))
+
+				if i < len(values)-1 {
+					builder.WriteString("\n")
+				}
+			}
+
+		case []uint64:
+			for i, value := range values {
+				builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, value))
+
+				if i < len(values)-1 {
+					builder.WriteString("\n")
+				}
+			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Value, nil))
+			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
+		}
+
+	case ReadOnlyStrDesc:
+		// encode to string descriptors with a 64-bit pointer and a 64-bit length based on supported Go data types
+		switch values := rdi.Values.(type) {
+		case string:
+			builder.WriteString(fmt.Sprintf("  %v .L%v", Quad, values))
+
+		case uint64:
+			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, values))
+
+		case []any:
+			for i, value := range values {
+				switch desc := value.(type) {
+				case string:
+					builder.WriteString(fmt.Sprintf("  %v .L%v", Quad, desc))
+
+				case uint64:
+					builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, desc))
+
+				default:
+					panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, value, nil))
+				}
+
+				if i < len(values)-1 {
+					builder.WriteString("\n")
+				}
+			}
 		}
 
 	default:

@@ -22,8 +22,11 @@ const (
 	Data    // switches to the .data (writable data) section (.data)
 	Rodata  // switches to the .rodata (read-only data) section (.rodata)
 	Bss     // switches to the .bss (zero-initialized data) section (.bss)
+
+	// read-only data directives with specific encodings
 	Utf32   // switches to the .rodata.str4.4 (UTF-32 strings) section (.rodata.str4.4,"a",@progbits)
 	Int64   // switches to the .rodata.int8.8 (64-bit integers) section (.rodata.int8.8,"a",@progbits)
+	StrDesc // switches to the .rodata.strdesc (string descriptors) section (.rodata.strdesc,"a",@progbits)
 
 	// alignment and layout directives
 	P2align // aligns to 2^n bytes (.p2align <n>) — used for ABI alignment
@@ -60,8 +63,9 @@ const (
 
 // Kind of read-only data to be stored in a read-only section.
 const (
-	ReadOnlyUtf32 ReadOnlyDataKind = iota // UTF-32 encoded strings
-	ReadOnlyInt64                         // 64-bit integer literals (signed and unsigned)
+	ReadOnlyUtf32   ReadOnlyDataKind = iota // UTF-32 encoded strings
+	ReadOnlyInt64                           // 64-bit integer literals (signed and unsigned)
+	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
 )
 
 // Power-of-2 alignment values for the .p2align directive.
@@ -92,11 +96,11 @@ type (
 		Content    []T         // typed contents of this section (e.g., read-only data items, instructions)
 	}
 
-	// A read-only data item is a constant value that is not modified during program execution.
+	// A read-only data item holds one or several constant values that are not modified during program execution.
 	ReadOnlyDataItem struct {
 		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
 		Labels []string         `json:"labels"` // literal data labels to access the read-only data item
-		Value  any              `json:"value"`  // the value will be stored in a read-only section and encoded based on its kind
+		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
 	}
 )
 
@@ -111,8 +115,8 @@ func NewAssemblySection[T fmt.Stringer](directives []Directive, attributes []Att
 }
 
 // Create a new read-only data item with literal data labels for a read-only section.
-func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any) *ReadOnlyDataItem {
-	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Value: value}
+func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *ReadOnlyDataItem {
+	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
 }
 
 // String representation of a directive.
@@ -123,4 +127,9 @@ func (dk Directive) String() string {
 // String representation of an attribute.
 func (a Attribute) String() string {
 	return attributeNames[a]
+}
+
+// String representation of a descriptor label.
+func ToDescriptor(label string) string {
+	return fmt.Sprintf(descriptorLabel, label)
 }
