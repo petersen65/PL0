@@ -119,8 +119,6 @@ func (e *emitter) Emit() {
 	// compile-time parameters list for function calls
 	parameters := list.New()
 
-	e.copyLiteral(ic.String, "PL/0 Compiler", "l1.1", []string{"bl1.1"})
-
 	// perform an assembly instruction selection for each intermediate code instruction
 	for i, l := iterator.First(), make([]string, 0); i != nil; i = iterator.Next() {
 		// panic if the intermediate code instruction has not a valid addresses contract
