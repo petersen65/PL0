@@ -114,7 +114,7 @@ func (s *AssemblySection[T]) String() string {
 func (rdi *ReadOnlyDataItem) String() string {
 	var builder strings.Builder
 
-	// write the labels first and mark them with a local label prefix
+	// write the literal data labels first and mark them with a local label prefix
 	for _, label := range rdi.Labels {
 		builder.WriteString(fmt.Sprintf(".L%v:\n", label))
 	}

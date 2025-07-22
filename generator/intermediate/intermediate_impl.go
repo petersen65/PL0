@@ -177,7 +177,7 @@ var (
 			{Arg1: Empty, Arg2: Empty, Result: Variable},
 		},
 		CopyLiteral: {
-			{Arg1: Literal, Arg2: Empty, Result: Register},
+			{Arg1: Literal, Arg2: Literal, Result: Register},
 		},
 		LoadVariable: {
 			{Arg1: Variable, Arg2: Literal, Result: Register},

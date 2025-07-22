@@ -179,7 +179,7 @@ const (
 	RegisterOperand  OperandKind = iota // register operands are used for arithmetic and logical operations
 	ImmediateOperand                    // constant values are literals in various bit sizes
 	MemoryOperand                       // memory addresses are specified indirectly through registers
-	LabelOperand                        // labels are used to specify jump targets and must be replaced by absolute addresses before execution
+	LabelOperand                        // labels are used to specify branch targets or read-only data items
 )
 
 // Operand sizes in bits.
@@ -229,7 +229,7 @@ type (
 		Register  Register     `json:"register"`      // register with various bit sizes
 		Immediate any          `json:"immediate"`     // value of the immediate operand
 		Memory    MemoryDetail `json:"memory_detail"` // additional details about the memory operand
-		Label     string       `json:"label"`         // labels for jump instructions will be replaced by an address
+		Label     string       `json:"label"`         // branch target label for jump instructions or literal data label for read-only data items access
 	}
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
@@ -237,7 +237,7 @@ type (
 		Prefix    OperationCode `json:"prefix"`    // prefix for the instruction
 		Operation OperationCode `json:"operation"` // operation code of the instruction
 		Operands  []*Operand    `json:"operands"`  // operands for the operation
-		Labels    []string      `json:"labels"`    // labels to whom jump instructions will jump
+		Labels    []string      `json:"labels"`    // branch target labels
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -264,14 +264,19 @@ func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 	return newAssemblyCodeUnit(targetPlatform, outputKind)
 }
 
-// Create a new assembly instruction with an operation code, some labels, and operands.
+// Create a new assembly instruction with an operation code, some branch target labels, and operands.
 func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
 	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels}
 }
 
-// Create a new assembly instruction with a prefix operation code, an operation code, some labels, and operands.
+// Create a new assembly instruction with a prefix operation code, an operation code, some branch target labels, and operands.
 func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
 	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
+}
+
+// Create a new read-only data item with a kind, some literal data labels, and a value with a supported data type.
+func NewReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any) *elf.ReadOnlyDataItem {
+	return elf.NewReadOnlyDataItem(kind, labels, value)
 }
 
 // Create a new register operand for an assembly instruction.

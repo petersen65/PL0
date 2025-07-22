@@ -8,6 +8,7 @@ import (
 	"math"
 
 	cor "github.com/petersen65/PL0/v2/core"
+	"github.com/petersen65/PL0/v2/emitter/elf"
 	x64 "github.com/petersen65/PL0/v2/emitter/x86_64"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
@@ -124,7 +125,7 @@ func (e *emitter) Emit() {
 
 		switch i.Quadruple.Operation {
 		case ic.BranchTarget: // target for any branching operation
-			// append labels for the directly following non 'BranchTarget' instruction
+			// append branch target labels for the directly following non 'BranchTarget' instruction
 			l = append(l, i.Quadruple.Result.Value.(string))
 
 		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
@@ -150,8 +151,14 @@ func (e *emitter) Emit() {
 			// extract the literal value from the quadruple
 			literal := i.Quadruple.Arg1.Value
 
+			// extract the data type of the literal value
+			dataType := i.Quadruple.Arg1.DataType
+
+			// extract the literal data label from the quadruple
+			ldLabel := i.Quadruple.Arg2.Value.(string)
+
 			// emit assembly code to copy the literal onto the top of the call stack
-			e.copyLiteral(i.Quadruple.Arg1.DataType, literal, l)
+			e.copyLiteral(dataType, literal, ldLabel, l)
 
 		case ic.LoadVariable: // load a variable from its call stack address onto the top of the stack
 			// extract the data type of the variable
@@ -264,7 +271,7 @@ func (e *emitter) Emit() {
 			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Quadruple.Operation, nil))
 		}
 
-		// collected labels must be used by the directly following instruction (one instruction consumes all collected labels)
+		// collected branch target labels must be used by the directly following instruction (one instruction consumes all collected labels)
 		if i.Quadruple.Operation != ic.BranchTarget {
 			l = make([]string, 0)
 		}
@@ -277,7 +284,7 @@ func (e *emitter) GetAssemblyCodeUnit() x64.AssemblyCodeUnit {
 }
 
 // Allocate space for local variables in the activation record of a function and remember their offsets.
-func (e *emitter) allocateVariables(iterator ic.Iterator, labels []string) {
+func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
 		if iterator.Peek(j).Quadruple.Operation == ic.AllocateVariable {
@@ -310,7 +317,7 @@ func (e *emitter) allocateVariables(iterator ic.Iterator, labels []string) {
 			offset = x64.Align(offset, callStackAlignment)
 
 			// grow the call stack downwards to provide space for all local variables int the activiation record (2GB maximum)
-			e.assemblyCode.AppendInstruction(x64.Sub, labels,
+			e.assemblyCode.AppendInstruction(x64.Sub, btLabels,
 				x64.NewRegisterOperand(x64.Rsp),
 				x64.NewImmediateOperand(-offset))
 
@@ -355,12 +362,12 @@ func (e *emitter) setup(depth int32) {
 }
 
 // Copy an immediate value onto the top of the call stack.
-func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) {
+func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, btLabels []string) {
 	// depending on the data type, the value is copied onto the call stack as an immediate value or as a 64-bit value in the R10 register
 	switch dataType {
 	case ic.Integer64:
 		// move the 64-bit signed integer into the R10 register without sign extension
-		e.assemblyCode.AppendInstruction(x64.MovAbs, labels,
+		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(value.(int64)))
 
@@ -369,19 +376,19 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 
 	case ic.Integer32:
 		// push the 32-bit signed integer onto the call stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(value.(int32)))
+		e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(value.(int32)))
 
 	case ic.Integer16:
 		// convert the 16-bit signed integer to a 32-bit signed integer before pushing it onto the call stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(int32(value.(int16))))
+		e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(int32(value.(int16))))
 
 	case ic.Integer8:
 		// push the 8-bit signed integer onto the call stack and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(value.(int8)))
+		e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(value.(int8)))
 
 	case ic.Unsigned64:
 		// move the 64-bit unsigned integer into the R10 register without sign extension
-		e.assemblyCode.AppendInstruction(x64.MovAbs, labels,
+		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(value.(uint64)))
 
@@ -390,7 +397,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 
 	case ic.Unsigned32:
 		// move the 32-bit unsigned integer into the R10d register and zero-extend to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Mov, labels,
+		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(value.(uint32)))
 
@@ -400,7 +407,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 
 	case ic.Unsigned16:
 		// move the 16-bit unsigned integer, converted to 32 bits, into the R10d register and zero-extend to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Mov, labels,
+		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(uint32(value.(uint16))))
 
@@ -410,7 +417,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 
 	case ic.Unsigned8:
 		// move the 8-bit unsigned integer, converted to 32 bits, into the R10d register and zero-extend to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Mov, labels,
+		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(uint32(value.(uint8))))
 
@@ -423,7 +430,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 		binaryRepresentationIEEE754 := math.Float64bits(value.(float64))
 
 		// move the 64-bit float value into the R10 register without any extension
-		e.assemblyCode.AppendInstruction(x64.MovAbs, labels,
+		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(binaryRepresentationIEEE754))
 
@@ -435,7 +442,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 		binaryRepresentationIEEE754 := math.Float32bits(value.(float32))
 
 		// move the 32-bit float value into the lower 32 bits of the R10 register (named R10d) and zero-extend the upper 32 bits
-		e.assemblyCode.AppendInstruction(x64.Mov, labels,
+		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(binaryRepresentationIEEE754))
 
@@ -444,16 +451,19 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, labels []string) 
 
 	case ic.Character:
 		// convert the Unicode code point to a 32-bit signed integer before pushing it onto the call stack
-		e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(int32(value.(rune))))
+		e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(int32(value.(rune))))
 
 	case ic.Boolean:
 		// convert the boolean value to an 8-bit unsigned integer before pushing it onto the call stack
 		// note: sign extension will have no effect because the boolean value is either 0 or 1
 		if value.(bool) {
-			e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(uint8(1)))
+			e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(uint8(1)))
 		} else {
-			e.assemblyCode.AppendInstruction(x64.Push, labels, x64.NewImmediateOperand(uint8(0)))
+			e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewImmediateOperand(uint8(0)))
 		}
+
+	case ic.String:
+		e.assemblyCode.AppendReadOnlyDataItem(elf.ReadOnlyUtf32, []string{ldLabel}, value.(string))
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation

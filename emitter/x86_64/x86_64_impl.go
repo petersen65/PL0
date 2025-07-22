@@ -225,7 +225,7 @@ func (i *Instruction) String() string {
 	const prefixOperationWidth = 12
 	var builder strings.Builder
 
-	// write the labels first
+	// write the branch target labels first
 	for _, label := range i.Labels {
 		builder.WriteString(fmt.Sprintf("%v:\n", label))
 	}
@@ -244,17 +244,17 @@ func (i *Instruction) String() string {
 	return strings.TrimSuffix(builder.String(), ", ")
 }
 
-// Append an instruction to the assembly code unit.
+// Append an instruction with branch target labels to the assembly code unit.
 func (a *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
 	a.textSection.Content = append(a.textSection.Content, NewInstruction(operation, labels, operands...))
 }
 
-// Append a prefixed instruction to the assembly code unit.
+// Append a prefixed instruction with branch target labels to the assembly code unit.
 func (a *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
 	a.textSection.Content = append(a.textSection.Content, NewPrefixedInstruction(prefix, operation, labels, operands...))
 }
 
-// Append a read-only data item to the assembly code unit.
+// Append a read-only data item with literal data labels to the assembly code unit.
 func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, value any) {
 	switch kind {
 	case elf.ReadOnlyUtf32:

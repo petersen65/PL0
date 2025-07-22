@@ -95,7 +95,7 @@ type (
 	// A read-only data item is a constant value that is not modified during program execution.
 	ReadOnlyDataItem struct {
 		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
-		Labels []string         `json:"labels"` // labels to access the read-only data item
+		Labels []string         `json:"labels"` // literal data labels to access the read-only data item
 		Value  any              `json:"value"`  // the value will be stored in a read-only section and encoded based on its kind
 	}
 )
@@ -110,7 +110,7 @@ func NewAssemblySection[T fmt.Stringer](directives []Directive, attributes []Att
 	}
 }
 
-// Create a new read-only data item for a read-only section.
+// Create a new read-only data item with literal data labels for a read-only section.
 func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, value any) *ReadOnlyDataItem {
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Value: value}
 }

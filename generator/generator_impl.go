@@ -19,7 +19,7 @@ const symbolExtension ast.ExtensionType = 16
 
 // Prefixes for address names in the three-address code concept if a name does not contain a value.
 const (
-	labelPrefix    prefixType = iota // the label prefix is used for instruction labels and the address variant 'Label'
+	labelPrefix    prefixType = iota // the label prefix is used for branch target labels or literal data labels
 	registerPrefix                   // the register prefix is used virtual registers contained in the address variant 'Register'
 	constantPrefix                   // the constant prefix is used for flattened constant names in the intermediate code
 	variablePrefix                   // the variable prefix is used for flattened variable names in the intermediate code
@@ -109,6 +109,7 @@ func (i *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
+		// take the entry point label as the branch target label
 		blockBegin := cor.EntryPointLabel
 
 		// append a branch-target instruction with a branch-label to mark the beginning of the block
@@ -121,6 +122,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 		i.intermediateCode.AppendInstruction(instruction)
 	} else {
+		// take the flattened name of the procedure declaration as the branch target label
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
 		blockBegin := astSymbol.Extension[symbolExtension].(*symbolMetaData).name
 
@@ -180,8 +182,8 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		copyLiteral := ic.NewInstruction(
 			ic.CopyLiteral, // copy the value of the literal to a virtual register
 			ic.NewLiteralAddress(ic.Integer32, returnValue), // literal value for the return value
-			noAddress,
-			ic.NewRegisterAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+			ic.NewLiteralAddress(ic.String, bn.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
+			ic.NewRegisterAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
 			0)
 
 		// return from the main block with a final result
@@ -245,8 +247,8 @@ func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
 	instruction := ic.NewInstruction(
 		ic.CopyLiteral, // copy the value of the literal to a virtual register
 		ic.NewLiteralAddress(dataTypeMap[ln.DataType], ln.Value), // literal value
-		noAddress,
-		ic.NewRegisterAddress(dataTypeMap[ln.DataType], ln.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+		ic.NewLiteralAddress(ic.String, ln.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
+		ic.NewRegisterAddress(dataTypeMap[ln.DataType], ln.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
 		ln.TokenStreamIndex) // literal use in the token stream
 
 	// push the virtual register onto the results-list and append the instruction to the intermediate code unit
@@ -271,8 +273,8 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		instruction := ic.NewInstruction(
 			ic.CopyLiteral, // copy the value of the constant to a virtual register
 			ic.NewLiteralAddress(dataTypeMap[constantDeclaration.DataType], constantDeclaration.Value), // literal value
-			noAddress,
-			ic.NewRegisterAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+			ic.NewLiteralAddress(ic.String, iu.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
+			ic.NewRegisterAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
 			iu.TokenStreamIndex) // constant use in the token stream
 
 		// push the virtual register onto the results-list and append the instruction to the intermediate code unit
@@ -616,7 +618,7 @@ func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 
 // Generate code for an if-then statement.
 func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
-	// determine block and its scope where the if-then statement is located
+	// create a new branch target label in the scope of the block where the if-then statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
 	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
 
@@ -640,7 +642,7 @@ func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
 
 // Generate code for a while-do statement.
 func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
-	// determine block and its scope where the while-do statement is located
+	// create two new branch target labels in the scope of the block where the while-do statement is located
 	scope := ast.SearchBlock(ast.CurrentBlock, s).Scope
 	beforeCondition := scope.NewIdentifier(prefix[labelPrefix])
 	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
