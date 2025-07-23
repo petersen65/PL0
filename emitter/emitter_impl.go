@@ -505,7 +505,8 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 	}
 }
 
-// Load a variable from its activation record onto the top of the call stack.
+// Load a variable's value from its activation record onto the top of the call stack.
+// If the variable's data type has the pointer or reference modifier set, the value is loaded as 64-bit address.
 func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int32, labels []string) {
 	var basePointer x64.Register
 
@@ -527,81 +528,93 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 		basePointer = x64.Rax
 	}
 
-	// depending on the data type, the variable is loaded from the activation record into the R10 register and then pushed onto the call stack
-	switch dataType {
-	case ic.Integer64, ic.Unsigned64, ic.Float64:
-		// move the 64-bit integer/float bitwise from the activation record into the R10 register
+	// check whether the data type of the variable has modifiers and if so, treat the variable's value as a pointer or reference
+	if dataType.IsPointer() || dataType.IsReference() {
+		// move the 64-bit address of the variable from the activation record into the R10 register
 		e.assemblyCode.AppendInstruction(x64.Mov, labels,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewMemoryOperand(basePointer, x64.Bits64, offset))
 
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+	} else {
+		// depending on the data type, the variable is loaded from the activation record into the R10 register and then pushed onto the call stack
+		switch dataType {
+		case ic.Integer64, ic.Unsigned64, ic.Float64:
+			// move the 64-bit integer/float bitwise from the activation record into the R10 register
+			e.assemblyCode.AppendInstruction(x64.Mov, labels,
+				x64.NewRegisterOperand(x64.R10),
+				x64.NewMemoryOperand(basePointer, x64.Bits64, offset))
 
-	case ic.Integer32, ic.Character:
-		// move the 32-bit signed integer/rune from the activation record into the R10 register and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Movsxd, labels,
-			x64.NewRegisterOperand(x64.R10),
-			x64.NewMemoryOperand(basePointer, x64.Bits32, offset))
+			// push the R10 register onto the call stack
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Integer32, ic.Character:
+			// move the 32-bit signed integer/rune from the activation record into the R10 register and sign-extend it to 64 bits
+			e.assemblyCode.AppendInstruction(x64.Movsxd, labels,
+				x64.NewRegisterOperand(x64.R10),
+				x64.NewMemoryOperand(basePointer, x64.Bits32, offset))
 
-	case ic.Unsigned32, ic.Float32:
-		// move the 32-bit unsigned integer/float bitwise from the activation record into the R10d register and zero-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Mov, labels,
-			x64.NewRegisterOperand(x64.R10d),
-			x64.NewMemoryOperand(basePointer, x64.Bits32, offset))
+			// push the R10 register onto the call stack
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Unsigned32, ic.Float32:
+			// move the 32-bit unsigned integer/float bitwise from the activation record into the R10d register and zero-extend it to 64 bits
+			e.assemblyCode.AppendInstruction(x64.Mov, labels,
+				x64.NewRegisterOperand(x64.R10d),
+				x64.NewMemoryOperand(basePointer, x64.Bits32, offset))
 
-	case ic.Integer16:
-		// move the 16-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Movsx, labels,
-			x64.NewRegisterOperand(x64.R10),
-			x64.NewMemoryOperand(basePointer, x64.Bits16, offset))
+			// push the R10 register onto the call stack
+			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Integer16:
+			// move the 16-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
+			e.assemblyCode.AppendInstruction(x64.Movsx, labels,
+				x64.NewRegisterOperand(x64.R10),
+				x64.NewMemoryOperand(basePointer, x64.Bits16, offset))
 
-	case ic.Unsigned16:
-		// move the 16-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
-		e.assemblyCode.AppendInstruction(x64.Movzx, labels,
-			x64.NewRegisterOperand(x64.R10d),
-			x64.NewMemoryOperand(basePointer, x64.Bits16, offset))
+			// push the R10 register onto the call stack
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Unsigned16:
+			// move the 16-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
+			e.assemblyCode.AppendInstruction(x64.Movzx, labels,
+				x64.NewRegisterOperand(x64.R10d),
+				x64.NewMemoryOperand(basePointer, x64.Bits16, offset))
 
-	case ic.Integer8:
-		// move the 8-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
-		e.assemblyCode.AppendInstruction(x64.Movsx, labels,
-			x64.NewRegisterOperand(x64.R10),
-			x64.NewMemoryOperand(basePointer, x64.Bits8, offset))
+			// push the R10 register onto the call stack
+			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Integer8:
+			// move the 8-bit signed integer from the activation record into the R10 register and sign-extend it to 64 bits
+			e.assemblyCode.AppendInstruction(x64.Movsx, labels,
+				x64.NewRegisterOperand(x64.R10),
+				x64.NewMemoryOperand(basePointer, x64.Bits8, offset))
 
-	case ic.Unsigned8, ic.Boolean:
-		// move the 8-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
-		e.assemblyCode.AppendInstruction(x64.Movzx, labels,
-			x64.NewRegisterOperand(x64.R10d),
-			x64.NewMemoryOperand(basePointer, x64.Bits8, offset))
+			// push the R10 register onto the call stack
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
 
-		// push the R10 register onto the call stack
-		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+		case ic.Unsigned8, ic.Boolean:
+			// move the 8-bit unsigned integer from the activation record into the R10d register and zero-extend it to 32 bits
+			e.assemblyCode.AppendInstruction(x64.Movzx, labels,
+				x64.NewRegisterOperand(x64.R10d),
+				x64.NewMemoryOperand(basePointer, x64.Bits8, offset))
 
-	default:
-		// panic if the data type is not supported for the intermediate code operation
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+			// push the R10 register onto the call stack
+			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.R10))
+
+		default:
+			// panic if the data type is not supported for the intermediate code operation
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		}
 	}
 }
 
-// Store the top of the call stack into a variable's activation record.
+// Store the top of the call stack as value into a variable's activation record.
+// If the variable's data type has the pointer or reference modifier set, the value is assumed to be a 64-bit address and is stored as-is.
 func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference int32, labels []string) {
 	var basePointer x64.Register
 
@@ -626,35 +639,43 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 	// pop the top of the call stack into the R10 register
 	e.assemblyCode.AppendInstruction(x64.Pop, labels, x64.NewRegisterOperand(x64.R10))
 
-	// depending on the data type, the R10 register is stored into the activation record of the variable
-	switch dataType {
-	case ic.Integer64, ic.Unsigned64, ic.Float64:
-		// move the 64-bit integers/float bitwise from the R10 register into the activation record
+	// check whether the data type of the variable has modifiers and if so, treat the variable's value as a pointer or reference
+	if dataType.IsPointer() || dataType.IsReference() {
+		// move the 64-bit address of the variable from the R10 register into the activation record
 		e.assemblyCode.AppendInstruction(x64.Mov, nil,
 			x64.NewMemoryOperand(basePointer, x64.Bits64, offset),
 			x64.NewRegisterOperand(x64.R10))
+	} else {
+		// depending on the data type, the R10 register is stored into the activation record of the variable
+		switch dataType {
+		case ic.Integer64, ic.Unsigned64, ic.Float64:
+			// move the 64-bit integers/float bitwise from the R10 register into the activation record
+			e.assemblyCode.AppendInstruction(x64.Mov, nil,
+				x64.NewMemoryOperand(basePointer, x64.Bits64, offset),
+				x64.NewRegisterOperand(x64.R10))
 
-	case ic.Integer32, ic.Unsigned32, ic.Float32, ic.Character:
-		// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
-		e.assemblyCode.AppendInstruction(x64.Mov, nil,
-			x64.NewMemoryOperand(basePointer, x64.Bits32, offset),
-			x64.NewRegisterOperand(x64.R10d))
+		case ic.Integer32, ic.Unsigned32, ic.Float32, ic.Character:
+			// move the 32-bit signed integer and unsigned integer/rune/float bitwise from the R10d register into the activation record
+			e.assemblyCode.AppendInstruction(x64.Mov, nil,
+				x64.NewMemoryOperand(basePointer, x64.Bits32, offset),
+				x64.NewRegisterOperand(x64.R10d))
 
-	case ic.Integer16, ic.Unsigned16:
-		// move the 16-bit integers bitwise from the R10w register into the activation record
-		e.assemblyCode.AppendInstruction(x64.Mov, nil,
-			x64.NewMemoryOperand(basePointer, x64.Bits16, offset),
-			x64.NewRegisterOperand(x64.R10w))
+		case ic.Integer16, ic.Unsigned16:
+			// move the 16-bit integers bitwise from the R10w register into the activation record
+			e.assemblyCode.AppendInstruction(x64.Mov, nil,
+				x64.NewMemoryOperand(basePointer, x64.Bits16, offset),
+				x64.NewRegisterOperand(x64.R10w))
 
-	case ic.Integer8, ic.Unsigned8, ic.Boolean:
-		// move the 8-bit integers/boolean bitwise from the R10b register into the activation record
-		e.assemblyCode.AppendInstruction(x64.Mov, nil,
-			x64.NewMemoryOperand(basePointer, x64.Bits8, offset),
-			x64.NewRegisterOperand(x64.R10b))
+		case ic.Integer8, ic.Unsigned8, ic.Boolean:
+			// move the 8-bit integers/boolean bitwise from the R10b register into the activation record
+			e.assemblyCode.AppendInstruction(x64.Mov, nil,
+				x64.NewMemoryOperand(basePointer, x64.Bits8, offset),
+				x64.NewRegisterOperand(x64.R10b))
 
-	default:
-		// panic if the data type is not supported for the intermediate code operation
-		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		default:
+			// panic if the data type is not supported for the intermediate code operation
+			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		}
 	}
 }
 
