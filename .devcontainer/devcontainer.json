@@ -13,7 +13,7 @@
             "GO_VERSION": "1.24.5",
             "GO_ARCHITECTURE": "linux-amd64",
             "GCC_VERSION": "15",
-            "LLVM_VERSION": "21"
+            "LLVM_VERSION": "20"
         }
     },
     "runArgs": [
@@ -26,8 +26,6 @@
                 "vscode-icons-team.vscode-icons",
                 "github.copilot",
                 "github.copilot-chat",
-                "rogalmic.bash-debug",
-                "mads-hartmann.bash-ide-vscode",
                 "cheshirekow.cmake-format",
                 "golang.go",
                 "ms-vscode.cpptools-extension-pack"
