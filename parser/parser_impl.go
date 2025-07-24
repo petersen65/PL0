@@ -573,7 +573,7 @@ func (p *parser) procedureIdentifier(scope *ast.Scope) ast.Declaration {
 	return declaration
 }
 
-// A condition is either an odd expression or two expressions separated by a relational operator.
+// A condition is either an odd expression or two expressions separated by a comparison operator.
 func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	// in case of a parsing error, return an empty declaration
 	operation := ast.NewEmptyExpression()
@@ -584,40 +584,40 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 		operand := p.expression(scope, anchors)
 		operation = ast.NewUnaryOperation(ast.Odd, operand, oddIndex)
 	} else {
-		// handle left expression of a relational operator
+		// handle left expression of a comparison operator
 		left := p.expression(scope, set(anchors, cor.Equal, cor.NotEqual, cor.Less, cor.LessEqual, cor.Greater, cor.GreaterEqual))
 
 		if !p.lastToken().In(set(cor.Equal, cor.NotEqual, cor.Less, cor.LessEqual, cor.Greater, cor.GreaterEqual)) {
-			p.appendError(expectedRelationalOperator, p.lastTokenName())
+			p.appendError(expectedComparisonOperator, p.lastTokenName())
 		} else {
-			relationalOperator := p.lastToken()
-			relationalOperatorIndex := p.lastTokenIndex()
+			comparisonOperator := p.lastToken()
+			comparisonOperatorIndex := p.lastTokenIndex()
 			p.nextToken()
 
-			// handle right expression of a relational operator
+			// handle right expression of a comparison operator
 			right := p.expression(scope, anchors)
 
-			switch relationalOperator {
+			switch comparisonOperator {
 			case cor.Equal:
-				operation = ast.NewConditionalOperation(ast.Equal, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Equal, left, right, comparisonOperatorIndex)
 
 			case cor.NotEqual:
-				operation = ast.NewConditionalOperation(ast.NotEqual, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.NotEqual, left, right, comparisonOperatorIndex)
 
 			case cor.Less:
-				operation = ast.NewConditionalOperation(ast.Less, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Less, left, right, comparisonOperatorIndex)
 
 			case cor.LessEqual:
-				operation = ast.NewConditionalOperation(ast.LessEqual, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.LessEqual, left, right, comparisonOperatorIndex)
 
 			case cor.Greater:
-				operation = ast.NewConditionalOperation(ast.Greater, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Greater, left, right, comparisonOperatorIndex)
 
 			case cor.GreaterEqual:
-				operation = ast.NewConditionalOperation(ast.GreaterEqual, left, right, relationalOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.GreaterEqual, left, right, comparisonOperatorIndex)
 
 			default:
-				p.appendError(expectedRelationalOperator, p.lastTokenName())
+				p.appendError(expectedComparisonOperator, p.lastTokenName())
 				operation = ast.NewEmptyExpression()
 			}
 		}
@@ -734,7 +734,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 		// after a factor, the parser expects
 		//   a times or divide operator
 		//   a plus or minus operator
-		//   a relational operator
+		//   a comparison operator
 		//   a right parenthesis
 		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
 		p.tokenHandler.Recover(unexpectedTokens, anchors, set(cor.LeftParenthesis))

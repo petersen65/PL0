@@ -26,7 +26,7 @@ const (
 	IdentifierUseType
 	UnaryOperationType
 	BinaryOperationType
-	ConditionalOperationType
+	ComparisonOperationType
 	AssignmentStatementType
 	ReadStatementType
 	WriteStatementType
@@ -66,7 +66,7 @@ const (
 
 // Operators for comparison.
 const (
-	Equal RelationalOperator = iota
+	Equal ComparisonOperator = iota
 	NotEqual
 	Less
 	LessEqual
@@ -122,7 +122,7 @@ type (
 	BinaryOperator int
 
 	// Take two operands and perform a comparison on them.
-	RelationalOperator int
+	ComparisonOperator int
 
 	// The datatype of a symbol.
 	DataType int
@@ -281,13 +281,13 @@ type (
 		TokenStreamIndex int            `json:"token_stream_index"` // index of the token in the token stream
 	}
 
-	// ConditionalOperation node represents a conditional operation in the AST.
-	ConditionalOperationNode struct {
-		TypeName         string             `json:"type"`               // type name of the conditional operation node
-		ParentNode       Node               `json:"-"`                  // parent node of the conditional
-		Operation        RelationalOperator `json:"operation"`          // conditional operation
-		Left             Expression         `json:"left"`               // left operand of the conditional operation
-		Right            Expression         `json:"right"`              // right operand of the conditional operation
+	// ComparisonOperationNode node represents a comparison operation in the AST.
+	ComparisonOperationNode struct {
+		TypeName         string             `json:"type"`               // type name of the comparison operation node
+		ParentNode       Node               `json:"-"`                  // parent node of the comparison operation
+		Operation        ComparisonOperator `json:"operation"`          // comparison operation
+		Left             Expression         `json:"left"`               // left operand of the comparison operation
+		Right            Expression         `json:"right"`              // right operand of the comparison operation
 		TokenStreamIndex int                `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -362,7 +362,7 @@ type (
 		VisitIdentifierUse(use *IdentifierUseNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)
 		VisitBinaryOperation(operation *BinaryOperationNode)
-		VisitConditionalOperation(operation *ConditionalOperationNode)
+		VisitComparisonOperation(operation *ComparisonOperationNode)
 		VisitAssignmentStatement(assignment *AssignmentStatementNode)
 		VisitReadStatement(read *ReadStatementNode)
 		VisitWriteStatement(write *WriteStatementNode)
@@ -443,9 +443,9 @@ func NewBinaryOperation(operation BinaryOperator, left, right Expression, index 
 	return newBinaryOperation(operation, left, right, index)
 }
 
-// NewConditionalOperation creates a new conditional operation node in the abstract syntax tree.
-func NewConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
-	return newConditionalOperation(operation, left, right, index)
+// NewComparisonOperation creates a new comparison operation node in the abstract syntax tree.
+func NewComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
+	return newComparisonOperation(operation, left, right, index)
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.

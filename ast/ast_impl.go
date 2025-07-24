@@ -40,7 +40,7 @@ var (
 		IdentifierUseType:        "use",
 		UnaryOperationType:       "unary",
 		BinaryOperationType:      "binary",
-		ConditionalOperationType: "conditional",
+		ComparisonOperationType:  "comparison",
 		AssignmentStatementType:  "assignment",
 		ReadStatementType:        "read",
 		WriteStatementType:       "write",
@@ -195,19 +195,19 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression, index 
 	return binary
 }
 
-// Create a new conditional operation node in the abstract syntax tree.
-func newConditionalOperation(operation RelationalOperator, left, right Expression, index int) Expression {
-	conditional := &ConditionalOperationNode{
-		TypeName:         nodeTypeNames[ConditionalOperationType],
+// Create a new comparison operation node in the abstract syntax tree.
+func newComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
+	comparison := &ComparisonOperationNode{
+		TypeName:         nodeTypeNames[ComparisonOperationType],
 		Operation:        operation,
 		Left:             left,
 		Right:            right,
 		TokenStreamIndex: index,
 	}
 
-	left.SetParent(conditional)
-	right.SetParent(conditional)
-	return conditional
+	left.SetParent(comparison)
+	right.SetParent(comparison)
+	return comparison
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
@@ -760,18 +760,18 @@ func (e *BinaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitBinaryOperation(e)
 }
 
-// Type of the conditional operation node.
-func (e *ConditionalOperationNode) Type() NodeType {
-	return ConditionalOperationType
+// Type of the comparison operation node.
+func (e *ComparisonOperationNode) Type() NodeType {
+	return ComparisonOperationType
 }
 
-// Set the parent Node of the conditional operation node.
-func (e *ConditionalOperationNode) SetParent(parent Node) {
+// Set the parent Node of the comparison operation node.
+func (e *ComparisonOperationNode) SetParent(parent Node) {
 	e.ParentNode = parent
 }
 
-// String of the conditional operation node.
-func (e *ConditionalOperationNode) String() string {
+// String of the comparison operation node.
+func (e *ComparisonOperationNode) String() string {
 	switch e.Operation {
 	case Equal:
 		return "equal"
@@ -792,29 +792,29 @@ func (e *ConditionalOperationNode) String() string {
 		return "greater equal"
 
 	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
 
 	}
 }
 
-// Parent node of the conditional operation node.
-func (e *ConditionalOperationNode) Parent() Node {
+// Parent node of the comparison operation node.
+func (e *ComparisonOperationNode) Parent() Node {
 	return e.ParentNode
 }
 
-// Children nodes of the conditional operation node.
-func (e *ConditionalOperationNode) Children() []Node {
+// Children nodes of the comparison operation node.
+func (e *ComparisonOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
 }
 
-// ConditionString returns the string representation of the conditional operation expression.
-func (e *ConditionalOperationNode) ExpressionString() string {
+// ConditionString returns the string representation of the comparison operation expression.
+func (e *ComparisonOperationNode) ExpressionString() string {
 	return e.String()
 }
 
-// Accept the visitor for the conditional operation node.
-func (e *ConditionalOperationNode) Accept(visitor Visitor) {
-	visitor.VisitConditionalOperation(e)
+// Accept the visitor for the comparison operation node.
+func (e *ComparisonOperationNode) Accept(visitor Visitor) {
+	visitor.VisitComparisonOperation(e)
 }
 
 // Type of the assignment statement node.

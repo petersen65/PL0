@@ -14,7 +14,7 @@ const (
 	invalidContextInIdentifierUse
 	unknownUnaryOperation
 	unknownBinaryOperation
-	unknownConditionalOperation
+	unknownComparisonOperation
 	unexpectedIntermediateCodeResult
 )
 
@@ -26,6 +26,6 @@ var failureMap = map[cor.Failure]string{
 	invalidContextInIdentifierUse:            "invalid context in identifier use",
 	unknownUnaryOperation:                    "unknown unary operation",
 	unknownBinaryOperation:                   "unknown binary operation",
-	unknownConditionalOperation:              "unknown conditional operation",
+	unknownComparisonOperation:               "unknown comparison operation",
 	unexpectedIntermediateCodeResult:         "unexpected intermediate code result",
 }

@@ -149,8 +149,8 @@ func (a *nameAnalysis) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	ast.Walk(bo.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
-// Walk the conditional operation abstract syntax tree.
-func (a *nameAnalysis) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+// Walk the comparison operation abstract syntax tree.
+func (a *nameAnalysis) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the left and right operand
 	ast.Walk(co.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(co.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)

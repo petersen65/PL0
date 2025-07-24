@@ -396,20 +396,20 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	}
 }
 
-// Generate code for a binary relational operation.
-func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) {
+// Generate code for a binary comparison operation.
+func (i *generator) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
 	// load the results of the left and right expressions from the results-list
 	co.Left.Accept(i)
 	co.Right.Accept(i)
 	right := i.popResult()
 	left := i.popResult()
 
-	// perform the binary relational operation on the left- and right-hand-side results
+	// perform the binary comparison operation on the left- and right-hand-side results
 	switch co.Operation {
 	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
 		var operation ic.Operation
 
-		// map the AST binary operation to the corresponding three-address code binary relational operation
+		// map the AST binary operation to the corresponding three-address code binary comparison operation
 		switch co.Operation {
 		case ast.Equal:
 			operation = ic.Equal
@@ -432,14 +432,14 @@ func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 
 		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
 		i.intermediateCode.AppendInstruction(
-			operation,           // create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
+			operation,           // create a binary comparison operation instruction to perform the operation on the left- and right-hand-side results
 			left,                // consumed left-hand-side result
 			right,               // consumed right-hand-side result
 			noAddress,           // consumed results are checked in-place, boolean result must be hold externally
-			co.TokenStreamIndex) // conditional operation in the token stream
+			co.TokenStreamIndex) // comparison operation in the token stream
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
 	}
 }
 
@@ -561,7 +561,7 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	i.intermediateCode.AppendInstruction(
 		ic.Call, // call the write standard function with one parameter
 		ic.NewLiteralAddress(ic.String, "pl0_write"), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)),        // block nesting depth difference ignored for standard functions
+		ic.NewLiteralAddress(ic.Integer32, int32(0)), // block nesting depth difference ignored for standard functions
 		noAddress,
 		s.TokenStreamIndex) // call statement in the token stream
 }
@@ -624,15 +624,15 @@ func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	beforeCondition := scope.NewIdentifier(prefix[labelPrefix])
 	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
 
-	// append a branch-target instruction before the conditional expression instructions
+	// append a branch-target instruction before the condition expression instructions
 	i.intermediateCode.AppendInstruction(
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
-		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do conditional expression
-		s.TokenStreamIndex) // before while-do statement conditional expression in the token stream
+		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
+		s.TokenStreamIndex) // before while-do statement condition expression in the token stream
 
-	// calculate the result of the conditional expression
+	// calculate the result of the condition expression
 	s.Condition.Accept(i)
 
 	// jump behind the statement if the condition is false
@@ -641,10 +641,10 @@ func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	// execute statement if the condition is true
 	s.Statement.Accept(i)
 
-	// append a jump instruction to jump back to the conditional expression instructions
+	// append a jump instruction to jump back to the condition expression instructions
 	i.intermediateCode.AppendInstruction(
-		ic.Jump, // jump back to the conditional expression
-		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do conditional expression
+		ic.Jump, // jump back to the condition expression
+		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
 		noAddress,
 		noAddress,
 		s.TokenStreamIndex) // end of while-do statement in the token stream
@@ -666,12 +666,12 @@ func (i *generator) VisitCompoundStatement(s *ast.CompoundStatementNode) {
 	}
 }
 
-// Conditional jump instruction based on an expression that must be a unary or conditional operation node.
+// Conditional jump instruction based on an expression that must be a unary or comparison operation node.
 func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *ic.Instruction
 	address := ic.NewLiteralAddress(ic.String, label)
 
-	// odd operation or conditional operations are valid for conditional jumps
+	// odd operation or comparison operations are valid for conditional jumps
 	switch condition := expression.(type) {
 	// unary operation node with the odd operation
 	case *ast.UnaryOperationNode:
@@ -685,8 +685,8 @@ func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
 		}
 
-	// conditional operation node with the equal, not equal, less, less equal, greater, or greater equal operation
-	case *ast.ConditionalOperationNode:
+	// comparison operation node with the equal, not equal, less, less equal, greater, or greater equal operation
+	case *ast.ComparisonOperationNode:
 		if jumpIfCondition {
 			// jump if the condition is true
 			switch condition.Operation {
@@ -709,7 +709,7 @@ func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpGreaterEqual, address, noAddress, noAddress, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
 			}
 		} else {
 			// jump if the condition is false
@@ -733,12 +733,12 @@ func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpLess, address, noAddress, noAddress, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
 			}
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
 	}
 
 	// append the conditional jump instruction to the intermediate code unit

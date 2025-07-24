@@ -16,7 +16,7 @@ const (
 	notFullyParsed
 	maxBlockDepth
 	illegalInteger
-	expectedRelationalOperator
+	expectedComparisonOperator
 	expectedPeriod
 	expectedIdentifier
 	expectedEqual
@@ -42,7 +42,7 @@ var failureMap = map[cor.Failure]string{
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",
 	maxBlockDepth:                           "depth of block nesting exceeded: %v",
 	illegalInteger:                          "cannot parse number %s into integer value",
-	expectedRelationalOperator:              "expected one of =, #, <, <=, >, >= operator, found %v",
+	expectedComparisonOperator:              "expected one of =, #, <, <=, >, >= operator, found %v",
 	expectedPeriod:                          "expected period at end of the program, found %v",
 	expectedIdentifier:                      "expected identifier, found %v",
 	expectedEqual:                           "expected equal, found %v",

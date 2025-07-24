@@ -12,7 +12,7 @@ const (
 	unknownSymbolKind
 	unknownUnaryOperation
 	unknownBinaryOperation
-	unknownConditionalOperation
+	unknownComparisonOperation
 	cannotWalkOnNilNode
 	walkRequiresVisitorOrFunction
 	walkRequiresInterfaceOrFunction
@@ -27,7 +27,7 @@ var failureMap = map[cor.Failure]string{
 	unknownSymbolKind:               "unknown symbol kind",
 	unknownUnaryOperation:           "unknown unary operation",
 	unknownBinaryOperation:          "unknown binary operation",
-	unknownConditionalOperation:     "unknown conditional operation",
+	unknownComparisonOperation:      "unknown comparison operation",
 	cannotWalkOnNilNode:             "cannot walk on nil node",
 	walkRequiresVisitorOrFunction:   "cannot walk without a visitor or visit function",
 	walkRequiresInterfaceOrFunction: "walk requires a visitor with a Visitor interface or a visit function",

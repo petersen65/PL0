@@ -20,17 +20,19 @@ const (
 	Odd    // unary logical operation 'odd'
 	Negate // unary arithmetic operation 'negation'
 
-	// binary arithmetic or relational operation
+	// binary arithmetic operation
 	Plus         // binary arithmetic operation '+'
 	Minus        // binary arithmetic operation '-'
 	Times        // binary arithmetic operation '*'
 	Divide       // binary arithmetic operation '/'
-	Equal        // binary relational operation '=='
-	NotEqual     // binary relational operation '!='
-	Less         // binary relational operation '<'
-	LessEqual    // binary relational operation '<='
-	Greater      // binary relational operation '>'
-	GreaterEqual // binary relational operation '>='
+
+	// binary comparison operation
+	Equal        // binary comparison operation '=='
+	NotEqual     // binary comparison operation '!='
+	Less         // binary comparison operation '<'
+	LessEqual    // binary comparison operation '<='
+	Greater      // binary comparison operation '>'
+	GreaterEqual // binary comparison operation '>='
 
 	// unconditional or conditional jump
 	Jump             // unconditional jump
