@@ -266,7 +266,7 @@ func (e *emitter) Emit() {
 			parameters = list.New()
 
 		case ic.Return: // return from a function to its caller
-			if c.Arg1 == ic.Register {
+			if c.Arg1 == ic.Temporary {
 				// emit assembly code to return from the function with a return value
 				e.returnFromFunction(i.Quadruple.Arg1.DataType, l)
 			} else {

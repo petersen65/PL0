@@ -58,10 +58,10 @@ const (
 
 // Three-address code address variants of the intermediate code.
 const (
-	Empty    Variant = iota // the address does not have a variant and does not hold any value
-	Register                // virtual register address holds the result from an expression and has a name and a datatype
-	Literal                 // literal address holds a literal value and its datatype
-	Variable                // variable address holds a variable name and its datatype
+	Empty     Variant = iota // the address does not have a variant and does not hold any value
+	Temporary                // temporary address holds the result from an expression and has a name and a datatype
+	Literal                  // literal address holds a literal value and its datatype
+	Variable                 // variable address holds a variable name and its datatype
 )
 
 // Datatype of an address in the three-address code concept.
@@ -181,9 +181,9 @@ func NewInstruction(operation Operation, arg1, arg2, result *Address, tokenStrea
 	return newInstruction(operation, arg1, arg2, result, tokenStreamIndex)
 }
 
-// Create a new three-address code register address.
-func NewRegisterAddress(dataType DataType, name string) *Address {
-	return &Address{Variant: Register, DataType: dataType, Name: name}
+// Create a new three-address code temporary address.
+func NewTemporaryAddress(dataType DataType, name string) *Address {
+	return &Address{Variant: Temporary, DataType: dataType, Name: name}
 }
 
 // Create a new three-address code literal address.
@@ -307,7 +307,7 @@ func (dataType DataType) IsUntyped() bool {
 	return dataType.AsPlain() == Untyped
 }
 
-// Supported data types for symbol entries, registers, literals, and variables.
+// Supported data types for symbol entries, temporaries, literals, and variables.
 func (dataType DataType) IsSupported() bool {
 	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= String
 }

@@ -32,10 +32,10 @@ type (
 var (
 	// variantNames maps an address variant to its string representation.
 	variantNames = map[Variant]string{
-		Empty:    "empty",
-		Register: "register",
-		Literal:  "literal",
-		Variable: "variable",
+		Empty:     "empty",
+		Temporary: "temporary",
+		Literal:   "literal",
+		Variable:  "variable",
 	}
 
 	// dataTypeNames maps an address datatype to its string representation.
@@ -93,40 +93,40 @@ var (
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
 	intermediateCodeContract = map[Operation][]AddressesContract{
 		Odd: {
-			{Arg1: Register, Arg2: Empty, Result: Empty},
+			{Arg1: Temporary, Arg2: Empty, Result: Empty},
 		},
 		Negate: {
-			{Arg1: Register, Arg2: Empty, Result: Register},
+			{Arg1: Temporary, Arg2: Empty, Result: Temporary},
 		},
 		Plus: {
-			{Arg1: Register, Arg2: Register, Result: Register},
+			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
 		},
 		Minus: {
-			{Arg1: Register, Arg2: Register, Result: Register},
+			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
 		},
 		Times: {
-			{Arg1: Register, Arg2: Register, Result: Register},
+			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
 		},
 		Divide: {
-			{Arg1: Register, Arg2: Register, Result: Register},
+			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
 		},
 		Equal: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		NotEqual: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		Less: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		LessEqual: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		Greater: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		GreaterEqual: {
-			{Arg1: Register, Arg2: Register, Result: Empty},
+			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
 		},
 		Jump: {
 			{Arg1: Literal, Arg2: Empty, Result: Empty},
@@ -150,9 +150,7 @@ var (
 			{Arg1: Literal, Arg2: Empty, Result: Empty},
 		},
 		Parameter: {
-			{Arg1: Register, Arg2: Empty, Result: Empty},
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-			{Arg1: Variable, Arg2: Empty, Result: Empty},
+			{Arg1: Temporary, Arg2: Empty, Result: Empty},
 		},
 		Call: {
 			{Arg1: Literal, Arg2: Literal, Result: Empty},
@@ -168,7 +166,7 @@ var (
 		},
 		Return: {
 			{Arg1: Empty, Arg2: Empty, Result: Empty},
-			{Arg1: Register, Arg2: Empty, Result: Empty},
+			{Arg1: Temporary, Arg2: Empty, Result: Empty},
 		},
 		BranchTarget: {
 			{Arg1: Empty, Arg2: Empty, Result: Literal},
@@ -177,13 +175,13 @@ var (
 			{Arg1: Empty, Arg2: Empty, Result: Variable},
 		},
 		CopyLiteral: {
-			{Arg1: Literal, Arg2: Literal, Result: Register},
+			{Arg1: Literal, Arg2: Literal, Result: Temporary},
 		},
 		LoadVariable: {
-			{Arg1: Variable, Arg2: Literal, Result: Register},
+			{Arg1: Variable, Arg2: Literal, Result: Temporary},
 		},
 		StoreVariable: {
-			{Arg1: Register, Arg2: Literal, Result: Variable},
+			{Arg1: Temporary, Arg2: Literal, Result: Variable},
 		},
 	}
 )
@@ -344,7 +342,7 @@ func (a *Address) Validate() bool {
 	case Empty:
 		return a.DataType.IsUntyped()
 
-	case Register, Literal, Variable:
+	case Temporary, Literal, Variable:
 		return a.DataType.IsSupported()
 
 	default:

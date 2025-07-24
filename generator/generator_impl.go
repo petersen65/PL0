@@ -17,13 +17,13 @@ const staticLinkDisplayName = "@staticlink"
 // Abstract syntax extension for the symbol.
 const symbolExtension ast.ExtensionType = 16
 
-// Prefixes for address names in the three-address code concept if a name does not contain a value.
+// Prefixes for address names in the three-address code concept.
 const (
-	labelPrefix    prefixType = iota // the label prefix is used for branch target labels or literal data labels
-	registerPrefix                   // the register prefix is used virtual registers contained in the address variant 'Register'
-	constantPrefix                   // the constant prefix is used for flattened constant names in the intermediate code
-	variablePrefix                   // the variable prefix is used for flattened variable names in the intermediate code
-	functionPrefix                   // the function prefix is used for flattened function names in the intermediate code
+	labelPrefix     prefixType = iota // the label prefix is used for branch target labels or literal data labels
+	temporaryPrefix                   // the temporary prefix is used for flattened temporary names in the intermediate code
+	constantPrefix                    // the constant prefix is used for flattened constant names in the intermediate code
+	variablePrefix                    // the variable prefix is used for flattened variable names in the intermediate code
+	functionPrefix                    // the function prefix is used for flattened function names in the intermediate code
 )
 
 type (
@@ -63,11 +63,11 @@ var (
 
 	// Prefixes used for names of addresses.
 	prefix = map[prefixType]rune{
-		labelPrefix:    'l',
-		registerPrefix: 'r',
-		constantPrefix: 'c',
-		variablePrefix: 'v',
-		functionPrefix: 'f',
+		labelPrefix:     'l',
+		temporaryPrefix: 't',
+		constantPrefix:  'c',
+		variablePrefix:  'v',
+		functionPrefix:  'f',
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
@@ -178,18 +178,18 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		// return value of the main block, which is always 0
 		returnValue := int32(0)
 
-		// create a copy-literal instruction to store the return value in a virtual register
+		// create a copy-literal instruction to store the return value in a temporary
 		copyLiteral := ic.NewInstruction(
-			ic.CopyLiteral, // copy the value of the literal to a virtual register
-			ic.NewLiteralAddress(ic.Integer32, returnValue), // literal value for the return value
-			ic.NewLiteralAddress(ic.String, bn.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
-			ic.NewRegisterAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
+			ic.CopyLiteral, // copy the value of the literal to a temporary
+			ic.NewLiteralAddress(ic.Integer32, returnValue),                                       // literal value for the return value
+			ic.NewLiteralAddress(ic.String, bn.Scope.NewIdentifier(prefix[labelPrefix])),          // new literal data label as source
+			ic.NewTemporaryAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
 			0)
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
 			ic.Return,
-			ic.NewRegisterAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name),
+			ic.NewTemporaryAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name),
 			noAddress,
 			noAddress,
 			0)
@@ -243,15 +243,15 @@ func (i *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) 
 
 // Generate code for a literal.
 func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
-	// create a copy-literal instruction to store the literal in a virtual register
+	// create a copy-literal instruction to store the literal in a temporary
 	instruction := ic.NewInstruction(
-		ic.CopyLiteral, // copy the value of the literal to a virtual register
-		ic.NewLiteralAddress(dataTypeMap[ln.DataType], ln.Value), // literal value
-		ic.NewLiteralAddress(ic.String, ln.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
-		ic.NewRegisterAddress(dataTypeMap[ln.DataType], ln.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
+		ic.CopyLiteral, // copy the value of the literal to a temporary
+		ic.NewLiteralAddress(dataTypeMap[ln.DataType], ln.Value),                                          // literal value
+		ic.NewLiteralAddress(ic.String, ln.Scope.NewIdentifier(prefix[labelPrefix])),                      // new literal data label as source
+		ic.NewTemporaryAddress(dataTypeMap[ln.DataType], ln.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
 		ln.TokenStreamIndex) // literal use in the token stream
 
-	// push the virtual register onto the results-list and append the instruction to the intermediate code unit
+	// push the temporary onto the results-list and append the instruction to the intermediate code unit
 	i.pushResult(instruction.Quadruple.Result)
 	i.intermediateCode.AppendInstruction(instruction)
 }
@@ -269,15 +269,15 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// get the intermediate code symbol table entry of the abstract syntax constant declaration
 		codeSymbol := i.intermediateCode.Lookup(codeName)
 
-		// create a copy-literal instruction to store the constant value in a virtual register
+		// create a copy-literal instruction to store the constant value in a temporary
 		instruction := ic.NewInstruction(
-			ic.CopyLiteral, // copy the value of the constant to a virtual register
-			ic.NewLiteralAddress(dataTypeMap[constantDeclaration.DataType], constantDeclaration.Value), // literal value
-			ic.NewLiteralAddress(ic.String, iu.Scope.NewIdentifier(prefix[labelPrefix])), // new literal data label as source
-			ic.NewRegisterAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register as destination
+			ic.CopyLiteral, // copy the value of the constant to a temporary
+			ic.NewLiteralAddress(dataTypeMap[constantDeclaration.DataType], constantDeclaration.Value),   // literal value
+			ic.NewLiteralAddress(ic.String, iu.Scope.NewIdentifier(prefix[labelPrefix])),                 // new literal data label as source
+			ic.NewTemporaryAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
 			iu.TokenStreamIndex) // constant use in the token stream
 
-		// push the virtual register onto the results-list and append the instruction to the intermediate code unit
+		// push the temporary onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -300,15 +300,15 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// block nesting depth difference between variable use and variable declaration
 		depthDifference := useDepth - declarationDepth
 
-		// create a load-variable instruction to load the variable value into a virtual register
+		// create a load-variable instruction to load the variable value into a temporary
 		instruction := ic.NewInstruction(
-			ic.LoadVariable, // load the value of the variable into a virtual register
-			ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                                // variable with flat unique name
-			ic.NewLiteralAddress(ic.Integer32, depthDifference),                                        // block nesting depth difference
-			ic.NewRegisterAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+			ic.LoadVariable, // load the value of the variable into a temporary
+			ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                                  // variable with flat unique name
+			ic.NewLiteralAddress(ic.Integer32, depthDifference),                                          // block nesting depth difference
+			ic.NewTemporaryAddress(codeSymbol.DataType, iu.Scope.NewIdentifier(prefix[temporaryPrefix])), // the resulting temporary
 			iu.TokenStreamIndex) // variable use in the token stream
 
-		// push the virtual register onto the results-list and append the instruction to the intermediate code unit
+		// push the temporary onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
 		i.intermediateCode.AppendInstruction(instruction)
 
@@ -394,7 +394,7 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 			operation,
 			left,  // consumed left-hand-side result
 			right, // consumed right-hand-side result
-			ic.NewRegisterAddress(left.DataType, scope.NewIdentifier(prefix[registerPrefix])), // arithmetic operation result
+			ic.NewTemporaryAddress(left.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // arithmetic operation result
 			bo.TokenStreamIndex) // arithmetic operation in the token stream
 
 		// push the result onto the results-list and append the instruction to the intermediate code unit
@@ -517,12 +517,12 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// block nesting depth difference between variable use and variable declaration
 	depthDifference := readDepth - declarationDepth
 
-	// create a load-variable instruction to load the variable value into a virtual register
+	// create a load-variable instruction to load the variable value into a temporary
 	load := ic.NewInstruction(
-		ic.LoadVariable, // load the value of the variable into a virtual register
-		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                             // variable with flat unique name
-		ic.NewLiteralAddress(ic.Integer32, depthDifference),                                     // block nesting depth difference
-		ic.NewRegisterAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[registerPrefix])), // virtual register
+		ic.LoadVariable, // load the value of the variable into a temporary
+		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                               // variable with flat unique name
+		ic.NewLiteralAddress(ic.Integer32, depthDifference),                                       // block nesting depth difference
+		ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the resulting temporary
 		s.TokenStreamIndex) // read statement in the token stream
 
 	// parameter 1 for the readln standard function
@@ -565,7 +565,7 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	s.Expression.Accept(i)
 	right := i.popResult()
 
-	// parameter 1 for the writeln standard function
+	// one parameter for the write standard function
 	param := ic.NewInstruction(
 		ic.Parameter, // parameter for a standard function
 		right,        // consumed right-hand-side result
@@ -573,17 +573,17 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
 
-	// call the writeln standard function with 1 parameter
-	// writeln := ic.NewInstruction(
-	// 	ic.Standard, // function call to the external standard library
-	// 	ic.NewAddress(1, ic.Count, ic.Unsigned64),        // number of parameters for the standard function
-	// 	ic.NewAddress(ic.WriteLn, ic.Code, ic.Integer64), // code of standard function to call
-	// 	noAddress,
-	// 	s.TokenStreamIndex) // write statement in the token stream
+	// call the write standard function with one parameter
+	call := ic.NewInstruction(
+		ic.Call, // call to a standard function
+		ic.NewLiteralAddress(ic.String, "pl0_write"), // label of standard function to call
+		ic.NewLiteralAddress(ic.Integer32, 0),        // block nesting depth difference ignored for standard functions
+		noAddress,
+		s.TokenStreamIndex) // call statement in the token stream
 
 	// append the instructions to the intermediate code unit
 	i.intermediateCode.AppendInstruction(param)
-	// i.intermediateCode.AppendInstruction(writeln)
+	i.intermediateCode.AppendInstruction(call)
 }
 
 // Generate code for a call statement.
