@@ -807,7 +807,7 @@ func (e *ComparisonOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
 }
 
-// ConditionString returns the string representation of the comparison operation expression.
+// ExpressionString returns the string representation of the comparison operation expression.
 func (e *ComparisonOperationNode) ExpressionString() string {
 	return e.String()
 }
