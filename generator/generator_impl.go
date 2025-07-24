@@ -113,28 +113,24 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		blockBegin := cor.EntryPointLabel
 
 		// append a branch-target instruction with a branch-label to mark the beginning of the block
-		instruction := ic.NewInstruction(
+		i.intermediateCode.AppendInstruction(
 			ic.BranchTarget, // target for any branching operation
 			noAddress,
 			noAddress,
 			ic.NewLiteralAddress(ic.String, blockBegin), // beginning of the block
 			0)
-
-		i.intermediateCode.AppendInstruction(instruction)
 	} else {
 		// take the flattened name of the procedure declaration as the branch target label
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
 		blockBegin := astSymbol.Extension[symbolExtension].(*symbolMetaData).name
 
 		// append a branch-target instruction with a branch-label to mark the beginning of the block
-		instruction := ic.NewInstruction(
+		element := i.intermediateCode.AppendInstruction(
 			ic.BranchTarget, // target for any branching operation
 			noAddress,
 			noAddress,
 			ic.NewLiteralAddress(ic.String, blockBegin), // beginning of the block
 			0)
-
-		element := i.intermediateCode.AppendInstruction((instruction))
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
 		codeSymbol := i.intermediateCode.Lookup(blockBegin)
@@ -142,15 +138,15 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	}
 
 	// create entry sequence for the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Prologue, noAddress, noAddress, noAddress, 0))
+	i.intermediateCode.AppendInstruction(ic.Prologue, noAddress, noAddress, noAddress, 0)
 
 	// create a hidden first local variable for the block that holds internal data structures
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.AllocateVariable, // allocate memory for the static link variable
 		noAddress,
 		noAddress,
 		ic.NewVariableAddress(ic.Unsigned64, staticLinkDisplayName),
-		0))
+		0)
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -160,18 +156,18 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	}
 
 	// initialize logical memory space and internal data structures for the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.Setup, // setup of function call before the statement of the block is generated
 		ic.NewLiteralAddress(ic.Integer32, bn.Depth), // block nesting depth
 		noAddress,
 		noAddress,
-		0))
+		0)
 
 	// statement of the block
 	bn.Statement.Accept(i)
 
 	// create exit sequence for the block
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Epilogue, noAddress, noAddress, noAddress, 0))
+	i.intermediateCode.AppendInstruction(ic.Epilogue, noAddress, noAddress, noAddress, 0)
 
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
@@ -188,18 +184,18 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
-			ic.Return,
-			ic.NewTemporaryAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name),
+			ic.Return, // return from the main block
+			ic.NewTemporaryAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name), // temporary with the return value
 			noAddress,
 			noAddress,
 			0)
 
-		// append the instructions to the intermediate code unit
-		i.intermediateCode.AppendInstruction(copyLiteral)
-		i.intermediateCode.AppendInstruction(returnFromMain)
+		// append the existing instructions to the intermediate code unit
+		i.intermediateCode.AppendExistingInstruction(copyLiteral)
+		i.intermediateCode.AppendExistingInstruction(returnFromMain)
 	} else {
 		// return from other blocks
-		i.intermediateCode.AppendInstruction(ic.NewInstruction(ic.Return, noAddress, noAddress, noAddress, 0))
+		i.intermediateCode.AppendInstruction(ic.Return, noAddress, noAddress, noAddress, 0)
 	}
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
@@ -223,16 +219,13 @@ func (i *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol := i.intermediateCode.Lookup(codeName)
 
-	// allocate memory for the variable in its logical memory space
-	instruction := ic.NewInstruction(
-		ic.AllocateVariable, // allocate memory for the variable
+	// append allocate instruction to the unit and set it as definition for the intermediate code variable
+	codeSymbol.Definition = i.intermediateCode.AppendInstruction(
+		ic.AllocateVariable, // allocate memory for the variable in its logical memory space
 		noAddress,
 		noAddress,
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
 		vd.TokenStreamIndex) // variable declaration in the token stream
-
-	// append allocate instruction to the unit and set it as definition for the intermediate code variable
-	codeSymbol.Definition = i.intermediateCode.AppendInstruction(instruction)
 }
 
 // Generate code for a procedure declaration.
@@ -253,7 +246,7 @@ func (i *generator) VisitLiteral(ln *ast.LiteralNode) {
 
 	// push the temporary onto the results-list and append the instruction to the intermediate code unit
 	i.pushResult(instruction.Quadruple.Result)
-	i.intermediateCode.AppendInstruction(instruction)
+	i.intermediateCode.AppendExistingInstruction(instruction)
 }
 
 // Generate code for an identifier use.
@@ -279,7 +272,7 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 		// push the temporary onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
-		i.intermediateCode.AppendInstruction(instruction)
+		i.intermediateCode.AppendExistingInstruction(instruction)
 
 	case ast.Variable:
 		// get variable declaration of the variable to load
@@ -310,7 +303,7 @@ func (i *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 		// push the temporary onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
-		i.intermediateCode.AppendInstruction(instruction)
+		i.intermediateCode.AppendExistingInstruction(instruction)
 
 	case ast.Procedure:
 		// not required for code generation
@@ -329,16 +322,13 @@ func (i *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	// perform the unary operation on the result
 	switch uo.Operation {
 	case ast.Odd:
-		// create an odd instruction to check if the result is odd
-		instruction := ic.NewInstruction(
-			ic.Odd,
+		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
+		i.intermediateCode.AppendInstruction(
+			ic.Odd, // create an odd instruction to check if the result is odd
 			result, // consumed result
 			noAddress,
 			noAddress,           // consumed result is checked in-place, boolean result must be hold externally
 			uo.TokenStreamIndex) // unary operation in the token stream
-
-		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
-		i.intermediateCode.AppendInstruction(instruction)
 
 	case ast.Negate:
 		// create a negate instruction to negate the result
@@ -351,7 +341,7 @@ func (i *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 
 		// push the result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
-		i.intermediateCode.AppendInstruction(instruction)
+		i.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
@@ -399,7 +389,7 @@ func (i *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 
 		// push the result onto the results-list and append the instruction to the intermediate code unit
 		i.pushResult(instruction.Quadruple.Result)
-		i.intermediateCode.AppendInstruction(instruction)
+		i.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
@@ -440,16 +430,13 @@ func (i *generator) VisitConditionalOperation(co *ast.ConditionalOperationNode) 
 			operation = ic.GreaterEqual
 		}
 
-		// create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
-		instruction := ic.NewInstruction(
-			operation,
+		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
+		i.intermediateCode.AppendInstruction(
+			operation,           // create a binary relational operation instruction to perform the operation on the left- and right-hand-side results
 			left,                // consumed left-hand-side result
 			right,               // consumed right-hand-side result
 			noAddress,           // consumed results are checked in-place, boolean result must be hold externally
 			co.TokenStreamIndex) // conditional operation in the token stream
-
-		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
-		i.intermediateCode.AppendInstruction(instruction)
 
 	default:
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownConditionalOperation, nil, nil))
@@ -481,16 +468,13 @@ func (i *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 	// block nesting depth difference between variable use and variable declaration
 	depthDifference := assignmentDepth - declarationDepth
 
-	// store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
-	instruction := ic.NewInstruction(
-		ic.StoreVariable, // store the value of the result into a variable
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(
+		ic.StoreVariable, // store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 		right,            // consumed right-hand-side result
 		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
 		s.TokenStreamIndex) // assignment statement in the token stream
-
-	// append the instruction to the intermediate code unit
-	i.intermediateCode.AppendInstruction(instruction)
 }
 
 // Generate code for a read statement.
@@ -553,10 +537,10 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 		s.TokenStreamIndex) // read statement in the token stream
 
 	// append the instructions to the intermediate code unit
-	i.intermediateCode.AppendInstruction(load)
-	i.intermediateCode.AppendInstruction(param)
+	i.intermediateCode.AppendExistingInstruction(load)
+	i.intermediateCode.AppendExistingInstruction(param)
 	// i.intermediateCode.AppendInstruction(readln)
-	i.intermediateCode.AppendInstruction(store)
+	i.intermediateCode.AppendExistingInstruction(store)
 }
 
 // Generate code for a write statement.
@@ -565,25 +549,21 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	s.Expression.Accept(i)
 	right := i.popResult()
 
-	// one parameter for the write standard function
-	param := ic.NewInstruction(
-		ic.Parameter, // parameter for a standard function
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(
+		ic.Parameter, // one parameter for the write standard function
 		right,        // consumed right-hand-side result
 		noAddress,
 		noAddress,
 		s.TokenStreamIndex) // write statement in the token stream
 
-	// call the write standard function with one parameter
-	call := ic.NewInstruction(
-		ic.Call, // call to a standard function
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(
+		ic.Call, // call the write standard function with one parameter
 		ic.NewLiteralAddress(ic.String, "pl0_write"), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, 0),        // block nesting depth difference ignored for standard functions
+		ic.NewLiteralAddress(ic.Integer32, int32(0)),        // block nesting depth difference ignored for standard functions
 		noAddress,
 		s.TokenStreamIndex) // call statement in the token stream
-
-	// append the instructions to the intermediate code unit
-	i.intermediateCode.AppendInstruction(param)
-	i.intermediateCode.AppendInstruction(call)
 }
 
 // Generate code for a call statement.
@@ -604,16 +584,13 @@ func (i *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// block nesting depth difference between procedure call and procedure declaration
 	depthDifference := callDepth - declarationDepth
 
-	// call the intermediate code function
-	call := ic.NewInstruction(
+	// append the instruction to the intermediate code unit
+	i.intermediateCode.AppendInstruction(
 		ic.Call, // call to an intermediate code function
 		ic.NewLiteralAddress(ic.String, codeName),           // label of intermediate code function to call
 		ic.NewLiteralAddress(ic.Integer32, depthDifference), // block nesting depth difference
 		noAddress,
 		s.TokenStreamIndex) // call statement in the token stream
-
-	// append the instruction to the intermediate code unit
-	i.intermediateCode.AppendInstruction(call)
 }
 
 // Generate code for an if-then statement.
@@ -632,12 +609,12 @@ func (i *generator) VisitIfStatement(s *ast.IfStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a branch-target instruction behind the statement instructions
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, behindStatement), // behind if-then statement
-		s.TokenStreamIndex)) // if-then statement in the token stream
+		s.TokenStreamIndex) // if-then statement in the token stream
 }
 
 // Generate code for a while-do statement.
@@ -648,12 +625,12 @@ func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	behindStatement := scope.NewIdentifier(prefix[labelPrefix])
 
 	// append a branch-target instruction before the conditional expression instructions
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do conditional expression
-		s.TokenStreamIndex)) // before while-do statement conditional expression in the token stream
+		s.TokenStreamIndex) // before while-do statement conditional expression in the token stream
 
 	// calculate the result of the conditional expression
 	s.Condition.Accept(i)
@@ -665,20 +642,20 @@ func (i *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 	s.Statement.Accept(i)
 
 	// append a jump instruction to jump back to the conditional expression instructions
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.Jump, // jump back to the conditional expression
 		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do conditional expression
 		noAddress,
 		noAddress,
-		s.TokenStreamIndex)) // end of while-do statement in the token stream
+		s.TokenStreamIndex) // end of while-do statement in the token stream
 
 	// append a branch-target instruction behind the statement instructions
-	i.intermediateCode.AppendInstruction(ic.NewInstruction(
+	i.intermediateCode.AppendInstruction(
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, behindStatement), // behind while-do statement
-		s.TokenStreamIndex)) // behind while-do statement in the token stream
+		s.TokenStreamIndex) // behind while-do statement in the token stream
 }
 
 // Generate code for a compound begin-end statement.
@@ -765,7 +742,7 @@ func (i *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 	}
 
 	// append the conditional jump instruction to the intermediate code unit
-	i.intermediateCode.AppendInstruction(jump)
+	i.intermediateCode.AppendExistingInstruction(jump)
 }
 
 // Push an expression result onto the results-list.

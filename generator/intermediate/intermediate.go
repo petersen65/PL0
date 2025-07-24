@@ -154,7 +154,8 @@ type (
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
 	// It manages a list of instructions and a symbol table with all declared identifiers in this unit of the intermediate code.
 	IntermediateCodeUnit interface {
-		AppendInstruction(instruction *Instruction) *list.Element
+		AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element
+		AppendExistingInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
 		Insert(symbol *Symbol)
 		Lookup(name string) *Symbol
@@ -181,7 +182,7 @@ func NewIntermediateCodeUnit() IntermediateCodeUnit {
 
 // Create a new three-address code instruction with an operation, two arguments, a result, and its token stream index.
 func NewInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *Instruction {
-	return newInstruction(operation, arg1, arg2, result, tokenStreamIndex)
+	return &Instruction{Quadruple: &Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result}, TokenStreamIndex: tokenStreamIndex}
 }
 
 // Create a new three-address code temporary address.

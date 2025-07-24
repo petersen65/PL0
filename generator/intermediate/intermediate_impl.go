@@ -157,16 +157,13 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 	}
 }
 
-// Create a new instruction for the intermediate code.
-func newInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *Instruction {
-	return &Instruction{
-		Quadruple:        &Quadruple{Operation: operation, Arg1: arg1, Arg2: arg2, Result: result},
-		TokenStreamIndex: tokenStreamIndex,
-	}
+// Append a new instruction to the intermediate code.
+func (m *intermediateCodeUnit) AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element {
+	return m.Instructions.PushBack(NewInstruction(operation, arg1, arg2, result, tokenStreamIndex))
 }
 
-// Append an instruction to the intermediate code.
-func (m *intermediateCodeUnit) AppendInstruction(instruction *Instruction) *list.Element {
+// Append an existing instruction to the intermediate code.
+func (m *intermediateCodeUnit) AppendExistingInstruction(instruction *Instruction) *list.Element {
 	return m.Instructions.PushBack(instruction)
 }
 
@@ -233,7 +230,7 @@ func (m *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
 
 	// replace the slice of instructions with a doubly linked instruction-list
 	for _, i := range mj.Instructions {
-		m.AppendInstruction(&i)
+		m.AppendInstruction(i.Quadruple.Operation, i.Quadruple.Arg1, i.Quadruple.Arg2, i.Quadruple.Result, i.TokenStreamIndex)
 	}
 
 	return nil

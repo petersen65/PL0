@@ -253,6 +253,8 @@ type (
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
+		AppendExistingInstruction(instruction *Instruction)
+		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction

@@ -321,6 +321,28 @@ func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, lab
 	}
 }
 
+// Append an existing instruction to the assembly code unit.
+func (a *assemblyCodeUnit) AppendExistingInstruction(instruction *Instruction) {
+	a.textSection.Content = append(a.textSection.Content, instruction)
+}
+
+// Append an existing read-only data item to the assembly code unit.
+func (a *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem) {
+	switch item.Kind {
+	case elf.ReadOnlyUtf32:
+		a.roUtf32Section.Append(item)
+
+	case elf.ReadOnlyInt64:
+		a.roInt64Section.Append(item)
+
+	case elf.ReadOnlyStrDesc:
+		a.roStrDescSection.Append(item)
+
+	default:
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, item.Kind, nil))
+	}
+}
+
 // Append a set of instructions to create all runtime functions.
 func (a *assemblyCodeUnit) AppendRuntime() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
