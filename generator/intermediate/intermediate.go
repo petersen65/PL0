@@ -16,11 +16,11 @@ import (
 const (
 	_ Operation = iota
 
-	// x = op y, where op is a unary arithmetic or logical operation and x, y are addresses
+	// unary arithmetic or logical operation
 	Odd    // unary logical operation 'odd'
 	Negate // unary arithmetic operation 'negation'
 
-	// x = y op z, where op is a binary arithmetic or relational operation, x, y, z are addresses
+	// binary arithmetic or relational operation
 	Plus         // binary arithmetic operation '+'
 	Minus        // binary arithmetic operation '-'
 	Times        // binary arithmetic operation '*'
@@ -32,7 +32,7 @@ const (
 	Greater      // binary relational operation '>'
 	GreaterEqual // binary relational operation '>='
 
-	// an unconditional or conditional jump goto L: the instruction with label L is the next to be executed
+	// unconditional or conditional jump
 	Jump             // unconditional jump
 	JumpEqual        // conditional jump '=='
 	JumpNotEqual     // conditional jump '!='
@@ -40,16 +40,19 @@ const (
 	JumpLessEqual    // conditional jump '<='
 	JumpGreater      // conditional jump '>'
 	JumpGreaterEqual // conditional jump '>='
+	BranchTarget     // target for any code branch operation: conditional, unconditional, or call
 
-	// call f, n and y = call f, n for function calls, n is the number of actual parameters in "call f, n"
-	Parameter    // pass parameter to function
-	Call         // call function
-	Prologue     // function entry sequence inside the body of a function
-	Epilogue     // function exit sequence inside the body of a function
-	Setup        // setup function call by initializing logical memory space and internal data structures
-	Return       // return from function
-	BranchTarget // target for any code branch operation: conditional, unconditional, or call
+	// function call and parameter passing
+	Parameter // pass parameter to function
+	Call      // call function
+	Return    // return from function
 
+	// function entry and exit sequences
+	Prologue // function entry sequence inside the body of a function
+	Epilogue // function exit sequence inside the body of a function
+	Setup    // setup function call by initializing logical memory space and internal data structures
+
+	// memory management and handling of variables or literals
 	AllocateVariable // allocate memory for a variable in its logical memory space
 	CopyLiteral      // copy the value of a literal into an address
 	LoadVariable     // load variable value from the logical memory space into an address

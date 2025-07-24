@@ -58,18 +58,23 @@ var (
 
 	// Map three-address code operations of the intermediate code to their string representation.
 	operationNames = map[Operation]string{
-		Odd:              "odd",
-		Negate:           "negate",
-		Plus:             "add",
-		Minus:            "subtract",
-		Times:            "multiply",
-		Divide:           "divide",
-		Equal:            "equal",
-		NotEqual:         "notEqual",
-		Less:             "less",
-		LessEqual:        "lessEqual",
-		Greater:          "greater",
-		GreaterEqual:     "greaterEqual",
+		// unary arithmetic or logical operation
+		Odd:    "odd",
+		Negate: "negate",
+
+		// binary arithmetic or relational operation
+		Plus:         "add",
+		Minus:        "subtract",
+		Times:        "multiply",
+		Divide:       "divide",
+		Equal:        "equal",
+		NotEqual:     "notEqual",
+		Less:         "less",
+		LessEqual:    "lessEqual",
+		Greater:      "greater",
+		GreaterEqual: "greaterEqual",
+
+		// unconditional or conditional jump
 		Jump:             "jump",
 		JumpEqual:        "jumpEqual",
 		JumpNotEqual:     "jumpNotEqual",
@@ -77,13 +82,19 @@ var (
 		JumpLessEqual:    "jumpLessEqual",
 		JumpGreater:      "jumpGreater",
 		JumpGreaterEqual: "jumpGreaterEqual",
-		Parameter:        "parameter",
-		Call:             "call",
-		Prologue:         "prologue",
-		Epilogue:         "epilogue",
-		Setup:            "setup",
-		Return:           "return",
 		BranchTarget:     "branchTarget",
+
+		// function call and parameter passing
+		Parameter: "parameter",
+		Call:      "call",
+		Return:    "return",
+
+		// function entry and exit sequences
+		Prologue: "prologue",
+		Epilogue: "epilogue",
+		Setup:    "setup",
+
+		// memory management and handling of variables or literals
 		AllocateVariable: "allocateVariable",
 		CopyLiteral:      "copyLiteral",
 		LoadVariable:     "loadVariable",
@@ -92,97 +103,47 @@ var (
 
 	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
 	intermediateCodeContract = map[Operation][]AddressesContract{
-		Odd: {
-			{Arg1: Temporary, Arg2: Empty, Result: Empty},
-		},
-		Negate: {
-			{Arg1: Temporary, Arg2: Empty, Result: Temporary},
-		},
-		Plus: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
-		},
-		Minus: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
-		},
-		Times: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
-		},
-		Divide: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Temporary},
-		},
-		Equal: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		NotEqual: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		Less: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		LessEqual: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		Greater: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		GreaterEqual: {
-			{Arg1: Temporary, Arg2: Temporary, Result: Empty},
-		},
-		Jump: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpEqual: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpNotEqual: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpLess: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpLessEqual: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpGreater: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		JumpGreaterEqual: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		Parameter: {
-			{Arg1: Temporary, Arg2: Empty, Result: Empty},
-		},
-		Call: {
-			{Arg1: Literal, Arg2: Literal, Result: Empty},
-		},
-		Prologue: {
-			{Arg1: Empty, Arg2: Empty, Result: Empty},
-		},
-		Epilogue: {
-			{Arg1: Empty, Arg2: Empty, Result: Empty},
-		},
-		Setup: {
-			{Arg1: Literal, Arg2: Empty, Result: Empty},
-		},
-		Return: {
-			{Arg1: Empty, Arg2: Empty, Result: Empty},
-			{Arg1: Temporary, Arg2: Empty, Result: Empty},
-		},
-		BranchTarget: {
-			{Arg1: Empty, Arg2: Empty, Result: Literal},
-		},
-		AllocateVariable: {
-			{Arg1: Empty, Arg2: Empty, Result: Variable},
-		},
-		CopyLiteral: {
-			{Arg1: Literal, Arg2: Literal, Result: Temporary},
-		},
-		LoadVariable: {
-			{Arg1: Variable, Arg2: Literal, Result: Temporary},
-		},
-		StoreVariable: {
-			{Arg1: Temporary, Arg2: Literal, Result: Variable},
-		},
+		// unary arithmetic or logical operation
+		Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Negate: {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
+
+		// binary arithmetic or relational operation
+		Plus:         {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Minus:        {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Times:        {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Divide:       {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Equal:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		NotEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		Less:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		LessEqual:    {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		Greater:      {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		GreaterEqual: {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+
+		// unconditional or conditional jump
+		Jump:             {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpEqual:        {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpNotEqual:     {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpLess:         {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpLessEqual:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpGreater:      {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		JumpGreaterEqual: {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		BranchTarget:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+
+		// function call and parameter passing
+		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty}},
+		Return:    {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Temporary, Arg2: Empty, Result: Empty}},
+
+		// function entry and exit sequences
+		Prologue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Epilogue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Setup:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+
+		// memory management and handling of variables or literals
+		AllocateVariable: {{Arg1: Empty, Arg2: Empty, Result: Variable}},
+		CopyLiteral:      {{Arg1: Literal, Arg2: Literal, Result: Temporary}},
+		LoadVariable:     {{Arg1: Variable, Arg2: Literal, Result: Temporary}},
+		StoreVariable:    {{Arg1: Temporary, Arg2: Literal, Result: Variable}},
 	}
 )
 
