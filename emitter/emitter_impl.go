@@ -250,7 +250,7 @@ func (e *emitter) Emit() {
 			comparison = x64.ComparisonNone
 
 		case ic.Parameter: // push a parameter onto the compile-time parameters list for a function call
-			parameters.PushBack(i)
+			parameters.PushBack(i.Quadruple.Arg1)
 
 		case ic.Call: // call a function by jumping to the function's label
 			// panic if the label name is not a string
@@ -261,6 +261,9 @@ func (e *emitter) Emit() {
 
 			// emit assembly code to call the function with the given name
 			e.callFunction(name, depthDifference, l)
+
+			// reset the compile-time parameters list for the next function call
+			parameters = list.New()
 
 		case ic.Return: // return from a function to its caller
 			if c.Arg1 == ic.Register {

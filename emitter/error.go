@@ -14,7 +14,6 @@ const (
 	unsupportedJumpOperationForConditionalJump
 	unsupportedDataTypeInArithmeticOperation
 	unsupportedDataTypeInComparisonOperation
-	unexpectedNumberOfFunctionArguments
 )
 
 // Map failure codes to error messages.
@@ -25,5 +24,4 @@ var failureMap = map[cor.Failure]string{
 	unsupportedJumpOperationForConditionalJump:      "unsupported jump operation for conditional jump: %v",
 	unsupportedDataTypeInArithmeticOperation:        "unsupported data type in arithmetic operation: %v",
 	unsupportedDataTypeInComparisonOperation:        "unsupported data type in comparison operation: %v",
-	unexpectedNumberOfFunctionArguments:             "unexpected number of arguments for function call",
 }
