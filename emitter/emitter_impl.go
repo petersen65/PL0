@@ -1160,13 +1160,28 @@ func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Ope
 }
 
 func (e *emitter) callFunction(name string, depthDifference int32, btLabels []string) {
-	// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
-	e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
-		x64.NewRegisterOperand(x64.R10d),
-		x64.NewImmediateOperand(depthDifference))
+	switch name {
+	case "pl0_write":
+		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, x64.NewRegisterOperand(x64.Rdi))
 
-	// push return address on call stack and jump to callee
-	e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(name))
+		// push return address on call stack and jump to callee
+		e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(name))
+
+	case "pl0_read":
+		// push return address on call stack and jump to callee
+		e.assemblyCode.AppendInstruction(x64.Call, btLabels, x64.NewLabelOperand(name))
+
+		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.Rax))
+
+	default:
+		// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
+		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
+			x64.NewRegisterOperand(x64.R10d),
+			x64.NewImmediateOperand(depthDifference))
+
+		// push return address on call stack and jump to callee
+		e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(name))
+	}
 }
 
 // Return from a function and move the return value into the correct register(s) on the call stack.
