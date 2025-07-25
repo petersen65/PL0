@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	cor "github.com/petersen65/PL0/v2/core"
-	"github.com/petersen65/PL0/v2/emitter/elf"
+	elf "github.com/petersen65/PL0/v2/emitter/elf"
 	x64 "github.com/petersen65/PL0/v2/emitter/x86_64"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
@@ -23,6 +23,12 @@ const float64SignBitMask uint64 = 0x8000000000000000
 // Sign bit mask for 32-bit single precision floating-point numbers in IEEE 754 binary representation.
 const float32SignBitMask uint32 = 0x80000000
 
+// Standard library symbols used in the intermediate code generation.
+const (
+	readStatementSymbol  = "@read"  // call the read function from the standard library
+	writeStatementSymbol = "@write" // call the write function from the standard library
+)
+
 // Implementation of the assembly code emitter.
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
@@ -32,6 +38,12 @@ type emitter struct {
 }
 
 var (
+	// Map intermediate code symbol names to standard library symbol names.
+	standardLibrarySymbols = map[string]string{
+		readStatementSymbol:  "pl0_read",
+		writeStatementSymbol: "pl0_write",
+	}
+
 	// Map intermediate code datatypes to their sizes in bytes in the assembly code.
 	dataTypeSize = map[ic.DataType]int32{
 		ic.Integer64:  8,
@@ -260,7 +272,7 @@ func (e *emitter) Emit() {
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
 			// emit assembly code to call the function with the given name
-			e.callFunction(name, depthDifference, l)
+			e.callFunction(name, parameters, depthDifference, l)
 
 			// reset the compile-time parameters list for the next function call
 			parameters = list.New()
@@ -1159,28 +1171,35 @@ func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Ope
 	e.assemblyCode.AppendInstruction(opcode, btLabels, x64.NewLabelOperand(name))
 }
 
-func (e *emitter) callFunction(name string, depthDifference int32, btLabels []string) {
-	switch name {
-	case "pl0_write":
-		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, x64.NewRegisterOperand(x64.Rdi))
+// Call a user-defined or standard library function by its intermediate code symbol name.
+func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthDifference int32, btLabels []string) {
+	// depending on the intermediate code symbol name, handle cases for standard library functions or user-defined functions
+	if standardLibraryName, ok := standardLibrarySymbols[intermediateCodeName]; ok {
+		switch intermediateCodeName {
+		case readStatementSymbol:
+			// call read function from the standard library
+			e.assemblyCode.AppendInstruction(x64.Call, btLabels, x64.NewLabelOperand(standardLibraryName))
 
-		// push return address on call stack and jump to callee
-		e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(name))
+			// push the return value from the read function onto the call stack
+			// note: the read function returns the read value in the Rax register
+			e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.Rax))
 
-	case "pl0_read":
-		// push return address on call stack and jump to callee
-		e.assemblyCode.AppendInstruction(x64.Call, btLabels, x64.NewLabelOperand(name))
+		case writeStatementSymbol:
+			// pop the write value from the call stack as parameter for the write function
+			// note: the Rdi register is used for the first argument in the 'write' function call
+			e.assemblyCode.AppendInstruction(x64.Pop, btLabels, x64.NewRegisterOperand(x64.Rdi))
 
-		e.assemblyCode.AppendInstruction(x64.Push, nil, x64.NewRegisterOperand(x64.Rax))
-
-	default:
+			// call write function from the standard library
+			e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(standardLibraryName))
+		}
+	} else {
 		// move the difference between use depth and declaration depth as 32-bit signed integer into the R10d register
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(depthDifference))
 
 		// push return address on call stack and jump to callee
-		e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(name))
+		e.assemblyCode.AppendInstruction(x64.Call, nil, x64.NewLabelOperand(intermediateCodeName))
 	}
 }
 

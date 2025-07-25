@@ -1,17 +1,20 @@
 { provide playground for trying out PL/0 }
 
 const a = 99;
-var x, y, z;
+var x, y, z, r;
 
 begin
     x := 4;
     y := 5;
     z := -x - y;
 
+    ? r;
+
     ! x;
     ! y;
     ! z;
     ! a;
+    ! r;
 
     if odd z then
         ! 42;

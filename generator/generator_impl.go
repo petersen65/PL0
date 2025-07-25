@@ -11,9 +11,6 @@ import (
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
-// Display name of the internal static link variable used to hold the static link of the current block.
-const staticLinkDisplayName = "@staticlink"
-
 // Abstract syntax extension for the symbol.
 const symbolExtension ast.ExtensionType = 16
 
@@ -24,6 +21,13 @@ const (
 	constantPrefix                    // the constant prefix is used for flattened constant names in the intermediate code
 	variablePrefix                    // the variable prefix is used for flattened variable names in the intermediate code
 	functionPrefix                    // the function prefix is used for flattened function names in the intermediate code
+)
+
+// Standard library and runtime library symbols used in the intermediate code generation.
+const (
+	staticLinkSymbol     = "@staticlink" // static link symbol holds a pointer to the lexical parent block
+	readStatementSymbol  = "@read"       // read statement symbol is used to call the read function from the standard library
+	writeStatementSymbol = "@write"      // write statement symbol is used to call the write function from the standard library
 )
 
 type (
@@ -145,7 +149,7 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 		ic.AllocateVariable, // allocate memory for the static link variable
 		noAddress,
 		noAddress,
-		ic.NewVariableAddress(ic.Unsigned64, staticLinkDisplayName),
+		ic.NewVariableAddress(ic.Unsigned64, staticLinkSymbol),
 		0)
 
 	// all declarations except blocks of nested procedures
@@ -517,13 +521,13 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 		noAddress,
 		s.TokenStreamIndex) // read statement in the token stream
 
-	// call the readln standard function with 1 parameter
-	// readln := ic.NewInstruction(
-	// 	ic.Standard, // function call to the external standard library
-	// 	ic.NewAddress(1, ic.Count, ic.Unsigned64),       // number of parameters for the standard function
-	// 	ic.NewAddress(ic.ReadLn, ic.Code, ic.Integer64), // code of standard function to call
-	// 	noAddress,
-	// 	s.TokenStreamIndex) // read statement in the token stream
+	// append the instruction to the intermediate code unit
+	call := ic.NewInstruction(
+		ic.Call, // call the read standard function with one return value
+		ic.NewLiteralAddress(ic.String, readStatementSymbol), // label of standard function to call
+		ic.NewLiteralAddress(ic.Integer32, int32(0)),          // block nesting depth difference ignored for standard functions
+		noAddress,
+		s.TokenStreamIndex) // call statement in the token stream
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
 	codeSymbol = i.intermediateCode.Lookup(codeName)
@@ -539,7 +543,7 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// append the instructions to the intermediate code unit
 	i.intermediateCode.AppendExistingInstruction(load)
 	i.intermediateCode.AppendExistingInstruction(param)
-	// i.intermediateCode.AppendInstruction(readln)
+	i.intermediateCode.AppendExistingInstruction(call)
 	i.intermediateCode.AppendExistingInstruction(store)
 }
 
@@ -560,8 +564,8 @@ func (i *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 	// append the instruction to the intermediate code unit
 	i.intermediateCode.AppendInstruction(
 		ic.Call, // call the write standard function with one parameter
-		ic.NewLiteralAddress(ic.String, "pl0_write"), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)), // block nesting depth difference ignored for standard functions
+		ic.NewLiteralAddress(ic.String, writeStatementSymbol), // label of standard function to call
+		ic.NewLiteralAddress(ic.Integer32, int32(0)),          // block nesting depth difference ignored for standard functions
 		noAddress,
 		s.TokenStreamIndex) // call statement in the token stream
 }
