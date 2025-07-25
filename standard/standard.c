@@ -74,7 +74,7 @@ void pl0_print(const char32_t *s) {
     }
 }
 
-// gcc -no-pie -c -o build/pl0_stdlib.o stdlib/pl0_stdlib.c
+// gcc -no-pie -c -o build/standard.o stdlib/standard.c
 // gcc -no-pie -c -o build/out.o build/out.s
 // gcc -no-pie -c -o build/out.rt.o build/out.rt.s
-// gcc -no-pie -o build/out build/out.o build/out.rt.o build/pl0_stdlib.o
+// gcc -no-pie -o build/out build/out.o build/out.rt.o build/standard.o

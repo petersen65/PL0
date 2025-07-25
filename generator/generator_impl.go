@@ -176,20 +176,20 @@ func (i *generator) VisitBlock(bn *ast.BlockNode) {
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
 		// return value of the main block, which is always 0
-		returnValue := int32(0)
+		returnValue := int64(0)
 
 		// create a copy-literal instruction to store the return value in a temporary
 		copyLiteral := ic.NewInstruction(
 			ic.CopyLiteral, // copy the value of the literal to a temporary
-			ic.NewLiteralAddress(ic.Integer32, returnValue),                                       // literal value for the return value
+			ic.NewLiteralAddress(ic.Integer64, returnValue),                                       // literal value for the return value
 			ic.NewLiteralAddress(ic.String, bn.Scope.NewIdentifier(prefix[labelPrefix])),          // new literal data label as source
-			ic.NewTemporaryAddress(ic.Integer32, bn.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
+			ic.NewTemporaryAddress(ic.Integer64, bn.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
 			0)
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
-			ic.Return, // return from the main block
-			ic.NewTemporaryAddress(ic.Integer32, copyLiteral.Quadruple.Result.Name), // temporary with the return value
+			ic.Return,                    // return from the main block
+			copyLiteral.Quadruple.Result, // temporary with the return value
 			noAddress,
 			noAddress,
 			0)
@@ -505,28 +505,28 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// block nesting depth difference between variable use and variable declaration
 	depthDifference := readDepth - declarationDepth
 
-	// create a load-variable instruction to load the variable value into a temporary
-	load := ic.NewInstruction(
-		ic.LoadVariable, // load the value of the variable into a temporary
-		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                               // variable with flat unique name
-		ic.NewLiteralAddress(ic.Integer32, depthDifference),                                       // block nesting depth difference
-		ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the resulting temporary
-		s.TokenStreamIndex) // read statement in the token stream
+	// // create a load-variable instruction to load the variable value into a temporary
+	// load := ic.NewInstruction(
+	// 	ic.LoadVariable, // load the value of the variable into a temporary
+	// 	ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                               // variable with flat unique name
+	// 	ic.NewLiteralAddress(ic.Integer32, depthDifference),                                       // block nesting depth difference
+	// 	ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the resulting temporary
+	// 	s.TokenStreamIndex) // read statement in the token stream
 
-	// parameter 1 for the readln standard function
-	param := ic.NewInstruction(
-		ic.Parameter,          // parameter for a standard function
-		load.Quadruple.Result, // result will be replaced by the standard function resultant value
-		noAddress,
-		noAddress,
-		s.TokenStreamIndex) // read statement in the token stream
+	// // parameter 1 for the readln standard function
+	// param := ic.NewInstruction(
+	// 	ic.Parameter,          // parameter for a standard function
+	// 	load.Quadruple.Result, // result will be replaced by the standard function resultant value
+	// 	noAddress,
+	// 	noAddress,
+	// 	s.TokenStreamIndex) // read statement in the token stream
 
 	// append the instruction to the intermediate code unit
 	call := ic.NewInstruction(
 		ic.Call, // call the read standard function with one return value
 		ic.NewLiteralAddress(ic.String, readStatementSymbol), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)),          // block nesting depth difference ignored for standard functions
-		noAddress,
+		ic.NewLiteralAddress(ic.Integer32, int32(0)),         // block nesting depth difference ignored for standard functions
+		ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the standard function result
 		s.TokenStreamIndex) // call statement in the token stream
 
 	// get the intermediate code symbol table entry of the abstract syntax variable declaration
@@ -535,14 +535,14 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// store the resultant value into the variable used by the read statement
 	store := ic.NewInstruction(
 		ic.StoreVariable,     // store the value of the standard function result into a variable
-		param.Quadruple.Arg1, // standard function resultant value
+		call.Quadruple.Result, // standard function resultant value
 		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
 		s.TokenStreamIndex) // read statement in the token stream
 
 	// append the instructions to the intermediate code unit
-	i.intermediateCode.AppendExistingInstruction(load)
-	i.intermediateCode.AppendExistingInstruction(param)
+	// i.intermediateCode.AppendExistingInstruction(load)
+	// i.intermediateCode.AppendExistingInstruction(param)
 	i.intermediateCode.AppendExistingInstruction(call)
 	i.intermediateCode.AppendExistingInstruction(store)
 }
