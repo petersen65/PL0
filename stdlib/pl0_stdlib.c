@@ -22,7 +22,7 @@
  */
 void pl0_write(int64_t value) {
     // Use PRId64 for portable int64 formatting.
-    printf("%" PRId64, value);
+    printf("%" PRId64 "\n", value);
 }
 
 /**
