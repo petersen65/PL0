@@ -505,44 +505,23 @@ func (i *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 	// block nesting depth difference between variable use and variable declaration
 	depthDifference := readDepth - declarationDepth
 
-	// // create a load-variable instruction to load the variable value into a temporary
-	// load := ic.NewInstruction(
-	// 	ic.LoadVariable, // load the value of the variable into a temporary
-	// 	ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                               // variable with flat unique name
-	// 	ic.NewLiteralAddress(ic.Integer32, depthDifference),                                       // block nesting depth difference
-	// 	ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the resulting temporary
-	// 	s.TokenStreamIndex) // read statement in the token stream
-
-	// // parameter 1 for the readln standard function
-	// param := ic.NewInstruction(
-	// 	ic.Parameter,          // parameter for a standard function
-	// 	load.Quadruple.Result, // result will be replaced by the standard function resultant value
-	// 	noAddress,
-	// 	noAddress,
-	// 	s.TokenStreamIndex) // read statement in the token stream
-
 	// append the instruction to the intermediate code unit
 	call := ic.NewInstruction(
 		ic.Call, // call the read standard function with one return value
-		ic.NewLiteralAddress(ic.String, readStatementSymbol), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)),         // block nesting depth difference ignored for standard functions
+		ic.NewLiteralAddress(ic.String, readStatementSymbol),                                      // label of standard function to call
+		ic.NewLiteralAddress(ic.Integer32, int32(0)),                                              // block nesting depth difference ignored for standard functions
 		ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the standard function result
 		s.TokenStreamIndex) // call statement in the token stream
 
-	// get the intermediate code symbol table entry of the abstract syntax variable declaration
-	codeSymbol = i.intermediateCode.Lookup(codeName)
-
 	// store the resultant value into the variable used by the read statement
 	store := ic.NewInstruction(
-		ic.StoreVariable,     // store the value of the standard function result into a variable
+		ic.StoreVariable,      // store the value of the standard function result into a variable
 		call.Quadruple.Result, // standard function resultant value
 		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
 		s.TokenStreamIndex) // read statement in the token stream
 
 	// append the instructions to the intermediate code unit
-	// i.intermediateCode.AppendExistingInstruction(load)
-	// i.intermediateCode.AppendExistingInstruction(param)
 	i.intermediateCode.AppendExistingInstruction(call)
 	i.intermediateCode.AppendExistingInstruction(store)
 }
