@@ -53,20 +53,29 @@ const (
 	CfiOffset    // defines register offset in CFI (.cfi_offset reg offset)
 )
 
-// Directive attributes for the ELF format supported by various assemblers on Linux.
+// Section attributes for the .section directive.
 const (
-	Allocatable Attribute = iota // section is allocated in memory (flag "a")
-	Writable                     // section is writable at runtime (flag "w")
-	Executable                   // section contains executable code (flag "x")
-	ProgramBits                  // section contains data or instruction program bits (section kind "@progbits")
-	NoBits                       // section does not occupy space in the file (section kind "@nobits")
+	SectionAllocatable SectionAttribute = iota // section is allocated in memory (flag "a")
+	SectionWritable                            // section is writable at runtime (flag "w")
+	SectionExecutable                          // section contains executable code (flag "x")
+	SectionProgramBits                         // section contains data or instruction program bits (section kind "@progbits")
+	SectionNoBits                              // section does not occupy space in the file (section kind "@nobits")
 )
 
-// Kind of read-only data to be stored in a read-only section.
+// Symbol type attributes for the .type directive.
 const (
-	ReadOnlyUtf32   ReadOnlyDataKind = iota // UTF-32 encoded strings
-	ReadOnlyInt64                           // 64-bit integer literals (signed and unsigned)
-	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
+	TypeFunction TypeAttribute = iota // symbol is a function (@function)
+	TypeObject                        // symbol is a data object (@object)
+	TypeCommon                        // symbol is a common data object (@common)
+	TypeTls                           // symbol is a thread-local storage object (@tls_object)
+	TypeIfunc                         // symbol is an indirect function (@gnu_indirect_function)
+)
+
+// Size calculation attributes for the .size directive.
+const (
+	SizeFromLabel  SizeAttribute = iota // calculate size from current location minus label (.-label)
+	SizeAbsolute                        // use absolute size value
+	SizeExpression                      // use arbitrary expression for size calculation
 )
 
 // Power-of-2 alignment values for the .p2align directive.
@@ -79,22 +88,35 @@ const (
 	P2align32 = 5 // 32-byte alignment
 )
 
+// Kind of read-only data to be stored in a read-only section.
+const (
+	ReadOnlyUtf32   ReadOnlyDataKind = iota // UTF-32 encoded strings
+	ReadOnlyInt64                           // 64-bit integer literals (signed and unsigned)
+	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
+)
+
 type (
 	// Represents an assembler directive (pseudo-op).
 	Directive int
 
-	// Represents an attribute of an assembler directive.
-	Attribute int
+	// Represents an attribute of the .section directive.
+	SectionAttribute int
+
+	// Represents a symbol type for the .type directive.
+	TypeAttribute int
+
+	// Represents a size calculation method for the .size directive.
+	SizeAttribute int
 
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
 
-	// AssemblySection represents a generic assembly section with typed contents.
-	AssemblySection[T fmt.Stringer] struct {
-		Directives []Directive // directives for building the section (e.g., .section, .p2align)
-		Attributes []Attribute // attributes of the section (e.g., allocatable, writable, executable)
-		Alignment  int         // power-of-2 alignment for section contents (used with ".p2align")
-		Content    []T         // typed contents of this section (e.g., read-only data items, instructions)
+	// AssemblerSection represents a generic assembler section with typed contents.
+	AssemblerSection[T fmt.Stringer] struct {
+		Directives []Directive        // directives for building the section (e.g., .section, .p2align)
+		Attributes []SectionAttribute // attributes of the section (e.g., allocatable, writable, executable)
+		Alignment  int                // power-of-2 alignment for section contents (used with ".p2align")
+		Content    []T                // typed contents of this section (e.g., read-only data items, instructions)
 	}
 
 	// A read-only data item holds one or several constant values that are not modified during program execution.
@@ -103,16 +125,18 @@ type (
 		Labels []string         `json:"labels"` // literal data labels to access the read-only data item
 		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
 	}
+
+	// DirectiveDetail represents a structured assembler directive with formal syntax.
+	DirectiveDetail struct {
+		Directive Directive `json:"kind"`      // the directive (e.g., .type, .size, .global)
+		Symbol    string    `json:"symbol"`    // the symbol name this directive applies to
+		Arguments []string  `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
+	}
 )
 
-// Create a new assembly section with the specified directives, attributes, and alignment.
-func NewAssemblySection[T fmt.Stringer](directives []Directive, attributes []Attribute, alignment int) *AssemblySection[T] {
-	return &AssemblySection[T]{
-		Directives: directives,
-		Attributes: attributes,
-		Alignment:  alignment,
-		Content:    make([]T, 0),
-	}
+// Create a new assembler section with the specified directives, attributes, and alignment.
+func NewAssemblerSection[T fmt.Stringer](directives []Directive, attributes []SectionAttribute, alignment int) *AssemblerSection[T] {
+	return &AssemblerSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Content: make([]T, 0)}
 }
 
 // Create a new read-only data item with literal data labels for a read-only section.
@@ -120,14 +144,59 @@ func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *Re
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
 }
 
+// Create a new directive detail for symbol declarations.
+func NewDirectiveDetail(directive Directive, symbol string, args ...string) *DirectiveDetail {
+	return &DirectiveDetail{Directive: directive, Symbol: symbol, Arguments: args}
+}
+
+// Create a .global directive.
+func NewGlobal(symbol string) *DirectiveDetail {
+	return NewDirectiveDetail(Global, symbol)
+}
+
+// Create a .extern directive.
+func NewExtern(symbol string) *DirectiveDetail {
+	return NewDirectiveDetail(Extern, symbol)
+}
+
+// Create a .type directive for a function symbol.
+func NewTypeFunction(symbol string) *DirectiveDetail {
+	return NewDirectiveDetail(Type, symbol, TypeFunction.String())
+}
+
+// Create a .type directive for an object symbol.
+func NewTypeObject(symbol string) *DirectiveDetail {
+	return NewDirectiveDetail(Type, symbol, TypeObject.String())
+}
+
+// Create a .size directive using the standard ".-symbol" calculation.
+func NewSizeLabel(symbol string) *DirectiveDetail {
+	return NewDirectiveDetail(Size, symbol, fmt.Sprintf(SizeFromLabel.String(), symbol))
+}
+
+// Create a .size directive with an absolute size value.
+func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
+	return NewDirectiveDetail(Size, symbol, fmt.Sprintf(SizeAbsolute.String(), size))
+}
+
 // String representation of a directive.
 func (dk Directive) String() string {
 	return directiveNames[dk]
 }
 
-// String representation of an attribute.
-func (a Attribute) String() string {
-	return attributeNames[a]
+// String representation of a section attribute.
+func (sa SectionAttribute) String() string {
+	return sectionAttributeNames[sa]
+}
+
+// String representation of a type attribute.
+func (ta TypeAttribute) String() string {
+	return typeAttributeNames[ta]
+}
+
+// String representation of a size attribute.
+func (sa SizeAttribute) String() string {
+	return sizeAttributeNames[sa]
 }
 
 // String representation of a descriptor label.

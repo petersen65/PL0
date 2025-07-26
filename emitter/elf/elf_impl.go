@@ -48,18 +48,34 @@ var (
 		CfiOffset:    ".cfi_offset",
 	}
 
-	// Map attributes to their string representation.
-	attributeNames = map[Attribute]string{
-		Allocatable: "\"a\"",
-		Writable:    "\"w\"",
-		Executable:  "\"x\"",
-		ProgramBits: "@progbits",
-		NoBits:      "@nobits",
+	// Map section attributes to their string representation.
+	sectionAttributeNames = map[SectionAttribute]string{
+		SectionAllocatable: "\"a\"",
+		SectionWritable:    "\"w\"",
+		SectionExecutable:  "\"x\"",
+		SectionProgramBits: "@progbits",
+		SectionNoBits:      "@nobits",
+	}
+
+	// Map type attributes to their string representation.
+	typeAttributeNames = map[TypeAttribute]string{
+		TypeFunction: "@function",
+		TypeObject:   "@object",
+		TypeCommon:   "@common",
+		TypeTls:      "@tls_object",
+		TypeIfunc:    "@gnu_indirect_function",
+	}
+
+	// Map size attributes to their string representation templates.
+	sizeAttributeNames = map[SizeAttribute]string{
+		SizeFromLabel:  ".-%s",
+		SizeAbsolute:   "%d",
+		SizeExpression: "%s",
 	}
 )
 
-// String representation of an assembly section.
-func (s *AssemblySection[T]) String() string {
+// String representation of an assembler section.
+func (s *AssemblerSection[T]) String() string {
 	var parts []string
 	var builder strings.Builder
 
@@ -112,11 +128,6 @@ func (s *AssemblySection[T]) String() string {
 
 	// the section string representation does not end with a newline
 	return builder.String()
-}
-
-// Append content to the assembly section.
-func (s *AssemblySection[T]) Append(content T) {
-	s.Content = append(s.Content, content)
 }
 
 // String representation of a read-only data item.
@@ -223,4 +234,21 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// the read-only data item string representation does not end with a newline
 	return builder.String()
+}
+
+// String representation of a directive detail.
+func (dd *DirectiveDetail) String() string {
+	// if no arguments are provided, just return the directive and symbol
+	if len(dd.Arguments) == 0 {
+		return fmt.Sprintf("%s %s", dd.Directive, dd.Symbol)
+	}
+
+	// join symbol and arguments with commas for multi-argument directives
+	args := append([]string{dd.Symbol}, dd.Arguments...)
+	return fmt.Sprintf("%s %s", dd.Directive, strings.Join(args, ", "))
+}
+
+// Append content to the assembly section.
+func (s *AssemblerSection[T]) Append(content T) {
+	s.Content = append(s.Content, content)
 }

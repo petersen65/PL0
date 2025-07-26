@@ -242,7 +242,7 @@ func (e *emitter) Emit() {
 			}
 
 			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
-			comparison = e.compare(dataType, l)
+			comparison = e.comparison(dataType, l)
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if the label name is not a string
@@ -981,7 +981,7 @@ func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string) {
 }
 
 // Compare the top two elements of the call stack and update the CPU flags.
-func (e *emitter) compare(dataType ic.DataType, btLabels []string) x64.ComparisonType {
+func (e *emitter) comparison(dataType ic.DataType, btLabels []string) x64.ComparisonType {
 	var comparisonType x64.ComparisonType
 
 	// depending on the data type, evaluate the comparison type for the conditional jump instructions
