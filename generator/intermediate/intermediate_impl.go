@@ -9,14 +9,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/uuid"
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
 type (
 	// Represents a logical unit of instructions created from one source file.
 	intermediateCodeUnit struct {
-		UniqueId     string             `json:"unique_id"`    // unique identifier of the intermediate code unit
 		names        []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
 		symbolTable  map[string]*Symbol `json:"-"`            // symbol table for intermediate code flattened names
 		Instructions *list.List         `json:"instructions"` // intermediate code instructions as doubly linked list that allows reordering
@@ -154,7 +152,6 @@ var (
 // Create a new intermediate code unit and initialize it with a unique identifier.
 func newIntermediateCodeUnit() IntermediateCodeUnit {
 	return &intermediateCodeUnit{
-		UniqueId:     uuid.NewString(),
 		names:        make([]string, 0),
 		symbolTable:  make(map[string]*Symbol),
 		Instructions: list.New(),
