@@ -255,6 +255,7 @@ type (
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
 		AppendExistingInstruction(instruction *Instruction)
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
+		AppendExternalSymbol(symbol string)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction

@@ -16,6 +16,7 @@ var (
 	// Map directives to their string representation.
 	directiveNames = map[Directive]string{
 		Global:       ".global",
+		Extern:       ".extern",
 		Type:         ".type",
 		Size:         ".size",
 		Weak:         ".weak",

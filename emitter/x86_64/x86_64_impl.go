@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
@@ -21,6 +22,7 @@ type (
 	assemblyCodeUnit struct {
 		outputKind       OutputKind                                  // kind of output that is produced by the assembly code
 		targetPlatform   cor.TargetPlatform                          // target platform for the assembly code
+		externals        []string                                    // list of external symbols that that the assembly code references
 		roUtf32Section   *elf.AssemblySection[*elf.ReadOnlyDataItem] // read-only data section for static UTF-32 strings
 		roInt64Section   *elf.AssemblySection[*elf.ReadOnlyDataItem] // read-only data section for static 64-bit integers
 		roStrDescSection *elf.AssemblySection[*elf.ReadOnlyDataItem] // read-only data section for string descriptors
@@ -180,6 +182,7 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 	return &assemblyCodeUnit{
 		outputKind:     outputKind,
 		targetPlatform: targetPlatform,
+		externals:      make([]string, 0),
 
 		// read-only data section for static UTF-32 strings
 		roUtf32Section: elf.NewAssemblySection[*elf.ReadOnlyDataItem](
@@ -343,6 +346,17 @@ func (a *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 	}
 }
 
+// Append an external symbol to the assembly code unit.
+func (a *assemblyCodeUnit) AppendExternalSymbol(symbol string) {
+	// check if the symbol is already in the list of externals
+	if slices.Contains(a.externals, symbol) {
+		return
+	}
+
+	// append the new external symbol to the list
+	a.externals = append(a.externals, symbol)
+}
+
 // Append a set of instructions to create all runtime functions.
 func (a *assemblyCodeUnit) AppendRuntime() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
@@ -473,6 +487,11 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	// if there are global symbols, add them to the header so that they can be linked with other object files
 	if len(globals) > 0 {
 		header += fmt.Sprintf("%v %v\n", elf.Global, strings.Join(globals, ", "))
+	}
+
+	// if there are external symbols, add them to the header as documentation and for linking
+	if len(a.externals) > 0 {
+		header += fmt.Sprintf("%v %v\n", elf.Extern, strings.Join(a.externals, ", "))
 	}
 
 	// write the assembly code header to the print writer

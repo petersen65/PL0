@@ -11,6 +11,7 @@ import "fmt"
 const (
 	// symbol declaration directives
 	Global Directive = iota // declares a global symbol visible to the linker (.globl <name>)
+	Extern                  // declares an external symbol defined elsewhere (.extern <name>)
 	Type                    // specifies the symbol type for ELF (.type <name>, @function/@object/...)
 	Size                    // declares the size of a symbol in bytes (.size <name>, .-<name>)
 	Weak                    // marks a symbol as weak; can be overridden (.weak <name>)

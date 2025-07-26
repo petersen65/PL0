@@ -1175,6 +1175,9 @@ func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Ope
 func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthDifference int32, btLabels []string) {
 	// depending on the intermediate code symbol name, handle cases for standard library functions or user-defined functions
 	if standardLibraryName, ok := standardLibrarySymbols[intermediateCodeName]; ok {
+		// append the standard library name to the assembly code as an external symbol
+		e.assemblyCode.AppendExternalSymbol(standardLibraryName)
+		
 		switch intermediateCodeName {
 		case readStatementSymbol:
 			// call read function from the standard library
