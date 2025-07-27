@@ -205,6 +205,12 @@ const (
 	Runtime
 )
 
+// Kind of supported symbol entry in the assembly code.
+const (
+	ObjectEntry Entry = iota
+	FunctionEntry
+)
+
 type (
 	// Type for CPU operation codes.
 	OperationCode int
@@ -223,6 +229,9 @@ type (
 
 	// Output kind of the assembly code.
 	OutputKind int
+
+	// Kind of symbol entries with label names in the assembly code.
+	Entry int
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
@@ -248,6 +257,14 @@ type (
 		Offset int32       `json:"offset"` // displacement offset in bytes for the memory operand
 	}
 
+	// A symbol is a data structure that stores all necessary information related to a declared symbol in the assembly code.
+	Symbol struct {
+		Labels []string // associated labels for this symbol
+		Kind   Entry    // kind of the symbol
+		Size   int      // symbol size in bytes (0 = unknown/calculated)
+		Global bool     // whether symbol should be exported
+	}
+
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
@@ -259,6 +276,8 @@ type (
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
+		Insert(symbol *Symbol)
+		Lookup(label string) *Symbol
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -302,6 +321,11 @@ func NewMemoryOperand(register Register, size OperandSize, displacements ...any)
 // Create a new label operand for an assembly instruction.
 func NewLabelOperand(label string) *Operand {
 	return &Operand{Kind: LabelOperand, Label: label}
+}
+
+// Create new symbol for the assembly code.
+func NewSymbol(labels []string, kind Entry) *Symbol {
+	return &Symbol{Labels: labels, Kind: kind}
 }
 
 // String representation of a CPU operation code.

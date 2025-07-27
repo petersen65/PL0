@@ -291,7 +291,7 @@ func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement 
 	right := p.expression(scope, anchors)
 
 	// the left side of an assignment is an identifier
-	left := ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex)
+	left := ast.NewIdentifierUse(name, scope, ast.VariableEntry, nameIndex)
 
 	return ast.NewAssignmentStatement(left, right, becomesIndex)
 }
@@ -318,7 +318,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	}
 
 	// a read statement that uses a variable identifier
-	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.Variable, nameIndex), readIndex)
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.VariableEntry, nameIndex), readIndex)
 }
 
 // A write statement is the write operator followed by an expression.
@@ -350,7 +350,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	}
 
 	// a call statement that uses a procedure identifier
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.Procedure, nameIndex), callIndex)
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.ProcedureEntry, nameIndex), callIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -714,7 +714,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	for p.lastToken().In(factors) {
 		if p.lastToken() == cor.Identifier {
 			// the factor can be a constant or a variable
-			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.Constant|ast.Variable, p.lastTokenIndex())
+			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.ConstantEntry|ast.VariableEntry, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == cor.Number {
 			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64, scope, p.lastTokenIndex())

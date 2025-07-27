@@ -52,9 +52,9 @@ var (
 
 	// kindNames maps symbol kinds to their string representation.
 	kindNames = map[Entry]string{
-		Constant:  "constant",
-		Variable:  "variable",
-		Procedure: "procedure",
+		ConstantEntry:  "constant",
+		VariableEntry:  "variable",
+		ProcedureEntry: "procedure",
 	}
 
 	// usageNames maps usage modes to their string representation.
@@ -486,7 +486,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", kindNames[Constant], d.Name, d.Value, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", kindNames[ConstantEntry], d.Name, d.Value, d.DataType, len(d.Usage))
 }
 
 // Parent node of the constant declaration node.
@@ -521,7 +521,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", kindNames[Variable], d.Name, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", kindNames[VariableEntry], d.Name, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -556,7 +556,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", kindNames[Procedure], d.Name, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", kindNames[ProcedureEntry], d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
@@ -628,13 +628,13 @@ func (u *IdentifierUseNode) SetParent(parent Node) {
 func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
 		switch symbol.Kind {
-		case Constant:
+		case ConstantEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,value=%v,usage=%v)", symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
-		case Variable:
+		case VariableEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
-		case Procedure:
+		case ProcedureEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
 		default:

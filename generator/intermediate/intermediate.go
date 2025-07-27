@@ -21,10 +21,10 @@ const (
 	Negate // unary arithmetic operation 'negation'
 
 	// binary arithmetic operation
-	Plus         // binary arithmetic operation '+'
-	Minus        // binary arithmetic operation '-'
-	Times        // binary arithmetic operation '*'
-	Divide       // binary arithmetic operation '/'
+	Plus   // binary arithmetic operation '+'
+	Minus  // binary arithmetic operation '-'
+	Times  // binary arithmetic operation '*'
+	Divide // binary arithmetic operation '/'
 
 	// binary comparison operation
 	Equal        // binary comparison operation '=='
@@ -97,9 +97,9 @@ const (
 
 // Kind of supported symbol entry in the intermediate code.
 const (
-	ConstantSymbol Entry = iota
-	VariableSymbol
-	FunctionSymbol
+	ConstantEntry Entry = iota
+	VariableEntry
+	FunctionEntry
 )
 
 type (

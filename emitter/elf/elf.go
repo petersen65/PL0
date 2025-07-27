@@ -149,12 +149,12 @@ func NewDirectiveDetail(directive Directive, symbols []string, args ...string) *
 	return &DirectiveDetail{Directive: directive, Symbols: symbols, Arguments: args}
 }
 
-// Create a .global directive.
+// Create a .global directive for global symbols.
 func NewGlobal(symbols []string) *DirectiveDetail {
 	return NewDirectiveDetail(Global, symbols)
 }
 
-// Create a .extern directive.
+// Create a .extern directive for external symbols.
 func NewExtern(symbols []string) *DirectiveDetail {
 	return NewDirectiveDetail(Extern, symbols)
 }

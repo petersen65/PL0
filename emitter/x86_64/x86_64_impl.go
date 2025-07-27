@@ -22,6 +22,7 @@ type (
 	assemblyCodeUnit struct {
 		outputKind       OutputKind                                   // kind of output that is produced by the assembly code
 		targetPlatform   cor.TargetPlatform                           // target platform for the assembly code
+		symbolTable      map[string]*Symbol                           // symbol table for assembly code label names
 		externals        []string                                     // list of external symbols that that the assembly code references
 		roUtf32Section   *elf.AssemblerSection[*elf.ReadOnlyDataItem] // read-only data section for static UTF-32 strings
 		roInt64Section   *elf.AssemblerSection[*elf.ReadOnlyDataItem] // read-only data section for static 64-bit integers
@@ -182,6 +183,7 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 	return &assemblyCodeUnit{
 		outputKind:     outputKind,
 		targetPlatform: targetPlatform,
+		symbolTable:    make(map[string]*Symbol),
 		externals:      make([]string, 0),
 
 		// read-only data section for static UTF-32 strings
@@ -298,26 +300,26 @@ func (i *Instruction) String() string {
 }
 
 // Append an instruction with branch target labels to the assembly code unit.
-func (a *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection.Append(NewInstruction(operation, labels, operands...))
+func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
+	u.textSection.Append(NewInstruction(operation, labels, operands...))
 }
 
 // Append a prefixed instruction with branch target labels to the assembly code unit.
-func (a *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
-	a.textSection.Append(NewPrefixedInstruction(prefix, operation, labels, operands...))
+func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
+	u.textSection.Append(NewPrefixedInstruction(prefix, operation, labels, operands...))
 }
 
 // Append a read-only data item with literal data labels to the assembly code unit.
-func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any) {
+func (u *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any) {
 	switch kind {
 	case elf.ReadOnlyUtf32:
-		a.roUtf32Section.Append(elf.NewReadOnlyDataItem(kind, labels, values))
+		u.roUtf32Section.Append(elf.NewReadOnlyDataItem(kind, labels, values))
 
 	case elf.ReadOnlyInt64:
-		a.roInt64Section.Append(elf.NewReadOnlyDataItem(kind, labels, values))
+		u.roInt64Section.Append(elf.NewReadOnlyDataItem(kind, labels, values))
 
 	case elf.ReadOnlyStrDesc:
-		a.roStrDescSection.Append(elf.NewReadOnlyDataItem(kind, labels, values))
+		u.roStrDescSection.Append(elf.NewReadOnlyDataItem(kind, labels, values))
 
 	default:
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, kind, nil))
@@ -325,21 +327,21 @@ func (a *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, lab
 }
 
 // Append an existing instruction to the assembly code unit.
-func (a *assemblyCodeUnit) AppendExistingInstruction(instruction *Instruction) {
-	a.textSection.Content = append(a.textSection.Content, instruction)
+func (u *assemblyCodeUnit) AppendExistingInstruction(instruction *Instruction) {
+	u.textSection.Content = append(u.textSection.Content, instruction)
 }
 
 // Append an existing read-only data item to the assembly code unit.
-func (a *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem) {
+func (u *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem) {
 	switch item.Kind {
 	case elf.ReadOnlyUtf32:
-		a.roUtf32Section.Append(item)
+		u.roUtf32Section.Append(item)
 
 	case elf.ReadOnlyInt64:
-		a.roInt64Section.Append(item)
+		u.roInt64Section.Append(item)
 
 	case elf.ReadOnlyStrDesc:
-		a.roStrDescSection.Append(item)
+		u.roStrDescSection.Append(item)
 
 	default:
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, item.Kind, nil))
@@ -347,18 +349,18 @@ func (a *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 }
 
 // Append an external symbol to the assembly code unit.
-func (a *assemblyCodeUnit) AppendExternalSymbol(symbol string) {
+func (u *assemblyCodeUnit) AppendExternalSymbol(symbol string) {
 	// check if the symbol is already in the list of externals
-	if slices.Contains(a.externals, symbol) {
+	if slices.Contains(u.externals, symbol) {
 		return
 	}
 
 	// append the new external symbol to the list
-	a.externals = append(a.externals, symbol)
+	u.externals = append(u.externals, symbol)
 }
 
 // Append a set of instructions to create all runtime functions.
-func (a *assemblyCodeUnit) AppendRuntime() {
+func (u *assemblyCodeUnit) AppendRuntime() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
 
@@ -398,11 +400,11 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 			mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
 			ret
 	*/
-	a.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
-	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
-	a.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
-	a.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
-	a.AppendInstruction(Ret, nil)
+	u.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
+	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
+	u.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
+	u.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
+	u.AppendInstruction(Ret, nil)
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -419,7 +421,7 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 			mov         rsi, rbp                     # optional manual starting point for static link chain
 													 # used if follow_static_link is called with current rbp
 	*/
-	a.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+	u.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -452,32 +454,48 @@ func (a *assemblyCodeUnit) AppendRuntime() {
 			mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
 			ret 									 # return to caller with rax = static link result
 	*/
-	a.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(int32(0)))
-	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
-	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rdx), NewMemoryOperand(Rsi, Bits64, -PointerSize))
-	a.AppendInstruction(Test, nil, NewRegisterOperand(Rdx), NewRegisterOperand(Rdx))
-	a.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
-	a.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewRegisterOperand(Rdx))
-	a.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
-	a.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
-	a.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
-	a.AppendInstruction(Ret, nil)
+	u.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(int32(0)))
+	u.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
+	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rdx), NewMemoryOperand(Rsi, Bits64, -PointerSize))
+	u.AppendInstruction(Test, nil, NewRegisterOperand(Rdx), NewRegisterOperand(Rdx))
+	u.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
+	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewRegisterOperand(Rdx))
+	u.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
+	u.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
+	u.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
+	u.AppendInstruction(Ret, nil)
 }
 
 // Return the number of instructions in the assembly code unit.
-func (a *assemblyCodeUnit) Length() int {
-	return len(a.textSection.Content)
+func (u *assemblyCodeUnit) Length() int {
+	return len(u.textSection.Content)
 }
 
 // Return the instruction at the specified index in the assembly code unit.
-func (a *assemblyCodeUnit) GetInstruction(index int) *Instruction {
-	return a.textSection.Content[index]
+func (u *assemblyCodeUnit) GetInstruction(index int) *Instruction {
+	return u.textSection.Content[index]
+}
+
+// Insert a symbol into the assembly code symbol table. If the symbol already exists, it will be overwritten.
+func (u *assemblyCodeUnit) Insert(symbol *Symbol) {
+	for _, label := range symbol.Labels {
+		u.symbolTable[label] = symbol
+	}
+}
+
+// Lookup a symbol in the the assembly code symbol table. If the symbol is not found, nil is returned.
+func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
+	if symbol, ok := u.symbolTable[label]; ok {
+		return symbol
+	}
+
+	return nil
 }
 
 // Print the assembly code to the specified writer and optionally accept global symbols as arguments.
-func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
+func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	var globals []string
-	header := fmt.Sprintf(assemblyCodeHeader, a.targetPlatform)
+	header := fmt.Sprintf(assemblyCodeHeader, u.targetPlatform)
 
 	// convert all arguments to strings and collect them as global symbols in the assembly code header
 	for _, arg := range args {
@@ -490,8 +508,8 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	}
 
 	// if there are external symbols, add them to the header as documentation and for linking
-	if len(a.externals) > 0 {
-		header += elf.NewExtern(a.externals).String() + "\n"
+	if len(u.externals) > 0 {
+		header += elf.NewExtern(u.externals).String() + "\n"
 	}
 
 	// write the assembly code header to the print writer
@@ -500,29 +518,29 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	}
 
 	// write the read-only UTF-32 strings data section to the print writer
-	if len(a.roUtf32Section.Content) > 0 {
-		if _, err := fmt.Fprintf(print, "%v\n", a.roUtf32Section); err != nil {
+	if len(u.roUtf32Section.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.roUtf32Section); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
 	// write the read-only 64-bit integer data section to the print writer
-	if len(a.roInt64Section.Content) > 0 {
-		if _, err := fmt.Fprintf(print, "%v\n", a.roInt64Section); err != nil {
+	if len(u.roInt64Section.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.roInt64Section); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
 	// write the read-only string descriptor data section to the print writer
-	if len(a.roStrDescSection.Content) > 0 {
-		if _, err := fmt.Fprintf(print, "%v\n", a.roStrDescSection); err != nil {
+	if len(u.roStrDescSection.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.roStrDescSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
 
 	// write the text section to the print writer
-	if len(a.textSection.Content) > 0 {
-		if _, err := fmt.Fprintf(print, "%v\n", a.textSection); err != nil {
+	if len(u.textSection.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.textSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}
@@ -531,7 +549,7 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 }
 
 // Export the assembly code to the specified writer in the specified format.
-func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
+func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
 		// export the text section as a JSON object and wrap it in a struct to provide a field name for each section
@@ -541,10 +559,10 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 			RoStrDescSection *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_str_desc_section"`
 			TextSection      *elf.AssemblerSection[*Instruction]          `json:"text_section"`
 		}{
-			RoUtf32Section:   a.roUtf32Section,
-			RoInt64Section:   a.roInt64Section,
-			RoStrDescSection: a.roStrDescSection,
-			TextSection:      a.textSection,
+			RoUtf32Section:   u.roUtf32Section,
+			RoInt64Section:   u.roInt64Section,
+			RoStrDescSection: u.roStrDescSection,
+			TextSection:      u.textSection,
 		}, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		} else {
@@ -559,15 +577,15 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 
 	case cor.Text:
 		// print is a convenience function to export the text section as a string to the print writer
-		switch a.outputKind {
+		switch u.outputKind {
 		case Application:
-			return a.Print(print, cor.EntryPointLabel)
+			return u.Print(print, cor.EntryPointLabel)
 
 		case Runtime:
-			return a.Print(print, CreateStaticLinkLabel, FollowStaticLinkLabel)
+			return u.Print(print, CreateStaticLinkLabel, FollowStaticLinkLabel)
 
 		default:
-			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownExportFormat, a.outputKind, nil))
+			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownExportFormat, u.outputKind, nil))
 		}
 
 	default:

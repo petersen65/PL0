@@ -93,9 +93,9 @@ const (
 
 // Kind of supported symbol entry as bit-mask.
 const (
-	Constant Entry = 1 << iota
-	Variable
-	Procedure
+	ConstantEntry Entry = 1 << iota
+	VariableEntry
+	ProcedureEntry
 )
 
 // Usage mode of an identifier as bit-mask.

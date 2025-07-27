@@ -184,14 +184,14 @@ func (e *emitter) Emit() {
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if the label name is not a string
-			name := i.Quadruple.Arg1.Value.(string)
+			name := i.Quadruple.Result.Value.(string)
 
 			// emit assembly code to perform an unconditional jump to the specified label
 			e.unconditionalJump(name, l)
 
 		case ic.JumpEqual, ic.JumpNotEqual, ic.JumpLess, ic.JumpLessEqual, ic.JumpGreater, ic.JumpGreaterEqual: // conditional jump to a label resolved at link-time based on the CPU flags set by the previous comparison
 			// panic if the label name is not a string
-			name := i.Quadruple.Arg1.Value.(string)
+			name := i.Quadruple.Result.Value.(string)
 
 			// emit assembly code to perform a conditional jump based on the CPU flags set by the previous comparison
 			e.conditionalJump(comparison, i.Quadruple.Operation, name, l)
@@ -200,6 +200,13 @@ func (e *emitter) Emit() {
 			comparison = x64.ComparisonNone
 
 		case ic.BranchTarget: // target for any branching operation
+			// panic if the label name is not a string
+			name := i.Quadruple.Result.Value.(string)
+
+			if name == cor.EntryPointLabel {
+				e.assemblyCode.Insert(x64.NewSymbol([]string{cor.EntryPointLabel}, x64.FunctionEntry))
+			}
+
 			// append branch target labels for the directly following non 'BranchTarget' instruction
 			l = append(l, i.Quadruple.Result.Value.(string))
 

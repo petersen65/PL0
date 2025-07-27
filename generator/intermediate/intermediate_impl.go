@@ -122,19 +122,19 @@ var (
 		GreaterEqual: {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
 
 		// unconditional or conditional jump
-		Jump:             {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpEqual:        {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpNotEqual:     {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpLess:         {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpLessEqual:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpGreater:      {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		JumpGreaterEqual: {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		Jump:             {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpEqual:        {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpNotEqual:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpLess:         {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpLessEqual:    {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpGreater:      {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpGreaterEqual: {{Arg1: Empty, Arg2: Empty, Result: Literal}},
 		BranchTarget:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
 
 		// function call and parameter passing
 		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
 		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty},{Arg1: Literal, Arg2: Literal, Result: Temporary}},
-		Return:    {{Arg1: Empty, Arg2: Empty, Result: Empty}, {Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Return:    {{Arg1: Empty, Arg2: Empty, Result: Literal}, {Arg1: Temporary, Arg2: Empty, Result: Literal}},
 
 		// function entry and exit sequences
 		Prologue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
@@ -159,32 +159,32 @@ func newIntermediateCodeUnit() IntermediateCodeUnit {
 }
 
 // Append a new instruction to the intermediate code.
-func (m *intermediateCodeUnit) AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element {
-	return m.Instructions.PushBack(NewInstruction(operation, arg1, arg2, result, tokenStreamIndex))
+func (u *intermediateCodeUnit) AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element {
+	return u.Instructions.PushBack(NewInstruction(operation, arg1, arg2, result, tokenStreamIndex))
 }
 
 // Append an existing instruction to the intermediate code.
-func (m *intermediateCodeUnit) AppendExistingInstruction(instruction *Instruction) *list.Element {
-	return m.Instructions.PushBack(instruction)
+func (u *intermediateCodeUnit) AppendExistingInstruction(instruction *Instruction) *list.Element {
+	return u.Instructions.PushBack(instruction)
 }
 
 // Get an instruction iterator for the intermediate code unit.
-func (m *intermediateCodeUnit) GetIterator() Iterator {
-	return &iterator{current: m.Instructions.Front(), instructions: m.Instructions}
+func (u *intermediateCodeUnit) GetIterator() Iterator {
+	return &iterator{current: u.Instructions.Front(), instructions: u.Instructions}
 }
 
 // Insert a symbol into the intermediate code symbol table. If the symbol already exists, it will be overwritten.
-func (m *intermediateCodeUnit) Insert(symbol *Symbol) {
-	if m.Lookup(symbol.Name) == nil {
-		m.names = append(m.names, symbol.Name)
+func (u *intermediateCodeUnit) Insert(symbol *Symbol) {
+	if u.Lookup(symbol.Name) == nil {
+		u.names = append(u.names, symbol.Name)
 	}
 
-	m.symbolTable[symbol.Name] = symbol
+	u.symbolTable[symbol.Name] = symbol
 }
 
 // Lookup a symbol in the the intermediate code symbol table. If the symbol is not found, nil is returned.
-func (m *intermediateCodeUnit) Lookup(name string) *Symbol {
-	if symbol, ok := m.symbolTable[name]; ok {
+func (u *intermediateCodeUnit) Lookup(name string) *Symbol {
+	if symbol, ok := u.symbolTable[name]; ok {
 		return symbol
 	}
 
@@ -192,12 +192,12 @@ func (m *intermediateCodeUnit) Lookup(name string) *Symbol {
 }
 
 // Marshal the intermediate code unit to a JSON object.
-func (m *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
+func (u *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
 	type Embedded intermediateCodeUnit
-	instructions := make([]Instruction, 0, m.Instructions.Len())
+	instructions := make([]Instruction, 0, u.Instructions.Len())
 
 	// copy the doubly linked instruction-list to a slice of instructions
-	for e := m.Instructions.Front(); e != nil; e = e.Next() {
+	for e := u.Instructions.Front(); e != nil; e = e.Next() {
 		instructions = append(instructions, *e.Value.(*Instruction))
 	}
 
@@ -206,7 +206,7 @@ func (m *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
 		*Embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded:     (*Embedded)(m),
+		Embedded:     (*Embedded)(u),
 		Instructions: instructions,
 	}
 
@@ -214,7 +214,7 @@ func (m *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
 }
 
 // Unmarshal the intermediate code unit from a JSON object.
-func (m *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
+func (u *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
 	type Embedded intermediateCodeUnit
 
 	// struct to unmarshal the JSON object to
@@ -222,7 +222,7 @@ func (m *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
 		*Embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded: (*Embedded)(m),
+		Embedded: (*Embedded)(u),
 	}
 
 	if err := json.Unmarshal(raw, mj); err != nil {
@@ -231,16 +231,16 @@ func (m *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
 
 	// replace the slice of instructions with a doubly linked instruction-list
 	for _, i := range mj.Instructions {
-		m.AppendInstruction(i.Quadruple.Operation, i.Quadruple.Arg1, i.Quadruple.Arg2, i.Quadruple.Result, i.TokenStreamIndex)
+		u.AppendInstruction(i.Quadruple.Operation, i.Quadruple.Arg1, i.Quadruple.Arg2, i.Quadruple.Result, i.TokenStreamIndex)
 	}
 
 	return nil
 }
 
 // Print the intermediate code unit to the specified writer.
-func (m *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
+func (u *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the unit and print them to the writer
-	for e := m.Instructions.Front(); e != nil; e = e.Next() {
+	for e := u.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		}
@@ -250,11 +250,11 @@ func (m *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 }
 
 // Export the intermediate code unit to the specified writer in the specified format.
-func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
+func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
 	case cor.Json:
 		// export the unit as a JSON object
-		if raw, err := json.MarshalIndent(m, "", "  "); err != nil {
+		if raw, err := json.MarshalIndent(u, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
@@ -268,7 +268,7 @@ func (m *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 
 	case cor.Text:
 		// print is a convenience function to export the intermediate code unit as a string to the print writer
-		return m.Print(print)
+		return u.Print(print)
 
 	default:
 		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))

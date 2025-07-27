@@ -59,7 +59,7 @@ func (a *nameAnalysis) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode)
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
 	} else {
-		cd.Scope.Insert(ast.NewSymbol(cd.Name, ast.Constant, cd))
+		cd.Scope.Insert(ast.NewSymbol(cd.Name, ast.ConstantEntry, cd))
 	}
 }
 
@@ -68,7 +68,7 @@ func (a *nameAnalysis) VisitVariableDeclaration(vd *ast.VariableDeclarationNode)
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
 	} else {
-		vd.Scope.Insert(ast.NewSymbol(vd.Name, ast.Variable, vd))
+		vd.Scope.Insert(ast.NewSymbol(vd.Name, ast.VariableEntry, vd))
 	}
 }
 
@@ -77,7 +77,7 @@ func (a *nameAnalysis) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNod
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
-		pd.Scope.Insert(ast.NewSymbol(pd.Name, ast.Procedure, pd))
+		pd.Scope.Insert(ast.NewSymbol(pd.Name, ast.ProcedureEntry, pd))
 	}
 
 	pd.Block.Accept(a)
@@ -94,10 +94,10 @@ func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
 		switch symbol.Kind {
-		case ast.Constant:
+		case ast.ConstantEntry:
 			// make the identifier a constant because its symbol is a constant and it is used in a constant context
-			if iu.Context&ast.Constant != 0 {
-				iu.Context = ast.Constant
+			if iu.Context&ast.ConstantEntry != 0 {
+				iu.Context = ast.ConstantEntry
 
 				// add the constant usage to the constant declaration
 				symbol.Declaration.(*ast.ConstantDeclarationNode).Usage =
@@ -106,10 +106,10 @@ func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
-		case ast.Variable:
+		case ast.VariableEntry:
 			// make the identifier a variable because its symbol is a variable and it is used in a variable context
-			if iu.Context&ast.Variable != 0 {
-				iu.Context = ast.Variable
+			if iu.Context&ast.VariableEntry != 0 {
+				iu.Context = ast.VariableEntry
 
 				// add the variable usage to the variable declaration
 				symbol.Declaration.(*ast.VariableDeclarationNode).Usage =
@@ -118,10 +118,10 @@ func (a *nameAnalysis) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
-		case ast.Procedure:
+		case ast.ProcedureEntry:
 			// make the identifier a procedure because its symbol is a procedure and it is used in a procedure context
-			if iu.Context&ast.Procedure != 0 {
-				iu.Context = ast.Procedure
+			if iu.Context&ast.ProcedureEntry != 0 {
+				iu.Context = ast.ProcedureEntry
 
 				// add the procedure usage to the procedure declaration
 				symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage =
@@ -206,7 +206,7 @@ func (a *nameAnalysis) appendError(code cor.Failure, value any, index int) {
 func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
-			if symbol.Kind == ast.Constant || symbol.Kind == ast.Variable {
+			if symbol.Kind == ast.ConstantEntry || symbol.Kind == ast.VariableEntry {
 				iu.Use |= ast.Read
 			}
 		}
@@ -239,7 +239,7 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 func addVariableToBlockClosure(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
-			if symbol.Kind == ast.Variable {
+			if symbol.Kind == ast.VariableEntry {
 				// determine the block where the variable is declared
 				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Declaration)
 
