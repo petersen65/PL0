@@ -536,10 +536,16 @@ func (a *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 	case cor.Json:
 		// export the text section as a JSON object and wrap it in a struct to provide a field name for each section
 		if raw, err := json.MarshalIndent(struct {
-			RoUtf32Section *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_utf32_section"`
-			RoInt64Section *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_int64_section"`
-			TextSection    *elf.AssemblerSection[*Instruction]          `json:"text_section"`
-		}{RoUtf32Section: a.roUtf32Section, RoInt64Section: a.roInt64Section, TextSection: a.textSection}, "", "  "); err != nil {
+			RoUtf32Section   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_utf32_section"`
+			RoInt64Section   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_int64_section"`
+			RoStrDescSection *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"rodata_str_desc_section"`
+			TextSection      *elf.AssemblerSection[*Instruction]          `json:"text_section"`
+		}{
+			RoUtf32Section:   a.roUtf32Section,
+			RoInt64Section:   a.roInt64Section,
+			RoStrDescSection: a.roStrDescSection,
+			TextSection:      a.textSection,
+		}, "", "  "); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
