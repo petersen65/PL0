@@ -200,13 +200,6 @@ func (e *emitter) Emit() {
 			comparison = x64.ComparisonNone
 
 		case ic.BranchTarget: // target for any branching operation
-			// panic if the label name is not a string
-			name := i.Quadruple.Result.Value.(string)
-
-			if name == cor.EntryPointLabel {
-				e.assemblyCode.Insert(x64.NewSymbol([]string{cor.EntryPointLabel}, x64.FunctionEntry))
-			}
-
 			// append branch target labels for the directly following non 'BranchTarget' instruction
 			l = append(l, i.Quadruple.Result.Value.(string))
 
@@ -788,7 +781,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 	// depending on the intermediate code symbol name, handle cases for standard library functions or user-defined functions
 	if standardLibraryName, ok := standardLibrarySymbols[intermediateCodeName]; ok {
 		// append the standard library name to the assembly code as an external symbol
-		e.assemblyCode.AppendExternalSymbol(standardLibraryName)
+		e.assemblyCode.Insert(x64.NewSymbol([]string{standardLibraryName}, x64.FunctionEntry, false, true))
 
 		switch intermediateCodeName {
 		case readStatementSymbol:

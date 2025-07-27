@@ -244,10 +244,11 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
-		Prefix    OperationCode `json:"prefix"`    // prefix for the instruction
-		Operation OperationCode `json:"operation"` // operation code of the instruction
-		Operands  []*Operand    `json:"operands"`  // operands for the operation
-		Labels    []string      `json:"labels"`    // branch target labels
+		Prefix      OperationCode `json:"prefix"`    // prefix for the instruction
+		Operation   OperationCode `json:"operation"` // operation code of the instruction
+		Operands    []*Operand    `json:"operands"`  // operands for the operation
+		Labels      []string      `json:"labels"`    // branch target labels
+		SymbolTable SymbolTable   `json:"-"`         // symbol table for looking up branch target labels
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -259,25 +260,29 @@ type (
 
 	// A symbol is a data structure that stores all necessary information related to a declared symbol in the assembly code.
 	Symbol struct {
-		Labels []string // associated labels for this symbol
-		Kind   Entry    // kind of the symbol
-		Size   int      // symbol size in bytes (0 = unknown/calculated)
-		Global bool     // whether symbol should be exported
+		Labels   []string // associated labels for this symbol
+		Kind     Entry    // kind of the symbol
+		Global   bool     // whether symbol should be exported
+		External bool     // whether symbol is an external reference
+	}
+
+	// A symbol table is a collection of symbols that can be used to look up labels and their associated information.
+	SymbolTable interface {
+		Insert(symbol *Symbol)
+		Lookup(label string) *Symbol
 	}
 
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
+		SymbolTable
 		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
 		AppendExistingInstruction(instruction *Instruction)
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
-		AppendExternalSymbol(symbol string)
 		AppendRuntime()
 		Length() int
 		GetInstruction(index int) *Instruction
-		Insert(symbol *Symbol)
-		Lookup(label string) *Symbol
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -290,12 +295,12 @@ func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
 func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels}
+	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels, SymbolTable: nil}
 }
 
 // Create a new assembly instruction with a prefix operation code, an operation code, some branch target labels, and operands.
 func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
+	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels, SymbolTable: nil}
 }
 
 // Create a new read-only data item with a kind, some literal data labels, and values with supported data types.
@@ -324,8 +329,8 @@ func NewLabelOperand(label string) *Operand {
 }
 
 // Create new symbol for the assembly code.
-func NewSymbol(labels []string, kind Entry) *Symbol {
-	return &Symbol{Labels: labels, Kind: kind}
+func NewSymbol(labels []string, kind Entry, global, external bool) *Symbol {
+	return &Symbol{Labels: labels, Kind: kind, Global: global, External: external}
 }
 
 // String representation of a CPU operation code.

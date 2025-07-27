@@ -11,6 +11,7 @@ const (
 	unknownKindOfOperandInCpuOperation
 	illegalDisplacementInMemoryOperand
 	unknownKindOfReadOnlyData
+	unknownOutputKind
 	unknownExportFormat
 	assemblyCodeExportFailed
 )
@@ -20,6 +21,7 @@ var failureMap = map[cor.Failure]string{
 	unknownKindOfOperandInCpuOperation: "unknown kind of operand in CPU operation: %v",
 	illegalDisplacementInMemoryOperand: "illegal displacement in memory operand: %v",
 	unknownKindOfReadOnlyData:          "unknown kind of read-only data: %v",
+	unknownOutputKind:                  "unknown output kind for assembly code: %v",
 	unknownExportFormat:                "unknown export format: %v",
 	assemblyCodeExportFailed:           "failed to export assembly code",
 }
