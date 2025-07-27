@@ -129,7 +129,7 @@ type (
 	// DirectiveDetail represents a structured assembler directive with formal syntax.
 	DirectiveDetail struct {
 		Directive Directive `json:"kind"`      // the directive (e.g., .type, .size, .global)
-		Symbol    string    `json:"symbol"`    // the symbol name this directive applies to
+		Symbols   []string  `json:"symbols"`   // the symbol names this directive applies to
 		Arguments []string  `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
 	}
 )
@@ -145,38 +145,38 @@ func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *Re
 }
 
 // Create a new directive detail for symbol declarations.
-func NewDirectiveDetail(directive Directive, symbol string, args ...string) *DirectiveDetail {
-	return &DirectiveDetail{Directive: directive, Symbol: symbol, Arguments: args}
+func NewDirectiveDetail(directive Directive, symbols []string, args ...string) *DirectiveDetail {
+	return &DirectiveDetail{Directive: directive, Symbols: symbols, Arguments: args}
 }
 
 // Create a .global directive.
-func NewGlobal(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Global, symbol)
+func NewGlobal(symbols []string) *DirectiveDetail {
+	return NewDirectiveDetail(Global, symbols)
 }
 
 // Create a .extern directive.
-func NewExtern(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Extern, symbol)
+func NewExtern(symbols []string) *DirectiveDetail {
+	return NewDirectiveDetail(Extern, symbols)
 }
 
 // Create a .type directive for a function symbol.
 func NewTypeFunction(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Type, symbol, TypeFunction.String())
+	return NewDirectiveDetail(Type, []string{symbol}, TypeFunction.String())
 }
 
 // Create a .type directive for an object symbol.
 func NewTypeObject(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Type, symbol, TypeObject.String())
+	return NewDirectiveDetail(Type, []string{symbol}, TypeObject.String())
 }
 
 // Create a .size directive using the standard ".-symbol" calculation.
 func NewSizeLabel(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Size, symbol, fmt.Sprintf(SizeFromLabel.String(), symbol))
+	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeFromLabel.String(), symbol))
 }
 
 // Create a .size directive with an absolute size value.
 func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
-	return NewDirectiveDetail(Size, symbol, fmt.Sprintf(SizeAbsolute.String(), size))
+	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
 }
 
 // String representation of a directive.

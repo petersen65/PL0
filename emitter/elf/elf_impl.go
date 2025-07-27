@@ -238,14 +238,8 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 // String representation of a directive detail.
 func (dd *DirectiveDetail) String() string {
-	// if no arguments are provided, just return the directive and symbol
-	if len(dd.Arguments) == 0 {
-		return fmt.Sprintf("%s %s", dd.Directive, dd.Symbol)
-	}
-
 	// join symbol and arguments with commas for multi-argument directives
-	args := append([]string{dd.Symbol}, dd.Arguments...)
-	return fmt.Sprintf("%s %s", dd.Directive, strings.Join(args, ", "))
+	return fmt.Sprintf("%v %v", dd.Directive, strings.Join(append(dd.Symbols, dd.Arguments...), ", "))
 }
 
 // Append content to the assembly section.

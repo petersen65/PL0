@@ -486,12 +486,12 @@ func (a *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 
 	// if there are global symbols, add them to the header so that they can be linked with other object files
 	if len(globals) > 0 {
-		header += fmt.Sprintf("%v %v\n", elf.Global, strings.Join(globals, ", "))
+		header += elf.NewGlobal(globals).String() + "\n"
 	}
 
 	// if there are external symbols, add them to the header as documentation and for linking
 	if len(a.externals) > 0 {
-		header += fmt.Sprintf("%v %v\n", elf.Extern, strings.Join(a.externals, ", "))
+		header += elf.NewExtern(a.externals).String() + "\n"
 	}
 
 	// write the assembly code header to the print writer
