@@ -15,15 +15,15 @@ import (
 type (
 	// Represents a logical unit of instructions created from one source file.
 	intermediateCodeUnit struct {
-		names        []string           `json:"-"`            // enable deterministic iteration over the symbol table in the order of past inserts
-		symbolTable  map[string]*Symbol `json:"-"`            // symbol table for intermediate code flattened names
-		Instructions *list.List         `json:"instructions"` // intermediate code instructions as doubly linked list that allows reordering
+		Names        []string           `json:"names"`        // enable deterministic iteration over the symbol table in the order of past inserts
+		SymbolTable  map[string]*Symbol `json:"symbol_table"` // symbol table for intermediate code flattened names
+		Instructions *list.List         `json:"-"`            // intermediate code instructions as doubly linked list that allows reordering
 	}
 
 	// Navigation implementation for the unit's intermediate code instructions.
 	iterator struct {
-		current      *list.Element
-		instructions *list.List
+		current      *list.Element `json:"-"`
+		instructions *list.List    `json:"-"`
 	}
 )
 
@@ -61,10 +61,10 @@ var (
 		Negate: "negate",
 
 		// binary arithmetic operation
-		Plus:         "add",
-		Minus:        "subtract",
-		Times:        "multiply",
-		Divide:       "divide",
+		Plus:   "add",
+		Minus:  "subtract",
+		Times:  "multiply",
+		Divide: "divide",
 
 		// binary comparison operation
 		Equal:        "equal",
@@ -108,10 +108,10 @@ var (
 		Negate: {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
 
 		// binary arithmetic operation
-		Plus:         {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Minus:        {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Times:        {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Divide:       {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Plus:   {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Minus:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Times:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Divide: {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 
 		// binary comparison operation
 		Equal:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
@@ -133,7 +133,7 @@ var (
 
 		// function call and parameter passing
 		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty},{Arg1: Literal, Arg2: Literal, Result: Temporary}},
+		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty}, {Arg1: Literal, Arg2: Literal, Result: Temporary}},
 		Return:    {{Arg1: Literal, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Temporary}},
 
 		// function entry and exit sequences
@@ -152,8 +152,8 @@ var (
 // Create a new intermediate code unit and initialize it with a unique identifier.
 func newIntermediateCodeUnit() IntermediateCodeUnit {
 	return &intermediateCodeUnit{
-		names:        make([]string, 0),
-		symbolTable:  make(map[string]*Symbol),
+		Names:        make([]string, 0),
+		SymbolTable:  make(map[string]*Symbol),
 		Instructions: list.New(),
 	}
 }
@@ -176,24 +176,24 @@ func (u *intermediateCodeUnit) GetIterator() Iterator {
 // Insert a symbol into the intermediate code symbol table. If the symbol already exists, it will be overwritten.
 func (u *intermediateCodeUnit) Insert(symbol *Symbol) {
 	if u.Lookup(symbol.Name) == nil {
-		u.names = append(u.names, symbol.Name)
+		u.Names = append(u.Names, symbol.Name)
 	}
 
-	u.symbolTable[symbol.Name] = symbol
+	u.SymbolTable[symbol.Name] = symbol
 }
 
 // Lookup a symbol in the the intermediate code symbol table. If the symbol is not found, nil is returned.
 func (u *intermediateCodeUnit) Lookup(name string) *Symbol {
-	if symbol, ok := u.symbolTable[name]; ok {
+	if symbol, ok := u.SymbolTable[name]; ok {
 		return symbol
 	}
 
 	return nil
 }
 
-// Marshal the intermediate code unit to a JSON object.
+// Marshal the intermediate code unit to a JSON object because the JSON encoder does not support the "list.List" type directly.
 func (u *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
-	type Embedded intermediateCodeUnit
+	type embedded intermediateCodeUnit
 	instructions := make([]Instruction, 0, u.Instructions.Len())
 
 	// copy the doubly linked instruction-list to a slice of instructions
@@ -201,37 +201,41 @@ func (u *intermediateCodeUnit) MarshalJSON() ([]byte, error) {
 		instructions = append(instructions, *e.Value.(*Instruction))
 	}
 
-	// replace the doubly linked instruction-list with a slice of instructions
-	mj := &struct {
-		*Embedded
+	// create a JSON-compliant intermediate code unit structure that embeds the original unit
+	// note: replace the doubly linked instruction-list with a slice of instructions
+	jsonCompliantIntermediateCodeUnit := &struct {
+		*embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded:     (*Embedded)(u),
+		embedded:     (*embedded)(u),
 		Instructions: instructions,
 	}
 
-	return json.Marshal(mj)
+	// marshal the intermediate code unit as data type "embedded" to prevent recursion
+	return json.Marshal(jsonCompliantIntermediateCodeUnit)
 }
 
-// Unmarshal the intermediate code unit from a JSON object.
+// Unmarshal the intermediate code unit from a JSON object because the JSON decoder does not support the "list.List" type directly.
 func (u *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
-	type Embedded intermediateCodeUnit
+	type embedded intermediateCodeUnit
 
-	// struct to unmarshal the JSON object to
-	mj := &struct {
-		*Embedded
+	// unmarshal the JSON object into a JSON-compliant intermediate code unit structure
+	// note: the JSON decoder does not support the "list.List" type directly, so it is converted to a slice of instructions
+	jsonCompliantIntermediateCodeUnit := &struct {
+		*embedded
 		Instructions []Instruction `json:"instructions"`
 	}{
-		Embedded: (*Embedded)(u),
+		embedded: (*embedded)(u),
 	}
 
-	if err := json.Unmarshal(raw, mj); err != nil {
+	// unmarshal the intermediate code unit as data type "embedded" to prevent recursion
+	if err := json.Unmarshal(raw, jsonCompliantIntermediateCodeUnit); err != nil {
 		return err
 	}
 
 	// replace the slice of instructions with a doubly linked instruction-list
-	for _, i := range mj.Instructions {
-		u.AppendInstruction(i.Quadruple.Operation, i.Quadruple.Arg1, i.Quadruple.Arg2, i.Quadruple.Result, i.TokenStreamIndex)
+	for _, i := range jsonCompliantIntermediateCodeUnit.Instructions {
+		u.AppendExistingInstruction(&i)
 	}
 
 	return nil
@@ -251,10 +255,13 @@ func (u *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 
 // Export the intermediate code unit to the specified writer in the specified format.
 func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
+	// JSON formatting requires a prefix and indent for pretty printing
+	const prefix, indent = "", "  "
+
 	switch format {
 	case cor.Json:
-		// export the unit as a JSON object
-		if raw, err := json.MarshalIndent(u, "", "  "); err != nil {
+		// export the intermediate code unit as a JSON object
+		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
 			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)

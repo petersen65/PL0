@@ -133,9 +133,9 @@ type (
 
 	// A contract for addresses describes a valid set of address variants for a three-address code operation.
 	AddressesContract struct {
-		Arg1   Variant // first address variant
-		Arg2   Variant // second address variant
-		Result Variant // third address variant
+		Arg1   Variant `json:"arg_1"`  // first address variant
+		Arg2   Variant `json:"arg_2"`  // second address variant
+		Result Variant `json:"result"` // third address variant
 	}
 
 	// Instruction represents a single three-address code operation with its required metadata (e.g. token stream index).
@@ -147,10 +147,10 @@ type (
 	// A symbol is a data structure that stores all necessary information related to a declared identifier in the intermediate code.
 	// A declared identifier in the intermediate code has a flattened name and was derived from an identifier in the abstract syntax tree.
 	Symbol struct {
-		Name       string        // flattened name in the intermediate code
-		Kind       Entry         // kind of symbol entry
-		DataType   DataType      // datatype of the symbol
-		Definition *list.Element // instruction where the symbol is defined
+		Name       string        `json:"name"`      // flattened name in the intermediate code
+		Kind       Entry         `json:"kind"`      // kind of symbol entry
+		DataType   DataType      `json:"data_type"` // datatype of the symbol
+		Definition *list.Element `json:"-"`         // instruction where the symbol is defined
 	}
 
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
