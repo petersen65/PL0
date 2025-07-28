@@ -26,6 +26,7 @@
                 "vscode-icons-team.vscode-icons",
                 "github.copilot",
                 "github.copilot-chat",
+                "github.vscode-pull-request-github",
                 "cheshirekow.cmake-format",
                 "golang.go",
                 "ms-vscode.cpptools-extension-pack"
