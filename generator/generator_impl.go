@@ -191,10 +191,10 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
-			ic.Return,                    // return from the main block
-			copyLiteral.Quadruple.Result, // temporary with the return value
-			noAddress,
+			ic.Return, // return from the main block
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			noAddress,
+			copyLiteral.Quadruple.Result, // temporary with the return value
 			0)
 
 		// append the existing instructions to the intermediate code unit
@@ -204,9 +204,9 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 		// return from other blocks
 		g.intermediateCode.AppendInstruction(
 			ic.Return, // return from the block
-			noAddress, // no return value
-			noAddress,
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			noAddress,
+			noAddress, // no return value
 			0)
 	}
 

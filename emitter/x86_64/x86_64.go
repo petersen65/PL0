@@ -12,11 +12,14 @@ import (
 )
 
 const (
-	PointerSize           = 8                       // size of a pointer to a memory address in bytes (64 bits)
-	QuadWordSize          = 8                       // size of a quad word in bytes (64 bits)
-	DoubleWordSize        = 4                       // size of a double word in bytes (32 bits)
+	PointerSize    = 8 // size of a pointer to a memory address in bytes (64 bits)
+	QuadWordSize   = 8 // size of a quad word in bytes (64 bits)
+	DoubleWordSize = 4 // size of a double word in bytes (32 bits)
+
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"
+	HiddenLabel           = "."                     // hidden labels are used for internal purposes
+	SizeDirectiveLabel    = HiddenLabel + "size="   // label for creating a size directive in assembly code
 )
 
 // Operation codes for assembly instructions of the x86_64 ISA.
@@ -185,10 +188,10 @@ const (
 
 // Operand sizes in bits.
 const (
-	Bits8  OperandSize = 8
-	Bits16 OperandSize = 16
-	Bits32 OperandSize = 32
-	Bits64 OperandSize = 64
+	Bits8 OperandSize = (1 << iota) * 8
+	Bits16
+	Bits32
+	Bits64
 )
 
 // Comparison types used to interpret the CPU flags in conditional jumps.
@@ -211,6 +214,13 @@ const (
 	FunctionEntry
 )
 
+// Flags for symbol entries.
+const (
+	Global EntryFlag = iota
+	External
+	Size
+)
+
 type (
 	// Type for CPU operation codes.
 	OperationCode int
@@ -230,8 +240,11 @@ type (
 	// Output kind of the assembly code.
 	OutputKind int
 
-	// Kind of symbol entries with label names in the assembly code.
+	// Kind of symbol entries with label names.
 	Entry int
+
+	// Flags for symbol entries.
+	EntryFlag int
 
 	// The operand of a CPU operation holds the kind of the operand and its value.
 	Operand struct {
@@ -260,10 +273,9 @@ type (
 
 	// A symbol is a data structure that stores all necessary information related to a declared symbol in the assembly code.
 	Symbol struct {
-		Labels   []string // associated labels for this symbol
-		Kind     Entry    // kind of the symbol
-		Global   bool     // whether symbol should be exported
-		External bool     // whether symbol is an external reference
+		Labels []string  // associated labels for this symbol
+		Kind   Entry     // kind of the symbol
+		Flags  EntryFlag // flags for the symbol
 	}
 
 	// A symbol table is a collection of symbols that can be used to look up labels and their associated information.
@@ -329,8 +341,8 @@ func NewLabelOperand(label string) *Operand {
 }
 
 // Create new symbol for the assembly code.
-func NewSymbol(labels []string, kind Entry, global, external bool) *Symbol {
-	return &Symbol{Labels: labels, Kind: kind, Global: global, External: external}
+func NewSymbol(labels []string, kind Entry, flags EntryFlag) *Symbol {
+	return &Symbol{Labels: labels, Kind: kind, Flags: flags}
 }
 
 // String representation of a CPU operation code.

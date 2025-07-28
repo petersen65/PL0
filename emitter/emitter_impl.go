@@ -220,12 +220,16 @@ func (e *emitter) Emit() {
 			parameters = list.New()
 
 		case ic.Return: // return from a function to its caller
-			if c.Arg1 == ic.Temporary {
+			// extract the size directive label for the function return
+			szLabel := x64.SizeDirectiveLabel + i.Quadruple.Arg1.Value.(string)
+
+			// check if the function returns a value by using the current addresses contract
+			if c.Result == ic.Temporary {
 				// emit assembly code to return from the function with a return value
-				e.returnFromFunction(i.Quadruple.Arg1.DataType, l)
+				e.returnFromFunction(i.Quadruple.Result.DataType, l, szLabel)
 			} else {
 				// emit assembly code to return from the function without a return value
-				e.returnFromFunction(ic.Untyped, l)
+				e.returnFromFunction(ic.Untyped, l, szLabel)
 			}
 
 		case ic.Prologue: // function entry sequence
@@ -781,7 +785,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 	// depending on the intermediate code symbol name, handle cases for standard library functions or user-defined functions
 	if standardLibraryName, ok := standardLibrarySymbols[intermediateCodeName]; ok {
 		// append the standard library name to the assembly code as an external symbol
-		e.assemblyCode.Insert(x64.NewSymbol([]string{standardLibraryName}, x64.FunctionEntry, false, true))
+		e.assemblyCode.Insert(x64.NewSymbol([]string{standardLibraryName}, x64.FunctionEntry, x64.External))
 
 		switch intermediateCodeName {
 		case readStatementSymbol:
@@ -813,7 +817,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 
 // Return from a function and move the return value into the correct register(s) on the call stack.
 // The return value is expected to be on the top of the call stack, which is the case when the function is called.
-func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string) {
+func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, szLabel string) {
 	// check whether data type of the return value has modifiers and if so, treat the return value as a pointer or reference
 	if dataType.IsPointer() || dataType.IsReference() {
 		// pop the top of the call stack into the specified address-type return register
@@ -859,8 +863,9 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string) {
 	}
 
 	// return from the function
-	// note: in the case of the untyped return type (also named void in some languages), do nothing
-	e.assemblyCode.AppendInstruction(x64.Ret, nil)
+	// note: in the case of the untyped return type (also named void in some languages), return nothing
+	// note: the size directive label is used to optionally create a size directive for the function
+	e.assemblyCode.AppendInstruction(x64.Ret, []string{szLabel})
 }
 
 // The function entry sequence is called prologue and prepares the activation record for the function call.

@@ -134,7 +134,7 @@ var (
 		// function call and parameter passing
 		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
 		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty},{Arg1: Literal, Arg2: Literal, Result: Temporary}},
-		Return:    {{Arg1: Empty, Arg2: Empty, Result: Literal}, {Arg1: Temporary, Arg2: Empty, Result: Literal}},
+		Return:    {{Arg1: Literal, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Temporary}},
 
 		// function entry and exit sequences
 		Prologue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
