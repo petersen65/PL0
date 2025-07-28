@@ -273,9 +273,9 @@ type (
 
 	// A symbol is a data structure that stores all necessary information related to a declared symbol in the assembly code.
 	Symbol struct {
-		Labels []string  // associated labels for this symbol
-		Kind   Entry     // kind of the symbol
-		Flags  EntryFlag // flags for the symbol
+		Labels []string  `json:"labels"` // associated labels for this symbol
+		Kind   Entry     `json:"kind"`   // kind of the symbol
+		Flags  EntryFlag `json:"flags"`  // flags for the symbol
 	}
 
 	// A symbol table is a collection of symbols that can be used to look up labels and their associated information.
