@@ -88,45 +88,43 @@ func newTokenError(component Component, failureMap map[Failure]string, severity 
 	return &tokenError{Err: err, Code: code, Component: component, Severity: severity, TokenStreamIndex: int64(index), TokenStream: tokenStream}
 }
 
-// Marshal the token description to a JSON object.
+// Marshal the token description to a JSON object because the JSON encoder does not support the "[]byte" type directly.
 func (td *TokenDescription) MarshalJSON() ([]byte, error) {
-	type Embedded TokenDescription
+	type embedded TokenDescription
 
-	// replace the current line byte slice with a string of the current line
-	tdj := &struct {
-		*Embedded
+	// create a JSON-compliant token description structure that embeds the original unit
+	// note: replace the byte slice of the current line with an UTF-8 encoded string
+	jsonCompliantTokenDescription := &struct {
+		*embedded
 		CurrentLine string `json:"current_line"`
 	}{
-		Embedded:    (*Embedded)(td),
+		embedded:    (*embedded)(td),
 		CurrentLine: string(td.CurrentLine),
 	}
 
-	return json.Marshal(tdj)
+	// marshal the token description as data type "embedded" to prevent recursion
+	return json.Marshal(jsonCompliantTokenDescription)
 }
 
-// Unmarshal the token description from a JSON object.
+// Unmarshal the token description from a JSON object because the JSON decoder does not support the "[]byte" type directly.
 func (td *TokenDescription) UnmarshalJSON(raw []byte) error {
-	type Embedded TokenDescription
+	type embedded TokenDescription
 
-	// struct to unmarshal the JSON object to
-	tdj := &struct {
-		*Embedded
+	// unmarshal the JSON object into a JSON-compliant token description structure
+	jsonCompliantTokenDescription := &struct {
+		*embedded
 		CurrentLine string `json:"current_line"`
 	}{
-		Embedded: (*Embedded)(td),
+		embedded: (*embedded)(td),
 	}
 
-	if err := json.Unmarshal(raw, tdj); err != nil {
+	// unmarshal the token description as data type "embedded" to prevent recursion
+	if err := json.Unmarshal(raw, jsonCompliantTokenDescription); err != nil {
 		return err
 	}
 
-	// replace the string of the current line with a byte slice
-	td.Token = tdj.Token
-	td.TokenName = tdj.TokenName
-	td.TokenValue = tdj.TokenValue
-	td.Line = tdj.Line
-	td.Column = tdj.Column
-	td.CurrentLine = []byte(tdj.CurrentLine)
+	// replace the UTF-8 encoded string with a byte slice of the current line
+	td.CurrentLine = []byte(jsonCompliantTokenDescription.CurrentLine)
 
 	return nil
 }

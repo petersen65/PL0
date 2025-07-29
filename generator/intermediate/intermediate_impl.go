@@ -220,7 +220,6 @@ func (u *intermediateCodeUnit) UnmarshalJSON(raw []byte) error {
 	type embedded intermediateCodeUnit
 
 	// unmarshal the JSON object into a JSON-compliant intermediate code unit structure
-	// note: the JSON decoder does not support the "list.List" type directly, so it is converted to a slice of instructions
 	jsonCompliantIntermediateCodeUnit := &struct {
 		*embedded
 		Instructions []Instruction `json:"instructions"`
