@@ -15,7 +15,7 @@ const integerBitSize = 64
 
 // Implementation of the recursive descent PL/0 parser.
 type parser struct {
-	uniqueScopeId  int32            // the parser is required to provide a unique number for each scope it creates
+	uniqueScopeId  int              // the parser is required to provide a unique number for each scope it creates
 	errorHandler   cor.ErrorHandler // error handler that is used to handle errors that occurred during parsing
 	tokenHandler   cor.TokenHandler // token handler that manages the tokens of the token stream
 	abstractSyntax ast.Block        // abstract syntax tree of the program

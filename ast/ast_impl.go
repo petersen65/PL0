@@ -66,16 +66,16 @@ var (
 )
 
 // NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
-func newScope(uniqueId int32, outer *Scope) *Scope {
+func newScope(uniqueId int, outer *Scope) *Scope {
 	symbolTable := make(SymbolTable)
 
 	return &Scope{
 		Outer:             outer,
 		Extension:         make(map[ExtensionType]any),
-		id:                uniqueId,
-		identifierCounter: make(map[rune]uint64),
-		names:             make([]string, 0),
-		symbolTable:       &symbolTable,
+		Id:                uniqueId,
+		IdentifierCounter: make(map[rune]uint64),
+		Names:             make([]string, 0),
+		SymbolTable:       &symbolTable,
 	}
 }
 
@@ -336,28 +336,23 @@ func (u Usage) String() string {
 	return strings.Join(parts, "|")
 }
 
-// Return the unique identifier of the scope
-func (s *Scope) Id() int32 {
-	return s.id
-}
-
 // Create a new compiler-generated unique identifier name for a scope.
 func (s *Scope) NewIdentifier(prefix rune) string {
-	if _, ok := s.identifierCounter[prefix]; !ok {
-		s.identifierCounter[prefix] = 0
+	if _, ok := s.IdentifierCounter[prefix]; !ok {
+		s.IdentifierCounter[prefix] = 0
 	}
 
-	s.identifierCounter[prefix]++
-	return fmt.Sprintf("%c%v.%v", prefix, s.id, s.identifierCounter[prefix])
+	s.IdentifierCounter[prefix]++
+	return fmt.Sprintf("%c%v.%v", prefix, s.Id, s.IdentifierCounter[prefix])
 }
 
 // Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
 func (s *Scope) Insert(symbol *Symbol) {
 	if s.LookupCurrent(symbol.Name) == nil {
-		s.names = append(s.names, symbol.Name)
+		s.Names = append(s.Names, symbol.Name)
 	}
 
-	(*s.symbolTable)[symbol.Name] = symbol
+	(*s.SymbolTable)[symbol.Name] = symbol
 }
 
 // Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
@@ -375,7 +370,7 @@ func (s *Scope) Lookup(name string) *Symbol {
 
 // Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
 func (s *Scope) LookupCurrent(name string) *Symbol {
-	if symbol, ok := (*s.symbolTable)[name]; ok {
+	if symbol, ok := (*s.SymbolTable)[name]; ok {
 		return symbol
 	}
 
@@ -387,8 +382,8 @@ func (s *Scope) IterateCurrent() <-chan *Symbol {
 	symbols := make(chan *Symbol)
 
 	go func() {
-		for _, name := range s.names {
-			symbols <- (*s.symbolTable)[name]
+		for _, name := range s.Names {
+			symbols <- (*s.SymbolTable)[name]
 		}
 
 		close(symbols)
@@ -448,12 +443,15 @@ func (b *BlockNode) Print(print io.Writer, args ...any) error {
 	return nil
 }
 
-// Export the abstract syntax tree of the block node.
+// Export the abstract syntax tree of the block node to the specified writer in the specified format.
 func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
+	// JSON formatting requires a prefix and indent for pretty printing
+	const prefix, indent = "", "  "
+
 	switch format {
 	case cor.Json:
 		// export the abstract syntax tree as a JSON object
-		if raw, err := json.MarshalIndent(b, "", "  "); err != nil {
+		if raw, err := json.MarshalIndent(b, prefix, indent); err != nil {
 			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)

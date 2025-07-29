@@ -141,10 +141,10 @@ type (
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
-		Name        string                // name of the symbol
-		Kind        Entry                 // kind of the symbol
-		Declaration Declaration           // declaration node of the symbol
-		Extension   map[ExtensionType]any // extensions for compiler phases
+		Name        string                `json:"name"`      // name of the symbol
+		Kind        Entry                 `json:"kind"`      // kind of the symbol
+		Declaration Declaration           `json:"-"`         // declaration node of the symbol
+		Extension   map[ExtensionType]any `json:"extension"` // extensions for compiler phases
 	}
 
 	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
@@ -152,48 +152,12 @@ type (
 
 	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
 	Scope struct {
-		Outer             *Scope                // outer scope or nil if this is the outermost scope
-		Extension         map[ExtensionType]any // extensions for compiler phases
-		id                int32                 // each scope has a unique identifier
-		identifierCounter map[rune]uint64       // counter for compiler-generated unique identifier names
-		names             []string              // enable deterministic iteration over the symbol table
-		symbolTable       *SymbolTable          // symbol table of the scope
-	}
-
-	// A node in the abstract syntax tree.
-	Node interface {
-		Type() NodeType
-		SetParent(node Node)
-		Parent() Node
-		Children() []Node
-		String() string
-		Accept(visitor Visitor)
-	}
-
-	// A block represented as an abstract syntax tree.
-	Block interface {
-		Node
-		BlockString() string
-		Print(print io.Writer, args ...any) error
-		Export(format cor.ExportFormat, print io.Writer) error
-	}
-
-	// A declaration represented as an abstract syntax tree.
-	Declaration interface {
-		Node
-		DeclarationString() string
-	}
-
-	// An expression represented as an abstract syntax tree.
-	Expression interface {
-		Node
-		ExpressionString() string
-	}
-
-	// A statement represented as an abstract syntax tree.
-	Statement interface {
-		Node
-		StatementString() string
+		Outer             *Scope                `json:"outer"`              // outer scope or nil if this is the outermost scope
+		Extension         map[ExtensionType]any `json:"extension"`          // extensions for compiler phases
+		Id                int                   `json:"id"`                 // each scope has a unique identifier
+		IdentifierCounter map[rune]uint64       `json:"identifier_counter"` // counter for compiler-generated unique identifier names
+		Names             []string              `json:"names"`              // enable deterministic iteration over the symbol table
+		SymbolTable       *SymbolTable          `json:"symbol_table"`       // symbol table of the scope
 	}
 
 	// Block node represents a block in the AST.
@@ -201,7 +165,7 @@ type (
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
 		Depth        int32         `json:"depth"`        // block nesting depth
-		Scope        *Scope        `json:"-"`            // scope with symbol table of the block that has its own outer scope chain
+		Scope        *Scope        `json:"scope"`        // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
 		Closure      []Declaration `json:"closure"`      // all captured variable declarations of the block
 		Statement    Statement     `json:"statement"`    // statement of the block
@@ -214,8 +178,8 @@ type (
 		Name             string       `json:"name"`               // name of the constant
 		Value            any          `json:"value"`              // value of constant
 		DataType         DataType     `json:"data_type"`          // datatype of the constant
-		Scope            *Scope       `json:"-"`                  // scope of the constant declaration
-		Usage            []Expression `json:"-"`                  // all usages of the constant
+		Scope            *Scope       `json:"scope"`              // scope of the constant declaration
+		Usage            []Expression `json:"usage"`              // all usages of the constant
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -225,8 +189,8 @@ type (
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
 		DataType         DataType     `json:"data_type"`          // datatype of the variable
-		Scope            *Scope       `json:"-"`                  // scope of the variable declaration
-		Usage            []Expression `json:"-"`                  // all usages of the variable
+		Scope            *Scope       `json:"scope"`              // scope of the variable declaration
+		Usage            []Expression `json:"usage"`              // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -236,8 +200,8 @@ type (
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
 		Block            Block        `json:"block"`              // block of the procedure
-		Scope            *Scope       `json:"-"`                  // scope of the procedure declaration
-		Usage            []Expression `json:"-"`                  // all usages of the procedure
+		Scope            *Scope       `json:"scope"`              // scope of the procedure declaration
+		Usage            []Expression `json:"usage"`              // all usages of the procedure
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -247,7 +211,7 @@ type (
 		ParentNode       Node     `json:"-"`                  // parent node of the literal
 		Value            any      `json:"value"`              // literal value
 		DataType         DataType `json:"data_type"`          // datatype of the literal
-		Scope            *Scope   `json:"-"`                  // scope of the literal usage
+		Scope            *Scope   `json:"scope"`              // scope of the literal usage
 		TokenStreamIndex int      `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -256,7 +220,7 @@ type (
 		TypeName         string `json:"type"`               // type name of the identifier usage node
 		ParentNode       Node   `json:"-"`                  // parent node of the identifier usage
 		Name             string `json:"name"`               // name of the identifier
-		Scope            *Scope `json:"-"`                  // scope of the identifier usage
+		Scope            *Scope `json:"scope"`              // scope of the identifier usage
 		Context          Entry  `json:"context"`            // context of the identifier
 		Use              Usage  `json:"use"`                // usage mode of the identifier
 		TokenStreamIndex int    `json:"token_stream_index"` // index of the token in the token stream
@@ -349,10 +313,46 @@ type (
 		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
 	}
 
+	// A node in the abstract syntax tree.
+	Node interface {
+		Type() NodeType
+		SetParent(node Node)
+		Parent() Node
+		Children() []Node
+		String() string
+		Accept(visitor Visitor)
+	}
+
+	// A block represented as an abstract syntax tree.
+	Block interface {
+		Node
+		BlockString() string
+		Print(print io.Writer, args ...any) error
+		Export(format cor.ExportFormat, print io.Writer) error
+	}
+
+	// A declaration represented as an abstract syntax tree.
+	Declaration interface {
+		Node
+		DeclarationString() string
+	}
+
+	// An expression represented as an abstract syntax tree.
+	Expression interface {
+		Node
+		ExpressionString() string
+	}
+
+	// A statement represented as an abstract syntax tree.
+	Statement interface {
+		Node
+		StatementString() string
+	}
+
 	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser phase to be grouped in a single visitor struct.
 	// The visitor design pattern allows implementing double dispatch for traversing the abstract syntax tree. Each parser phase method is chosen based on:
-	//   the dynamic type of the object (the AST node) determines the method to be called, and
-	//   the dynamic type of the argument (the visitor) determines the behavior of the method.
+	//   - the dynamic type of the object (the AST node) determines the method to be called, and
+	//   - the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
 		VisitBlock(block *BlockNode)
 		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
@@ -374,7 +374,7 @@ type (
 )
 
 // NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
-func NewScope(uniqueId int32, outer *Scope) *Scope {
+func NewScope(uniqueId int, outer *Scope) *Scope {
 	return newScope(uniqueId, outer)
 }
 
