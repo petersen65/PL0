@@ -92,7 +92,7 @@ func newTokenError(component Component, failureMap map[Failure]string, severity 
 func (td *TokenDescription) MarshalJSON() ([]byte, error) {
 	type embedded TokenDescription
 
-	// create a JSON-compliant token description structure that embeds the original unit
+	// create a JSON-compliant token description structure that embeds the original description
 	// note: replace the byte slice of the current line with an UTF-8 encoded string
 	jsonCompliantTokenDescription := &struct {
 		*embedded

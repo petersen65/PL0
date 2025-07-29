@@ -178,47 +178,47 @@ func (e *generalError) Unwrap() error {
 	return e.Inner
 }
 
-// Marshal the general error to a JSON object.
+// Marshal the general error to a JSON object because the JSON encoder does not support error interfaces directly.
 func (e *generalError) MarshalJSON() ([]byte, error) {
-	type Embedded generalError
+	type embedded generalError
 
-	// replace the error interfaces with error message strings
-	ej := &struct {
+	// create a JSON-compliant general error structure that embeds the original error
+	// note: replace the error interfaces with error message strings
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 		InnerMessage string `json:"inner_error"`
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (*Embedded)(e),
+		embedded:     (*embedded)(e),
 		InnerMessage: e.Inner.Error(),
 	}
 
-	return json.Marshal(ej)
+	// marshal the general error as data type "embedded" to prevent recursion
+	return json.Marshal(jsonCompliantError)
 }
 
-// Unmarshal the general error from a JSON object.
+// Unmarshal the general error from a JSON object because the JSON decoder does not support error interfaces directly.
 func (e *generalError) UnmarshalJSON(raw []byte) error {
-	type Embedded generalError
+	type embedded generalError
 
-	// struct to unmarshal the JSON object to
-	ej := &struct {
+	// unmarshal the JSON object into a JSON-compliant general error structure
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 		InnerMessage string `json:"inner_error"`
 	}{
-		Embedded: (*Embedded)(e),
+		embedded: (*embedded)(e),
 	}
 
-	if err := json.Unmarshal(raw, ej); err != nil {
+	// unmarshal the genereal error as data type "embedded" to prevent recursion
+	if err := json.Unmarshal(raw, jsonCompliantError); err != nil {
 		return err
 	}
 
 	// replace the error message strings with error interfaces
-	e.Err = errors.New(ej.ErrorMessage)
-	e.Code = ej.Code
-	e.Component = ej.Component
-	e.Severity = ej.Severity
-	e.Inner = errors.New(ej.InnerMessage)
+	e.Err = errors.New(jsonCompliantError.ErrorMessage)
+	e.Inner = errors.New(jsonCompliantError.InnerMessage)
 
 	return nil
 }
@@ -229,45 +229,43 @@ func (e *lineColumnError) Error() string {
 	return fmt.Sprintf("%5v: %v %v %v [%v,%v]: %v\n", e.Line, componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
 }
 
-// Marshal the line column error to a JSON object.
+// Marshal the line column error to a JSON object because the JSON encoder does not support error interfaces directly.
 func (e *lineColumnError) MarshalJSON() ([]byte, error) {
-	type Embedded lineColumnError
+	type embedded lineColumnError
 
-	// replace the error interface with an error message string
-	ej := &struct {
+	// create a JSON-compliant line-column error structure that embeds the original error
+	// note: replace the error interface with an error message string
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (*Embedded)(e),
+		embedded:     (*embedded)(e),
 	}
 
-	return json.Marshal(ej)
+	// marshal the line-column error as data type "embedded" to prevent recursion
+	return json.Marshal(jsonCompliantError)
 }
 
-// Unmarshal the line column error from a JSON object.
+// Unmarshal the line column error from a JSON object because the JSON decoder does not support error interfaces directly.
 func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
-	type Embedded lineColumnError
+	type embedded lineColumnError
 
-	// struct to unmarshal the JSON object to
-	ej := &struct {
+	// unmarshal the JSON object into a JSON-compliant line-column error structure
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 	}{
-		Embedded: (*Embedded)(e),
+		embedded: (*embedded)(e),
 	}
 
-	if err := json.Unmarshal(raw, ej); err != nil {
+	// unmarshal the line-column error as data type "embedded" to prevent recursion
+	if err := json.Unmarshal(raw, jsonCompliantError); err != nil {
 		return err
 	}
 
 	// replace the error message string with an error interface
-	e.Err = errors.New(ej.ErrorMessage)
-	e.Code = ej.Code
-	e.Component = ej.Component
-	e.Severity = ej.Severity
-	e.Line = ej.Line
-	e.Column = ej.Column
+	e.Err = errors.New(jsonCompliantError.ErrorMessage)
 
 	return nil
 }
@@ -292,49 +290,47 @@ func (e *sourceError) Error() string {
 	return sourceLine + errorLine
 }
 
-// Marshal the source error to a JSON object.
+// Marshal the source error to a JSON object because the JSON encoder does not support error interfaces and the "[]byte" type directly.
 func (e *sourceError) MarshalJSON() ([]byte, error) {
-	type Embedded sourceError
+	type embedded sourceError
 
-	// replace the error interface with an error message string and the source code byte slice with a string of the source code
-	ej := &struct {
+	// create a JSON-compliant source error structure that embeds the original error
+	// note: replace the error interface with an error message string and the byte slice of the source code with a string
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 		SourceCode string `json:"source_code"`
 	}{
 		ErrorMessage: e.Err.Error(),
-		Embedded:     (*Embedded)(e),
+		embedded:     (*embedded)(e),
 		SourceCode:   string(e.SourceCode),
 	}
 
-	return json.Marshal(ej)
+	// marshal the source error as data type "embedded" to prevent recursion
+	return json.Marshal(jsonCompliantError)
 }
 
-// Unmarshal the source error from a JSON object.
+// Unmarshal the source error from a JSON object because the JSON decoder does not support error interfaces and the "[]byte" type directly.
 func (e *sourceError) UnmarshalJSON(raw []byte) error {
-	type Embedded sourceError
+	type embedded sourceError
 
-	// struct to unmarshal the JSON object to
-	ej := &struct {
+	// unmarshal the JSON object into a JSON-compliant source error structure
+	jsonCompliantError := &struct {
 		ErrorMessage string `json:"error"`
-		*Embedded
+		*embedded
 		SourceCode string `json:"source_code"`
 	}{
-		Embedded: (*Embedded)(e),
+		embedded: (*embedded)(e),
 	}
 
-	if err := json.Unmarshal(raw, ej); err != nil {
+	// unmarshal the source error as data type "embedded" to prevent recursion
+	if err := json.Unmarshal(raw, jsonCompliantError); err != nil {
 		return err
 	}
 
 	// replace the error message string with an error interface and the string of the source code with a byte slice
-	e.Err = errors.New(ej.ErrorMessage)
-	e.Code = ej.Code
-	e.Component = ej.Component
-	e.Severity = ej.Severity
-	e.Line = ej.Line
-	e.Column = ej.Column
-	e.SourceCode = []byte(ej.SourceCode)
+	e.Err = errors.New(jsonCompliantError.ErrorMessage)
+	e.SourceCode = []byte(jsonCompliantError.SourceCode)
 
 	return nil
 }
