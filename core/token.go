@@ -8,43 +8,6 @@ import "slices"
 // The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
 const eof Token = -1
 
-// Tokens of the PL/0 programming language.
-const (
-	Unknown Token = iota
-	Identifier
-	Number
-	Plus
-	Minus
-	Times
-	Divide
-	Equal
-	NotEqual
-	Less
-	LessEqual
-	Greater
-	GreaterEqual
-	LeftParenthesis
-	RightParenthesis
-	Comma
-	Colon
-	Semicolon
-	ProgramEnd
-	Becomes
-	Read
-	Write
-	OddWord
-	BeginWord
-	EndWord
-	IfWord
-	ThenWord
-	WhileWord
-	DoWord
-	CallWord
-	ConstWord
-	VarWord
-	ProcedureWord
-)
-
 type (
 	// Token is a type that represents a token in the source code.
 	Token int
@@ -86,6 +49,11 @@ type (
 		ReplaceComponent(component Component, failureMap map[Failure]string)
 	}
 )
+
+// Initialize token names to enable a string representation of tokens.
+func InitializeTokenNames(tokenNameMap map[Token]string) {
+	tokenNames = tokenNameMap
+}
 
 // Return the interface to a new token handler.
 func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {

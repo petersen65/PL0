@@ -35,44 +35,10 @@ type (
 	}
 )
 
-// Map tokens to their string representation.
-var tokenNames = map[Token]string{
-	Unknown:          "unknown",
-	Identifier:       "identifier",
-	Number:           "number",
-	Plus:             "plus",
-	Minus:            "minus",
-	Times:            "times",
-	Divide:           "divide",
-	Equal:            "equal",
-	NotEqual:         "notEqual",
-	Less:             "less",
-	LessEqual:        "lessEqual",
-	Greater:          "greater",
-	GreaterEqual:     "greaterEqual",
-	LeftParenthesis:  "leftParenthesis",
-	RightParenthesis: "rightParenthesis",
-	Comma:            "comma",
-	Colon:            "colon",
-	Semicolon:        "semicolon",
-	ProgramEnd:       "programEnd",
-	Becomes:          "becomes",
-	Read:             "read",
-	Write:            "write",
-	OddWord:          "odd",
-	BeginWord:        "begin",
-	EndWord:          "end",
-	IfWord:           "if",
-	ThenWord:         "then",
-	WhileWord:        "while",
-	DoWord:           "do",
-	CallWord:         "call",
-	ConstWord:        "const",
-	VarWord:          "var",
-	ProcedureWord:    "procedure",
-}
+// Map tokens to their string representation. The "Initialize" function must be called before using this map.
+var tokenNames = make(map[Token]string, 0)
 
-// Create a new token handler for the PL/0 parser.
+// Create a new token handler for the compiler.
 func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
 	return &tokenHandler{
 		tokenStream:  tokenStream,

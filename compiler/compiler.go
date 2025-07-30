@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package compiler provides functions that compile PL/0 source code into target language codes.
+// Package compiler provides functions that compile source code into target language codes.
 package compiler
 
 import (
@@ -77,9 +77,9 @@ type (
 
 	// TranslationUnit represents source content and all intermediate results of the compilation process.
 	TranslationUnit struct {
-		SourceContent    []byte                  // PL/0 utf-8 source content
+		SourceContent    []byte                  // UTF-8 source content
 		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
-		TokenStream      cor.TokenStream         // token stream of the PL/0 source content
+		TokenStream      cor.TokenStream         // token stream of the source content
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit

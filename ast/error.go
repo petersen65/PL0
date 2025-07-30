@@ -5,7 +5,7 @@ package ast
 
 import cor "github.com/petersen65/PL0/v2/core"
 
-// Failure codes for the PL/0 abstract syntax tree.
+// Failure codes for the abstract syntax tree.
 const (
 	_ cor.Failure = iota + 3000
 	unknownDataTypeRepresentation

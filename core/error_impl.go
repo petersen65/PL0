@@ -20,7 +20,7 @@ const (
 	textRemarks     = "Remarks:"
 )
 
-// Failure codes for core components of the PL/0 compiler.
+// Failure codes for core components of the compiler.
 const (
 	_ Failure = iota + 100
 	errorKindNotSupported

@@ -8,6 +8,7 @@ import (
 
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
+	pl0 "github.com/petersen65/PL0/v2/pl0"
 )
 
 // Number of bits of a signed integer.
@@ -24,26 +25,26 @@ type parser struct {
 var (
 	// Tokens that are used to begin constants, variables, and procedures declarations.
 	declarations = cor.Tokens{
-		cor.ConstWord,
-		cor.VarWord,
-		cor.ProcedureWord,
+		pl0.ConstWord,
+		pl0.VarWord,
+		pl0.ProcedureWord,
 	}
 
 	// Tokens that are used to begin statements within a block.
 	statements = cor.Tokens{
-		cor.Read,
-		cor.Write,
-		cor.BeginWord,
-		cor.CallWord,
-		cor.IfWord,
-		cor.WhileWord,
+		pl0.Read,
+		pl0.Write,
+		pl0.BeginWord,
+		pl0.CallWord,
+		pl0.IfWord,
+		pl0.WhileWord,
 	}
 
 	// Tokens that are used to begin factors in expressions.
 	factors = cor.Tokens{
-		cor.Identifier,
-		cor.Number,
-		cor.LeftParenthesis,
+		pl0.Identifier,
+		pl0.Number,
+		pl0.LeftParenthesis,
 	}
 )
 
@@ -72,10 +73,10 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 	//   declaration of constants, variables and procedures
 	//   followed by a statement
 	//   and ends with the program-end
-	p.abstractSyntax = p.block(0, nil, set(declarations, statements, cor.ProgramEnd))
+	p.abstractSyntax = p.block(0, nil, set(declarations, statements, pl0.ProgramEnd))
 
 	// the program must end with a specific token
-	if p.lastToken() != cor.ProgramEnd {
+	if p.lastToken() != pl0.ProgramEnd {
 		p.appendError(expectedPeriod, p.lastTokenName())
 	}
 
@@ -107,22 +108,22 @@ func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.T
 
 	// declare all constants, variables and procedures of the block
 	for {
-		if p.lastToken() == cor.ConstWord {
+		if p.lastToken() == pl0.ConstWord {
 			constants = append(constants, p.constWord(scope)...)
 		}
 
-		if p.lastToken() == cor.VarWord {
+		if p.lastToken() == pl0.VarWord {
 			variables = append(variables, p.varWord(scope)...)
 		}
 
-		if p.lastToken() == cor.ProcedureWord {
+		if p.lastToken() == pl0.ProcedureWord {
 			procedures = append(procedures, p.procedureWord(blockNestingDepth, scope, expected)...)
 		}
 
 		// after declarations, the block expects
 		//   a statement which also can be an assignment starting with an identifier
 		//   or the parser would fall back to declarations as anchor in the case of a syntax error
-		p.tokenHandler.Recover(expectedStatementsIdentifiers, set(statements, cor.Identifier), declarations)
+		p.tokenHandler.Recover(expectedStatementsIdentifiers, set(statements, pl0.Identifier), declarations)
 
 		if !p.lastToken().In(declarations) {
 			break
@@ -131,7 +132,7 @@ func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.T
 
 	// parse all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
-	statement, err := p.statement(scope, set(expected, cor.Semicolon, cor.EndWord))
+	statement, err := p.statement(scope, set(expected, pl0.Semicolon, pl0.EndWord))
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
 	if !err && statement == nil {
@@ -160,7 +161,7 @@ func (p *parser) constWord(scope *ast.Scope) []ast.Declaration {
 		declarations = append(declarations, p.constantIdentifier(scope))
 
 		// a comma separates constant declarations which are grouped by a semicolon
-		for p.lastToken() == cor.Comma {
+		for p.lastToken() == pl0.Comma {
 			p.nextToken()
 
 			// next constant declaration
@@ -168,14 +169,14 @@ func (p *parser) constWord(scope *ast.Scope) []ast.Declaration {
 		}
 
 		// a semicolon separates constant declaration groups from each other
-		if p.lastToken() == cor.Semicolon {
+		if p.lastToken() == pl0.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
 		// check for more constant declaration groups
-		if p.lastToken() != cor.Identifier {
+		if p.lastToken() != pl0.Identifier {
 			break
 		}
 	}
@@ -194,20 +195,20 @@ func (p *parser) varWord(scope *ast.Scope) []ast.Declaration {
 		declarations = append(declarations, p.variableIdentifier(scope))
 
 		// a comma separates variable declarations which are grouped by a semicolon
-		for p.lastToken() == cor.Comma {
+		for p.lastToken() == pl0.Comma {
 			p.nextToken()
 			declarations = append(declarations, p.variableIdentifier(scope))
 		}
 
 		// a semicolon separates variable declaration groups from each other
-		if p.lastToken() == cor.Semicolon {
+		if p.lastToken() == pl0.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
 		// check for more variable declaration groups
-		if p.lastToken() != cor.Identifier {
+		if p.lastToken() != pl0.Identifier {
 			break
 		}
 	}
@@ -220,14 +221,14 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 	declarations := make([]ast.Declaration, 0)
 
 	// all procedures are declared in a sequence of procedure identifiers with each having a block
-	for p.lastToken() == cor.ProcedureWord {
+	for p.lastToken() == pl0.ProcedureWord {
 		p.nextToken()
 
 		// procedure declaration
 		declaration := p.procedureIdentifier(scope)
 
 		// after the procedure identifier, a semicolon is expected to separate the identifier from the block
-		if p.lastToken() == cor.Semicolon {
+		if p.lastToken() == pl0.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
@@ -237,19 +238,19 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope *ast.Scope, anchor
 		//   declaration of constants, variables and procedures
 		//   followed by a statement
 		//   and ends with a semicolon
-		block := p.block(blockNestingDepth+1, scope, set(anchors, cor.Semicolon))
+		block := p.block(blockNestingDepth+1, scope, set(anchors, pl0.Semicolon))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
 		//   or from the next procedure declaration
-		if p.lastToken() == cor.Semicolon {
+		if p.lastToken() == pl0.Semicolon {
 			p.nextToken()
 
 			// after the procedure block, the parser expects
 			//   a statement which also can be an assignment starting with an identifier
 			//   the beginning of a new procedure declaration
 			//   or the parser would fall back to parent tokens as anchors in the case of a syntax error
-			p.tokenHandler.Recover(expectedStatementsIdentifiersProcedures, set(statements, cor.Identifier, cor.ProcedureWord), anchors)
+			p.tokenHandler.Recover(expectedStatementsIdentifiersProcedures, set(statements, pl0.Identifier, pl0.ProcedureWord), anchors)
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
@@ -275,14 +276,14 @@ func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement 
 
 	p.nextToken()
 
-	if p.lastToken() == cor.Becomes {
+	if p.lastToken() == pl0.Becomes {
 		becomesIndex = p.lastTokenIndex()
 		p.nextToken()
 	} else {
 		p.appendError(expectedBecomes, p.lastTokenName())
 
 		// skip the next token if it is an equal sign to continue parsing
-		if p.lastToken() == cor.Equal {
+		if p.lastToken() == pl0.Equal {
 			p.nextToken()
 		}
 	}
@@ -304,7 +305,7 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	readIndex := p.lastTokenIndex()
 	p.nextToken()
 
-	if p.lastToken() != cor.Identifier {
+	if p.lastToken() != pl0.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
 		name = p.lastTokenValue()
@@ -337,7 +338,7 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	callIndex := p.lastTokenIndex()
 	p.nextToken()
 
-	if p.lastToken() != cor.Identifier {
+	if p.lastToken() != pl0.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 	} else {
 		name = p.lastTokenValue()
@@ -359,9 +360,9 @@ func (p *parser) ifWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
-	condition := p.condition(scope, set(anchors, cor.ThenWord, cor.DoWord))
+	condition := p.condition(scope, set(anchors, pl0.ThenWord, pl0.DoWord))
 
-	if p.lastToken() == cor.ThenWord {
+	if p.lastToken() == pl0.ThenWord {
 		p.nextToken()
 	} else {
 		p.appendError(expectedThen, p.lastTokenName())
@@ -384,9 +385,9 @@ func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
-	condition := p.condition(scope, set(anchors, cor.DoWord))
+	condition := p.condition(scope, set(anchors, pl0.DoWord))
 
-	if p.lastToken() == cor.DoWord {
+	if p.lastToken() == pl0.DoWord {
 		p.nextToken()
 	} else {
 		p.appendError(expectedDo, p.lastTokenName())
@@ -409,24 +410,24 @@ func (p *parser) beginWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	p.nextToken()
 
 	// the first statement of a begin-end compound (only if the compound is not empty and there is no parsing error)
-	if statement, err := p.statement(scope, set(anchors, cor.EndWord, cor.Semicolon)); !err && statement != nil {
+	if statement, err := p.statement(scope, set(anchors, pl0.EndWord, pl0.Semicolon)); !err && statement != nil {
 		compound = append(compound, statement)
 	}
 
-	for p.lastToken().In(set(statements, cor.Semicolon)) {
-		if p.lastToken() == cor.Semicolon {
+	for p.lastToken().In(set(statements, pl0.Semicolon)) {
+		if p.lastToken() == pl0.Semicolon {
 			p.nextToken()
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
 		// the next statement of a begin-end compound (only if a statement is available and there is no parsing error)
-		if statement, err := p.statement(scope, set(anchors, cor.EndWord, cor.Semicolon)); !err && statement != nil {
+		if statement, err := p.statement(scope, set(anchors, pl0.EndWord, pl0.Semicolon)); !err && statement != nil {
 			compound = append(compound, statement)
 		}
 	}
 
-	if p.lastToken() == cor.EndWord {
+	if p.lastToken() == pl0.EndWord {
 		p.nextToken()
 	} else {
 		p.appendError(expectedEnd, p.lastTokenName())
@@ -448,25 +449,25 @@ func (p *parser) statement(scope *ast.Scope, anchors cor.Tokens) (ast.Statement,
 	var statement ast.Statement
 
 	switch p.lastToken() {
-	case cor.Identifier:
+	case pl0.Identifier:
 		statement = p.assignment(scope, anchors)
 
-	case cor.Read:
+	case pl0.Read:
 		statement = p.read(scope)
 
-	case cor.Write:
+	case pl0.Write:
 		statement = p.write(scope, anchors)
 
-	case cor.CallWord:
+	case pl0.CallWord:
 		statement = p.callWord(scope)
 
-	case cor.IfWord:
+	case pl0.IfWord:
 		statement = p.ifWord(scope, anchors)
 
-	case cor.WhileWord:
+	case pl0.WhileWord:
 		statement = p.whileWord(scope, anchors)
 
-	case cor.BeginWord:
+	case pl0.BeginWord:
 		statement = p.beginWord(scope, anchors)
 
 	default:
@@ -496,7 +497,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	// in case of a parsing error, return an empty declaration
 	declaration := ast.NewEmptyDeclaration()
 
-	if p.lastToken() != cor.Identifier {
+	if p.lastToken() != pl0.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return declaration
 	}
@@ -506,8 +507,8 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 	p.nextToken()
 
 	// parse the equal token and the number of the constant, accept non-valid becomes token as equal token
-	if p.lastToken().In(set(cor.Equal, cor.Becomes)) {
-		if p.lastToken() == cor.Becomes {
+	if p.lastToken().In(set(pl0.Equal, pl0.Becomes)) {
+		if p.lastToken() == pl0.Becomes {
 			p.appendError(expectedEqual, p.lastTokenName())
 		}
 
@@ -515,16 +516,16 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 		var sign cor.Token
 
 		// support leading plus or minus sign of a number
-		if p.lastToken() == cor.Plus || p.lastToken() == cor.Minus {
+		if p.lastToken() == pl0.Plus || p.lastToken() == pl0.Minus {
 			sign = p.lastToken()
 			p.nextToken()
 		}
 
-		if p.lastToken() != cor.Number {
+		if p.lastToken() != pl0.Number {
 			p.appendError(expectedNumber, p.lastTokenName())
 
 			// skip the next token if it is an identifier to continue parsing
-			if p.lastToken() == cor.Identifier {
+			if p.lastToken() == pl0.Identifier {
 				p.nextToken()
 			}
 		} else {
@@ -547,7 +548,7 @@ func (p *parser) constantIdentifier(scope *ast.Scope) ast.Declaration {
 
 // A variable identifier is stored in a variable declaration of the abstract syntax tree
 func (p *parser) variableIdentifier(scope *ast.Scope) ast.Declaration {
-	if p.lastToken() != cor.Identifier {
+	if p.lastToken() != pl0.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
@@ -561,7 +562,7 @@ func (p *parser) variableIdentifier(scope *ast.Scope) ast.Declaration {
 
 // A procedure identifier is stored in a procedure declaration of the abstract syntax tree
 func (p *parser) procedureIdentifier(scope *ast.Scope) ast.Declaration {
-	if p.lastToken() != cor.Identifier {
+	if p.lastToken() != pl0.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
@@ -578,16 +579,16 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 	// in case of a parsing error, return an empty declaration
 	operation := ast.NewEmptyExpression()
 
-	if p.lastToken() == cor.OddWord {
+	if p.lastToken() == pl0.OddWord {
 		oddIndex := p.lastTokenIndex()
 		p.nextToken()
 		operand := p.expression(scope, anchors)
 		operation = ast.NewUnaryOperation(ast.Odd, operand, oddIndex)
 	} else {
 		// handle left expression of a comparison operator
-		left := p.expression(scope, set(anchors, cor.Equal, cor.NotEqual, cor.Less, cor.LessEqual, cor.Greater, cor.GreaterEqual))
+		left := p.expression(scope, set(anchors, pl0.Equal, pl0.NotEqual, pl0.Less, pl0.LessEqual, pl0.Greater, pl0.GreaterEqual))
 
-		if !p.lastToken().In(set(cor.Equal, cor.NotEqual, cor.Less, cor.LessEqual, cor.Greater, cor.GreaterEqual)) {
+		if !p.lastToken().In(set(pl0.Equal, pl0.NotEqual, pl0.Less, pl0.LessEqual, pl0.Greater, pl0.GreaterEqual)) {
 			p.appendError(expectedComparisonOperator, p.lastTokenName())
 		} else {
 			comparisonOperator := p.lastToken()
@@ -598,22 +599,22 @@ func (p *parser) condition(scope *ast.Scope, anchors cor.Tokens) ast.Expression 
 			right := p.expression(scope, anchors)
 
 			switch comparisonOperator {
-			case cor.Equal:
+			case pl0.Equal:
 				operation = ast.NewComparisonOperation(ast.Equal, left, right, comparisonOperatorIndex)
 
-			case cor.NotEqual:
+			case pl0.NotEqual:
 				operation = ast.NewComparisonOperation(ast.NotEqual, left, right, comparisonOperatorIndex)
 
-			case cor.Less:
+			case pl0.Less:
 				operation = ast.NewComparisonOperation(ast.Less, left, right, comparisonOperatorIndex)
 
-			case cor.LessEqual:
+			case pl0.LessEqual:
 				operation = ast.NewComparisonOperation(ast.LessEqual, left, right, comparisonOperatorIndex)
 
-			case cor.Greater:
+			case pl0.Greater:
 				operation = ast.NewComparisonOperation(ast.Greater, left, right, comparisonOperatorIndex)
 
-			case cor.GreaterEqual:
+			case pl0.GreaterEqual:
 				operation = ast.NewComparisonOperation(ast.GreaterEqual, left, right, comparisonOperatorIndex)
 
 			default:
@@ -631,17 +632,17 @@ func (p *parser) expression(scope *ast.Scope, anchors cor.Tokens) ast.Expression
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
-	left := p.term(scope, set(anchors, cor.Plus, cor.Minus))
+	left := p.term(scope, set(anchors, pl0.Plus, pl0.Minus))
 
-	for p.lastToken() == cor.Plus || p.lastToken() == cor.Minus {
+	for p.lastToken() == pl0.Plus || p.lastToken() == pl0.Minus {
 		plusOrMinus := p.lastToken()
 		plusOrMinusIndex := p.lastTokenIndex()
 		p.nextToken()
 
 		// handle right term of a plus or minus operator
-		right := p.term(scope, set(anchors, cor.Plus, cor.Minus))
+		right := p.term(scope, set(anchors, pl0.Plus, pl0.Minus))
 
-		if plusOrMinus == cor.Plus {
+		if plusOrMinus == pl0.Plus {
 			operation = ast.NewBinaryOperation(ast.Plus, left, right, plusOrMinusIndex)
 		} else {
 			operation = ast.NewBinaryOperation(ast.Minus, left, right, plusOrMinusIndex)
@@ -663,17 +664,17 @@ func (p *parser) term(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
-	left := p.factor(scope, set(anchors, cor.Times, cor.Divide))
+	left := p.factor(scope, set(anchors, pl0.Times, pl0.Divide))
 
-	for p.lastToken() == cor.Times || p.lastToken() == cor.Divide {
+	for p.lastToken() == pl0.Times || p.lastToken() == pl0.Divide {
 		timesOrDevide := p.lastToken()
 		timesOrDevideIndex := p.lastTokenIndex()
 		p.nextToken()
 
 		// handle right factor of a times or divide operator
-		right := p.factor(scope, set(anchors, cor.Times, cor.Divide))
+		right := p.factor(scope, set(anchors, pl0.Times, pl0.Divide))
 
-		if timesOrDevide == cor.Times {
+		if timesOrDevide == pl0.Times {
 			operation = ast.NewBinaryOperation(ast.Times, left, right, timesOrDevideIndex)
 
 		} else {
@@ -700,7 +701,7 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	operand := ast.NewEmptyExpression()
 
 	// handle leading plus or minus sign of a factor
-	if p.lastToken() == cor.Plus || p.lastToken() == cor.Minus {
+	if p.lastToken() == pl0.Plus || p.lastToken() == pl0.Minus {
 		sign = p.lastToken()
 		signIndex = p.lastTokenIndex()
 		p.nextToken()
@@ -712,19 +713,19 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 	p.tokenHandler.Recover(expectedIdentifiersNumbersExpressions, factors, anchors)
 
 	for p.lastToken().In(factors) {
-		if p.lastToken() == cor.Identifier {
+		if p.lastToken() == pl0.Identifier {
 			// the factor can be a constant or a variable
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, ast.ConstantEntry|ast.VariableEntry, p.lastTokenIndex())
 			p.nextToken()
-		} else if p.lastToken() == cor.Number {
+		} else if p.lastToken() == pl0.Number {
 			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ast.Integer64, scope, p.lastTokenIndex())
-			sign = cor.Unknown
+			sign = pl0.Unknown
 			p.nextToken()
-		} else if p.lastToken() == cor.LeftParenthesis {
+		} else if p.lastToken() == pl0.LeftParenthesis {
 			p.nextToken()
-			operand = p.expression(scope, set(anchors, cor.RightParenthesis))
+			operand = p.expression(scope, set(anchors, pl0.RightParenthesis))
 
-			if p.lastToken() == cor.RightParenthesis {
+			if p.lastToken() == pl0.RightParenthesis {
 				p.nextToken()
 			} else {
 				p.appendError(expectedRightParenthesis, p.lastTokenName())
@@ -737,11 +738,11 @@ func (p *parser) factor(scope *ast.Scope, anchors cor.Tokens) ast.Expression {
 		//   a comparison operator
 		//   a right parenthesis
 		//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-		p.tokenHandler.Recover(unexpectedTokens, anchors, set(cor.LeftParenthesis))
+		p.tokenHandler.Recover(unexpectedTokens, anchors, set(pl0.LeftParenthesis))
 	}
 
 	// negate the factor if a leading minus sign is present
-	if sign == cor.Minus {
+	if sign == pl0.Minus {
 		operand = ast.NewUnaryOperation(ast.Negate, operand, signIndex)
 	}
 
@@ -785,7 +786,7 @@ func set(tss ...cor.TokenSet) cor.Tokens {
 
 // Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
 func (e *parser) numberValue(sign cor.Token, number string) int64 {
-	if sign == cor.Minus {
+	if sign == pl0.Minus {
 		number = "-" + number
 	}
 

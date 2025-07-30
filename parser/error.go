@@ -8,7 +8,7 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Maximum depth of block nesting.
 const blockNestingMax = 8
 
-// Failure codes for the PL/0 parser.
+// Failure codes for the parser.
 const (
 	_ cor.Failure = iota + 2000
 	invalidParserState
