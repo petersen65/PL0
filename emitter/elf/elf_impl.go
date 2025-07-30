@@ -10,42 +10,60 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
 var (
 	// Map directives to their string representation.
 	directiveNames = map[Directive]string{
-		Global:       ".global",
-		Extern:       ".extern",
-		Type:         ".type",
-		Size:         ".size",
-		Weak:         ".weak",
-		Hidden:       ".hidden",
-		Section:      ".section",
-		Text:         ".text",
-		Data:         ".data",
-		Rodata:       ".rodata",
-		Bss:          ".bss",
-		Utf32:        ".rodata.str4.4",
-		Int64:        ".rodata.int8.8",
-		StrDesc:      ".rodata.strdesc",
-		P2align:      ".p2align",
-		Align:        ".align",
-		Balign:       ".balign",
-		Byte:         ".byte",
-		Word:         ".word",
-		Long:         ".long",
-		Quad:         ".quad",
-		Zero:         ".zero",
-		String:       ".string",
-		Ascii:        ".ascii",
-		File:         ".file",
-		Loc:          ".loc",
-		Line:         ".line",
-		CfiStartProc: ".cfi_startproc",
-		CfiEndProc:   ".cfi_endproc",
-		CfiDefCfa:    ".cfi_def_cfa",
-		CfiOffset:    ".cfi_offset",
+		IntelSyntax:       ".intel_syntax",
+		AttSyntax:         ".att_syntax",
+		PushSection:       ".pushsection",
+		PopSection:        ".popsection",
+		Previous:          ".previous",
+		Global:            ".global",
+		Extern:            ".extern",
+		Type:              ".type",
+		Size:              ".size",
+		Weak:              ".weak",
+		Hidden:            ".hidden",
+		Ident:             ".ident",
+		Section:           ".section",
+		Text:              ".text",
+		Data:              ".data",
+		Rodata:            ".rodata",
+		Bss:               ".bss",
+		Utf32:             ".rodata.str4.4",
+		Int64:             ".rodata.int8.8",
+		StrDesc:           ".rodata.strdesc",
+		P2align:           ".p2align",
+		Align:             ".align",
+		Balign:            ".balign",
+		Byte:              ".byte",
+		Word:              ".word",
+		Long:              ".long",
+		Quad:              ".quad",
+		Zero:              ".zero",
+		String:            ".string",
+		Ascii:             ".ascii",
+		File:              ".file",
+		Loc:               ".loc",
+		Line:              ".line",
+		CfiStartProc:      ".cfi_startproc",
+		CfiEndProc:        ".cfi_endproc",
+		CfiDefCfa:         ".cfi_def_cfa",
+		CfiOffset:         ".cfi_offset",
+		CfiDefCfaOffset:   ".cfi_def_cfa_offset",
+		CfiDefCfaRegister: ".cfi_def_cfa_register",
+		CfiRestore:        ".cfi_restore",
+		CfiUndefined:      ".cfi_undefined",
+		CfiEscape:         ".cfi_escape",
+	}
+
+	// Map prefix attributes to their string representation.
+	prefixAttributeNames = map[PrefixAttribute]string{
+		IntelPrefix:   "prefix",
+		IntelNoPrefix: "noprefix",
 	}
 
 	// Map section attributes to their string representation.
@@ -239,7 +257,8 @@ func (rdi *ReadOnlyDataItem) String() string {
 // String representation of a directive detail.
 func (dd *DirectiveDetail) String() string {
 	// join symbol and arguments with commas for multi-argument directives
-	return fmt.Sprintf("%v %v", dd.Directive, strings.Join(append(dd.Symbols, dd.Arguments...), ", "))
+	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
+	return strings.TrimSpace(fmt.Sprintf("%v %v", dd.Directive, parts))
 }
 
 // Append content to the assembly section.

@@ -257,11 +257,12 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
-		Prefix      OperationCode `json:"prefix"`    // prefix for the instruction
-		Operation   OperationCode `json:"operation"` // operation code of the instruction
-		Operands    []*Operand    `json:"operands"`  // operands for the operation
-		Labels      []string      `json:"labels"`    // branch target labels
-		SymbolTable SymbolTable   `json:"-"`         // symbol table for looking up branch target labels
+		Prefix      OperationCode          `json:"prefix"`     // prefix for the instruction
+		Operation   OperationCode          `json:"operation"`  // operation code of the instruction
+		Operands    []*Operand             `json:"operands"`   // operands for the operation
+		Labels      []string               `json:"labels"`     // branch target labels
+		Directives  []*elf.DirectiveDetail `json:"directives"` // assembler directives for the instruction
+		SymbolTable SymbolTable            `json:"-"`          // symbol table for looking up branch target labels
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -294,7 +295,6 @@ type (
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
 		AppendRuntime()
 		Length() int
-		GetInstruction(index int) *Instruction
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -343,6 +343,12 @@ func NewLabelOperand(label string) *Operand {
 // Create new symbol for the assembly code.
 func NewSymbol(labels []string, kind Entry, flags EntryFlag) *Symbol {
 	return &Symbol{Labels: labels, Kind: kind, Flags: flags}
+}
+
+// Fluently append a new assembler directive to an instruction.
+func (i *Instruction) AppendDirective(directive *elf.DirectiveDetail) *Instruction {
+	i.Directives = append(i.Directives, directive)
+	return i
 }
 
 // String representation of a CPU operation code.

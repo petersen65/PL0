@@ -9,13 +9,23 @@ import "fmt"
 
 // Assembler directives for the ELF format supported by various assemblers on Linux.
 const (
+	// assembly language syntax directives
+	IntelSyntax Directive = iota // switches the assembler to Intel syntax (.intel_syntax)
+	AttSyntax                    // switches the assembler to AT&T syntax (.att_syntax)
+
+	// section management directives
+	PushSection // pushes a section on the stack (.pushsection)
+	PopSection  // pops a section from the stack (.popsection)
+	Previous    // switches back to the previous section (.previous)
+
 	// symbol declaration directives
-	Global Directive = iota // declares a global symbol visible to the linker (.globl <name>)
-	Extern                  // declares an external symbol defined elsewhere (.extern <name>)
-	Type                    // specifies the symbol type for ELF (.type <name>, @function/@object/...)
-	Size                    // declares the size of a symbol in bytes (.size <name>, .-<name>)
-	Weak                    // marks a symbol as weak; can be overridden (.weak <name>)
-	Hidden                  // makes a symbol hidden from external linking (.hidden <name>)
+	Global // declares a global symbol visible to the linker (.globl <name>)
+	Extern // declares an external symbol defined elsewhere (.extern <name>)
+	Type   // specifies the symbol type for ELF (.type <name>, @function/@object/...)
+	Size   // declares the size of a symbol in bytes (.size <name>, .-<name>)
+	Weak   // marks a symbol as weak; can be overridden (.weak <name>)
+	Hidden // makes a symbol hidden from external linking (.hidden <name>)
+	Ident  // embeds an identification string (.ident)
 
 	// section control directives
 	Section // changes or creates a named section (.section <name>[, "flags", @type])
@@ -44,13 +54,24 @@ const (
 	Ascii  // emits an unterminated ASCII string (.ascii "text")
 
 	// debug info and DWARF metadata
-	File         // specifies the source file name for debug info (.file "source.c")
-	Loc          // marks source location in debug info (.loc file line column)
-	Line         // specifies source line number (legacy) (.line <n>)
-	CfiStartProc // begins a CFI frame for a function (.cfi_startproc)
-	CfiEndProc   // ends a CFI frame for a function (.cfi_endproc)
-	CfiDefCfa    // defines call frame address rule (.cfi_def_cfa reg offset)
-	CfiOffset    // defines register offset in CFI (.cfi_offset reg offset)
+	File              // specifies the source file name for debug info (.file "source.c")
+	Loc               // marks source location in debug info (.loc file line column)
+	Line              // specifies source line number (legacy) (.line <n>)
+	CfiStartProc      // begins a CFI frame for a function (.cfi_startproc)
+	CfiEndProc        // ends a CFI frame for a function (.cfi_endproc)
+	CfiDefCfa         // defines call frame address rule (.cfi_def_cfa reg offset)
+	CfiOffset         // defines register offset in CFI (.cfi_offset reg offset)
+	CfiDefCfaOffset   // adjusts CFA offset (.cfi_def_cfa_offset)
+	CfiDefCfaRegister // changes the CFA register (.cfi_def_cfa_register)
+	CfiRestore        // restores a register from saved state (.cfi_restore)
+	CfiUndefined      // marks a register as undefined (.cfi_undefined)
+	CfiEscape         // emits raw bytes into the CFI stream (.cfi_escape)
+)
+
+// Prefix attributes for the .intel_syntax directive.
+const (
+	IntelPrefix   PrefixAttribute = iota // syntax with prefixes (.intel_syntax prefix)
+	IntelNoPrefix                        // syntax without prefixes (.intel_syntax noprefix)
 )
 
 // Section attributes for the .section directive.
@@ -98,6 +119,9 @@ const (
 type (
 	// Represents an assembler directive (pseudo-op).
 	Directive int
+
+	// Represents a prefix attribute for the .intel_syntax directive.
+	PrefixAttribute int
 
 	// Represents an attribute of the .section directive.
 	SectionAttribute int
@@ -149,6 +173,16 @@ func NewDirectiveDetail(directive Directive, symbols []string, args ...string) *
 	return &DirectiveDetail{Directive: directive, Symbols: symbols, Arguments: args}
 }
 
+// Create a .intel_syntax directive for Intel assembly syntax.
+func NewIntel(prefix PrefixAttribute) *DirectiveDetail {
+	return NewDirectiveDetail(IntelSyntax, nil, prefix.String())
+}
+
+// Create a .att_syntax directive for AT&T assembly syntax.
+func NewAtt() *DirectiveDetail {
+	return NewDirectiveDetail(AttSyntax, nil)
+}
+
 // Create a .global directive for global symbols.
 func NewGlobal(symbols []string) *DirectiveDetail {
 	return NewDirectiveDetail(Global, symbols)
@@ -182,6 +216,11 @@ func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
 // String representation of a directive.
 func (dk Directive) String() string {
 	return directiveNames[dk]
+}
+
+// String representation of a prefix attribute.
+func (pa PrefixAttribute) String() string {
+	return prefixAttributeNames[pa]
 }
 
 // String representation of a section attribute.
