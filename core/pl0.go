@@ -1,15 +1,11 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package pl0 implements programming language specific constants and types for PL/0.
-// PL/0 is a simple imperative programming language designed for teaching purposes.
-package pl0
-
-import cor "github.com/petersen65/PL0/v2/core"
+package core
 
 // Tokens of the PL/0 programming language.
 const (
-	Unknown cor.Token = iota
+	Unknown Token = iota
 	Identifier
 	Number
 	Plus
@@ -43,3 +39,8 @@ const (
 	VarWord
 	ProcedureWord
 )
+
+// String representation of a PL/0 token.
+func (t Token) String() string {
+	return tokenNames[t]
+}

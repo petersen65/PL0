@@ -50,19 +50,9 @@ type (
 	}
 )
 
-// Initialize token names to enable a string representation of tokens.
-func InitializeTokenNames(tokenNameMap map[Token]string) {
-	tokenNames = tokenNameMap
-}
-
 // Return the interface to a new token handler.
 func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
 	return newTokenHandler(tokenStream, errorHandler, component, failureMap)
-}
-
-// String representation of a token.
-func (t Token) String() string {
-	return tokenNames[t]
 }
 
 // Set returns a joined slice of all tokens within the given TokenSet interfaces. Redundant tokens are removed.

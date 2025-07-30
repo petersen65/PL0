@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package parser implements the PL/0 parser that performs a syntactical analysis of the token stream.
+// Package parser implements a syntax analyzer for the programming language PL/0.
 package parser
 
 import (
@@ -9,7 +9,7 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// The parser interface provides methods for parsing a token stream into an abstract syntax tree.
+// The parser processes a token stream, produces an abstract syntax tree (AST), and returns it along with an initial token handler.
 type Parser interface {
 	Parse() (ast.Block, cor.TokenHandler)
 }

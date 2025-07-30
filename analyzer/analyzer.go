@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package analyzer implements semantic analysis compiler phases by traversing the abstract syntax tree.
+// Package analyzer implements a semantic analyzer for the programming language PL/0.
 package analyzer
 
 import (
@@ -9,13 +9,14 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
-// Name analysis is a compiler phase that validates the correctness of identifier declarations and their usage. It fills in the symbol table with declared identifiers and their types. It also checks for duplicate declarations and undeclared identifiers. As a final step, the closure of each block is determined.
-type NameAnalysis interface {
+// Name analysis validates the correctness of identifier declarations and creates a symbol table with type information provided by the abstract syntax tree (AST).
+// Herby, the analyzer checks for duplicate declarations, verifies that identifiers are declared before use, and creates a closure for accessing identifiers in lexical parents.
+type Analyzer interface {
 	Analyze()
 }
 
-// Return the interface of the name analysis implementation.
-func NewNameAnalysis(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) NameAnalysis {
+// Return the interface of the analyzer implementation.
+func NewAnalyzer(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) Analyzer {
 	tokenHandler.ReplaceComponent(cor.Analyzer, failureMap)
-	return newNameAnalysis(abstractSyntax, errorHandler, tokenHandler)
+	return newAnalyzer(abstractSyntax, errorHandler, tokenHandler)
 }

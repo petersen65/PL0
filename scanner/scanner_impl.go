@@ -9,13 +9,12 @@ import (
 	"unicode/utf8"
 
 	cor "github.com/petersen65/PL0/v2/core"
-	pl0 "github.com/petersen65/PL0/v2/pl0"
 )
 
 // Last character of the source code that is read when the end of the file is reached.
 const endOfFileCharacter = 0
 
-// Implementation of the scanner.
+// Implementation of the scanner that contains a tokenizer and lexical analyzer.
 type scanner struct {
 	sourceIndex   int    // index of the current character in the source code byte slice
 	sourceCode    []byte // source code to scan
@@ -28,44 +27,44 @@ type scanner struct {
 var (
 	// Map operator characters to their corresponding tokens.
 	operators = map[string]cor.Token{
-		"+":  pl0.Plus,
-		"-":  pl0.Minus,
-		"*":  pl0.Times,
-		"/":  pl0.Divide,
-		"=":  pl0.Equal,
-		"#":  pl0.NotEqual,
-		"<":  pl0.Less,
-		"<=": pl0.LessEqual,
-		">":  pl0.Greater,
-		">=": pl0.GreaterEqual,
-		"(":  pl0.LeftParenthesis,
-		")":  pl0.RightParenthesis,
-		":=": pl0.Becomes,
-		",":  pl0.Comma,
-		":":  pl0.Colon,
-		";":  pl0.Semicolon,
-		".":  pl0.ProgramEnd,
+		"+":  cor.Plus,
+		"-":  cor.Minus,
+		"*":  cor.Times,
+		"/":  cor.Divide,
+		"=":  cor.Equal,
+		"#":  cor.NotEqual,
+		"<":  cor.Less,
+		"<=": cor.LessEqual,
+		">":  cor.Greater,
+		">=": cor.GreaterEqual,
+		"(":  cor.LeftParenthesis,
+		")":  cor.RightParenthesis,
+		":=": cor.Becomes,
+		",":  cor.Comma,
+		":":  cor.Colon,
+		";":  cor.Semicolon,
+		".":  cor.ProgramEnd,
 	}
 
 	// Map statement characters to their corresponding tokens.
 	statements = map[string]cor.Token{
-		"?": pl0.Read,
-		"!": pl0.Write,
+		"?": cor.Read,
+		"!": cor.Write,
 	}
 
 	// Map reserved words to their corresponding tokens.
 	words = map[string]cor.Token{
-		"odd":       pl0.OddWord,
-		"begin":     pl0.BeginWord,
-		"end":       pl0.EndWord,
-		"if":        pl0.IfWord,
-		"then":      pl0.ThenWord,
-		"while":     pl0.WhileWord,
-		"do":        pl0.DoWord,
-		"call":      pl0.CallWord,
-		"const":     pl0.ConstWord,
-		"var":       pl0.VarWord,
-		"procedure": pl0.ProcedureWord,
+		"odd":       cor.OddWord,
+		"begin":     cor.BeginWord,
+		"end":       cor.EndWord,
+		"if":        cor.IfWord,
+		"then":      cor.ThenWord,
+		"while":     cor.WhileWord,
+		"do":        cor.DoWord,
+		"call":      cor.CallWord,
+		"const":     cor.ConstWord,
+		"var":       cor.VarWord,
+		"procedure": cor.ProcedureWord,
 	}
 )
 
@@ -279,7 +278,7 @@ func (s *scanner) identifierOrWord() cor.Token {
 	}
 
 	s.lastValue = builder.String()
-	return pl0.Identifier
+	return cor.Identifier
 }
 
 // Check if the last character is the start of a number.
@@ -297,7 +296,7 @@ func (s *scanner) number() cor.Token {
 	}
 
 	s.lastValue = builder.String()
-	return pl0.Number
+	return cor.Number
 }
 
 // Scan operator or statement token and return an Unknown token if last character cannot be mapped to a token.
@@ -306,17 +305,17 @@ func (s *scanner) operatorOrStatement() cor.Token {
 		s.nextCharacter()
 
 		switch {
-		case token == pl0.Less && s.lastCharacter == '=':
+		case token == cor.Less && s.lastCharacter == '=':
 			s.nextCharacter()
-			token = pl0.LessEqual
+			token = cor.LessEqual
 
-		case token == pl0.Greater && s.lastCharacter == '=':
+		case token == cor.Greater && s.lastCharacter == '=':
 			s.nextCharacter()
-			token = pl0.GreaterEqual
+			token = cor.GreaterEqual
 
-		case token == pl0.Colon && s.lastCharacter == '=':
+		case token == cor.Colon && s.lastCharacter == '=':
 			s.nextCharacter()
-			token = pl0.Becomes
+			token = cor.Becomes
 		}
 
 		return token
@@ -326,5 +325,5 @@ func (s *scanner) operatorOrStatement() cor.Token {
 	}
 
 	s.nextCharacter()
-	return pl0.Unknown
+	return cor.Unknown
 }

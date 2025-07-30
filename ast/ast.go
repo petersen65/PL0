@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package ast implements the abstract syntax tree (AST) for the parser.
+// Package ast implements the abstract syntax tree (AST) produced by the parser for the programming language PL/0.
 package ast
 
 import (

@@ -212,7 +212,7 @@ func CompileContent(content []byte, targetPlatform cor.TargetPlatform) Translati
 
 	// syntax analysis and semantic analysis of token stream
 	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
-	ana.NewNameAnalysis(abstractSyntax, errorHandler, tokenHandler).Analyze()
+	ana.NewAnalyzer(abstractSyntax, errorHandler, tokenHandler).Analyze()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {

@@ -35,9 +35,6 @@ type (
 	}
 )
 
-// Map tokens to their string representation. The "Initialize" function must be called before using this map.
-var tokenNames = make(map[Token]string, 0)
-
 // Create a new token handler for the compiler.
 func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
 	return &tokenHandler{
