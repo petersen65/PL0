@@ -24,6 +24,9 @@ import (
 	scn "github.com/petersen65/PL0/v2/scanner"
 )
 
+// Display name of the compiler driver. It is used to identify the source of any generated code.
+const DriverDisplayName = "PL/0 Compiler"
+
 // Default target filename for the compilation driver.
 const defaultTarget = "out"
 
@@ -229,7 +232,7 @@ func CompileContent(content []byte, targetPlatform cor.TargetPlatform) Translati
 	controlFlow.Build()
 
 	// emit assembly code for a target platform from the intermediate code unit
-	emitter := emi.NewEmitter(targetPlatform, intermediateCode)
+	emitter := emi.NewEmitter(targetPlatform, intermediateCode, DriverDisplayName)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
@@ -244,7 +247,7 @@ func PersistApplication(unit x64.AssemblyCodeUnit, application string) error {
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(runtime string, targetPlatform cor.TargetPlatform) error {
-	assemblyCode := x64.NewAssemblyCodeUnit(targetPlatform, x64.Runtime)
+	assemblyCode := x64.NewAssemblyCodeUnit(targetPlatform, x64.Runtime, DriverDisplayName)
 	assemblyCode.AppendRuntime()
 	return PersistAssemblyCodeUnit(assemblyCode, runtime)
 }

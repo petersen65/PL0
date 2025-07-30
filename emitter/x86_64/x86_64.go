@@ -301,8 +301,8 @@ type (
 )
 
 // Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKind) AssemblyCodeUnit {
-	return newAssemblyCodeUnit(targetPlatform, outputKind)
+func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKind, driverDisplayName string) AssemblyCodeUnit {
+	return newAssemblyCodeUnit(targetPlatform, outputKind, driverDisplayName)
 }
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.

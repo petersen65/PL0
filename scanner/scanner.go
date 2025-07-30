@@ -11,7 +11,7 @@ type Scanner interface {
 	Scan(content []byte) (cor.TokenStream, error)
 }
 
-/// Return the interface of the scanner implementation.
+// Return the interface of the scanner implementation.
 func NewScanner() Scanner {
 	return newScanner()
 }

@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// The standard library for PL/0 provides basic I/O functions written in C23.
+// The standard library provides basic I/O functions written in C23 for the programming language PL/0.
 
 #include <inttypes.h> // PRId64, SCNd64
 #include <stdint.h>   // int64_t, INT64_MIN

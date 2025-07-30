@@ -44,7 +44,7 @@ var (
 		writeStatementSymbol: "pl0_write",
 	}
 
-	// Map intermediate code datatypes to their sizes in bytes in the assembly code.
+	// Map intermediate code data types to their sizes in bytes in the assembly code.
 	dataTypeSize = map[ic.DataType]int32{
 		ic.Integer64:  8,
 		ic.Integer32:  4,
@@ -61,7 +61,7 @@ var (
 		ic.String:     16,
 	}
 
-	// Map intermediate code datatypes to their alignment in bytes in the assembly code.
+	// Map intermediate code data types to their alignment in bytes in the assembly code.
 	dataTypeAlignment = map[ic.DataType]int32{
 		ic.Integer64:  8,
 		ic.Integer32:  4,
@@ -78,7 +78,7 @@ var (
 		ic.String:     8,
 	}
 
-	// Map intermediate code datatypes to their return registers in the assembly code.
+	// Map intermediate code data types to their return registers in the assembly code.
 	dataTypeReturn = map[ic.DataType][]x64.Register{
 		ic.Integer64:  {x64.Rax},
 		ic.Integer32:  {x64.Eax},
@@ -111,7 +111,7 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
+func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit, driverDisplayName string) Emitter {
 	if targetPlatform.OperatingSystem != cor.Linux ||
 		targetPlatform.InstructionSetArchitecture != cor.X86_64 ||
 		targetPlatform.InstructionSet != cor.ISA_SSE2 {
@@ -120,7 +120,7 @@ func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.Inter
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     x64.NewAssemblyCodeUnit(targetPlatform, x64.Application),
+		assemblyCode:     x64.NewAssemblyCodeUnit(targetPlatform, x64.Application, driverDisplayName),
 		targetPlatform:   targetPlatform,
 		offsetTable:      make(map[string]int32),
 	}

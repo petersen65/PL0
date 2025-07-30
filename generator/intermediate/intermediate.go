@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package intermediate implements the intermediate code language which is based on the three-address code concept.
+// Package intermediate provides the intermediate code language which is based on the three-address code concept.
 package intermediate
 
 import (
@@ -72,7 +72,7 @@ const (
 // Datatype of an address in the three-address code concept.
 // The first 8 bits (0-7) are used for the plain datatype, the next bits (8+) are used for modifiers.
 const (
-	// note: the order of the datatypes is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
+	// note: the order of the data types is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
 	Untyped    DataType = iota // the address does not have a datatype
 	Integer64                  // signed 64-bit integer
 	Integer32                  // signed 32-bit integer

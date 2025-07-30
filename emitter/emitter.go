@@ -19,6 +19,6 @@ type (
 )
 
 // Return the interface of the emitter implementation.
-func NewEmitter(targetPlatform cor.TargetPlatform, intermediateCode ic.IntermediateCodeUnit) Emitter {
-	return newEmitter(targetPlatform, intermediateCode)
+func NewEmitter(targetPlatform cor.TargetPlatform, intermediateCode ic.IntermediateCodeUnit, driverDisplayName string) Emitter {
+	return newEmitter(targetPlatform, intermediateCode, driverDisplayName)
 }

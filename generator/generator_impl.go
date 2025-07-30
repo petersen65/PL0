@@ -48,7 +48,7 @@ type (
 )
 
 var (
-	// Map abstract syntax datatypes to intermediate code datatypes (intentially their type systems are kept separate).
+	// Map abstract syntax data types to intermediate code data types (intentially their type systems are kept separate).
 	dataTypeMap = map[ast.DataType]ic.DataType{
 		ast.Integer64:  ic.Integer64,
 		ast.Integer32:  ic.Integer32,
