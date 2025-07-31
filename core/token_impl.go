@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+// The eof token is used to indicate the end of the token stream.
+const eof Token = -1
+
 type (
 	// Token handler manages the current and next token in the token stream.
 	tokenHandler struct {

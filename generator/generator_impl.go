@@ -125,7 +125,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			noAddress,
 			noAddress,
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
-			0)
+			bn.Index()) // block node in the token stream (first declaration or statement in the block)
 	} else {
 		// take the flattened name of the procedure declaration as the branch target label
 		astSymbol := bn.Scope.Lookup(bn.ParentNode.(*ast.ProcedureDeclarationNode).Name)
@@ -137,7 +137,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			noAddress,
 			noAddress,
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
-			0)
+			bn.Index()) // block node in the token stream (first declaration or statement in the block)
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
 		codeSymbol := g.intermediateCode.Lookup(blockBegin)
@@ -150,7 +150,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 		ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
 		noAddress,
 		noAddress,
-		0)
+		bn.Index()) // block node in the token stream (first declaration or statement in the block)
 
 	// create a hidden first local variable for the block that holds internal data structures
 	g.intermediateCode.AppendInstruction(
@@ -158,7 +158,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 		noAddress,
 		noAddress,
 		ic.NewVariableAddress(ic.Unsigned64, staticLinkSymbol),
-		0)
+		bn.Index()) // block node in the token stream (first declaration or statement in the block)
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
@@ -173,13 +173,25 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 		ic.NewLiteralAddress(ic.Integer32, bn.Depth), // block nesting depth
 		noAddress,
 		noAddress,
-		0)
+		bn.Statement.Index()) // block node in the token stream (first statement in the block)
 
 	// statement of the block
 	bn.Statement.Accept(g)
 
+	// determine the token stream index after the last statement of the block
+	indexEnd := cor.NoTokenStreamIndex
+
+	if bn.Statement.Type() == ast.CompoundStatementType {
+		indexEnd = bn.Statement.(*ast.CompoundStatementNode).TokenStreamIndexEnd
+	}
+
 	// create exit sequence for the block
-	g.intermediateCode.AppendInstruction(ic.Epilogue, noAddress, noAddress, noAddress, 0)
+	g.intermediateCode.AppendInstruction(
+		ic.Epilogue,
+		noAddress,
+		noAddress,
+		noAddress,
+		indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
 
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
@@ -192,7 +204,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			ic.NewLiteralAddress(ic.Integer64, returnValue),                                       // literal value for the return value
 			ic.NewLiteralAddress(ic.String, bn.Scope.NewIdentifier(prefix[labelPrefix])),          // new literal data label as source
 			ic.NewTemporaryAddress(ic.Integer64, bn.Scope.NewIdentifier(prefix[temporaryPrefix])), // temporary as destination
-			0)
+			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
@@ -200,7 +212,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
 			noAddress,
 			copyLiteral.Quadruple.Result, // temporary with the return value
-			0)
+			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
 
 		// append the existing instructions to the intermediate code unit
 		g.intermediateCode.AppendExistingInstruction(copyLiteral)
@@ -212,7 +224,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
 			noAddress,
 			noAddress, // no return value
-			0)
+			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
 	}
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)

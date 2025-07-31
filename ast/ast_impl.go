@@ -289,10 +289,12 @@ func newWhileStatement(condition Expression, statement Statement, index int) Sta
 }
 
 // Create a new compound statement node in the abstract syntax tree.
-func newCompoundStatement(statements []Statement) Statement {
+func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	compound := &CompoundStatementNode{
 		TypeName:   nodeTypeNames[CompoundStatementType],
 		Statements: statements,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	for _, statement := range compound.Statements {
@@ -423,6 +425,15 @@ func (b *BlockNode) Children() []Node {
 	return append(children, b.Statement)
 }
 
+// Index returns the token stream index of the block node.
+func (b *BlockNode) Index() int {
+	if len(b.Declarations) > 0 {
+		return b.Declarations[0].Index()
+	}
+
+	return b.Statement.Index()
+}
+
 // BlockString returns the string representation of the block.
 func (b *BlockNode) BlockString() string {
 	return b.String()
@@ -497,6 +508,11 @@ func (d *ConstantDeclarationNode) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Index returns the token stream index of the constant declaration node.
+func (d *ConstantDeclarationNode) Index() int {
+	return d.TokenStreamIndex
+}
+
 // DeclarationString returns the string representation of the constant declaration.
 func (d *ConstantDeclarationNode) DeclarationString() string {
 	return d.String()
@@ -532,6 +548,11 @@ func (d *VariableDeclarationNode) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Index returns the token stream index of the variable declaration node.
+func (d *VariableDeclarationNode) Index() int {
+	return d.TokenStreamIndex
+}
+
 // DeclarationString returns the string representation of the variable declaration.
 func (d *VariableDeclarationNode) DeclarationString() string {
 	return d.String()
@@ -565,6 +586,11 @@ func (d *ProcedureDeclarationNode) Parent() Node {
 // Children nodes of the procedure declaration node.
 func (d *ProcedureDeclarationNode) Children() []Node {
 	return []Node{d.Block}
+}
+
+// Index returns the token stream index of the procedure declaration node.
+func (d *ProcedureDeclarationNode) Index() int {
+	return d.TokenStreamIndex
 }
 
 // DeclarationString returns the string representation of the procedure declaration.
@@ -605,6 +631,11 @@ func (e *LiteralNode) Children() []Node {
 // ExpressionString returns the string representation of the literal expression.
 func (e *LiteralNode) ExpressionString() string {
 	return e.String()
+}
+
+// Index returns the token stream index of the literal node.
+func (e *LiteralNode) Index() int {
+	return e.TokenStreamIndex
 }
 
 // Accept the visitor for the literal node.
@@ -654,6 +685,11 @@ func (u *IdentifierUseNode) Children() []Node {
 	return make([]Node, 0)
 }
 
+// Index returns the token stream index of the identifier-use node.
+func (u *IdentifierUseNode) Index() int {
+	return u.TokenStreamIndex
+}
+
 // ExpressionString returns the string representation of an identifier-use.
 func (u *IdentifierUseNode) ExpressionString() string {
 	return u.String()
@@ -696,6 +732,11 @@ func (e *UnaryOperationNode) Parent() Node {
 // Children nodes of the unary operation node.
 func (e *UnaryOperationNode) Children() []Node {
 	return []Node{e.Operand}
+}
+
+// Index returns the token stream index of the unary operation node.
+func (e *UnaryOperationNode) Index() int {
+	return e.TokenStreamIndex
 }
 
 // ExpressionString returns the string representation of the unary operation expression.
@@ -746,6 +787,11 @@ func (e *BinaryOperationNode) Parent() Node {
 // Children nodes of the binary operation node.
 func (e *BinaryOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
+}
+
+// Index returns the token stream index of the binary operation node.
+func (e *BinaryOperationNode) Index() int {
+	return e.TokenStreamIndex
 }
 
 // ExpressionString returns the string representation of the binary operation expression.
@@ -805,6 +851,11 @@ func (e *ComparisonOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
 }
 
+// Index returns the token stream index of the comparison operation node.
+func (e *ComparisonOperationNode) Index() int {
+	return e.TokenStreamIndex
+}
+
 // ExpressionString returns the string representation of the comparison operation expression.
 func (e *ComparisonOperationNode) ExpressionString() string {
 	return e.String()
@@ -840,6 +891,11 @@ func (s *AssignmentStatementNode) Children() []Node {
 	return []Node{s.Variable, s.Expression}
 }
 
+// Index returns the token stream index of the assignment statement node.
+func (s *AssignmentStatementNode) Index() int {
+	return s.TokenStreamIndex
+}
+
 // StatementString returns the string representation of the assignment statement.
 func (s *AssignmentStatementNode) StatementString() string {
 	return s.String()
@@ -873,6 +929,11 @@ func (s *ReadStatementNode) Parent() Node {
 // Children nodes of the read statement node.
 func (s *ReadStatementNode) Children() []Node {
 	return []Node{s.Variable}
+}
+
+// Index returns the token stream index of the read statement node.
+func (s *ReadStatementNode) Index() int {
+	return s.TokenStreamIndex
 }
 
 // StatementString returns the string representation of the read statement.
@@ -915,6 +976,11 @@ func (s *WriteStatementNode) StatementString() string {
 	return s.String()
 }
 
+// Index returns the token stream index of the write statement node.
+func (s *WriteStatementNode) Index() int {
+	return s.TokenStreamIndex
+}
+
 // Accept the visitor for the write statement node.
 func (s *WriteStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWriteStatement(s)
@@ -943,6 +1009,11 @@ func (s *CallStatementNode) Parent() Node {
 // Children nodes of the call statement node.
 func (s *CallStatementNode) Children() []Node {
 	return []Node{s.Procedure}
+}
+
+// Index returns the token stream index of the call statement node.
+func (s *CallStatementNode) Index() int {
+	return s.TokenStreamIndex
 }
 
 // StatementString returns the string representation of the call statement.
@@ -980,6 +1051,11 @@ func (s *IfStatementNode) Children() []Node {
 	return []Node{s.Condition, s.Statement}
 }
 
+// Index returns the token stream index of the if-then statement node.
+func (s *IfStatementNode) Index() int {
+	return s.TokenStreamIndex
+}
+
 // StatementString returns the string representation of the if-then statement.
 func (s *IfStatementNode) StatementString() string {
 	return s.String()
@@ -1013,6 +1089,11 @@ func (s *WhileStatementNode) Parent() Node {
 // Children nodes of the while-do statement node.
 func (s *WhileStatementNode) Children() []Node {
 	return []Node{s.Condition, s.Statement}
+}
+
+// Index returns the token stream index of the while-do statement node.
+func (s *WhileStatementNode) Index() int {
+	return s.TokenStreamIndex
 }
 
 // StatementString returns the string representation of the while statement.
@@ -1054,6 +1135,11 @@ func (s *CompoundStatementNode) Children() []Node {
 	}
 
 	return children
+}
+
+// Index returns the token stream index of the compound statement node.
+func (s *CompoundStatementNode) Index() int {
+	return s.TokenStreamIndexBegin
 }
 
 // StatementString returns the string representation of the compound statement.

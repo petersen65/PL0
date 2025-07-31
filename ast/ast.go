@@ -167,7 +167,7 @@ type (
 		Depth        int32         `json:"depth"`        // block nesting depth
 		Scope        *Scope        `json:"scope"`        // scope with symbol table of the block that has its own outer scope chain
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
-		Closure      []Declaration `json:"closure"`      // all captured variable declarations of the block
+		Closure      []Declaration `json:"closure"`      // all captured variable declarations from lexical parents of the block
 		Statement    Statement     `json:"statement"`    // statement of the block
 	}
 
@@ -308,9 +308,11 @@ type (
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	CompoundStatementNode struct {
-		TypeName   string      `json:"type"`       // type name of the compound statement node
-		ParentNode Node        `json:"-"`          // parent node of the begin-end compound statement
-		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
+		TypeName              string      `json:"type"`                     // type name of the compound statement node
+		ParentNode            Node        `json:"-"`                        // parent node of the begin-end compound statement
+		Statements            []Statement `json:"statements"`               // all statements of the begin-end compound statement
+		TokenStreamIndexBegin int         `json:"token_stream_index_begin"` // begin index of the token in the token stream
+		TokenStreamIndexEnd   int         `json:"token_stream_index_end"`   // end index of the token in the token stream
 	}
 
 	// A node in the abstract syntax tree.
@@ -319,6 +321,7 @@ type (
 		SetParent(node Node)
 		Parent() Node
 		Children() []Node
+		Index() int
 		String() string
 		Accept(visitor Visitor)
 	}
@@ -390,17 +393,17 @@ func NewEmptyScope() *Scope {
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewEmptyScope(), 0)
+	return newConstantDeclaration(EmptyConstantName, int64(0), Integer64, NewEmptyScope(), cor.NoTokenStreamIndex)
 }
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), Integer64, NewEmptyScope(), 0)
+	return newLiteral(int64(0), Integer64, NewEmptyScope(), cor.NoTokenStreamIndex)
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyStatement() Statement {
-	return newCompoundStatement(make([]Statement, 0))
+	return newCompoundStatement(make([]Statement, 0), cor.NoTokenStreamIndex, cor.NoTokenStreamIndex)
 }
 
 // NewBlock creates a new block node in the abstract syntax tree.
@@ -479,8 +482,8 @@ func NewWhileStatement(condition Expression, statement Statement, index int) Sta
 }
 
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
-func NewCompoundStatement(statements []Statement) Statement {
-	return newCompoundStatement(statements)
+func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
+	return newCompoundStatement(statements, beginIndex, endIndex)
 }
 
 // Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.

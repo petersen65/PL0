@@ -91,8 +91,11 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 
 // A block is a sequence of declarations followed by a statement.
 func (p *parser) block(blockNestingDepth int32, outer *ast.Scope, expected cor.Tokens) ast.Block {
-	p.uniqueScopeId++                                // generate a scope number that must be unique accross compilation
-	var scope = ast.NewScope(p.uniqueScopeId, outer) // a block has its own scope to manage its symbols
+	// generate a scope number that must be unique accross compilation
+	p.uniqueScopeId++                                
+
+	// a block has its own scope to manage its symbols
+	var scope = ast.NewScope(p.uniqueScopeId, outer) 
 
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
 	constants := make([]ast.Declaration, 0)
@@ -405,8 +408,11 @@ func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
 func (p *parser) beginWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
-	compound := make([]ast.Statement, 0)
+	beginIndex := p.lastTokenIndex()
 	p.nextToken()
+
+	// all statements of the begin-end compound 
+	compound := make([]ast.Statement, 0)
 
 	// the first statement of a begin-end compound (only if the compound is not empty and there is no parsing error)
 	if statement, err := p.statement(scope, set(anchors, cor.EndWord, cor.Semicolon)); !err && statement != nil {
@@ -426,13 +432,15 @@ func (p *parser) beginWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 		}
 	}
 
+	endIndex := p.lastTokenIndex()
+
 	if p.lastToken() == cor.EndWord {
 		p.nextToken()
 	} else {
 		p.appendError(expectedEnd, p.lastTokenName())
 	}
 
-	return ast.NewCompoundStatement(compound)
+	return ast.NewCompoundStatement(compound, beginIndex, endIndex)
 }
 
 // A statement is either

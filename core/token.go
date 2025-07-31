@@ -5,8 +5,8 @@ package core
 
 import "slices"
 
-// The eof token is used to indicate the end of the token stream and is used only internally by the token handler.
-const eof Token = -1
+// If no token stream index can be set, it is set to this value.
+const NoTokenStreamIndex = -1
 
 type (
 	// Token is a type that represents a token in the source code.
