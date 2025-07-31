@@ -220,21 +220,24 @@ func (e *emitter) Emit() {
 			parameters = list.New()
 
 		case ic.Return: // return from a function to its caller
-			// extract the size directive label for the function return
-			szLabel := x64.SizeDirectiveLabel + i.Quadruple.Arg1.Value.(string)
+			// extract the branch target label for the function return
+			endOfFunctionLabel := i.Quadruple.Arg1.Value.(string)
 
 			// check if the function returns a value by using the current addresses contract
 			if c.Result == ic.Temporary {
 				// emit assembly code to return from the function with a return value
-				e.returnFromFunction(i.Quadruple.Result.DataType, l, szLabel)
+				e.returnFromFunction(i.Quadruple.Result.DataType, l, endOfFunctionLabel)
 			} else {
 				// emit assembly code to return from the function without a return value
-				e.returnFromFunction(ic.Untyped, l, szLabel)
+				e.returnFromFunction(ic.Untyped, l, endOfFunctionLabel)
 			}
 
 		case ic.Prologue: // function entry sequence
+			// extract the branch target label for the function start
+			beginOfFunctionLabel := i.Quadruple.Arg1.Value.(string)
+
 			// emit assembly code to prepare the activation record for the function call
-			e.prologue(l)
+			e.prologue(l, beginOfFunctionLabel)
 
 		case ic.Epilogue: // function exit sequence
 			// emit assembly code to restore the activation record of the caller
@@ -815,9 +818,8 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 	}
 }
 
-// Return from a function and move the return value into the correct register(s) on the call stack.
-// The return value is expected to be on the top of the call stack, which is the case when the function is called.
-func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, szLabel string) {
+// Return from a function and move the return value into the correct register(s) from top of the call stack.
+func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, endOfFunctionLabel string) {
 	// check whether data type of the return value has modifiers and if so, treat the return value as a pointer or reference
 	if dataType.IsPointer() || dataType.IsReference() {
 		// pop the top of the call stack into the specified address-type return register
@@ -864,16 +866,19 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, sz
 
 	// return from the function
 	// note: in the case of the untyped return type (also named void in some languages), return nothing
-	// note: the size directive label is used to optionally create a size directive for the function
-	e.assemblyCode.AppendInstruction(x64.Ret, []string{szLabel})
+	ret := x64.NewInstruction(x64.Ret, btLabels)
+	ret.AppendDirective(elf.NewSizeLabel(endOfFunctionLabel))
+	e.assemblyCode.AppendExistingInstruction(ret)
 }
 
 // The function entry sequence is called prologue and prepares the activation record for the function call.
-func (e *emitter) prologue(btLabels []string) {
+func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string) {
 	// save caller's base pointer because it will be changed
 	// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
 	// an alternative naming from literature is 'control link' that points to the activation record of the caller
-	e.assemblyCode.AppendInstruction(x64.Push, btLabels, x64.NewRegisterOperand(x64.Rbp))
+	push := x64.NewInstruction(x64.Push, btLabels, x64.NewRegisterOperand(x64.Rbp))
+	push.AppendDirective(elf.NewTypeFunction(beginOfFunctionLabel))
+	e.assemblyCode.AppendExistingInstruction(push)
 	e.assemblyCode.AppendInstruction(x64.Mov, nil, x64.NewRegisterOperand(x64.Rbp), x64.NewRegisterOperand(x64.Rsp))
 }
 

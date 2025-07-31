@@ -18,8 +18,6 @@ const (
 
 	CreateStaticLinkLabel = "rt.create_static_link" // label for runtime function "create_static_link"
 	FollowStaticLinkLabel = "rt.follow_static_link" // label for runtime function "follow_static_link"
-	HiddenLabel           = "."                     // hidden labels are used for internal purposes
-	SizeDirectiveLabel    = HiddenLabel + "size="   // label for creating a size directive in assembly code
 )
 
 // Operation codes for assembly instructions of the x86_64 ISA.
@@ -257,12 +255,11 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
-		Prefix      OperationCode          `json:"prefix"`     // prefix for the instruction
-		Operation   OperationCode          `json:"operation"`  // operation code of the instruction
-		Operands    []*Operand             `json:"operands"`   // operands for the operation
-		Labels      []string               `json:"labels"`     // branch target labels
-		Directives  []*elf.DirectiveDetail `json:"directives"` // assembler directives for the instruction
-		SymbolTable SymbolTable            `json:"-"`          // symbol table for looking up branch target labels
+		Prefix     OperationCode          `json:"prefix"`     // prefix for the instruction
+		Operation  OperationCode          `json:"operation"`  // operation code of the instruction
+		Operands   []*Operand             `json:"operands"`   // operands for the operation
+		Labels     []string               `json:"labels"`     // branch target labels
+		Directives []*elf.DirectiveDetail `json:"directives"` // assembler directives for the instruction
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -307,12 +304,12 @@ func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
 func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels, SymbolTable: nil}
+	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels}
 }
 
 // Create a new assembly instruction with a prefix operation code, an operation code, some branch target labels, and operands.
 func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels, SymbolTable: nil}
+	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
 }
 
 // Create a new read-only data item with a kind, some literal data labels, and values with supported data types.

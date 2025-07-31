@@ -137,7 +137,7 @@ var (
 		Return:    {{Arg1: Literal, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Temporary}},
 
 		// function entry and exit sequences
-		Prologue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Prologue: {{Arg1: Literal, Arg2: Empty, Result: Empty}},
 		Epilogue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
 		Setup:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
 

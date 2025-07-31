@@ -224,15 +224,6 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 			Global,
 		))
 
-		// enable size directive for the entry point of the application
-		unit.Insert(NewSymbol(
-			[]string{
-				SizeDirectiveLabel + cor.EntryPointLabel,
-			},
-			FunctionEntry,
-			Size,
-		))
-
 	case Runtime:
 		// global symbols for runtime functions
 		unit.Insert(NewSymbol(
@@ -242,16 +233,6 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 			},
 			FunctionEntry,
 			Global,
-		))
-
-		// enable size directive for the runtime functions
-		unit.Insert(NewSymbol(
-			[]string{
-				SizeDirectiveLabel + CreateStaticLinkLabel,
-				SizeDirectiveLabel + FollowStaticLinkLabel,
-			},
-			FunctionEntry,
-			Size,
 		))
 
 	default:
@@ -329,20 +310,17 @@ func (i *Instruction) String() string {
 	const prefixOperationWidth = 12
 	var builder strings.Builder
 
-	// write the type directive for branch target labels that represent global functions
-	for _, label := range i.Labels {
-		if i.SymbolTable != nil {
-			if symbol := i.SymbolTable.Lookup(label); symbol != nil &&
-				symbol.Kind == FunctionEntry &&
-				symbol.Flags == Global {
-				builder.WriteString(fmt.Sprintf("%v\n", elf.NewTypeFunction(label)))
-			}
+	// write specific assembler directives before the instruction, if any
+	for _, directive := range i.Directives {
+		switch directive.Directive {
+		case elf.Type:
+			builder.WriteString(fmt.Sprintf("%v\n", directive))
 		}
+	}
 
-		// only write the label if it is not a hidden label
-		if !strings.HasPrefix(label, HiddenLabel) {
-			builder.WriteString(fmt.Sprintf("%v:\n", label))
-		}
+	// write the branch target labels for the instruction, if any
+	for _, label := range i.Labels {
+		builder.WriteString(fmt.Sprintf("%v:\n", label))
 	}
 
 	// write the prefix and operation code
@@ -362,15 +340,11 @@ func (i *Instruction) String() string {
 		builder.WriteString(strings.Join(operands, ", "))
 	}
 
-	// write the size directive for size directive labels that represent global function returns
-	if i.SymbolTable != nil {
-		for _, label := range i.Labels {
-			if symbol := i.SymbolTable.Lookup(label); symbol != nil &&
-				symbol.Kind == FunctionEntry &&
-				symbol.Flags == Size {
-				label = strings.TrimPrefix(label, SizeDirectiveLabel)
-				builder.WriteString(fmt.Sprintf("\n%v", elf.NewSizeLabel(label)))
-			}
+	// write specific assembler directives after the instruction, if any
+	for _, directive := range i.Directives {
+		switch directive.Directive {
+		case elf.Size:
+			builder.WriteString(fmt.Sprintf("\n%v", directive))
 		}
 	}
 
@@ -379,16 +353,12 @@ func (i *Instruction) String() string {
 
 // Append an instruction with branch target labels to the assembly code unit.
 func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
-	instruction := NewInstruction(operation, labels, operands...)
-	instruction.SymbolTable = u
-	u.TextSection.Append(instruction)
+	u.TextSection.Append(NewInstruction(operation, labels, operands...))
 }
 
 // Append a prefixed instruction with branch target labels to the assembly code unit.
 func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
-	instruction := NewPrefixedInstruction(prefix, operation, labels, operands...)
-	instruction.SymbolTable = u
-	u.TextSection.Append(instruction)
+	u.TextSection.Append(NewPrefixedInstruction(prefix, operation, labels, operands...))
 }
 
 // Append a read-only data item with literal data labels to the assembly code unit.
@@ -410,7 +380,6 @@ func (u *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, lab
 
 // Append an existing instruction to the assembly code unit.
 func (u *assemblyCodeUnit) AppendExistingInstruction(instruction *Instruction) {
-	instruction.SymbolTable = u
 	u.TextSection.Append(instruction)
 }
 
@@ -476,7 +445,7 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
 	u.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
-	u.AppendInstruction(Ret, []string{SizeDirectiveLabel + CreateStaticLinkLabel})
+	u.AppendInstruction(Ret, nil)
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -535,7 +504,7 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
 	u.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
-	u.AppendInstruction(Ret, []string{SizeDirectiveLabel + CreateStaticLinkLabel})
+	u.AppendInstruction(Ret, nil)
 }
 
 // Return the number of instructions in the assembly code unit.

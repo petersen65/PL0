@@ -145,7 +145,12 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	}
 
 	// create entry sequence for the block
-	g.intermediateCode.AppendInstruction(ic.Prologue, noAddress, noAddress, noAddress, 0)
+	g.intermediateCode.AppendInstruction(
+		ic.Prologue, // function entry sequence
+		ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+		noAddress,
+		noAddress,
+		0)
 
 	// create a hidden first local variable for the block that holds internal data structures
 	g.intermediateCode.AppendInstruction(
