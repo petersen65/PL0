@@ -212,7 +212,7 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 			elf.P2align16),
 	}
 
-	// define default global symbols based on the output kind
+	// define default global and external symbols based on the output kind
 	switch outputKind {
 	case Application:
 		// global symbol for the entry point of the application
@@ -222,6 +222,16 @@ func newAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKin
 			},
 			FunctionEntry,
 			Global,
+		))
+
+		// external symbols for the runtime functions
+		unit.Insert(NewSymbol(
+			[]string{
+				CreateStaticLinkLabel,
+				FollowStaticLinkLabel,
+			},
+			FunctionEntry,
+			External,
 		))
 
 	case Runtime:
@@ -441,11 +451,15 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 			mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
 			ret
 	*/
-	u.AppendInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
+	mov := NewInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
+	mov.AppendDirective(elf.NewTypeFunction(CreateStaticLinkLabel))
+	u.AppendExistingInstruction(mov)
 	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
 	u.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
-	u.AppendInstruction(Ret, nil)
+	ret := NewInstruction(Ret, nil)
+	ret.AppendDirective(elf.NewSizeLabel(CreateStaticLinkLabel))
+	u.AppendExistingInstruction(ret)
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -462,7 +476,9 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 			mov         rsi, rbp                     # optional manual starting point for static link chain
 													 # used if follow_static_link is called with current rbp
 	*/
-	u.AppendInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+	mov = NewInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+	mov.AppendDirective(elf.NewTypeFunction(FollowStaticLinkLabel))
+	u.AppendExistingInstruction(mov)
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -504,7 +520,9 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
 	u.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
-	u.AppendInstruction(Ret, nil)
+	ret = NewInstruction(Ret, nil)
+	ret.AppendDirective(elf.NewSizeLabel(FollowStaticLinkLabel))
+	u.AppendExistingInstruction(ret)
 }
 
 // Return the number of instructions in the assembly code unit.
