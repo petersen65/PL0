@@ -45,4 +45,16 @@ var (
 		Intel:                    "x86_64",
 		ExecutableLinkableFormat: "elf",
 	}
+
+	// Map output kinds to their names.
+	outputKindNames = map[OutputKind]string{
+		Application: "application",
+		Runtime:     "runtime",
+	}
+
+	// Map optimization algorithms to their names.
+	optimizationNames = map[Optimization]string{
+		Debug:   "debug",
+		Release: "release",
+	}
 )

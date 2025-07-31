@@ -19,10 +19,10 @@ const (
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
-	textCompileUsage  = "compile source code file to assembly target file"
+	textCompileUsage  = "compile source code file to target assembly file"
 	textExportUsage   = "export intermediate representations to target files"
 	textSourceUsage   = "source code file"
-	textTargetUsage   = "assembly target file"
+	textTargetUsage   = "target assembly file"
 	textHelpUsage     = "print help message"
 )
 

@@ -7,7 +7,6 @@ package compiler
 import (
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
 	"os"
 	"path/filepath"
@@ -108,8 +107,6 @@ var ExtensionMap = map[Extension]string{
 
 // Driver for the compilation process with the given options, source path, target path, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer) {
-	var targetPlatform cor.TargetPlatform
-	var buildConfiguration cor.BuildConfiguration
 	var targetDirectory, baseFileName, runtimePath string
 	var translationUnit TranslationUnit
 	var err error
@@ -143,22 +140,25 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 		}
 	}
 
-	// set target platform for the compilation process
+	// define target platform for the application
 	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
-	targetPlatform = cor.TargetPlatform{
+	targetPlatform := cor.TargetPlatform{
 		OperatingSystem:            cor.Linux,
 		InstructionSetArchitecture: cor.X86_64,
 		InstructionSet:             cor.ISA_SSE2,
 	}
 
-	// setup build configuration for the compilation process
-	buildConfiguration = cor.BuildConfiguration{
+	// optimization algorithms for the application
+	optimization := cor.Debug
+
+	// setup build configuration for the application
+	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        sourcePath,
 		TargetPath:        targetPath,
 		TargetPlatform:    targetPlatform,
 		DriverDisplayName: DriverDisplayName,
 		OutputKind:        cor.Application,
-		Optimization:      cor.Debug,
+		Optimization:      optimization,
 	}
 
 	// compile source code to translation unit and print an error report if errors occurred during compilation
@@ -199,7 +199,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			return
 		}
 
-		if err = PersistRuntime(runtimePath, targetPlatform); err != nil {
+		if err = PersistRuntime(targetPlatform, optimization, runtimePath); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, runtimePath, err)
 			return
 		}
@@ -258,10 +258,18 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 }
 
 // Persist the assembly code unit of the runtime.
-func PersistRuntime(runtimePath string, targetPlatform cor.TargetPlatform) error {
-	buildConfiguration := cor.BuildConfiguration{}
+func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string) error {
+	// setup build configuration for the runtime
+	buildConfiguration := cor.BuildConfiguration{
+		SourcePath:        runtimePath,
+		TargetPath:        runtimePath,
+		TargetPlatform:    targetPlatform,
+		DriverDisplayName: DriverDisplayName,
+		OutputKind:        cor.Runtime,
+		Optimization:      optimization,
+	}
 
-	unit := x64.NewAssemblyCodeUnit(targetPlatform, cor.Runtime, DriverDisplayName)
+	unit := x64.NewAssemblyCodeUnit(buildConfiguration)
 	unit.AppendRuntime()
 	return PersistAssemblyCodeUnit(unit, runtimePath)
 }

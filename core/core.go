@@ -69,13 +69,13 @@ const (
 
 // Kind of output that is represented by the assembly code.
 const (
-	Application OutputKind = iota
-	Runtime
+	Application OutputKind = iota // an application consisting of business logic
+	Runtime                       // programming language runtime library
 )
 
 // Optimization algorithms as bit-mask.
 const (
-	Debug   = 0                        // all algorithms turned off, suitable for development and debugging
+	Debug   = Optimization(0)          // all algorithms turned off, suitable for development and debugging
 	Release = Optimization(^uint64(0)) // all algorithms turned on, suitable for production builds
 )
 
@@ -103,19 +103,19 @@ type (
 
 	// TargetPlatform defines the target platform for which assembly code is generated.
 	TargetPlatform struct {
-		OperatingSystem            OperatingSystem
-		InstructionSetArchitecture InstructionSetArchitecture
-		InstructionSet             InstructionSet
+		OperatingSystem            OperatingSystem            `json:"operating_system"`             // operating system name
+		InstructionSetArchitecture InstructionSetArchitecture `json:"instruction_set_architecture"` // CPU family name
+		InstructionSet             InstructionSet             `json:"instruction_set"`              // instruction set of the CPU
 	}
 
 	// Build configuration used during the compilation process.
 	BuildConfiguration struct {
-		SourcePath        string
-		TargetPath        string
-		TargetPlatform    TargetPlatform
-		DriverDisplayName string
-		OutputKind        OutputKind
-		Optimization      Optimization
+		SourcePath        string         `json:"source_path"`         // path to the source code file
+		TargetPath        string         `json:"target_path"`         // path to the target assembly file
+		TargetPlatform    TargetPlatform `json:"target_platform"`     // target platform for which the assembly code is generated
+		DriverDisplayName string         `json:"driver_display_name"` // compiler driver display name
+		OutputKind        OutputKind     `json:"output_kind"`         // kind of output represented by the assembly code
+		Optimization      Optimization   `json:"optimization"`        // optimization algorithms to be applied during code emission
 	}
 
 	// Exporter is an interface that provides methods for exporting intermediate results.
@@ -148,4 +148,14 @@ func (is InstructionSet) String() string {
 // String representation of the target platform.
 func (t TargetPlatform) String() string {
 	return fmt.Sprintf("%v %v %v", t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet)
+}
+
+// String representation of the output kind.
+func (ok OutputKind) String() string {
+	return outputKindNames[ok]
+}
+
+// String representation of the optimization algorithm.
+func (o Optimization) String() string {
+	return optimizationNames[o]
 }
