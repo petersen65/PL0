@@ -7,6 +7,7 @@ package compiler
 import (
 	"errors"
 	"fmt"
+	"go/build"
 	"io"
 	"os"
 	"path/filepath"
@@ -108,17 +109,10 @@ var ExtensionMap = map[Extension]string{
 // Driver for the compilation process with the given options, source path, target path, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer) {
 	var targetPlatform cor.TargetPlatform
-	var targetDirectory, baseFileName, runtime string
+	var buildConfiguration cor.BuildConfiguration
+	var targetDirectory, baseFileName, runtimePath string
 	var translationUnit TranslationUnit
 	var err error
-
-	// set target platform for the compilation process
-	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
-	targetPlatform = cor.TargetPlatform{
-		OperatingSystem:            cor.Linux,
-		InstructionSetArchitecture: cor.X86_64,
-		InstructionSet:             cor.ISA_SSE2,
-	}
 
 	// ensure target path exists and print persistence error message if an error occurred
 	if targetDirectory, baseFileName, err = EnsureTargetPath(targetPath); err != nil {
@@ -128,7 +122,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 
 	// cleaned and validated target and runtime paths
 	targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
-	runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
+	runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
@@ -145,14 +139,32 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 
 			// cleaned and validated target and runtime paths after cleaning
 			targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
-			runtime = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
+			runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 		}
+	}
+
+	// set target platform for the compilation process
+	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
+	targetPlatform = cor.TargetPlatform{
+		OperatingSystem:            cor.Linux,
+		InstructionSetArchitecture: cor.X86_64,
+		InstructionSet:             cor.ISA_SSE2,
+	}
+
+	// setup build configuration for the compilation process
+	buildConfiguration = cor.BuildConfiguration{
+		SourcePath:        sourcePath,
+		TargetPath:        targetPath,
+		TargetPlatform:    targetPlatform,
+		DriverDisplayName: DriverDisplayName,
+		OutputKind:        cor.Application,
+		Optimization:      cor.Debug,
 	}
 
 	// compile source code to translation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
-		translationUnit, err = CompileSourceToTranslationUnit(sourcePath, targetPlatform)
+		translationUnit, err = CompileSourceToTranslationUnit(buildConfiguration)
 
 		// print error message if an I/O error occurred during compilation
 		if err != nil {
@@ -187,8 +199,8 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			return
 		}
 
-		if err = PersistRuntime(runtime, targetPlatform); err != nil {
-			fmt.Fprintf(print, textErrorPersisting, runtime, err)
+		if err = PersistRuntime(runtimePath, targetPlatform); err != nil {
+			fmt.Fprintf(print, textErrorPersisting, runtimePath, err)
 			return
 		}
 	}
@@ -198,16 +210,16 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 }
 
 // Compile source code and return translation unit with all intermediate results and error handler.
-func CompileSourceToTranslationUnit(sourcePath string, targetPlatform cor.TargetPlatform) (TranslationUnit, error) {
-	if content, err := os.ReadFile(sourcePath); err != nil {
+func CompileSourceToTranslationUnit(buildConfiguration cor.BuildConfiguration) (TranslationUnit, error) {
+	if content, err := os.ReadFile(buildConfiguration.SourcePath); err != nil {
 		return TranslationUnit{}, err
 	} else {
-		return CompileContent(content, targetPlatform), nil
+		return CompileContent(content, buildConfiguration), nil
 	}
 }
 
-// Compile UTF-8 encoded content and return translation unit with all intermediate results and error handler.
-func CompileContent(content []byte, targetPlatform cor.TargetPlatform) TranslationUnit {
+// Compile UTF-8 encoded content and return a translation unit with all intermediate results and error handler.
+func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) TranslationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler()
@@ -232,7 +244,7 @@ func CompileContent(content []byte, targetPlatform cor.TargetPlatform) Translati
 	controlFlow.Build()
 
 	// emit assembly code for a target platform from the intermediate code unit
-	emitter := emi.NewEmitter(targetPlatform, intermediateCode, DriverDisplayName)
+	emitter := emi.NewEmitter(buildConfiguration, intermediateCode)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
@@ -241,23 +253,25 @@ func CompileContent(content []byte, targetPlatform cor.TargetPlatform) Translati
 }
 
 // Persist the assembly code unit of the application.
-func PersistApplication(unit x64.AssemblyCodeUnit, application string) error {
-	return PersistAssemblyCodeUnit(unit, application)
+func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
+	return PersistAssemblyCodeUnit(unit, targetPath)
 }
 
 // Persist the assembly code unit of the runtime.
-func PersistRuntime(runtime string, targetPlatform cor.TargetPlatform) error {
-	assemblyCode := x64.NewAssemblyCodeUnit(targetPlatform, x64.Runtime, DriverDisplayName)
-	assemblyCode.AppendRuntime()
-	return PersistAssemblyCodeUnit(assemblyCode, runtime)
+func PersistRuntime(runtimePath string, targetPlatform cor.TargetPlatform) error {
+	buildConfiguration := cor.BuildConfiguration{}
+
+	unit := x64.NewAssemblyCodeUnit(targetPlatform, cor.Runtime, DriverDisplayName)
+	unit.AppendRuntime()
+	return PersistAssemblyCodeUnit(unit, runtimePath)
 }
 
 // Persist an assembly code unit to the given target file.
-func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, target string) error {
+func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error {
 	var err error
 	var output *os.File
 
-	if output, err = os.Create(target); err != nil {
+	if output, err = os.Create(targetPath); err != nil {
 		return err
 	} else {
 		// safely close file and remove it if there is an error
@@ -265,7 +279,7 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, target string) error {
 			output.Close()
 
 			if err != nil {
-				os.Remove(target)
+				os.Remove(targetPath)
 			}
 		}()
 

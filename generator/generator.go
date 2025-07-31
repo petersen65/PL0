@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package generator implements the intermediate code generation compiler phase by traversing the abstract syntax tree (AST).
+// Package generator implements the translation of an abstract syntax tree (AST) into a flat intermediate code representation.
 package generator
 
 import (
@@ -9,7 +9,7 @@ import (
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
-// The generator translates the abstract syntax tree (AST) into an intermediate code representation and maps AST data types to intermediate code data types.
+// Translate an abstract syntax tree (AST) into intermediate code and map AST data types to intermediate code data types.
 type Generator interface {
 	Generate()
 	GetIntermediateCodeUnit() ic.IntermediateCodeUnit

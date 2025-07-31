@@ -31,10 +31,10 @@ const (
 
 // Implementation of the assembly code emitter.
 type emitter struct {
-	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
-	assemblyCode     x64.AssemblyCodeUnit    // assembly code unit for the target platform
-	targetPlatform   cor.TargetPlatform      // target platform for the emitter
-	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
+	intermediateCode   ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
+	assemblyCode       x64.AssemblyCodeUnit    // assembly code unit for the target platform
+	buildConfiguration cor.BuildConfiguration  // configuration for building the assembly code
+	offsetTable        map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
 var (
@@ -111,7 +111,10 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.IntermediateCodeUnit, driverDisplayName string) Emitter {
+func newEmitter(buildConfiguration cor.BuildConfiguration, intermediateCodeUnit ic.IntermediateCodeUnit) Emitter {
+	targetPlatform := buildConfiguration.TargetPlatform
+
+	// check if the target platform is supported by the emitter implementation
 	if targetPlatform.OperatingSystem != cor.Linux ||
 		targetPlatform.InstructionSetArchitecture != cor.X86_64 ||
 		targetPlatform.InstructionSet != cor.ISA_SSE2 {
@@ -119,10 +122,10 @@ func newEmitter(targetPlatform cor.TargetPlatform, intermediateCodeUnit ic.Inter
 	}
 
 	return &emitter{
-		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     x64.NewAssemblyCodeUnit(targetPlatform, x64.Application, driverDisplayName),
-		targetPlatform:   targetPlatform,
-		offsetTable:      make(map[string]int32),
+		intermediateCode:   intermediateCodeUnit,
+		assemblyCode:       x64.NewAssemblyCodeUnit(buildConfiguration),
+		buildConfiguration: buildConfiguration,
+		offsetTable:        make(map[string]int32),
 	}
 }
 

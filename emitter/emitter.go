@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package emitter implements the assembly code generation compiler phase by iterating over the intermediate code unit.
+// Package emitter implements the emission of assembly code for a target platform based on an intermediate code representation.
 package emitter
 
 import (
@@ -11,7 +11,7 @@ import (
 )
 
 type (
-	// The Emitter interface provides methods for emitting assembly code for the target platform.
+	// Translate intermediate code into assembly code for a specific target platform and build configuration.
 	Emitter interface {
 		Emit()
 		GetAssemblyCodeUnit() x64.AssemblyCodeUnit
@@ -19,6 +19,6 @@ type (
 )
 
 // Return the interface of the emitter implementation.
-func NewEmitter(targetPlatform cor.TargetPlatform, intermediateCode ic.IntermediateCodeUnit, driverDisplayName string) Emitter {
-	return newEmitter(targetPlatform, intermediateCode, driverDisplayName)
+func NewEmitter(buildConfiguration cor.BuildConfiguration, intermediateCode ic.IntermediateCodeUnit) Emitter {
+	return newEmitter(buildConfiguration, intermediateCode)
 }

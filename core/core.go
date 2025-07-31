@@ -1,8 +1,8 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package core provides foundation features, the token type-system, and the error handling mechanism for the compiler. 
-// This combination enables an error handler to connect an error to a location in the token stream. 
+// Package core provides foundation features, the token type-system, and the error handling mechanism for the compiler.
+// This combination enables an error handler to connect an error to a location in the token stream.
 // Package core is required to depend on Go standard library packages only.
 package core
 
@@ -67,6 +67,18 @@ const (
 	Binary
 )
 
+// Kind of output that is represented by the assembly code.
+const (
+	Application OutputKind = iota
+	Runtime
+)
+
+// Optimization algorithms as bit-mask.
+const (
+	Debug   = 0                        // all algorithms turned off, suitable for development and debugging
+	Release = Optimization(^uint64(0)) // all algorithms turned on, suitable for production builds
+)
+
 type (
 	// Target operating system.
 	OperatingSystem int
@@ -77,6 +89,18 @@ type (
 	// Determine the specific instruction set features available on the target ISA.
 	InstructionSet int
 
+	// Component describes packages of the compiler which can generate errors (bit-mask).
+	Component uint64
+
+	// Export formats for the compiler.
+	ExportFormat int
+
+	// Output kind of the assembly code.
+	OutputKind int
+
+	// Optimization algorithms to be applied during code emission.
+	Optimization uint64
+
 	// TargetPlatform defines the target platform for which assembly code is generated.
 	TargetPlatform struct {
 		OperatingSystem            OperatingSystem
@@ -84,11 +108,15 @@ type (
 		InstructionSet             InstructionSet
 	}
 
-	// Component describes packages of the compiler which can generate errors (bit-mask).
-	Component uint64
-
-	// Export formats for the compiler.
-	ExportFormat int
+	// Build configuration used during the compilation process.
+	BuildConfiguration struct {
+		SourcePath        string
+		TargetPath        string
+		TargetPlatform    TargetPlatform
+		DriverDisplayName string
+		OutputKind        OutputKind
+		Optimization      Optimization
+	}
 
 	// Exporter is an interface that provides methods for exporting intermediate results.
 	Exporter interface {

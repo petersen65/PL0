@@ -200,12 +200,6 @@ const (
 	ComparisonFloat                                 // floating-point comparison (Ucomisd/Ucomiss instructions)
 )
 
-// Kind of output that is produced by the assembly code.
-const (
-	Application OutputKind = iota
-	Runtime
-)
-
 // Kind of supported symbol entry in the assembly code.
 const (
 	ObjectEntry Entry = iota
@@ -234,9 +228,6 @@ type (
 
 	// Enumeration of registers of the CPU.
 	Register int
-
-	// Output kind of the assembly code.
-	OutputKind int
 
 	// Kind of symbol entries with label names.
 	Entry int
@@ -298,8 +289,8 @@ type (
 )
 
 // Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit(targetPlatform cor.TargetPlatform, outputKind OutputKind, driverDisplayName string) AssemblyCodeUnit {
-	return newAssemblyCodeUnit(targetPlatform, outputKind, driverDisplayName)
+func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration) AssemblyCodeUnit {
+	return newAssemblyCodeUnit(buildConfiguration)
 }
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
