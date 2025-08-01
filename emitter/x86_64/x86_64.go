@@ -210,7 +210,6 @@ const (
 const (
 	Global EntryFlag = iota
 	External
-	Size
 )
 
 type (
@@ -246,11 +245,12 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
-		Prefix     OperationCode          `json:"prefix"`     // prefix for the instruction
-		Operation  OperationCode          `json:"operation"`  // operation code of the instruction
-		Operands   []*Operand             `json:"operands"`   // operands for the operation
-		Labels     []string               `json:"labels"`     // branch target labels
-		Directives []*elf.DirectiveDetail `json:"directives"` // assembler directives for the instruction
+		Prefix           OperationCode          `json:"prefix"`             // prefix for the instruction
+		Operation        OperationCode          `json:"operation"`          // operation code of the instruction
+		Operands         []*Operand             `json:"operands"`           // operands for the operation
+		Labels           []string               `json:"labels"`             // branch target labels
+		Directives       []*elf.DirectiveDetail `json:"directives"`         // assembler directives for the instruction
+		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -276,8 +276,8 @@ type (
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		SymbolTable
-		AppendInstruction(operation OperationCode, labels []string, operands ...*Operand)
-		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand)
+		AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand)
+		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand)
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
 		AppendExistingInstruction(instruction *Instruction)
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
@@ -294,13 +294,13 @@ func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration) AssemblyCode
 }
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
-func NewInstruction(operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels}
+func NewInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction {
+	return &Instruction{Prefix: None, Operation: operation, Operands: operands, Labels: labels, TokenStreamIndex: tokenStreamIndex}
 }
 
 // Create a new assembly instruction with a prefix operation code, an operation code, some branch target labels, and operands.
-func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) *Instruction {
-	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels}
+func NewPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction {
+	return &Instruction{Prefix: prefix, Operation: operation, Operands: operands, Labels: labels, TokenStreamIndex: tokenStreamIndex}
 }
 
 // Create a new read-only data item with a kind, some literal data labels, and values with supported data types.

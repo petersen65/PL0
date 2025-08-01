@@ -75,6 +75,12 @@ var (
 		SectionNoBits:      "@nobits",
 	}
 
+	// Map file attributes to their string representation.
+	fileAttributeNames = map[FileAttribute]string{
+		FileId:   "%d",
+		FileName: " \"%s\"",
+	}
+
 	// Map type attributes to their string representation.
 	typeAttributeNames = map[TypeAttribute]string{
 		TypeFunction: "@function",
@@ -86,7 +92,7 @@ var (
 
 	// Map size attributes to their string representation templates.
 	sizeAttributeNames = map[SizeAttribute]string{
-		SizeFromLabel:  ".-%s",
+		SizeLabel:      ".-%s",
 		SizeAbsolute:   "%d",
 		SizeExpression: "%s",
 	}

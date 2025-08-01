@@ -12,6 +12,7 @@ const (
 	illegalDisplacementInMemoryOperand
 	unknownKindOfReadOnlyData
 	unknownOutputKind
+	invalidAttributeForDirective
 	unknownExportFormat
 	assemblyCodeExportFailed
 )
@@ -22,6 +23,7 @@ var failureMap = map[cor.Failure]string{
 	illegalDisplacementInMemoryOperand: "illegal displacement in memory operand: %v",
 	unknownKindOfReadOnlyData:          "unknown kind of read-only data: %v",
 	unknownOutputKind:                  "unknown output kind for assembly code: %v",
+	invalidAttributeForDirective:       "invalid attribute for directive: %v",
 	unknownExportFormat:                "unknown export format: %v",
 	assemblyCodeExportFailed:           "failed to export assembly code",
 }

@@ -83,6 +83,12 @@ const (
 	SectionNoBits                              // section does not occupy space in the file (section kind "@nobits")
 )
 
+// File attributes for the .file directive.
+const (
+	FileId   FileAttribute = iota // file identifier
+	FileName                      // source code file name
+)
+
 // Symbol type attributes for the .type directive.
 const (
 	TypeFunction TypeAttribute = iota // symbol is a function (@function)
@@ -94,7 +100,7 @@ const (
 
 // Size calculation attributes for the .size directive.
 const (
-	SizeFromLabel  SizeAttribute = iota // calculate size from current location minus label (.-label)
+	SizeLabel      SizeAttribute = iota // calculate size from current location minus label (.-label)
 	SizeAbsolute                        // use absolute size value
 	SizeExpression                      // use arbitrary expression for size calculation
 )
@@ -125,6 +131,9 @@ type (
 
 	// Represents an attribute of the .section directive.
 	SectionAttribute int
+
+	// Represents a file attribute for the .file directive.
+	FileAttribute int
 
 	// Represents a symbol type for the .type directive.
 	TypeAttribute int
@@ -193,6 +202,11 @@ func NewExtern(symbols []string) *DirectiveDetail {
 	return NewDirectiveDetail(Extern, symbols)
 }
 
+// Create a .file directive with a file identifier and name.
+func NewFile(id int, name string) *DirectiveDetail {
+	return NewDirectiveDetail(File, nil, fmt.Sprintf(FileId.String() + FileName.String(), id, name))
+}
+
 // Create a .type directive for a function symbol.
 func NewTypeFunction(symbol string) *DirectiveDetail {
 	return NewDirectiveDetail(Type, []string{symbol}, TypeFunction.String())
@@ -205,7 +219,7 @@ func NewTypeObject(symbol string) *DirectiveDetail {
 
 // Create a .size directive using the standard ".-symbol" calculation.
 func NewSizeLabel(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeFromLabel.String(), symbol))
+	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeLabel.String(), symbol))
 }
 
 // Create a .size directive with an absolute size value.
@@ -226,6 +240,11 @@ func (pa PrefixAttribute) String() string {
 // String representation of a section attribute.
 func (sa SectionAttribute) String() string {
 	return sectionAttributeNames[sa]
+}
+
+// String representation of a file attribute.
+func (fa FileAttribute) String() string {
+	return fileAttributeNames[fa]
 }
 
 // String representation of a type attribute.

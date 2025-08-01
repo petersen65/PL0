@@ -21,6 +21,7 @@ type (
 	assemblyCodeUnit struct {
 		Labels             []string                                     `json:"labels"`              // enable deterministic iteration over the symbol table in the order of past inserts
 		SymbolTable        map[string]*Symbol                           `json:"symbol_table"`        // symbol table for assembly code label names
+		FileIdentifier     map[string]int                               `json:"file_identifier"`     // file identifier for source code files
 		BuildConfiguration cor.BuildConfiguration                       `json:"build_configuration"` // build configuration of the assembly code unit
 		RoUtf32Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
 		RoInt64Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
@@ -181,6 +182,7 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration) AssemblyCode
 	unit := &assemblyCodeUnit{
 		Labels:             make([]string, 0),
 		SymbolTable:        make(map[string]*Symbol),
+		FileIdentifier:     map[string]int{buildConfiguration.SourcePath: 1},
 		BuildConfiguration: buildConfiguration,
 
 		// read-only data section for static UTF-32 strings
@@ -358,13 +360,13 @@ func (i *Instruction) String() string {
 }
 
 // Append an instruction with branch target labels to the assembly code unit.
-func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, operands ...*Operand) {
-	u.TextSection.Append(NewInstruction(operation, labels, operands...))
+func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) {
+	u.TextSection.Append(NewInstruction(operation, labels, tokenStreamIndex, operands...))
 }
 
 // Append a prefixed instruction with branch target labels to the assembly code unit.
-func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, operands ...*Operand) {
-	u.TextSection.Append(NewPrefixedInstruction(prefix, operation, labels, operands...))
+func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) {
+	u.TextSection.Append(NewPrefixedInstruction(prefix, operation, labels, tokenStreamIndex, operands...))
 }
 
 // Append a read-only data item with literal data labels to the assembly code unit.
@@ -410,6 +412,7 @@ func (u *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 func (u *assemblyCodeUnit) AppendRuntime() {
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
+	noIndex := cor.NoTokenStreamIndex
 
 	/*
 		# -------------------------------------------------------------------------------
@@ -447,13 +450,13 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 			mov         qword ptr [rbp-8], rax       # store static link (resolved frame pointer) into callee’s locals
 			ret
 	*/
-	mov := NewInstruction(Mov, []string{CreateStaticLinkLabel}, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
+	mov := NewInstruction(Mov, []string{CreateStaticLinkLabel}, noIndex, NewRegisterOperand(Edi), NewRegisterOperand(R10d))
 	mov.AppendDirective(elf.NewTypeFunction(CreateStaticLinkLabel))
 	u.AppendExistingInstruction(mov)
-	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
-	u.AppendInstruction(Call, nil, NewLabelOperand(loopCondition))
-	u.AppendInstruction(Mov, nil, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
-	ret := NewInstruction(Ret, nil)
+	u.AppendInstruction(Mov, nil, noIndex, NewRegisterOperand(Rsi), NewMemoryOperand(Rbp, Bits64, 0))
+	u.AppendInstruction(Call, nil, noIndex, NewLabelOperand(loopCondition))
+	u.AppendInstruction(Mov, nil, noIndex, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
+	ret := NewInstruction(Ret, nil, noIndex)
 	ret.AppendDirective(elf.NewSizeLabel(CreateStaticLinkLabel))
 	u.AppendExistingInstruction(ret)
 
@@ -472,7 +475,7 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 			mov         rsi, rbp                     # optional manual starting point for static link chain
 													 # used if follow_static_link is called with current rbp
 	*/
-	mov = NewInstruction(Mov, []string{FollowStaticLinkLabel}, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
+	mov = NewInstruction(Mov, []string{FollowStaticLinkLabel}, noIndex, NewRegisterOperand(Rsi), NewRegisterOperand(Rbp))
 	mov.AppendDirective(elf.NewTypeFunction(FollowStaticLinkLabel))
 	u.AppendExistingInstruction(mov)
 
@@ -507,16 +510,16 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 			mov         rax, rsi                     # return the resolved static link (frame pointer of target lexical parent)
 			ret 									 # return to caller with rax = static link result
 	*/
-	u.AppendInstruction(Cmp, []string{loopCondition}, NewRegisterOperand(Edi), NewImmediateOperand(int32(0)))
-	u.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
-	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rdx), NewMemoryOperand(Rsi, Bits64, -PointerSize))
-	u.AppendInstruction(Test, nil, NewRegisterOperand(Rdx), NewRegisterOperand(Rdx))
-	u.AppendInstruction(Je, nil, NewLabelOperand(behindLoop))
-	u.AppendInstruction(Mov, nil, NewRegisterOperand(Rsi), NewRegisterOperand(Rdx))
-	u.AppendInstruction(Sub, nil, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
-	u.AppendInstruction(Jmp, nil, NewLabelOperand(loopCondition))
-	u.AppendInstruction(Mov, []string{behindLoop}, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
-	ret = NewInstruction(Ret, nil)
+	u.AppendInstruction(Cmp, []string{loopCondition}, noIndex, NewRegisterOperand(Edi), NewImmediateOperand(int32(0)))
+	u.AppendInstruction(Je, nil, noIndex, NewLabelOperand(behindLoop))
+	u.AppendInstruction(Mov, nil, noIndex, NewRegisterOperand(Rdx), NewMemoryOperand(Rsi, Bits64, -PointerSize))
+	u.AppendInstruction(Test, nil, noIndex, NewRegisterOperand(Rdx), NewRegisterOperand(Rdx))
+	u.AppendInstruction(Je, nil, noIndex, NewLabelOperand(behindLoop))
+	u.AppendInstruction(Mov, nil, noIndex, NewRegisterOperand(Rsi), NewRegisterOperand(Rdx))
+	u.AppendInstruction(Sub, nil, noIndex, NewRegisterOperand(Edi), NewImmediateOperand(int32(1)))
+	u.AppendInstruction(Jmp, nil, noIndex, NewLabelOperand(loopCondition))
+	u.AppendInstruction(Mov, []string{behindLoop}, noIndex, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
+	ret = NewInstruction(Ret, nil, noIndex)
 	ret.AppendDirective(elf.NewSizeLabel(FollowStaticLinkLabel))
 	u.AppendExistingInstruction(ret)
 }
@@ -577,6 +580,19 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	// if there are external symbols, add them to the header as documentation and for linking purposes
 	if len(externals) > 0 {
 		header += elf.NewExtern(externals).String() + "\n"
+	}
+
+	// add the file directive with file identifier and name to the header if optimization is debug
+	if u.BuildConfiguration.Optimization == cor.Debug {
+		name := u.BuildConfiguration.SourcePath
+		id := u.FileIdentifier[name]
+
+		if name != "" && id > 0 {
+			header += elf.NewFile(id, name).String() + "\n"
+		} else {
+			inner := cor.NewGoError(failureMap, invalidAttributeForDirective, elf.NewFile(id, name).String())
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, name, inner)
+		}
 	}
 
 	// write the assembly code header to the print writer
