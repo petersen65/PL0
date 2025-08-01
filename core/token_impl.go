@@ -16,6 +16,13 @@ import (
 // The eof token is used to indicate the end of the token stream.
 const eof Token = -1
 
+// The eof token description is used to indicate a token that is out of bounds in the token stream.
+var eofTokenDescription = TokenDescription{
+	Token:       eof,
+	TokenName:   "eof",
+	CurrentLine: make([]byte, 0),
+}
+
 type (
 	// Token handler manages the current and next token in the token stream.
 	tokenHandler struct {
@@ -262,6 +269,15 @@ func (t *tokenHandler) SetFullyParsed() {
 	t.tokenStreamIndex = len(t.tokenStream) - 1
 	t.lastTokenDescription = t.tokenStream[t.tokenStreamIndex]
 	t.tokenStreamIndex++
+}
+
+// Get the token description for a specific index in the token stream.
+func (t *tokenHandler) GetTokenDescription(tokenStreamIndex int) (TokenDescription, bool) {
+	if tokenStreamIndex < 0 || tokenStreamIndex >= len(t.tokenStream) {
+		return eofTokenDescription, false
+	}
+
+	return t.tokenStream[tokenStreamIndex], true
 }
 
 // Create a new error by mapping the error code to its corresponding error message.

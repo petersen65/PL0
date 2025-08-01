@@ -77,8 +77,23 @@ var (
 
 	// Map file attributes to their string representation.
 	fileAttributeNames = map[FileAttribute]string{
-		FileId:   "%d",
-		FileName: " \"%s\"",
+		FileId:        "%d",
+		FileName:      "\"%s\"",
+		FileDelimiter: " ",
+	}
+
+	// Map location attributes to their string representation.
+	locationAttributeNames = map[LocationAttribute]string{
+		LocationFileId:                     "%d",
+		LocationLine:                       "%d",
+		LocationColumn:                     "%d",
+		LocationBasicBlock:                 "basic_block",
+		LocationPrologueEnd:                "prologue_end",
+		LocationEpilogueBegin:              "epilogue_begin",
+		LocationIsStatement:                "is_stmt %d",
+		LocationInstructionSetArchitecture: "isa %d",
+		LocationDiscriminator:              "discriminator %d",
+		LocationDelimiter:                  " ",
 	}
 
 	// Map type attributes to their string representation.

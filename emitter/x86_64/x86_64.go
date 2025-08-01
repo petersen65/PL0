@@ -276,21 +276,22 @@ type (
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		SymbolTable
-		AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand)
-		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand)
+		AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction
+		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
 		AppendExistingInstruction(instruction *Instruction)
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
 		AppendRuntime()
-		Length() int
+		Location(index int) *elf.DirectiveDetail
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
 )
 
 // Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration) AssemblyCodeUnit {
-	return newAssemblyCodeUnit(buildConfiguration)
+func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) AssemblyCodeUnit {
+	tokenHandler.ReplaceComponent(cor.Intel, failureMap)
+	return newAssemblyCodeUnit(buildConfiguration, tokenHandler)
 }
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
@@ -335,7 +336,10 @@ func NewSymbol(labels []string, kind Entry, flags EntryFlag) *Symbol {
 
 // Fluently append a new assembler directive to an instruction.
 func (i *Instruction) AppendDirective(directive *elf.DirectiveDetail) *Instruction {
-	i.Directives = append(i.Directives, directive)
+	if directive != nil {
+		i.Directives = append(i.Directives, directive)
+	}
+
 	return i
 }
 

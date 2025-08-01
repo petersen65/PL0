@@ -5,7 +5,10 @@
 // Note: ELF is part the System V ABI for x86_64 architecture and is used for linking and loading executable files.
 package elf
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Assembler directives for the ELF format supported by various assemblers on Linux.
 const (
@@ -85,8 +88,23 @@ const (
 
 // File attributes for the .file directive.
 const (
-	FileId   FileAttribute = iota // file identifier
-	FileName                      // source code file name
+	FileId        FileAttribute = iota // file identifier
+	FileName                           // source code file name
+	FileDelimiter                      // delimiter for file attributes
+)
+
+// Location attributes for the .loc directive.
+const (
+	LocationFileId                     LocationAttribute = iota // source file identifier (file index)
+	LocationLine                                                // source line number
+	LocationColumn                                              // source column number
+	LocationBasicBlock                                          // basic block identifier
+	LocationPrologueEnd                                         // end of function prologue
+	LocationEpilogueBegin                                       // beginning of function epilogue
+	LocationIsStatement                                         // indicates a statement location
+	LocationInstructionSetArchitecture                          // instruction set architecture (e.g., "x86_64")
+	LocationDiscriminator                                       // discriminator for distinguishing multiple locations
+	LocationDelimiter                                           // delimiter for location attributes
 )
 
 // Symbol type attributes for the .type directive.
@@ -134,6 +152,9 @@ type (
 
 	// Represents a file attribute for the .file directive.
 	FileAttribute int
+
+	// Represents a location attribute for the .loc directive.
+	LocationAttribute int
 
 	// Represents a symbol type for the .type directive.
 	TypeAttribute int
@@ -204,7 +225,25 @@ func NewExtern(symbols []string) *DirectiveDetail {
 
 // Create a .file directive with a file identifier and name.
 func NewFile(id int, name string) *DirectiveDetail {
-	return NewDirectiveDetail(File, nil, fmt.Sprintf(FileId.String() + FileName.String(), id, name))
+	return NewDirectiveDetail(File, nil,
+		fmt.Sprintf(strings.Join([]string{
+			FileId.String(),
+			FileName.String()},
+			FileDelimiter.String(),
+		), id, name),
+	)
+}
+
+// Create a .loc directive for source locations in debug info.
+func NewLocation(id, line, column int) *DirectiveDetail {
+	return NewDirectiveDetail(Loc, nil,
+		fmt.Sprintf(strings.Join([]string{
+			LocationFileId.String(),
+			LocationLine.String(),
+			LocationColumn.String()},
+			LocationDelimiter.String(),
+		), id, line, column),
+	)
 }
 
 // Create a .type directive for a function symbol.
@@ -245,6 +284,11 @@ func (sa SectionAttribute) String() string {
 // String representation of a file attribute.
 func (fa FileAttribute) String() string {
 	return fileAttributeNames[fa]
+}
+
+// String representation of a location attribute.
+func (la LocationAttribute) String() string {
+	return locationAttributeNames[la]
 }
 
 // String representation of a type attribute.

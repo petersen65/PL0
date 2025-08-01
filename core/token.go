@@ -43,6 +43,7 @@ type (
 		Recover(code Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
+		GetTokenDescription(tokenStreamIndex int) (TokenDescription, bool)
 		NewError(severity Severity, code Failure, value any) error
 		NewErrorOnIndex(severity Severity, code Failure, value any, index int) error
 		AppendError(err error) error

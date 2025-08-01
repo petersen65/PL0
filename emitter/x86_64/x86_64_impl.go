@@ -23,6 +23,7 @@ type (
 		SymbolTable        map[string]*Symbol                           `json:"symbol_table"`        // symbol table for assembly code label names
 		FileIdentifier     map[string]int                               `json:"file_identifier"`     // file identifier for source code files
 		BuildConfiguration cor.BuildConfiguration                       `json:"build_configuration"` // build configuration of the assembly code unit
+		tokenHandler       cor.TokenHandler                             `json:"-"`                   // token handler that manages the tokens of the token stream
 		RoUtf32Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
 		RoInt64Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
 		RoStrDescSection   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
@@ -178,12 +179,13 @@ var (
 )
 
 // Create a new assembly code unit with its sections and and set the kind of output it produces.
-func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration) AssemblyCodeUnit {
+func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) AssemblyCodeUnit {
 	unit := &assemblyCodeUnit{
 		Labels:             make([]string, 0),
 		SymbolTable:        make(map[string]*Symbol),
 		FileIdentifier:     map[string]int{buildConfiguration.SourcePath: 1},
 		BuildConfiguration: buildConfiguration,
+		tokenHandler:       tokenHandler,
 
 		// read-only data section for static UTF-32 strings
 		RoUtf32Section: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
@@ -321,7 +323,7 @@ func (i *Instruction) String() string {
 	// write specific assembler directives before the instruction, if any
 	for _, directive := range i.Directives {
 		switch directive.Directive {
-		case elf.Type:
+		case elf.Type, elf.Loc:
 			builder.WriteString(fmt.Sprintf("%v\n", directive))
 		}
 	}
@@ -360,13 +362,17 @@ func (i *Instruction) String() string {
 }
 
 // Append an instruction with branch target labels to the assembly code unit.
-func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) {
-	u.TextSection.Append(NewInstruction(operation, labels, tokenStreamIndex, operands...))
+func (u *assemblyCodeUnit) AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction {
+	instruction := NewInstruction(operation, labels, tokenStreamIndex, operands...)
+	u.TextSection.Append(instruction)
+	return instruction
 }
 
 // Append a prefixed instruction with branch target labels to the assembly code unit.
-func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) {
-	u.TextSection.Append(NewPrefixedInstruction(prefix, operation, labels, tokenStreamIndex, operands...))
+func (u *assemblyCodeUnit) AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction {
+	instruction := NewPrefixedInstruction(prefix, operation, labels, tokenStreamIndex, operands...)
+	u.TextSection.Append(instruction)
+	return instruction
 }
 
 // Append a read-only data item with literal data labels to the assembly code unit.
@@ -524,11 +530,6 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendExistingInstruction(ret)
 }
 
-// Return the number of instructions in the assembly code unit.
-func (u *assemblyCodeUnit) Length() int {
-	return len(u.TextSection.Content)
-}
-
 // Insert a symbol into the assembly code symbol table. If the symbol already exists, it will be overwritten.
 func (u *assemblyCodeUnit) Insert(symbol *Symbol) {
 	for _, label := range symbol.Labels {
@@ -544,6 +545,19 @@ func (u *assemblyCodeUnit) Insert(symbol *Symbol) {
 func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 	if symbol, ok := u.SymbolTable[label]; ok {
 		return symbol
+	}
+
+	return nil
+}
+
+// Get the location directive for a specific token stream index of the source code file. Nil is returned if no directive is available.
+func (u *assemblyCodeUnit) Location(index int) *elf.DirectiveDetail {
+	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
+	debug := u.BuildConfiguration.Optimization == cor.Debug
+	tokenDescription, ok := u.tokenHandler.GetTokenDescription(index)
+
+	if debug && ok {
+		return elf.NewLocation(id, tokenDescription.Line, tokenDescription.Column)
 	}
 
 	return nil

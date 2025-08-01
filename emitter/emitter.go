@@ -19,6 +19,7 @@ type (
 )
 
 // Return the interface of the emitter implementation.
-func NewEmitter(buildConfiguration cor.BuildConfiguration, intermediateCode ic.IntermediateCodeUnit) Emitter {
-	return newEmitter(buildConfiguration, intermediateCode)
+func NewEmitter(intermediateCode ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Emitter {
+	tokenHandler.ReplaceComponent(cor.Emitter, failureMap)
+	return newEmitter(intermediateCode, buildConfiguration, tokenHandler)
 }

@@ -82,6 +82,7 @@ type (
 	TranslationUnit struct {
 		SourceContent    []byte                  // UTF-8 source content
 		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
+		TokenHandler     cor.TokenHandler        // token handler for the source content
 		TokenStream      cor.TokenStream         // token stream of the source content
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
@@ -231,7 +232,7 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) T
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, errorHandler, tokenStream, nil, nil, nil, nil}
+		return TranslationUnit{content, errorHandler, tokenHandler, tokenStream, nil, nil, nil, nil}
 	}
 
 	// code generation based on the abstract syntax tree results in an intermediate code unit
@@ -244,12 +245,12 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) T
 	controlFlow.Build()
 
 	// emit assembly code for a target platform from the intermediate code unit
-	emitter := emi.NewEmitter(buildConfiguration, intermediateCode)
+	emitter := emi.NewEmitter(intermediateCode, buildConfiguration, tokenHandler)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
 	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, errorHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
+	return TranslationUnit{content, errorHandler, tokenHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
 }
 
 // Persist the assembly code unit of the application.
@@ -259,6 +260,7 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string) error {
+	return nil
 	// setup build configuration for the runtime
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        runtimePath,
@@ -269,7 +271,7 @@ func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimiza
 		Optimization:      optimization,
 	}
 
-	unit := x64.NewAssemblyCodeUnit(buildConfiguration)
+	unit := x64.NewAssemblyCodeUnit(buildConfiguration, nil)
 	unit.AppendRuntime()
 	return PersistAssemblyCodeUnit(unit, runtimePath)
 }
