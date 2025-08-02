@@ -5,9 +5,13 @@
 // Note: ELF is part the System V ABI for x86_64 architecture and is used for linking and loading executable files.
 package elf
 
-import (
-	"fmt"
-	"strings"
+import "fmt"
+
+// Debugger flags augment the directive generation with additional information (bit-mask).
+const (
+	DebuggerNone          Debugger = 0         // no debugger flags set
+	DebuggerPrologueEnd   Debugger = 1 << iota // last instruction of prologue was generated
+	DebuggerEpilogueBegin                      // first instruction of epilogue was generated
 )
 
 // Assembler directives for the ELF format supported by various assemblers on Linux.
@@ -141,6 +145,9 @@ const (
 )
 
 type (
+	// Represents debugger flags (bit-mask).
+	Debugger uint64
+
 	// Represents an assembler directive (pseudo-op).
 	Directive int
 
@@ -225,25 +232,12 @@ func NewExtern(symbols []string) *DirectiveDetail {
 
 // Create a .file directive with a file identifier and name.
 func NewFile(id int, name string) *DirectiveDetail {
-	return NewDirectiveDetail(File, nil,
-		fmt.Sprintf(strings.Join([]string{
-			FileId.String(),
-			FileName.String()},
-			FileDelimiter.String(),
-		), id, name),
-	)
+	return newFile(id, name)
 }
 
 // Create a .loc directive for source locations in debug info.
-func NewLocation(id, line, column int) *DirectiveDetail {
-	return NewDirectiveDetail(Loc, nil,
-		fmt.Sprintf(strings.Join([]string{
-			LocationFileId.String(),
-			LocationLine.String(),
-			LocationColumn.String()},
-			LocationDelimiter.String(),
-		), id, line, column),
-	)
+func NewLocation(id, line, column int, debugger Debugger, attributes ...string) *DirectiveDetail {
+	return newLocation(id, line, column, debugger, attributes...)
 }
 
 // Create a .type directive for a function symbol.
@@ -264,6 +258,16 @@ func NewSizeLabel(symbol string) *DirectiveDetail {
 // Create a .size directive with an absolute size value.
 func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
 	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
+}
+
+// Create a .cfi_startproc directive to begin a CFI (Call Frame Information) frame.
+func NewCfiStartProcedure() *DirectiveDetail {
+	return NewDirectiveDetail(CfiStartProc, nil)
+}
+
+// Create a .cfi_endproc directive to end a CFI (Call Frame Information) frame.
+func NewCfiEndProcedure() *DirectiveDetail {
+	return NewDirectiveDetail(CfiEndProc, nil)
 }
 
 // String representation of a directive.

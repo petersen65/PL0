@@ -320,10 +320,10 @@ func (i *Instruction) String() string {
 	const prefixOperationWidth = 12
 	var builder strings.Builder
 
-	// write specific assembler directives before the instruction, if any
+	// write specific assembler directives before instruction labels, if any
 	for _, directive := range i.Directives {
 		switch directive.Directive {
-		case elf.Type, elf.Loc:
+		case elf.Type:
 			builder.WriteString(fmt.Sprintf("%v\n", directive))
 		}
 	}
@@ -331,6 +331,14 @@ func (i *Instruction) String() string {
 	// write the branch target labels for the instruction, if any
 	for _, label := range i.Labels {
 		builder.WriteString(fmt.Sprintf("%v:\n", label))
+	}
+
+	// write specific assembler directives after instruction labels but before the instruction, if any
+	for _, directive := range i.Directives {
+		switch directive.Directive {
+		case elf.Loc, elf.CfiStartProc:
+			builder.WriteString(fmt.Sprintf("%v\n", directive))
+		}
 	}
 
 	// write the prefix and operation code
@@ -353,7 +361,7 @@ func (i *Instruction) String() string {
 	// write specific assembler directives after the instruction, if any
 	for _, directive := range i.Directives {
 		switch directive.Directive {
-		case elf.Size:
+		case elf.Size, elf.CfiEndProc:
 			builder.WriteString(fmt.Sprintf("\n%v", directive))
 		}
 	}
@@ -551,7 +559,7 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 }
 
 // Get the location directive for a specific token stream index of the source code file. Nil is returned if no directive is available.
-func (u *assemblyCodeUnit) Location(index int) *elf.DirectiveDetail {
+func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.DirectiveDetail {
 	// extract file identifier and debug flag required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
 	debug := u.BuildConfiguration.Optimization == cor.Debug
@@ -560,10 +568,10 @@ func (u *assemblyCodeUnit) Location(index int) *elf.DirectiveDetail {
 	if index == cor.NoTokenStreamIndex || u.tokenHandler == nil || !debug || id == 0 {
 		return nil
 	}
-	
+
 	// if the token handler has a token description for the given index, return the location directive for it
 	if tokenDescription, ok := u.tokenHandler.GetTokenDescription(index); ok {
-		return elf.NewLocation(id, tokenDescription.Line, tokenDescription.Column)
+		return elf.NewLocation(id, tokenDescription.Line, tokenDescription.Column, debugger, attributes...)
 	}
 
 	// if no token description is available, return nil

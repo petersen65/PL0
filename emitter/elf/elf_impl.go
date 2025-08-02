@@ -5,6 +5,7 @@ package elf
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	cor "github.com/petersen65/PL0/v2/core"
@@ -112,6 +113,38 @@ var (
 		SizeExpression: "%s",
 	}
 )
+
+// Create a .file directive with a file identifier and name.
+func newFile(id int, name string) *DirectiveDetail {
+	return NewDirectiveDetail(File, nil,
+		fmt.Sprintf(strings.Join([]string{
+			FileId.String(),
+			FileName.String()},
+			FileDelimiter.String(),
+		), id, name),
+	)
+}
+
+// Create a .loc directive for source locations in debug info.
+func newLocation(id, line, column int, debugger Debugger, attributes ...string) *DirectiveDetail {
+	if !slices.Contains(attributes, LocationPrologueEnd.String()) && debugger&DebuggerPrologueEnd != 0 {
+		attributes = append(attributes, LocationPrologueEnd.String())
+	}
+
+	if !slices.Contains(attributes, LocationEpilogueBegin.String()) && debugger&DebuggerEpilogueBegin != 0 {
+		attributes = append(attributes, LocationEpilogueBegin.String())
+	}
+
+	return NewDirectiveDetail(Loc, nil,
+		fmt.Sprintf(strings.Join([]string{
+			LocationFileId.String(),
+			LocationLine.String(),
+			LocationColumn.String(),
+			strings.Join(attributes, LocationDelimiter.String())},
+			LocationDelimiter.String(),
+		), id, line, column),
+	)
+}
 
 // String representation of an assembler section.
 func (s *AssemblerSection[T]) String() string {

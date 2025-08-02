@@ -132,6 +132,9 @@ func (e *emitter) Emit() {
 	iterator := e.intermediateCode.GetIterator()
 	comparison := x64.ComparisonNone
 
+	// debugger flags to augment the directive and assembly code generation
+	debugger := elf.DebuggerNone
+
 	// compile-time parameters list for function calls
 	parameters := list.New()
 
@@ -146,14 +149,20 @@ func (e *emitter) Emit() {
 			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to check if the top of the call stack is odd
-			e.odd(dataType, l, i.TokenStreamIndex)
+			e.odd(dataType, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Negate: // negate the top of the call stack and leave the result on the stack
 			// extract the data type of the value to negate
 			dataType := i.Quadruple.Arg1.DataType
 
 			// emit assembly code to negate the top of the call stack
-			e.negate(dataType, l, i.TokenStreamIndex)
+			e.negate(dataType, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Plus, ic.Minus, ic.Times, ic.Divide: // perform an arithmetic operation on the top two elements of the call stack and replace them with one result on the stack
 			// extract the data type of the first value to perform the arithmetic operation on
@@ -166,10 +175,13 @@ func (e *emitter) Emit() {
 
 			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
 			if i.Quadruple.Operation == ic.Divide && dataType.IsInteger() {
-				e.divideInteger(dataType, l, i.TokenStreamIndex)
+				e.divideInteger(dataType, l, debugger, i.TokenStreamIndex)
 			} else {
-				e.arithmeticOperation(dataType, i.Quadruple.Operation, l, i.TokenStreamIndex)
+				e.arithmeticOperation(dataType, i.Quadruple.Operation, l, debugger, i.TokenStreamIndex)
 			}
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Equal, ic.NotEqual, ic.Less, ic.LessEqual, ic.Greater, ic.GreaterEqual: // compare the top two elements of the call stack, remove them, and leave the result in the CPU flags register
 			// extract the data type of the first value to perform the comparison operation on
@@ -181,24 +193,33 @@ func (e *emitter) Emit() {
 			}
 
 			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
-			comparison = e.comparison(dataType, l, i.TokenStreamIndex)
+			comparison = e.comparison(dataType, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Jump: // unconditionally jump to a label resolved at link-time
 			// panic if the label name is not a string
 			name := i.Quadruple.Result.Value.(string)
 
 			// emit assembly code to perform an unconditional jump to the specified label
-			e.unconditionalJump(name, l, i.TokenStreamIndex)
+			e.unconditionalJump(name, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.JumpEqual, ic.JumpNotEqual, ic.JumpLess, ic.JumpLessEqual, ic.JumpGreater, ic.JumpGreaterEqual: // conditional jump to a label resolved at link-time based on the CPU flags set by the previous comparison
 			// panic if the label name is not a string
 			name := i.Quadruple.Result.Value.(string)
 
 			// emit assembly code to perform a conditional jump based on the CPU flags set by the previous comparison
-			e.conditionalJump(comparison, i.Quadruple.Operation, name, l, i.TokenStreamIndex)
+			e.conditionalJump(comparison, i.Quadruple.Operation, name, l, debugger, i.TokenStreamIndex)
 
 			// reset the comparison type after a conditional jump
 			comparison = x64.ComparisonNone
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.BranchTarget: // target for any branching operation
 			// append branch target labels for the directly following non 'BranchTarget' instruction
@@ -215,10 +236,13 @@ func (e *emitter) Emit() {
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
 			// emit assembly code to call the function with the given name
-			e.callFunction(name, parameters, depthDifference, l, i.TokenStreamIndex)
+			e.callFunction(name, parameters, depthDifference, l, debugger, i.TokenStreamIndex)
 
 			// reset the compile-time parameters list for the next function call
 			parameters = list.New()
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Return: // return from a function to its caller
 			// extract the branch target label for the function return
@@ -227,33 +251,48 @@ func (e *emitter) Emit() {
 			// check if the function returns a value by using the current addresses contract
 			if c.Result == ic.Temporary {
 				// emit assembly code to return from the function with a return value
-				e.returnFromFunction(i.Quadruple.Result.DataType, l, endOfFunctionLabel, i.TokenStreamIndex)
+				e.returnFromFunction(i.Quadruple.Result.DataType, l, endOfFunctionLabel, debugger, i.TokenStreamIndex)
 			} else {
 				// emit assembly code to return from the function without a return value
-				e.returnFromFunction(ic.Untyped, l, endOfFunctionLabel, i.TokenStreamIndex)
+				e.returnFromFunction(ic.Untyped, l, endOfFunctionLabel, debugger, i.TokenStreamIndex)
 			}
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Prologue: // function entry sequence
 			// extract the branch target label for the function start
 			beginOfFunctionLabel := i.Quadruple.Arg1.Value.(string)
 
 			// emit assembly code to prepare the activation record for the function call
-			e.prologue(l, beginOfFunctionLabel, i.TokenStreamIndex)
+			e.prologue(l, beginOfFunctionLabel, debugger, i.TokenStreamIndex)
 
 		case ic.Epilogue: // function exit sequence
+			// the epilogue will be emitted
+			debugger |= elf.DebuggerEpilogueBegin
+
 			// emit assembly code to restore the activation record of the caller
-			e.epilogue(l, i.TokenStreamIndex)
+			e.epilogue(l, debugger, i.TokenStreamIndex)
+
+			// the begin of the epilogue has been emitted
+			debugger &^= elf.DebuggerEpilogueBegin
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.Setup: // initialize logical memory space and internal data structures
 			// panic if the depth of the block is not a valid signed integer
 			depth := i.Quadruple.Arg1.Value.(int32)
 
 			// emit assembly code to setup a function call
-			e.setup(depth, l, i.TokenStreamIndex)
+			e.setup(depth, l, debugger, i.TokenStreamIndex)
 
 		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
 			// emit assembly code to allocate space for local variables in the activation record
-			e.allocateVariables(iterator, l, i.TokenStreamIndex)
+			e.allocateVariables(iterator, l, debugger, i.TokenStreamIndex)
+
+			// the prologue has been emitted
+			debugger |= elf.DebuggerPrologueEnd
 
 		case ic.CopyLiteral: // copy an immediate value to an address
 			// extract the literal value from the quadruple
@@ -266,7 +305,10 @@ func (e *emitter) Emit() {
 			ldLabel := i.Quadruple.Arg2.Value.(string)
 
 			// emit assembly code to copy the literal onto the top of the call stack
-			e.copyLiteral(dataType, literal, ldLabel, l, i.TokenStreamIndex)
+			e.copyLiteral(dataType, literal, ldLabel, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.LoadVariable: // load a variable from its call stack address onto the top of the stack
 			// extract the data type of the variable
@@ -279,7 +321,10 @@ func (e *emitter) Emit() {
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
 			// emit assembly code to load the variable onto the call stack
-			e.loadVariable(dataType, offset, depthDifference, l, i.TokenStreamIndex)
+			e.loadVariable(dataType, offset, depthDifference, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		case ic.StoreVariable: // store the top of the call stack into a variable's stack address
 			// extract the data type of the variable
@@ -292,7 +337,10 @@ func (e *emitter) Emit() {
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
 
 			// emit assembly code to store the top of the call stack into the variable's activation record
-			e.storeVariable(dataType, offset, depthDifference, l, i.TokenStreamIndex)
+			e.storeVariable(dataType, offset, depthDifference, l, debugger, i.TokenStreamIndex)
+
+			// business logic after the prologue has been emitted
+			debugger &^= elf.DebuggerPrologueEnd
 
 		default:
 			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unknownIntermediateCodeOperation, i.Quadruple.Operation, nil))
@@ -311,7 +359,7 @@ func (e *emitter) GetAssemblyCodeUnit() x64.AssemblyCodeUnit {
 }
 
 // Check if the top of the call stack is odd depending on the data type.
-func (e *emitter) odd(dataType ic.DataType, btLabels []string, index int) {
+func (e *emitter) odd(dataType ic.DataType, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the data type, the top of the call stack is popped into the correct register and checked for oddness
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
@@ -319,7 +367,7 @@ func (e *emitter) odd(dataType ic.DataType, btLabels []string, index int) {
 		// note: all integer values must be correctly sign-extended to 64 bits before checking if they are odd
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R10)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// test the least significant bit to determine oddness (64-bit 'Test' instruction is sufficient)
 		e.assemblyCode.AppendInstruction(x64.Test, nil, index, x64.NewRegisterOperand(x64.R10), x64.NewImmediateOperand(uint64(1)))
@@ -331,7 +379,7 @@ func (e *emitter) odd(dataType ic.DataType, btLabels []string, index int) {
 }
 
 // Negate the top of the call stack and leave the result on top of the stack.
-func (e *emitter) negate(dataType ic.DataType, btLabels []string, index int) {
+func (e *emitter) negate(dataType ic.DataType, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the data type, the top of the call stack is popped into the correct register and negated
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
@@ -339,7 +387,7 @@ func (e *emitter) negate(dataType ic.DataType, btLabels []string, index int) {
 		// note: all integer values must be correctly sign-extended to 64 bits before negation
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R10)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		e.assemblyCode.AppendInstruction(x64.Neg, nil, index, x64.NewRegisterOperand(x64.R10))
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -349,7 +397,7 @@ func (e *emitter) negate(dataType ic.DataType, btLabels []string, index int) {
 		e.assemblyCode.AppendInstruction(x64.Movsd, btLabels, index,
 			x64.NewRegisterOperand(x64.Xmm0),
 			x64.NewMemoryOperand(x64.Rsp, x64.Bits64)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// move the 64-bit floating-point sign bit mask into the R10 register
 		e.assemblyCode.AppendInstruction(x64.Mov, nil, index,
@@ -378,7 +426,7 @@ func (e *emitter) negate(dataType ic.DataType, btLabels []string, index int) {
 		e.assemblyCode.AppendInstruction(x64.Movss, btLabels, index,
 			x64.NewRegisterOperand(x64.Xmm0),
 			x64.NewMemoryOperand(x64.Rsp, x64.Bits32)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// move the 32-bit floating-point sign bit mask into the R10d register
 		e.assemblyCode.AppendInstruction(x64.Mov, nil, index,
@@ -413,7 +461,7 @@ func (e *emitter) negate(dataType ic.DataType, btLabels []string, index int) {
 }
 
 // Perform the arithmetic operations 'Plus', 'Minus', 'Times' on the top two elements of the call stack and replace them with one result on the stack.
-func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operation, btLabels []string, index int) {
+func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operation, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the data type, the top two elements of the call stack are popped into the correct registers and the arithmetic operation is performed
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8, ic.Unsigned64, ic.Unsigned32, ic.Unsigned16, ic.Unsigned8:
@@ -421,7 +469,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R11)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// pop the left-hand integer value from the call stack into the R10 register
 		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
@@ -451,7 +499,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 		e.assemblyCode.AppendInstruction(x64.Movsd, btLabels, index,
 			x64.NewRegisterOperand(x64.Xmm1),
 			x64.NewMemoryOperand(x64.Rsp, x64.Bits64)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movsd, nil, index,
@@ -500,7 +548,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 		e.assemblyCode.AppendInstruction(x64.Movss, btLabels, index,
 			x64.NewRegisterOperand(x64.Xmm1),
 			x64.NewMemoryOperand(x64.Rsp, x64.Bits32)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
 		e.assemblyCode.AppendInstruction(x64.Movss, nil, index,
@@ -556,7 +604,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 }
 
 // Perform the arithmetic operation 'Divide' on the top two elements of the call stack and replace them with one result on the stack.
-func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, index int) {
+func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the data type, the top two elements of the call stack are popped into the correct registers and the division operation is performed
 	switch dataType {
 	case ic.Integer64, ic.Integer32, ic.Integer16, ic.Integer8:
@@ -564,7 +612,7 @@ func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, index i
 		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R11)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// pop the left-hand integer value (dividend) from the call stack into the RAX register (required by IDIV)
 		// note: all integer values must be correctly sign-extended to 64 bits before arithmetic operations
@@ -586,7 +634,7 @@ func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, index i
 		// note: all unsigned integer values must be correctly zero-extended to 64 bits before arithmetic operations
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R11)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// pop the left-hand integer value (dividend) from the call stack into the RAX register (required by DIV)
 		// note: all unsigned integer values must be correctly zero-extended to 64 bits before arithmetic operations
@@ -609,7 +657,7 @@ func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, index i
 }
 
 // Compare the top two elements of the call stack and update the CPU flags.
-func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int) x64.ComparisonType {
+func (e *emitter) comparison(dataType ic.DataType, btLabels []string, debugger elf.Debugger, index int) x64.ComparisonType {
 	var comparisonType x64.ComparisonType
 
 	// depending on the data type, evaluate the comparison type for the conditional jump instructions
@@ -641,7 +689,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int)
 		// pop the right-hand pointer/reference value from the call stack into the R11 register
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(x64.R11)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// pop the left-hand pointer/reference value from the call stack into the R10 register
 		e.assemblyCode.AppendInstruction(x64.Pop, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -657,7 +705,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int)
 			//       - zero-extended for unsigned integers (includes Boolean)
 			e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 				x64.NewRegisterOperand(x64.R11)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// pop the left-hand integer value from the call stack into the R10 register
 			// note: all integer values must be extended to 64 bits before arithmetic operations
@@ -675,7 +723,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int)
 			e.assemblyCode.AppendInstruction(x64.Movsd, btLabels, index,
 				x64.NewRegisterOperand(x64.Xmm1),
 				x64.NewMemoryOperand(x64.Rsp, x64.Bits64)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// move the left-hand 64-bit floating-point value (IEEE 754 double precision) from the call stack into the XMM0 register
 			e.assemblyCode.AppendInstruction(x64.Movsd, nil, index,
@@ -698,7 +746,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int)
 			e.assemblyCode.AppendInstruction(x64.Movss, btLabels, index,
 				x64.NewRegisterOperand(x64.Xmm1),
 				x64.NewMemoryOperand(x64.Rsp, x64.Bits32)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// move the left-hand 32-bit floating-point value (IEEE 754 single precision) from the call stack into the XMM0 register
 			// note: the value is stored in a 64-bit stack slot (lower 32 bits contain the float)
@@ -727,14 +775,14 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, index int)
 }
 
 // Perform an unconditional jump to the specified label.
-func (e *emitter) unconditionalJump(name string, btLabels []string, index int) {
+func (e *emitter) unconditionalJump(name string, btLabels []string, debugger elf.Debugger, index int) {
 	e.assemblyCode.AppendInstruction(x64.Jmp, btLabels, index,
 		x64.NewLabelOperand(name)).
-		AppendDirective(e.assemblyCode.Location(index))
+		AppendDirective(e.assemblyCode.Location(index, debugger))
 }
 
 // Perform a conditional jump based on the CPU flags set by the previous comparison operation.
-func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Operation, name string, btLabels []string, index int) {
+func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Operation, name string, btLabels []string, debugger elf.Debugger, index int) {
 	// Select the correct jump instruction based on comparison type and operation
 	var opcode x64.OperationCode
 
@@ -806,11 +854,11 @@ func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Ope
 	// emit assembly code for the conditional jump instruction
 	e.assemblyCode.AppendInstruction(opcode, btLabels, index,
 		x64.NewLabelOperand(name)).
-		AppendDirective(e.assemblyCode.Location(index))
+		AppendDirective(e.assemblyCode.Location(index, debugger))
 }
 
 // Call a user-defined or standard library function by its intermediate code symbol name.
-func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthDifference int32, btLabels []string, index int) {
+func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthDifference int32, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the intermediate code symbol name, handle cases for standard library functions or user-defined functions
 	if standardLibraryName, ok := standardLibrarySymbols[intermediateCodeName]; ok {
 		// append the standard library name to the assembly code as an external symbol
@@ -821,7 +869,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 			// call read function from the standard library
 			e.assemblyCode.AppendInstruction(x64.Call, btLabels, index,
 				x64.NewLabelOperand(standardLibraryName)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the return value from the read function onto the call stack
 			// note: the read function returns the read value in the Rax register
@@ -832,7 +880,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 			// note: the Rdi register is used for the first argument in the 'write' function call
 			e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 				x64.NewRegisterOperand(x64.Rdi)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// call write function from the standard library
 			e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(standardLibraryName))
@@ -842,7 +890,7 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(depthDifference)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push return address on call stack and jump to callee
 		e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(intermediateCodeName))
@@ -850,13 +898,13 @@ func (e *emitter) callFunction(intermediateCodeName string, _ *list.List, depthD
 }
 
 // Return from a function and move the return value into the correct register(s) from top of the call stack.
-func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, endOfFunctionLabel string, index int) {
+func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, endOfFunctionLabel string, debugger elf.Debugger, index int) {
 	// check whether data type of the return value has modifiers and if so, treat the return value as a pointer or reference
 	if dataType.IsPointer() || dataType.IsReference() {
 		// pop the top of the call stack into the specified address-type return register
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(addressTypeReturn)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 	} else if dataType.IsSupported() {
 		// if the return value has a supported data type and is not a pointer or reference, it must be moved into the correct register from the call stack
 		for _, register := range dataTypeReturn[dataType] {
@@ -866,20 +914,20 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 				e.assemblyCode.AppendInstruction(x64.Movsd, btLabels, index,
 					x64.NewRegisterOperand(register),
 					x64.NewMemoryOperand(x64.Rsp, x64.Bits64)).
-					AppendDirective(e.assemblyCode.Location(index))
+					AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			case register.IsSse() && dataType == ic.Float32:
 				// move the top of the call stack into the specified floating-point return register
 				e.assemblyCode.AppendInstruction(x64.Movss, btLabels, index,
 					x64.NewRegisterOperand(register),
 					x64.NewMemoryOperand(x64.Rsp, x64.Bits32)).
-					AppendDirective(e.assemblyCode.Location(index))
+					AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			case register.IsGeneralPurpose() && (dataType.IsInteger() || dataType.IsCharacter() || dataType.IsBoolean() || dataType.IsString()):
 				// pop the top of the call stack into the specified general-purpose return register
 				e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 					x64.NewRegisterOperand(register)).
-					AppendDirective(e.assemblyCode.Location(index))
+					AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			default:
 				// panic if the data type is not supported for the intermediate code operation
@@ -904,48 +952,50 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 	// return from the function
 	// note: in the case of the untyped return type (also named void in some languages), return nothing
 	e.assemblyCode.AppendInstruction(x64.Ret, btLabels, index).
-		AppendDirective(e.assemblyCode.Location(index)).
+		AppendDirective(e.assemblyCode.Location(index, debugger)).
+		AppendDirective(elf.NewCfiEndProcedure()).
 		AppendDirective(elf.NewSizeLabel(endOfFunctionLabel))
 }
 
 // The function entry sequence is called prologue and prepares the activation record for the function call.
-func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string, index int) {
+func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string, debugger elf.Debugger, index int) {
 	// save caller's base pointer because it will be changed
 	// this creates a 'dynamic link' chain of base pointers so that each callee knows the base pointer of its caller
 	// an alternative naming from literature is 'control link' that points to the activation record of the caller
 	e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 		x64.NewRegisterOperand(x64.Rbp)).
-		AppendDirective(e.assemblyCode.Location(index)).
-		AppendDirective(elf.NewTypeFunction(beginOfFunctionLabel))
+		AppendDirective(elf.NewTypeFunction(beginOfFunctionLabel)).
+		AppendDirective(elf.NewCfiStartProcedure()).
+		AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	e.assemblyCode.AppendInstruction(x64.Mov, nil, index, x64.NewRegisterOperand(x64.Rbp), x64.NewRegisterOperand(x64.Rsp))
 }
 
 // The function exit sequence is called epilogue and restores the activation record of the caller.
-func (e *emitter) epilogue(btLabels []string, index int) {
+func (e *emitter) epilogue(btLabels []string, debugger elf.Debugger, index int) {
 	// clean allocated local variables from the activation record and restore caller's base pointer
 	e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 		x64.NewRegisterOperand(x64.Rsp),
 		x64.NewRegisterOperand(x64.Rbp)).
-		AppendDirective(e.assemblyCode.Location(index))
+		AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	e.assemblyCode.AppendInstruction(x64.Pop, nil, index, x64.NewRegisterOperand(x64.Rbp))
 }
 
 // Setup a function call by initializing the logical memory space and internal data structures.
-func (e *emitter) setup(depth int32, btLabels []string, index int) {
+func (e *emitter) setup(depth int32, btLabels []string, debugger elf.Debugger, index int) {
 	// only blocks with a depth greater than 0 have a static link
 	// the main block has depth 0, no lexical parent and therefore no static link
 	if depth > 0 {
 		// call runtime function to create static link which provides the compile-time block nesting hierarchy at runtime
 		e.assemblyCode.AppendInstruction(x64.Call, btLabels, index,
 			x64.NewLabelOperand(x64.CreateStaticLinkLabel)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 	}
 }
 
 // Allocate space for local variables in the activation record of a function and remember their offsets.
-func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string, index int) {
+func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string, debugger elf.Debugger, index int) {
 	// group consecutive intermediate code allocate operations into one space allocation instruction
 	for j, offset := 0, int32(0); iterator.Peek(j) != nil; j++ {
 		if iterator.Peek(j).Quadruple.Operation == ic.AllocateVariable {
@@ -981,7 +1031,7 @@ func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string, ind
 			e.assemblyCode.AppendInstruction(x64.Sub, btLabels, index,
 				x64.NewRegisterOperand(x64.Rsp),
 				x64.NewImmediateOperand(-offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// zero out the allocated space for local variables in the activation record
 			e.assemblyCode.AppendInstruction(x64.Cld, nil, index)
@@ -998,7 +1048,7 @@ func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string, ind
 }
 
 // Copy an immediate value onto the top of the call stack.
-func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, btLabels []string, index int) {
+func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, btLabels []string, debugger elf.Debugger, index int) {
 	// depending on the data type, the value is copied onto the call stack as an immediate value or as a 64-bit value in the R10 register
 	switch dataType {
 	case ic.Integer64:
@@ -1006,7 +1056,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels, index,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(value.(int64))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1015,26 +1065,26 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		// push the 32-bit signed integer onto the call stack and sign-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 			x64.NewImmediateOperand(value.(int32))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	case ic.Integer16:
 		// convert the 16-bit signed integer to a 32-bit signed integer before pushing it onto the call stack and sign-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 			x64.NewImmediateOperand(int32(value.(int16)))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	case ic.Integer8:
 		// push the 8-bit signed integer onto the call stack and sign-extend it to 64 bits
 		e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 			x64.NewImmediateOperand(value.(int8))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	case ic.Unsigned64:
 		// move the 64-bit unsigned integer into the R10 register without sign extension
 		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels, index,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(value.(uint64))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1044,7 +1094,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(value.(uint32))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1055,7 +1105,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(uint32(value.(uint16)))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1066,7 +1116,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(uint32(value.(uint8)))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1080,7 +1130,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.MovAbs, btLabels, index,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewImmediateOperand(binaryRepresentationIEEE754)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1093,7 +1143,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10d),
 			x64.NewImmediateOperand(binaryRepresentationIEEE754)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the 64-bit R10 register onto the call stack (32-bit float value was zero-extended to 64 bits)
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1102,7 +1152,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		// convert the Unicode code point to a 32-bit signed integer before pushing it onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 			x64.NewImmediateOperand(int32(value.(rune)))).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	case ic.Boolean:
 		// convert the boolean value to an 8-bit unsigned integer before pushing it onto the call stack
@@ -1110,11 +1160,11 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		if value.(bool) {
 			e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 				x64.NewImmediateOperand(uint8(1))).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 		} else {
 			e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 				x64.NewImmediateOperand(uint8(0))).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 		}
 
 	case ic.String:
@@ -1134,7 +1184,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 		e.assemblyCode.AppendInstruction(x64.Lea, btLabels, index,
 			x64.NewRegisterOperand(x64.Rsi),
 			x64.NewMemoryOperand(x64.Rip, x64.Bits64, ldDescriptor)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// load the address of the string into the R10 register
 		// note: the string address is stored at the first 8 bytes of the string descriptor (64-bit address)
@@ -1162,7 +1212,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 
 // Load a variable's value from its activation record onto the top of the call stack.
 // If the variable's data type has the pointer or reference modifier set, the value is loaded as 64-bit address.
-func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int32, btLabels []string, index int) {
+func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int32, btLabels []string, debugger elf.Debugger, index int) {
 	var basePointer x64.Register
 
 	// determine the correct activation record from which to load the variable
@@ -1174,7 +1224,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.Edi),
 			x64.NewImmediateOperand(depthDifference)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// follow the static link to determine the 'variables base' pointer of the correct lexical parent activation record
 		e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(x64.FollowStaticLinkLabel))
@@ -1190,7 +1240,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.R10),
 			x64.NewMemoryOperand(basePointer, x64.Bits64, offset)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// push the R10 register onto the call stack
 		e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1202,7 +1252,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 				x64.NewRegisterOperand(x64.R10),
 				x64.NewMemoryOperand(basePointer, x64.Bits64, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1212,7 +1262,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Movsxd, btLabels, index,
 				x64.NewRegisterOperand(x64.R10),
 				x64.NewMemoryOperand(basePointer, x64.Bits32, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1222,7 +1272,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 				x64.NewRegisterOperand(x64.R10d),
 				x64.NewMemoryOperand(basePointer, x64.Bits32, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1233,7 +1283,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Movsx, btLabels, index,
 				x64.NewRegisterOperand(x64.R10),
 				x64.NewMemoryOperand(basePointer, x64.Bits16, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1243,7 +1293,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Movzx, btLabels, index,
 				x64.NewRegisterOperand(x64.R10d),
 				x64.NewMemoryOperand(basePointer, x64.Bits16, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1254,7 +1304,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Movsx, btLabels, index,
 				x64.NewRegisterOperand(x64.R10),
 				x64.NewMemoryOperand(basePointer, x64.Bits8, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			e.assemblyCode.AppendInstruction(x64.Push, nil, index, x64.NewRegisterOperand(x64.R10))
@@ -1264,7 +1314,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 			e.assemblyCode.AppendInstruction(x64.Movzx, btLabels, index,
 				x64.NewRegisterOperand(x64.R10d),
 				x64.NewMemoryOperand(basePointer, x64.Bits8, offset)).
-				AppendDirective(e.assemblyCode.Location(index))
+				AppendDirective(e.assemblyCode.Location(index, debugger))
 
 			// push the R10 register onto the call stack
 			// note: writing to R10d has already zeroed the upper 32 bits of R10, so pushing R10 pushes the correct zero-extended 64-bit value
@@ -1279,7 +1329,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 
 // Store the top of the call stack as value into a variable's activation record.
 // If the variable's data type has the pointer or reference modifier set, the value is assumed to be a 64-bit address and is stored as-is.
-func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference int32, btLabels []string, index int) {
+func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference int32, btLabels []string, debugger elf.Debugger, index int) {
 	var basePointer x64.Register
 
 	// determine the correct activation record to which to store the variable
@@ -1291,7 +1341,7 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 		e.assemblyCode.AppendInstruction(x64.Mov, btLabels, index,
 			x64.NewRegisterOperand(x64.Edi),
 			x64.NewImmediateOperand(depthDifference)).
-			AppendDirective(e.assemblyCode.Location(index))
+			AppendDirective(e.assemblyCode.Location(index, debugger))
 
 		// follow the static link to determine the 'variables base' pointer of the correct lexical parent activation record
 		e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(x64.FollowStaticLinkLabel))
@@ -1304,7 +1354,7 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 	// pop the top of the call stack into the R10 register
 	e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 		x64.NewRegisterOperand(x64.R10)).
-		AppendDirective(e.assemblyCode.Location(index))
+		AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	// check whether the data type of the variable has modifiers and if so, treat the variable's value as a pointer or reference
 	if dataType.IsPointer() || dataType.IsReference() {
