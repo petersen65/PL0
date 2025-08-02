@@ -260,7 +260,6 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string) error {
-	return nil
 	// setup build configuration for the runtime
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        runtimePath,
@@ -271,7 +270,8 @@ func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimiza
 		Optimization:      optimization,
 	}
 
-	unit := x64.NewAssemblyCodeUnit(buildConfiguration, nil)
+	// create a new assembly code unit for the runtime without support for source code file to assembly code mapping
+	unit := x64.NewAssemblyCodeUnit(buildConfiguration)
 	unit.AppendRuntime()
 	return PersistAssemblyCodeUnit(unit, runtimePath)
 }

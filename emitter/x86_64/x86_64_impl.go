@@ -552,14 +552,21 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 
 // Get the location directive for a specific token stream index of the source code file. Nil is returned if no directive is available.
 func (u *assemblyCodeUnit) Location(index int) *elf.DirectiveDetail {
+	// extract file identifier and debug flag required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
 	debug := u.BuildConfiguration.Optimization == cor.Debug
-	tokenDescription, ok := u.tokenHandler.GetTokenDescription(index)
 
-	if debug && ok {
+	// if source code files cannot be supported by the assembly code unit return nil
+	if index == cor.NoTokenStreamIndex || u.tokenHandler == nil || !debug || id == 0 {
+		return nil
+	}
+	
+	// if the token handler has a token description for the given index, return the location directive for it
+	if tokenDescription, ok := u.tokenHandler.GetTokenDescription(index); ok {
 		return elf.NewLocation(id, tokenDescription.Line, tokenDescription.Column)
 	}
 
+	// if no token description is available, return nil
 	return nil
 }
 

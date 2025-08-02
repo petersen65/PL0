@@ -288,10 +288,16 @@ type (
 	}
 )
 
-// Return the interface of the assembly code unit implementation.
-func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) AssemblyCodeUnit {
-	tokenHandler.ReplaceComponent(cor.Intel, failureMap)
-	return newAssemblyCodeUnit(buildConfiguration, tokenHandler)
+// Return the interface of the assembly code unit implementation (with or without source code support).
+func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler ...cor.TokenHandler) AssemblyCodeUnit {
+	// check if support for source code file to assembly code mapping shall be provided
+	if len(tokenHandler) == 1 && tokenHandler[0] != nil  {
+		tokenHandler[0].ReplaceComponent(cor.Intel, failureMap)
+		return newAssemblyCodeUnit(buildConfiguration, tokenHandler[0])
+	}
+
+	// create a new assembly code unit without source code support
+	return newAssemblyCodeUnit(buildConfiguration, nil)
 }
 
 // Create a new assembly instruction with an operation code, some branch target labels, and operands.
