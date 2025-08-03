@@ -341,15 +341,6 @@ func NewSymbol(labels []string, kind Entry, flags EntryFlag) *Symbol {
 	return &Symbol{Labels: labels, Kind: kind, Flags: flags}
 }
 
-// Fluently append a new assembler directive to an instruction.
-func (i *Instruction) AppendDirective(directive *elf.DirectiveDetail) *Instruction {
-	if directive != nil {
-		i.Directives = append(i.Directives, directive)
-	}
-
-	return i
-}
-
 // String representation of a CPU operation code.
 func (oc OperationCode) String() string {
 	return operationNames[oc]
