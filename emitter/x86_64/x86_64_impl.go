@@ -28,6 +28,10 @@ type (
 		RoInt64Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
 		RoStrDescSection   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
 		TextSection        *elf.AssemblerSection[*Instruction]          `json:"text_section"`        // text section with assembly instructions
+		DebugAbbrevSection *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"debug_abbrev_section"`
+		DebugInfoSection   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"debug_info_section"`
+		DebugStrSection    *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"debug_str_section"`
+		DebugLineSection   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"debug_line_section"`
 	}
 )
 
@@ -210,6 +214,31 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler
 			[]elf.Directive{elf.Section, elf.Text},
 			[]elf.SectionAttribute{},
 			elf.P2align16),
+
+		// defines a compact schema for debugging information entries (DIEs) in .debug_info
+		DebugAbbrevSection: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.DwarfAbbreviation},
+			[]elf.SectionAttribute{elf.SectionNone, elf.SectionProgramBits},
+			elf.P2align1),
+
+		// holds the main debug structure: compilation units, functions, variables, and types
+		// note: all as nested entries called DIEs (debugging information entries)
+		DebugInfoSection: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.DwarfInformation},
+			[]elf.SectionAttribute{elf.SectionNone, elf.SectionProgramBits},
+			elf.P2align1),
+
+		// maps machine instruction addresses to source code lines and files
+		DebugLineSection: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.DwarfLine},
+			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
+			elf.P2align1),
+
+		// holds null-terminated strings used in .debug_info (and possibly .debug_line) via offsets and reduces duplication
+		DebugStrSection: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
+			[]elf.Directive{elf.Section, elf.DwarfString},
+			[]elf.SectionAttribute{elf.SectionMergeable, elf.SectionStringTable, elf.SectionProgramBits},
+			elf.P2align1),
 	}
 
 	// define default global and external symbols based on the output kind
@@ -667,6 +696,34 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	// write the text section to the print writer
 	if len(u.TextSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.TextSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the debug abbreviation section to the print writer
+	if len(u.DebugAbbrevSection.Content) >= 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugAbbrevSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the debug information section to the print writer
+	if len(u.DebugInfoSection.Content) >= 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugInfoSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the debug line section to the print writer
+	if len(u.DebugLineSection.Content) >= 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugLineSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the debug string section to the print writer
+	if len(u.DebugStrSection.Content) >= 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}

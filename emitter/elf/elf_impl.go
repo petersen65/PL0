@@ -59,6 +59,10 @@ var (
 		CfiRestore:        ".cfi_restore",
 		CfiUndefined:      ".cfi_undefined",
 		CfiEscape:         ".cfi_escape",
+		DwarfAbbreviation: ".debug_abbrev",
+		DwarfInformation:  ".debug_info",
+		DwarfLine:         ".debug_line",
+		DwarfString:       ".debug_str",
 	}
 
 	// Map prefix attributes to their string representation.
@@ -69,9 +73,12 @@ var (
 
 	// Map section attributes to their string representation.
 	sectionAttributeNames = map[SectionAttribute]string{
+		SectionNone:        "\"\"",
 		SectionAllocatable: "\"a\"",
 		SectionWritable:    "\"w\"",
 		SectionExecutable:  "\"x\"",
+		SectionMergeable:   "\"M\"",
+		SectionStringTable: "\"S\"",
 		SectionProgramBits: "@progbits",
 		SectionNoBits:      "@nobits",
 	}

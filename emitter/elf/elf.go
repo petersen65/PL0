@@ -73,6 +73,12 @@ const (
 	CfiRestore        // restores a register from saved state (.cfi_restore)
 	CfiUndefined      // marks a register as undefined (.cfi_undefined)
 	CfiEscape         // emits raw bytes into the CFI stream (.cfi_escape)
+
+	// DWARF sections for debugging information (debugging with attributed record formats)
+	DwarfAbbreviation // specifies the .debug_abbrev section (.section .debug_abbrev,"",@progbits)
+	DwarfInformation  // specifies the .debug_info section (.section .debug_info,"a",@progbits)
+	DwarfLine         // specifies the .debug_line section (.section .debug_line,"a",@progbits)
+	DwarfString       // specifies the .debug_str section (.section .debug_str,"a",@progbits)
 )
 
 // Prefix attributes for the .intel_syntax directive.
@@ -83,9 +89,12 @@ const (
 
 // Section attributes for the .section directive.
 const (
-	SectionAllocatable SectionAttribute = iota // section is allocated in memory (flag "a")
+	SectionNone        SectionAttribute = iota // no special attributes for the section
+	SectionAllocatable                         // section is allocatable in memory (flag "a")
 	SectionWritable                            // section is writable at runtime (flag "w")
 	SectionExecutable                          // section contains executable code (flag "x")
+	SectionMergeable                           // section can be merged with other sections (flag "M")
+	SectionStringTable                         // section is a string table (flag "S")
 	SectionProgramBits                         // section contains data or instruction program bits (section kind "@progbits")
 	SectionNoBits                              // section does not occupy space in the file (section kind "@nobits")
 )
@@ -148,6 +157,101 @@ const (
 	ReadOnlyUtf32   ReadOnlyDataKind = iota // UTF-32 encoded strings
 	ReadOnlyInt64                           // 64-bit integer literals (signed and unsigned)
 	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
+)
+
+// DWARF tags used in the .debug_abbrev and .debug_info sections. These tags are used to identify the type of debugging information entry (DIE).
+const (
+	DW_TAG_compile_unit     DwarfTag = 0x11
+	DW_TAG_subprogram       DwarfTag = 0x2e
+	DW_TAG_variable         DwarfTag = 0x34
+	DW_TAG_base_type        DwarfTag = 0x24
+	DW_TAG_formal_parameter DwarfTag = 0x05
+)
+
+// DWARF attributes used in the .debug_abbrev and .debug_info sections. These attributes provide metadata about the debugging information entries (DIEs).
+const (
+	DW_AT_name       DwarfAttribute = 0x03
+	DW_AT_low_pc     DwarfAttribute = 0x11
+	DW_AT_high_pc    DwarfAttribute = 0x12
+	DW_AT_stmt_list  DwarfAttribute = 0x10
+	DW_AT_language   DwarfAttribute = 0x13
+	DW_AT_location   DwarfAttribute = 0x49
+	DW_AT_frame_base DwarfAttribute = 0x40
+	DW_AT_decl_file  DwarfAttribute = 0x3a
+	DW_AT_decl_line  DwarfAttribute = 0x3b
+	DW_AT_type       DwarfAttribute = 0x49
+	DW_AT_comp_dir   DwarfAttribute = 0x1b
+)
+
+// DWARF forms used in the .debug_abbrev section. These forms specify how the attribute values are encoded in the DWARF format.
+const (
+	DW_FORM_addr       DwarfForm = 0x01
+	DW_FORM_strp       DwarfForm = 0x1e
+	DW_FORM_data1      DwarfForm = 0x0b
+	DW_FORM_data4      DwarfForm = 0x06
+	DW_FORM_sec_offset DwarfForm = 0x17
+	DW_FORM_exprloc    DwarfForm = 0x18
+)
+
+// DWARF value kinds used in the .debug_info section. These kinds specify the type of value stored in a DWARF value.
+const (
+	DWValue_Addr DwarfValueKind = iota
+	DWValue_Strp
+	DWValue_SectionOffset
+	DWValue_Exprloc
+	DWValue_Data1
+)
+
+// Abbreviation table entries used in the .debug_abbrev section.
+type (
+	DwarfTag       uint16
+	DwarfAttribute uint16
+	DwarfForm      uint16
+
+	Abbreviation struct {
+		Code        uint32   // abbreviation code (uleb128)
+		Tag         DwarfTag // e.g. DW_TAG_subprogram
+		HasChildren bool     // true = DW_CHILDREN_yes
+		Attributes  []AttributeSpec
+	}
+
+	AttributeSpec struct {
+		Attribute DwarfAttribute
+		Form      DwarfForm
+	}
+)
+
+// Debug Information Entries (DIEs) used in the .debug_info section.
+type (
+	DwarfValueKind uint8
+
+	Die struct {
+		AbbrevCode uint32
+		Attributes []AttributeValue
+		Children   []Die
+	}
+
+	AttributeValue struct {
+		Attr  DwarfAttribute
+		Value DwarfValue
+	}
+
+	DwarfValue struct {
+		Kind  DwarfValueKind
+		Int   int64
+		Ref   uint64 // offset to .debug_* section
+		Bytes []byte // for exprloc
+	}
+)
+
+// String Table Entries used in the .debug_str section.
+type (
+	StringTable struct {
+		Strings map[string]StringId
+		Data    []byte
+	}
+
+	StringId uint32
 )
 
 type (
