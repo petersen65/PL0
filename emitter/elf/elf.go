@@ -66,7 +66,7 @@ const (
 	Line              // specifies source line number (legacy) (.line <n>)
 	CfiStartProc      // begins a CFI frame for a function (.cfi_startproc)
 	CfiEndProc        // ends a CFI frame for a function (.cfi_endproc)
-	CfiDefCfa         // defines call frame address rule (.cfi_def_cfa reg offset)
+	CfiDefCfa         // defines CFA canonical frame address rule (.cfi_def_cfa reg offset)
 	CfiOffset         // defines register offset in CFI (.cfi_offset reg offset)
 	CfiDefCfaOffset   // adjusts CFA offset (.cfi_def_cfa_offset)
 	CfiDefCfaRegister // changes the CFA register (.cfi_def_cfa_register)
@@ -127,6 +127,12 @@ const (
 	SizeExpression                      // use arbitrary expression for size calculation
 )
 
+// Call frame information attributes for the .cfi directives.
+const (
+	CallFrameInformationOffset   CallFrameInformationAttribute = iota // sets the CFA to be at RSP + offset after a "push rbp" instruction
+	CallFrameInformationRegister                                      // canonical frame address is now based on register (e.g., RSP or RBP)
+)
+
 // Power-of-2 alignment values for the .p2align directive.
 const (
 	P2align1  = 0 // 1-byte alignment (no alignment)
@@ -168,6 +174,9 @@ type (
 
 	// Represents a size calculation method for the .size directive.
 	SizeAttribute int
+
+	// Represents a call frame information (CFI) attribute for the .cfi directives.
+	CallFrameInformationAttribute int
 
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
@@ -260,14 +269,29 @@ func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
 	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
 }
 
-// Create a .cfi_startproc directive to begin a CFI (Call Frame Information) frame.
+// Create a .cfi_startproc directive to begin a CFI (call frame information).
 func NewCfiStartProcedure() *DirectiveDetail {
 	return NewDirectiveDetail(CfiStartProc, nil)
 }
 
-// Create a .cfi_endproc directive to end a CFI (Call Frame Information) frame.
+// Create a .cfi_endproc directive to end a CFI (call frame information).
 func NewCfiEndProcedure() *DirectiveDetail {
 	return NewDirectiveDetail(CfiEndProc, nil)
+}
+
+// Create a .cfi_def_cfa_offset directive to define the CFA offset (canonical frame address offset).
+func NewCfiDefCfaOffset(offset int) *DirectiveDetail {
+	return NewDirectiveDetail(CfiDefCfaOffset, nil, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
+}
+
+// Create a .cfi_offset directive to define a register offset in CFI (call frame information).
+func NewCfiOffset(register string, offset int) *DirectiveDetail {
+	return NewDirectiveDetail(CfiOffset, nil, register, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
+}
+
+// Create a .cfi_def_cfa_register directive to change the CFA register (canonical frame address register).
+func NewCfiDefCfaRegister(register string) *DirectiveDetail {
+	return NewDirectiveDetail(CfiDefCfaRegister, nil, register)
 }
 
 // String representation of a directive.
@@ -303,6 +327,11 @@ func (ta TypeAttribute) String() string {
 // String representation of a size attribute.
 func (sa SizeAttribute) String() string {
 	return sizeAttributeNames[sa]
+}
+
+// String representation of a call frame information attribute.
+func (cfi CallFrameInformationAttribute) String() string {
+	return callFrameInformationAttributeNames[cfi]
 }
 
 // String representation of a descriptor label.

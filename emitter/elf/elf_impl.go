@@ -112,6 +112,11 @@ var (
 		SizeAbsolute:   "%d",
 		SizeExpression: "%s",
 	}
+
+	// Map call frame information attributes to their string representation.
+	callFrameInformationAttributeNames = map[CallFrameInformationAttribute]string{
+		CallFrameInformationOffset: "%d",
+	}
 )
 
 // Create a .file directive with a file identifier and name.

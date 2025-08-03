@@ -336,7 +336,7 @@ func (i *Instruction) String() string {
 	// write specific assembler directives after instruction labels but before the instruction, if any
 	for _, directive := range i.Directives {
 		switch directive.Directive {
-		case elf.Loc, elf.CfiStartProc:
+		case elf.Loc, elf.CfiStartProc, elf.CfiDefCfaOffset, elf.CfiOffset:
 			builder.WriteString(fmt.Sprintf("%v\n", directive))
 		}
 	}
@@ -361,7 +361,7 @@ func (i *Instruction) String() string {
 	// write specific assembler directives after the instruction, if any
 	for _, directive := range i.Directives {
 		switch directive.Directive {
-		case elf.Size, elf.CfiEndProc:
+		case elf.Size, elf.CfiEndProc, elf.CfiDefCfaRegister:
 			builder.WriteString(fmt.Sprintf("\n%v", directive))
 		}
 	}

@@ -977,7 +977,12 @@ func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string, debug
 		AppendDirective(elf.NewCfiStartProcedure()).
 		AppendDirective(e.assemblyCode.Location(index, debugger))
 
-	e.assemblyCode.AppendInstruction(x64.Mov, nil, index, x64.NewRegisterOperand(x64.Rbp), x64.NewRegisterOperand(x64.Rsp))
+	e.assemblyCode.AppendInstruction(x64.Mov, nil, index,
+		x64.NewRegisterOperand(x64.Rbp),
+		x64.NewRegisterOperand(x64.Rsp)).
+		AppendDirective(elf.NewCfiDefCfaOffset(2 * x64.PointerSize)).
+		AppendDirective(elf.NewCfiOffset(x64.Rbp.String(), -2*x64.PointerSize)).
+		AppendDirective(elf.NewCfiDefCfaRegister(x64.Rbp.String()))
 }
 
 // The function exit sequence is called epilogue and restores the activation record of the caller.
@@ -1362,7 +1367,7 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 
 		// take the variables base pointer from the Rax register that is returned from the runtime function call
 		basePointer = x64.Rax
-		
+
 		// only use labels for the first instruction
 		btLabels = nil
 
