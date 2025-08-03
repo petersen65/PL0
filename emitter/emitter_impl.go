@@ -284,8 +284,8 @@ func (e *emitter) Emit() {
 			// panic if the depth of the block is not a valid signed integer
 			depth := i.Quadruple.Arg1.Value.(int32)
 
-			// emit assembly code to setup a function call
-			e.setup(depth, l, debugger, i.TokenStreamIndex)
+			// emit assembly code to setup a function call and do not end the prologue
+			e.setup(depth, l, debugger&^elf.DebuggerPrologueEnd, i.TokenStreamIndex)
 
 		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
 			// emit assembly code to allocate space for local variables in the activation record
@@ -905,6 +905,12 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 		e.assemblyCode.AppendInstruction(x64.Pop, btLabels, index,
 			x64.NewRegisterOperand(addressTypeReturn)).
 			AppendDirective(e.assemblyCode.Location(index, debugger))
+
+		// only use labels for the first instruction
+		btLabels = nil
+
+		// only emit the debugger prologue end directive for the first instruction
+		debugger &^= elf.DebuggerPrologueEnd
 	} else if dataType.IsSupported() {
 		// if the return value has a supported data type and is not a pointer or reference, it must be moved into the correct register from the call stack
 		for _, register := range dataTypeReturn[dataType] {
@@ -936,6 +942,9 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 
 			// only use labels for the first instruction
 			btLabels = nil
+
+			// only emit the debugger prologue end directive for the first instruction
+			debugger &^= elf.DebuggerPrologueEnd
 
 			// zero out return register, if necessary (typically only for 8-bit and 16-bit integers)
 			if zeroMaskReturn[register] != 0 {
@@ -1230,8 +1239,13 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 		e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(x64.FollowStaticLinkLabel))
 
 		// take the variables base pointer from the Rax register that is returned from the runtime function call
-		btLabels = nil
 		basePointer = x64.Rax
+
+		// only use labels for the first instruction
+		btLabels = nil
+
+		// only emit the debugger prologue end directive for the first instruction
+		debugger &^= elf.DebuggerPrologueEnd
 	}
 
 	// check whether the data type of the variable has modifiers and if so, treat the variable's value as a pointer or reference
@@ -1347,8 +1361,13 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 		e.assemblyCode.AppendInstruction(x64.Call, nil, index, x64.NewLabelOperand(x64.FollowStaticLinkLabel))
 
 		// take the variables base pointer from the Rax register that is returned from the runtime function call
-		btLabels = nil
 		basePointer = x64.Rax
+		
+		// only use labels for the first instruction
+		btLabels = nil
+
+		// only emit the debugger prologue end directive for the first instruction
+		debugger &^= elf.DebuggerPrologueEnd
 	}
 
 	// pop the top of the call stack into the R10 register
