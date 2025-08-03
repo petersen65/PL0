@@ -14,6 +14,9 @@ import (
 // Label for the entry point of an application.
 const EntryPointLabel = "main"
 
+// Separator for optimization algorithm names.
+const OptimizationSeparator = "|"
+
 // Operating systems for which the assembly code is generated.
 const (
 	MacOS   OperatingSystem = iota // macOS 2026 or later, supported on AArch64 (Apple Silicon)
@@ -75,8 +78,8 @@ const (
 
 // Optimization algorithms as bit-mask.
 const (
-	Debug   = Optimization(0)          // all algorithms turned off, suitable for development and debugging
-	Release = Optimization(^uint64(0)) // all algorithms turned on, suitable for production builds
+	Debug   Optimization = 1 << iota // all algorithms turned off, suitable for development and debugging
+	Release                          // selected algorithms are turned on, suitable for production builds
 )
 
 type (
@@ -153,9 +156,4 @@ func (t TargetPlatform) String() string {
 // String representation of the output kind.
 func (ok OutputKind) String() string {
 	return outputKindNames[ok]
-}
-
-// String representation of the optimization algorithm.
-func (o Optimization) String() string {
-	return optimizationNames[o]
 }

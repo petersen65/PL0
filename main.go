@@ -8,8 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	com "github.com/petersen65/PL0/v2/compiler"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Text messages for the compiler command line interface.
@@ -20,6 +22,7 @@ const (
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge target directory before compiling"
 	textCompileUsage  = "compile source code file to target assembly file"
+	textOptimizeUsage = "apply optimization algorithms during compilation"
 	textExportUsage   = "export intermediate representations to target files"
 	textSourceUsage   = "source code file"
 	textTargetUsage   = "target assembly file"
@@ -31,15 +34,19 @@ var CommitHash string
 
 // Function main is the entry point for the compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
+	const separator = ","
 	var options com.DriverOption
 	var help, compile, export, purge bool
-	var source, target string
+	var source, target, optimize string
+	var optimization cor.Optimization
 
 	// define valid command line flags
 	flag.BoolVar(&purge, "p", false, textPurgeUsage)
 	flag.BoolVar(&purge, "purge", false, textPurgeUsage)
 	flag.BoolVar(&compile, "c", false, textCompileUsage)
 	flag.BoolVar(&compile, "compile", false, textCompileUsage)
+	flag.StringVar(&optimize, "o", "", textOptimizeUsage)
+	flag.StringVar(&optimize, "optimize", "", textOptimizeUsage)
 	flag.BoolVar(&export, "e", false, textExportUsage)
 	flag.BoolVar(&export, "export", false, textExportUsage)
 	flag.StringVar(&source, "s", "", textSourceUsage)
@@ -54,6 +61,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
 		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
 		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -o | --optimize:%v\n", textOptimizeUsage)
 		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
 		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
 		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
@@ -84,12 +92,46 @@ func main() {
 		}
 	}
 
+	// apply optimizations during compilation
+	if optimize != "" {
+		options |= com.Optimize
+
+		// validate optimization flag values
+		for value := range strings.SplitSeq(optimize, separator) {
+			switch value {
+			case cor.Debug.String():
+				optimization |= cor.Debug
+
+			case cor.Release.String():
+				optimization |= cor.Release
+
+			default:
+				flag.Usage()
+				os.Exit(1)
+			}
+		}
+
+		// the debug optimization turns off all optimization algorithms and always overrides any release optimizations
+		if optimization&cor.Debug != 0 {
+			optimization = cor.Debug
+		}
+
+		// optimize requires compile option
+		if options&com.Compile == 0 {
+			flag.Usage()
+			os.Exit(1)
+		}
+	} else {
+		// default optimization is debug
+		optimization = cor.Debug
+	}
+
 	// export intermediate representations as target files
 	if export {
 		options |= com.Export
 
-		// export requires compile option and source and target files
-		if options&com.Compile == 0 || source == "" || target == "" {
+		// export requires compile option
+		if options&com.Compile == 0 {
 			flag.Usage()
 			os.Exit(1)
 		}
@@ -113,5 +155,5 @@ func main() {
 	}
 
 	// call the compiler driver with the options and source and target files
-	com.Driver(options, source, target, os.Stdout)
+	com.Driver(options, source, target, optimization, os.Stdout)
 }

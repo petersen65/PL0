@@ -40,6 +40,7 @@ const intermediateDirectory = "obj"
 const (
 	textCleaning           = "Cleaning target directory '%v'\n"
 	textCompiling          = "Compiling source '%v' to target '%v' for platform '%v'\n"
+	textOptimizing         = "Applying optimization algorithms '%v'\n"
 	textErrorCompiling     = "Error compiling source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
 	textErrorPersisting    = "Error persisting target file '%v': %v"
@@ -52,6 +53,7 @@ const (
 const (
 	Clean DriverOption = 1 << iota
 	Compile
+	Optimize
 	Export
 )
 
@@ -106,8 +108,8 @@ var ExtensionMap = map[Extension]string{
 	Ensure:    ".ensure",
 }
 
-// Driver for the compilation process with the given options, source path, target path, and print writer.
-func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer) {
+// Driver for the compilation process with the given options source path, target path, optimization algorithms, and print writer.
+func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, print io.Writer) {
 	var targetDirectory, baseFileName, runtimePath string
 	var translationUnit TranslationUnit
 	var err error
@@ -149,9 +151,6 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 		InstructionSet:             cor.ISA_SSE2,
 	}
 
-	// optimization algorithms for the application
-	optimization := cor.Debug
-
 	// setup build configuration for the application
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        sourcePath,
@@ -165,6 +164,13 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 	// compile source code to translation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
+		
+		// print optimization message if optimization algorithms are applied
+		if options&Optimize != 0 {
+			fmt.Fprintf(print, textOptimizing, optimization)
+		}
+		
+		// compile source code to translation unit and return I/O errors
 		translationUnit, err = CompileSourceToTranslationUnit(buildConfiguration)
 
 		// print error message if an I/O error occurred during compilation
@@ -173,10 +179,10 @@ func Driver(options DriverOption, sourcePath, targetPath string, print io.Writer
 			return
 		}
 
-		// print error report if errors with any severity occurred during compilation
+		// print error report if errors with any severity occurred
 		translationUnit.ErrorHandler.Print(print)
 
-		// print abandon compilation message if any error occurred during compilation
+		// print abandon compilation message if any error occurred
 		if translationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, sourcePath, textAbortCompilation)
 		}

@@ -3,6 +3,8 @@
 
 package core
 
+import "strings"
+
 var (
 	// Map target operating systems to their names.
 	operatingSystemNames = map[OperatingSystem]string{
@@ -58,3 +60,17 @@ var (
 		Release: "release",
 	}
 )
+
+// String representation of optimization algorithms.
+func (o Optimization) String() string {
+	representation := make([]string, 0)
+
+	// the debug optimization turns off all optimization algorithms and always overrides any release optimizations
+	if o&Debug != 0 {
+		representation = append(representation, optimizationNames[Debug])
+	} else {
+		representation = append(representation, optimizationNames[Release])
+	}
+
+	return strings.Join(representation, OptimizationSeparator)
+}
