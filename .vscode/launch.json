@@ -13,6 +13,8 @@
             "args": [
                 "--purge",
                 "--compile",
+                "--optimize",
+                "debug",
                 "--export",
                 "--source",
                 "examples/playground.pl0",
@@ -32,6 +34,8 @@
             "args": [
                 "--purge",
                 "--compile",
+                "--optimize",
+                "debug",
                 "--export",
                 "--source",
                 "examples/nesting.pl0",
@@ -51,6 +55,8 @@
             "args": [
                 "--purge",
                 "--compile",
+                "--optimize",
+                "debug",
                 "--export",
                 "--source",
                 "examples/procedures.pl0",

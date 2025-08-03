@@ -283,6 +283,7 @@ type (
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
 		AppendRuntime()
 		Location(index int, debugger elf.Debugger, attributes ...string) *elf.DirectiveDetail
+		Filter(directive *elf.DirectiveDetail) *elf.DirectiveDetail
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}

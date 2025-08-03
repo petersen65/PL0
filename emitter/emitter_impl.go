@@ -962,7 +962,7 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 	// note: in the case of the untyped return type (also named void in some languages), return nothing
 	e.assemblyCode.AppendInstruction(x64.Ret, btLabels, index).
 		AppendDirective(e.assemblyCode.Location(index, debugger)).
-		AppendDirective(elf.NewCfiEndProcedure()).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiEndProcedure())).
 		AppendDirective(elf.NewSizeLabel(endOfFunctionLabel))
 }
 
@@ -974,15 +974,15 @@ func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string, debug
 	e.assemblyCode.AppendInstruction(x64.Push, btLabels, index,
 		x64.NewRegisterOperand(x64.Rbp)).
 		AppendDirective(elf.NewTypeFunction(beginOfFunctionLabel)).
-		AppendDirective(elf.NewCfiStartProcedure()).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiStartProcedure())).
 		AppendDirective(e.assemblyCode.Location(index, debugger))
 
 	e.assemblyCode.AppendInstruction(x64.Mov, nil, index,
 		x64.NewRegisterOperand(x64.Rbp),
 		x64.NewRegisterOperand(x64.Rsp)).
-		AppendDirective(elf.NewCfiDefCfaOffset(2 * x64.PointerSize)).
-		AppendDirective(elf.NewCfiOffset(x64.Rbp.String(), -2*x64.PointerSize)).
-		AppendDirective(elf.NewCfiDefCfaRegister(x64.Rbp.String()))
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiDefCfaOffset(2 * x64.PointerSize))).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiOffset(x64.Rbp.String(), -2*x64.PointerSize))).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiDefCfaRegister(x64.Rbp.String())))
 }
 
 // The function exit sequence is called epilogue and restores the activation record of the caller.

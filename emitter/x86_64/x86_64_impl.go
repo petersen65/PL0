@@ -562,7 +562,7 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.DirectiveDetail {
 	// extract file identifier and debug flag required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
-	debug := u.BuildConfiguration.Optimization == cor.Debug
+	debug := u.BuildConfiguration.Optimization&cor.Debug != 0
 
 	// if source code files cannot be supported by the assembly code unit return nil
 	if index == cor.NoTokenStreamIndex || u.tokenHandler == nil || !debug || id == 0 {
@@ -578,14 +578,23 @@ func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes
 	return nil
 }
 
+// Filter the directive based on the build configuration and return nil if it should not be included in the assembly code.
+func (u *assemblyCodeUnit) Filter(directive *elf.DirectiveDetail) *elf.DirectiveDetail {
+	if u.BuildConfiguration.Optimization&cor.Debug != 0 {
+		return directive
+	}
+
+	return nil
+}
+
 // Print the assembly code to the specified writer and optionally accept global symbols as arguments.
 func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	var globals, externals []string
-	
+
 	// create the assembly code header with build configuration details
-	header := fmt.Sprintf(assemblyCodeHeader, 
+	header := fmt.Sprintf(assemblyCodeHeader,
 		u.BuildConfiguration.TargetPlatform,
-		u.BuildConfiguration.Optimization, 
+		u.BuildConfiguration.Optimization,
 		u.BuildConfiguration.DriverDisplayName)
 
 	// add the Intel syntax directive to the header
@@ -617,7 +626,7 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	}
 
 	// add the file directive with file identifier and name to the header if optimization is debug
-	if u.BuildConfiguration.Optimization == cor.Debug {
+	if u.BuildConfiguration.Optimization&cor.Debug != 0 {
 		name := u.BuildConfiguration.SourcePath
 		id := u.FileIdentifier[name]
 
