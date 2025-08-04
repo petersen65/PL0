@@ -6,17 +6,30 @@ package core
 type (
 	DebugStringTable struct {
 		CompilationUnit string
-		Functions []FunctionDescription
+		Functions       []*FunctionDescription
 	}
 
 	FunctionDescription struct {
-		Name      string
-		Variables []VariableDescription
+		Name       string
+		NameSource string
+		Variables  []*VariableDescription
 	}
 
 	VariableDescription struct {
-		Function     string
-		Name         string
+		Name             string
+		NameSource       string
+		Function         string
+		FunctionSource   string
 		TokenStreamIndex int
 	}
+
+	DebugInformation interface {
+		AppendFunction(name, nameSource string) bool
+		AppendVariable(function, functionSource, name, nameSource string, tokenStreamIndex int) bool
+		GetDebugStringTable() DebugStringTable
+	}
 )
+
+func NewDebugInformation(compilationUnit string, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, tokenHandler)
+}
