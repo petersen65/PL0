@@ -19,15 +19,15 @@ const assemblyCodeHeader = "# %v assembly code\n# optimization %v\n# generated b
 type (
 	// Represents a logical unit of assembly instructions created from one intermediate code unit.
 	assemblyCodeUnit struct {
-		Labels             []string                                     `json:"labels"`              // enable deterministic iteration over the symbol table in the order of past inserts
-		SymbolTable        map[string]*Symbol                           `json:"symbol_table"`        // symbol table for assembly code label names
-		FileIdentifier     map[string]int                               `json:"file_identifier"`     // file identifier for source code files
-		BuildConfiguration cor.BuildConfiguration                       `json:"build_configuration"` // build configuration of the assembly code unit
-		tokenHandler       cor.TokenHandler                             `json:"-"`                   // token handler that manages the tokens of the token stream
-		RoUtf32Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
-		RoInt64Section     *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
-		RoStrDescSection   *elf.AssemblerSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
-		TextSection        *elf.AssemblerSection[*Instruction]          `json:"text_section"`        // text section with assembly instructions
+		Labels             []string                               `json:"labels"`              // enable deterministic iteration over the symbol table in the order of past inserts
+		SymbolTable        map[string]*Symbol                     `json:"symbol_table"`        // symbol table for assembly code label names
+		FileIdentifier     map[string]int                         `json:"file_identifier"`     // file identifier for source code files
+		BuildConfiguration cor.BuildConfiguration                 `json:"build_configuration"` // build configuration of the assembly code unit
+		tokenHandler       cor.TokenHandler                       `json:"-"`                   // token handler that manages the tokens of the token stream
+		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
+		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
+		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
+		TextSection        *elf.ElfSection[*Instruction]          `json:"text_section"`        // text section with assembly instructions
 	}
 )
 
@@ -188,26 +188,26 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler
 		tokenHandler:       tokenHandler,
 
 		// read-only data section for static UTF-32 strings
-		RoUtf32Section: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
-			[]elf.Directive{elf.Section, elf.Utf32},
+		RoUtf32Section: elf.NewSection[*elf.ReadOnlyDataItem](
+			[]elf.DirectiveKind{elf.Section, elf.Utf32},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
 			elf.P2align4),
 
 		// read-only data section for static 64-bit integers (signed and unsigned)
-		RoInt64Section: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
-			[]elf.Directive{elf.Section, elf.Int64},
+		RoInt64Section: elf.NewSection[*elf.ReadOnlyDataItem](
+			[]elf.DirectiveKind{elf.Section, elf.Int64},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
 			elf.P2align8),
 
 		// read-only data section for string descriptors (64-bit string addresses and lengths)
-		RoStrDescSection: elf.NewAssemblerSection[*elf.ReadOnlyDataItem](
-			[]elf.Directive{elf.Section, elf.StrDesc},
+		RoStrDescSection: elf.NewSection[*elf.ReadOnlyDataItem](
+			[]elf.DirectiveKind{elf.Section, elf.StrDesc},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
 			elf.P2align8),
 
 		// text section for all assembly instructions
-		TextSection: elf.NewAssemblerSection[*Instruction](
-			[]elf.Directive{elf.Section, elf.Text},
+		TextSection: elf.NewSection[*Instruction](
+			[]elf.DirectiveKind{elf.Section, elf.Text},
 			[]elf.SectionAttribute{},
 			elf.P2align16),
 	}
@@ -284,7 +284,7 @@ func newMemoryOperand(register Register, size OperandSize, displacements ...any)
 }
 
 // Fluently append a new assembler directive to an instruction.
-func (i *Instruction) AppendDirective(directive *elf.DirectiveDetail) *Instruction {
+func (i *Instruction) AppendDirective(directive *elf.Directive) *Instruction {
 	if directive != nil {
 		i.Directives = append(i.Directives, directive)
 	}
@@ -568,7 +568,7 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 }
 
 // Get the location directive for a specific token stream index of the source code file. Nil is returned if no directive is available.
-func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.DirectiveDetail {
+func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive {
 	// extract file identifier and debug flag required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
 	debug := u.BuildConfiguration.Optimization&cor.Debug != 0
@@ -588,7 +588,7 @@ func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes
 }
 
 // Filter the directive based on the build configuration and return nil if it should not be included in the assembly code.
-func (u *assemblyCodeUnit) Filter(directive *elf.DirectiveDetail) *elf.DirectiveDetail {
+func (u *assemblyCodeUnit) Filter(directive *elf.Directive) *elf.Directive {
 	if u.BuildConfiguration.Optimization&cor.Debug != 0 {
 		return directive
 	}

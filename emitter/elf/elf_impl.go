@@ -16,7 +16,7 @@ const descriptorLabel = "%v.desc"
 
 var (
 	// Map directives to their string representation.
-	directiveNames = map[Directive]string{
+	directiveNames = map[DirectiveKind]string{
 		IntelSyntax:       ".intel_syntax",
 		AttSyntax:         ".att_syntax",
 		PushSection:       ".pushsection",
@@ -123,8 +123,8 @@ var (
 )
 
 // Create a .file directive with a file identifier and name.
-func newFile(id int, name string) *DirectiveDetail {
-	return NewDirectiveDetail(File, nil,
+func newFile(id int, name string) *Directive {
+	return NewDirective(File, nil,
 		fmt.Sprintf(strings.Join([]string{
 			FileId.String(),
 			FileName.String()},
@@ -134,7 +134,7 @@ func newFile(id int, name string) *DirectiveDetail {
 }
 
 // Create a .loc directive for source locations in debug info.
-func newLocation(id, line, column int, debugger Debugger, attributes ...string) *DirectiveDetail {
+func newLocation(id, line, column int, debugger Debugger, attributes ...string) *Directive {
 	if !slices.Contains(attributes, LocationPrologueEnd.String()) && debugger&DebuggerPrologueEnd != 0 {
 		attributes = append(attributes, LocationPrologueEnd.String())
 	}
@@ -143,7 +143,7 @@ func newLocation(id, line, column int, debugger Debugger, attributes ...string) 
 		attributes = append(attributes, LocationEpilogueBegin.String())
 	}
 
-	return NewDirectiveDetail(Loc, nil,
+	return NewDirective(Loc, nil,
 		fmt.Sprintf(strings.Join([]string{
 			LocationFileId.String(),
 			LocationLine.String(),
@@ -154,8 +154,8 @@ func newLocation(id, line, column int, debugger Debugger, attributes ...string) 
 	)
 }
 
-// String representation of an assembler section.
-func (s *AssemblerSection[T]) String() string {
+// String representation of an ELF section.
+func (s *ElfSection[T]) String() string {
 	var parts []string
 	var builder strings.Builder
 
@@ -317,13 +317,13 @@ func (rdi *ReadOnlyDataItem) String() string {
 }
 
 // String representation of a directive detail.
-func (dd *DirectiveDetail) String() string {
+func (dd *Directive) String() string {
 	// join symbol and arguments with commas for multi-argument directives
 	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
 	return strings.TrimSpace(fmt.Sprintf("%v %v", dd.Directive, parts))
 }
 
 // Append content to the assembly section.
-func (s *AssemblerSection[T]) Append(content T) {
+func (s *ElfSection[T]) Append(content T) {
 	s.Content = append(s.Content, content)
 }

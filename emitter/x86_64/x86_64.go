@@ -245,12 +245,12 @@ type (
 
 	// The assembly instruction is the representation of a single CPU operation with all its operands and labels.
 	Instruction struct {
-		Prefix           OperationCode          `json:"prefix"`             // prefix for the instruction
-		Operation        OperationCode          `json:"operation"`          // operation code of the instruction
-		Operands         []*Operand             `json:"operands"`           // operands for the operation
-		Labels           []string               `json:"labels"`             // branch target labels
-		Directives       []*elf.DirectiveDetail `json:"directives"`         // assembler directives for the instruction
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		Prefix           OperationCode    `json:"prefix"`             // prefix for the instruction
+		Operation        OperationCode    `json:"operation"`          // operation code of the instruction
+		Operands         []*Operand       `json:"operands"`           // operands for the operation
+		Labels           []string         `json:"labels"`             // branch target labels
+		Directives       []*elf.Directive `json:"directives"`         // assembler directives for the instruction
+		TokenStreamIndex int              `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// Additional details about the bit size and displacement for memory operands.
@@ -282,8 +282,8 @@ type (
 		AppendExistingInstruction(instruction *Instruction)
 		AppendExistingReadOnlyDataItem(item *elf.ReadOnlyDataItem)
 		AppendRuntime()
-		Location(index int, debugger elf.Debugger, attributes ...string) *elf.DirectiveDetail
-		Filter(directive *elf.DirectiveDetail) *elf.DirectiveDetail
+		Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive
+		Filter(directive *elf.Directive) *elf.Directive
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -292,7 +292,7 @@ type (
 // Return the interface of the assembly code unit implementation (with or without source code support).
 func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler ...cor.TokenHandler) AssemblyCodeUnit {
 	// check if support for source code file to assembly code mapping shall be provided
-	if len(tokenHandler) == 1 && tokenHandler[0] != nil  {
+	if len(tokenHandler) == 1 && tokenHandler[0] != nil {
 		tokenHandler[0].ReplaceComponent(cor.Intel, failureMap)
 		return newAssemblyCodeUnit(buildConfiguration, tokenHandler[0])
 	}

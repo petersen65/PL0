@@ -17,8 +17,8 @@ const (
 // Assembler directives for the ELF format supported by various assemblers on Linux.
 const (
 	// assembly language syntax directives
-	IntelSyntax Directive = iota // switches the assembler to Intel syntax (.intel_syntax)
-	AttSyntax                    // switches the assembler to AT&T syntax (.att_syntax)
+	IntelSyntax DirectiveKind = iota // switches the assembler to Intel syntax (.intel_syntax)
+	AttSyntax                        // switches the assembler to AT&T syntax (.att_syntax)
 
 	// section management directives
 	PushSection // pushes a section on the stack (.pushsection)
@@ -158,7 +158,7 @@ type (
 	Debugger uint64
 
 	// Represents an assembler directive (pseudo-op).
-	Directive int
+	DirectiveKind int
 
 	// Represents a prefix attribute for the .intel_syntax directive.
 	PrefixAttribute int
@@ -184,9 +184,9 @@ type (
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
 
-	// AssemblerSection represents a generic assembler section with typed contents.
-	AssemblerSection[T fmt.Stringer] struct {
-		Directives []Directive        `json:"directives"` // directives for building the section (e.g., .section, .p2align)
+	// ElfSection represents a generic ELF section with typed line-contents.
+	ElfSection[T fmt.Stringer] struct {
+		Directives []DirectiveKind    `json:"directives"` // directives for building the section (e.g., .section, .p2align)
 		Attributes []SectionAttribute `json:"attributes"` // attributes of the section (e.g., allocatable, writable, executable)
 		Alignment  int                `json:"alignment"`  // power-of-2 alignment for section contents (used with ".p2align")
 		Content    []T                `json:"content"`    // typed contents of this section (e.g., read-only data items, instructions)
@@ -199,17 +199,17 @@ type (
 		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
 	}
 
-	// DirectiveDetail represents a structured assembler directive with formal syntax.
-	DirectiveDetail struct {
-		Directive Directive `json:"kind"`      // the directive (e.g., .type, .size, .global)
-		Symbols   []string  `json:"symbols"`   // the symbol names this directive applies to
-		Arguments []string  `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
+	// Directive represents a structured assembler directive with formal syntax.
+	Directive struct {
+		Directive DirectiveKind `json:"kind"`      // the directive kind (e.g., .type, .size, .global)
+		Symbols   []string      `json:"symbols"`   // the symbol names this directive applies to
+		Arguments []string      `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
 	}
 )
 
-// Create a new assembler section with the specified directives, attributes, and alignment.
-func NewAssemblerSection[T fmt.Stringer](directives []Directive, attributes []SectionAttribute, alignment int) *AssemblerSection[T] {
-	return &AssemblerSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Content: make([]T, 0)}
+// Create a new ELF section with the specified directives, attributes, and alignment.
+func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []SectionAttribute, alignment int) *ElfSection[T] {
+	return &ElfSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Content: make([]T, 0)}
 }
 
 // Create a new read-only data item with literal data labels for a read-only section.
@@ -218,87 +218,87 @@ func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *Re
 }
 
 // Create a new directive detail for symbol declarations.
-func NewDirectiveDetail(directive Directive, symbols []string, args ...string) *DirectiveDetail {
-	return &DirectiveDetail{Directive: directive, Symbols: symbols, Arguments: args}
+func NewDirective(directive DirectiveKind, symbols []string, args ...string) *Directive {
+	return &Directive{Directive: directive, Symbols: symbols, Arguments: args}
 }
 
 // Create a .intel_syntax directive for Intel assembly syntax.
-func NewIntel(prefix PrefixAttribute) *DirectiveDetail {
-	return NewDirectiveDetail(IntelSyntax, nil, prefix.String())
+func NewIntel(prefix PrefixAttribute) *Directive {
+	return NewDirective(IntelSyntax, nil, prefix.String())
 }
 
 // Create a .att_syntax directive for AT&T assembly syntax.
-func NewAtt() *DirectiveDetail {
-	return NewDirectiveDetail(AttSyntax, nil)
+func NewAtt() *Directive {
+	return NewDirective(AttSyntax, nil)
 }
 
 // Create a .global directive for global symbols.
-func NewGlobal(symbols []string) *DirectiveDetail {
-	return NewDirectiveDetail(Global, symbols)
+func NewGlobal(symbols []string) *Directive {
+	return NewDirective(Global, symbols)
 }
 
 // Create a .extern directive for external symbols.
-func NewExtern(symbols []string) *DirectiveDetail {
-	return NewDirectiveDetail(Extern, symbols)
+func NewExtern(symbols []string) *Directive {
+	return NewDirective(Extern, symbols)
 }
 
 // Create a .file directive with a file identifier and name.
-func NewFile(id int, name string) *DirectiveDetail {
+func NewFile(id int, name string) *Directive {
 	return newFile(id, name)
 }
 
 // Create a .loc directive for source locations in debug info.
-func NewLocation(id, line, column int, debugger Debugger, attributes ...string) *DirectiveDetail {
+func NewLocation(id, line, column int, debugger Debugger, attributes ...string) *Directive {
 	return newLocation(id, line, column, debugger, attributes...)
 }
 
 // Create a .type directive for a function symbol.
-func NewTypeFunction(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Type, []string{symbol}, TypeFunction.String())
+func NewTypeFunction(symbol string) *Directive {
+	return NewDirective(Type, []string{symbol}, TypeFunction.String())
 }
 
 // Create a .type directive for an object symbol.
-func NewTypeObject(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Type, []string{symbol}, TypeObject.String())
+func NewTypeObject(symbol string) *Directive {
+	return NewDirective(Type, []string{symbol}, TypeObject.String())
 }
 
 // Create a .size directive using the standard ".-symbol" calculation.
-func NewSizeLabel(symbol string) *DirectiveDetail {
-	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeLabel.String(), symbol))
+func NewSizeLabel(symbol string) *Directive {
+	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeLabel.String(), symbol))
 }
 
 // Create a .size directive with an absolute size value.
-func NewSizeAbsolute(symbol string, size int) *DirectiveDetail {
-	return NewDirectiveDetail(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
+func NewSizeAbsolute(symbol string, size int) *Directive {
+	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
 }
 
 // Create a .cfi_startproc directive to begin a CFI (call frame information).
-func NewCfiStartProcedure() *DirectiveDetail {
-	return NewDirectiveDetail(CfiStartProc, nil)
+func NewCfiStartProcedure() *Directive {
+	return NewDirective(CfiStartProc, nil)
 }
 
 // Create a .cfi_endproc directive to end a CFI (call frame information).
-func NewCfiEndProcedure() *DirectiveDetail {
-	return NewDirectiveDetail(CfiEndProc, nil)
+func NewCfiEndProcedure() *Directive {
+	return NewDirective(CfiEndProc, nil)
 }
 
 // Create a .cfi_def_cfa_offset directive to define the CFA offset (canonical frame address offset).
-func NewCfiDefCfaOffset(offset int) *DirectiveDetail {
-	return NewDirectiveDetail(CfiDefCfaOffset, nil, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
+func NewCfiDefCfaOffset(offset int) *Directive {
+	return NewDirective(CfiDefCfaOffset, nil, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
 }
 
 // Create a .cfi_offset directive to define a register offset in CFI (call frame information).
-func NewCfiOffset(register string, offset int) *DirectiveDetail {
-	return NewDirectiveDetail(CfiOffset, nil, register, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
+func NewCfiOffset(register string, offset int) *Directive {
+	return NewDirective(CfiOffset, nil, register, fmt.Sprintf(CallFrameInformationOffset.String(), offset))
 }
 
 // Create a .cfi_def_cfa_register directive to change the CFA register (canonical frame address register).
-func NewCfiDefCfaRegister(register string) *DirectiveDetail {
-	return NewDirectiveDetail(CfiDefCfaRegister, nil, register)
+func NewCfiDefCfaRegister(register string) *Directive {
+	return NewDirective(CfiDefCfaRegister, nil, register)
 }
 
 // String representation of a directive.
-func (dk Directive) String() string {
+func (dk DirectiveKind) String() string {
 	return directiveNames[dk]
 }
 
