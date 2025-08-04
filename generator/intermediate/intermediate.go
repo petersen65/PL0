@@ -153,14 +153,19 @@ type (
 		Definition *list.Element `json:"-"`         // instruction where the symbol is defined
 	}
 
+	// A symbol table is a collection of symbols that can be used to look up names and their associated information.
+	SymbolTable interface {
+		Insert(symbol *Symbol)
+		Lookup(name string) *Symbol
+	}
+
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
 	// It manages a list of instructions and a symbol table with all declared identifiers in this unit of the intermediate code.
 	IntermediateCodeUnit interface {
+		SymbolTable
 		AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element
 		AppendExistingInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
-		Insert(symbol *Symbol)
-		Lookup(name string) *Symbol
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}
@@ -212,64 +217,9 @@ func (v Variant) String() string {
 	return variantNames[v]
 }
 
-// String representation of a datatype with its modifiers.
-func (dt DataType) String() string {
-	var prefix string
-
-	if dt.IsPointer() {
-		prefix = "ptr "
-	} else if dt.IsReference() {
-		prefix = "ref "
-	}
-
-	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
-}
-
-// String representation of the three-address code address.
-func (a *Address) String() string {
-	const maxWidth = 30
-	var representation string
-
-	switch {
-	case a.Variant == Empty:
-		representation = fmt.Sprintf("%v", a.Variant)
-
-	case len(a.Name) > 0 && a.Value != nil:
-		representation = fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Name, a.Value)
-
-	case len(a.Name) > 0:
-		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
-
-	case a.Value != nil:
-		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Value)
-
-	default:
-		representation = fmt.Sprintf("%v %v", a.Variant, a.DataType)
-	}
-
-	if len(representation) > maxWidth {
-		representation = representation[:maxWidth]
-	}
-
-	return representation
-}
-
 // String representation of an three-address code operation.
 func (o Operation) String() string {
 	return operationNames[o]
-}
-
-// String representation of a three-address code quadruple.
-func (q *Quadruple) String() string {
-	const operationWidth = 20
-	const argWidth = 30
-
-	return fmt.Sprintf(
-		"%-*v %-*v %-*v %-*v",
-		operationWidth, q.Operation,
-		argWidth, q.Arg1,
-		argWidth, q.Arg2,
-		argWidth, q.Result)
 }
 
 // String representation of an intermediate code instruction.

@@ -80,8 +80,8 @@ type (
 	// File extensions for files used during compilation.
 	Extension int
 
-	// TranslationUnit represents source content and all intermediate results of the compilation process.
-	TranslationUnit struct {
+	// CompilationUnit represents source content and all intermediate results of the compilation process.
+	CompilationUnit struct {
 		SourceContent    []byte                  // UTF-8 source content
 		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
 		TokenHandler     cor.TokenHandler        // token handler for the source content
@@ -111,7 +111,7 @@ var ExtensionMap = map[Extension]string{
 // Driver for the compilation process with the given options source path, target path, optimization algorithms, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, print io.Writer) {
 	var targetDirectory, baseFileName, runtimePath string
-	var translationUnit TranslationUnit
+	var compilationUnit CompilationUnit
 	var err error
 
 	// ensure target path exists and print persistence error message if an error occurred
@@ -161,7 +161,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		Optimization:      optimization,
 	}
 
-	// compile source code to translation unit and print an error report if errors occurred during compilation
+	// compile source code to compilation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
 		
@@ -170,8 +170,8 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 			fmt.Fprintf(print, textOptimizing, optimization)
 		}
 		
-		// compile source code to translation unit and return I/O errors
-		translationUnit, err = CompileSourceToTranslationUnit(buildConfiguration)
+		// compile source code to compilation unit and return I/O errors
+		compilationUnit, err = CompileSourceToCompilationUnit(buildConfiguration)
 
 		// print error message if an I/O error occurred during compilation
 		if err != nil {
@@ -180,10 +180,10 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		}
 
 		// print error report if errors with any severity occurred
-		translationUnit.ErrorHandler.Print(print)
+		compilationUnit.ErrorHandler.Print(print)
 
 		// print abandon compilation message if any error occurred
-		if translationUnit.ErrorHandler.HasErrors() {
+		if compilationUnit.ErrorHandler.HasErrors() {
 			fmt.Fprintf(print, textErrorCompiling, sourcePath, textAbortCompilation)
 		}
 	}
@@ -193,15 +193,15 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
 
 		// print error message if any error occurred during export
-		if err = ExportIntermediateRepresentations(translationUnit, targetDirectory, baseFileName); err != nil {
+		if err = ExportIntermediateRepresentations(compilationUnit, targetDirectory, baseFileName); err != nil {
 			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
 			return
 		}
 	}
 
 	// persist application and runtime as target files and print persistence error message if an error occurred
-	if options&Compile != 0 && !translationUnit.ErrorHandler.HasErrors() {
-		if err = PersistApplication(translationUnit.AssemblyCode, targetPath); err != nil {
+	if options&Compile != 0 && !compilationUnit.ErrorHandler.HasErrors() {
+		if err = PersistApplication(compilationUnit.AssemblyCode, targetPath); err != nil {
 			fmt.Fprintf(print, textErrorPersisting, targetPath, err)
 			return
 		}
@@ -216,17 +216,17 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	fmt.Fprintf(print, textDriverSourceTarget, sourcePath, targetPath)
 }
 
-// Compile source code and return translation unit with all intermediate results and error handler.
-func CompileSourceToTranslationUnit(buildConfiguration cor.BuildConfiguration) (TranslationUnit, error) {
+// Compile source code and return compilation unit with all intermediate results and error handler.
+func CompileSourceToCompilationUnit(buildConfiguration cor.BuildConfiguration) (CompilationUnit, error) {
 	if content, err := os.ReadFile(buildConfiguration.SourcePath); err != nil {
-		return TranslationUnit{}, err
+		return CompilationUnit{}, err
 	} else {
 		return CompileContent(content, buildConfiguration), nil
 	}
 }
 
-// Compile UTF-8 encoded content and return a translation unit with all intermediate results and error handler.
-func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) TranslationUnit {
+// Compile UTF-8 encoded content and return a compilation unit with all intermediate results and error handler.
+func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) CompilationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := cor.NewErrorHandler()
@@ -238,7 +238,7 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) T
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return TranslationUnit{content, errorHandler, tokenHandler, tokenStream, nil, nil, nil, nil}
+		return CompilationUnit{content, errorHandler, tokenHandler, tokenStream, nil, nil, nil, nil}
 	}
 
 	// code generation based on the abstract syntax tree results in an intermediate code unit
@@ -255,8 +255,8 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) T
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
-	// return translation unit with all intermediate results and error handler
-	return TranslationUnit{content, errorHandler, tokenHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
+	// return compilation unit with all intermediate results and error handler
+	return CompilationUnit{content, errorHandler, tokenHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
 }
 
 // Persist the assembly code unit of the application.
@@ -309,7 +309,7 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 }
 
 // Export all intermediate representations to the target directory.
-func ExportIntermediateRepresentations(translationUnit TranslationUnit, targetDirectory, baseFileName string) error {
+func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDirectory, baseFileName string) error {
 	var anyError error
 
 	// create full intermediate directory path
@@ -379,39 +379,39 @@ func ExportIntermediateRepresentations(translationUnit TranslationUnit, targetDi
 	}
 
 	// export all error handler representations to the target files
-	if translationUnit.ErrorHandler != nil {
-		erjErr = translationUnit.ErrorHandler.Export(cor.Json, erjFile)
-		ertErr = translationUnit.ErrorHandler.Export(cor.Text, ertFile)
+	if compilationUnit.ErrorHandler != nil {
+		erjErr = compilationUnit.ErrorHandler.Export(cor.Json, erjFile)
+		ertErr = compilationUnit.ErrorHandler.Export(cor.Text, ertFile)
 	}
 
 	// export all token stream representations to the target files
-	if translationUnit.TokenStream != nil {
-		tsjErr = translationUnit.TokenStream.Export(cor.Json, tsjFile)
-		tstErr = translationUnit.TokenStream.Export(cor.Text, tstFile)
+	if compilationUnit.TokenStream != nil {
+		tsjErr = compilationUnit.TokenStream.Export(cor.Json, tsjFile)
+		tstErr = compilationUnit.TokenStream.Export(cor.Text, tstFile)
 	}
 
 	// export all abstract syntax tree representations to the target files
-	if translationUnit.AbstractSyntax != nil {
-		asjErr = translationUnit.AbstractSyntax.Export(cor.Json, asjFile)
-		astErr = translationUnit.AbstractSyntax.Export(cor.Text, astFile)
+	if compilationUnit.AbstractSyntax != nil {
+		asjErr = compilationUnit.AbstractSyntax.Export(cor.Json, asjFile)
+		astErr = compilationUnit.AbstractSyntax.Export(cor.Text, astFile)
 	}
 
 	// export all intermediate code representations to the target files
-	if translationUnit.IntermediateCode != nil {
-		icjErr = translationUnit.IntermediateCode.Export(cor.Json, icjFile)
-		ictErr = translationUnit.IntermediateCode.Export(cor.Text, ictFile)
+	if compilationUnit.IntermediateCode != nil {
+		icjErr = compilationUnit.IntermediateCode.Export(cor.Json, icjFile)
+		ictErr = compilationUnit.IntermediateCode.Export(cor.Text, ictFile)
 	}
 
 	// export all control flow graph representations to the target files
-	if translationUnit.ControlFlow != nil {
-		cfjErr = translationUnit.ControlFlow.Export(cor.Json, cfjFile)
-		cftErr = translationUnit.ControlFlow.Export(cor.Text, cftFile)
+	if compilationUnit.ControlFlow != nil {
+		cfjErr = compilationUnit.ControlFlow.Export(cor.Json, cfjFile)
+		cftErr = compilationUnit.ControlFlow.Export(cor.Text, cftFile)
 	}
 
 	// export all assembly code representations to the target files
-	if translationUnit.AssemblyCode != nil {
-		acjErr = translationUnit.AssemblyCode.Export(cor.Json, acjFile)
-		actErr = translationUnit.AssemblyCode.Export(cor.Text, actFile)
+	if compilationUnit.AssemblyCode != nil {
+		acjErr = compilationUnit.AssemblyCode.Export(cor.Json, acjFile)
+		actErr = compilationUnit.AssemblyCode.Export(cor.Text, actFile)
 	}
 
 	// check if any error occurred during export of intermediate representations

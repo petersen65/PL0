@@ -38,6 +38,7 @@ type (
 	generator struct {
 		abstractSyntax   ast.Block               // abstract syntax tree to generate intermediate code for
 		intermediateCode ic.IntermediateCodeUnit // intermediate code unit to store the generated intermediate code
+		debugStringTable *cor.DebugStringTable   // collect debug information that requires knowledge of the abstract syntax tree
 		results          *list.List              // last-in-first-out results-list holding results from expressions
 	}
 
@@ -83,6 +84,7 @@ func newGenerator(abstractSyntax ast.Block) Generator {
 	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: ic.NewIntermediateCodeUnit(),
+		debugStringTable: &cor.DebugStringTable{Functions: make([]cor.FunctionDescription, 0)},
 		results:          list.New(),
 	}
 }
@@ -212,7 +214,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
 			noAddress,
 			copyLiteral.Quadruple.Result, // temporary with the return value
-			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
+			indexEnd)                     // block node in the token stream (only applicable if the statement is a compound statement)
 
 		// append the existing instructions to the intermediate code unit
 		g.intermediateCode.AppendExistingInstruction(copyLiteral)
@@ -224,7 +226,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
 			noAddress,
 			noAddress, // no return value
-			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
+			indexEnd)  // block node in the token stream (only applicable if the statement is a compound statement)
 	}
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
@@ -770,12 +772,16 @@ func (g *generator) popResult() *ic.Address {
 	return result.Value.(*ic.Address)
 }
 
-// Configure abstract syntax extensions and fill the symbol table of the intermediate code unit. This is a visit function.
+// Configure abstract syntax extensions, create debug information, and fill the symbol table of the intermediate code unit.
+// Note: this is a visit function.
 func configureSymbols(node ast.Node, code any) {
+	table := code.(*generator).debugStringTable
 	unit := code.(*generator).intermediateCode
+	functions := map[string]*cor.FunctionDescription{}
 
 	switch n := node.(type) {
 	case *ast.ConstantDeclarationNode:
+		// create a new symbol with a flattened name in the intermediate code unit for the constant declaration
 		name := n.Scope.NewIdentifier(prefix[constantPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.ConstantEntry, dataTypeMap[n.DataType]))
@@ -785,6 +791,7 @@ func configureSymbols(node ast.Node, code any) {
 		}
 
 	case *ast.VariableDeclarationNode:
+		// create a new symbol with a flattened name in the intermediate code unit for the variable declaration
 		name := n.Scope.NewIdentifier(prefix[variablePrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.VariableEntry, dataTypeMap[n.DataType]))
@@ -793,7 +800,33 @@ func configureSymbols(node ast.Node, code any) {
 			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInVariableDeclaration, n, nil))
 		}
 
+		// create a new variable description used to collect debug information
+		variable := cor.VariableDescription{
+			Name:             n.Name,
+			TokenStreamIndex: n.Index(),
+		}
+
+		// determine the function name where the variable is declared
+		if n.Parent().Parent() != nil {
+			variable.Function = n.Parent().Parent().(*ast.ProcedureDeclarationNode).Name
+		} else {
+			variable.Function = cor.EntryPointLabel
+		}
+
+		// check if the function of the variable is already known and create its function description if not
+		if function, ok := functions[variable.Function]; ok {
+			function.Variables = append(function.Variables, variable)
+		} else {
+			functions[variable.Function] = &cor.FunctionDescription{
+				Name:      variable.Function,
+				Variables: []cor.VariableDescription{variable},
+			}
+
+			table.Functions = append(table.Functions, *functions[variable.Function])
+		}
+
 	case *ast.ProcedureDeclarationNode:
+		// create a new symbol with a flattened name in the intermediate code unit for the procedure declaration
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.FunctionEntry, ic.Untyped))
