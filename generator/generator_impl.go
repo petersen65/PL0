@@ -96,7 +96,14 @@ func newSymbolMetaData(name string) *symbolMetaData {
 // The generator itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (g *generator) Generate() {
 	// pre-create symbol table for intermediate code by providing a visit function that is called for each node
-	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g, configureSymbols); err != nil {
+	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.intermediateCode, configureSymbols); err != nil {
+		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
+	}
+
+	debugInfo := cor.NewDebugInformation("generator", nil)
+
+	// collect the debug string table by providing a visit function that is called for each node
+	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, debugInfo, collectDebugStringTable); err != nil {
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
@@ -772,7 +779,7 @@ func (g *generator) popResult() *ic.Address {
 
 // Configure abstract syntax extensions and fill the symbol table of the intermediate code unit. This is a visit function.
 func configureSymbols(node ast.Node, code any) {
-	unit := code.(*generator).intermediateCode
+	unit := code.(ic.IntermediateCodeUnit)
 
 	switch n := node.(type) {
 	case *ast.ConstantDeclarationNode:
@@ -797,5 +804,51 @@ func configureSymbols(node ast.Node, code any) {
 		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.FunctionEntry, ic.Untyped))
+	}
+}
+
+// Collect the debug string table from the abstract syntax tree and store it as debug information.
+func collectDebugStringTable(node ast.Node, code any) {
+	info := code.(cor.DebugInformation)
+
+	switch n := node.(type) {
+	case *ast.BlockNode:
+		var function, functionSource string
+
+		// only the main block has no parent procedure declaration
+		if n.ParentNode == nil {
+			// take the entry point label as the function name and the function source name
+			function = cor.EntryPointLabel
+			functionSource = cor.EntryPointLabel
+		} else {
+			// treat the parent node as a procedure declaration
+			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
+
+			// determine the intermediate code name of the abstract syntax procedure declaration
+			function = n.Scope.LookupCurrent(pd.Name).Extension[symbolExtension].(*symbolMetaData).name
+
+			// take the abstract syntax procedure declaration name as the function source name
+			functionSource = pd.Name
+		}
+
+		// append the function to the debug information
+		if info.AppendFunction(function, functionSource) {
+			// append all variable declarations of the function to the debug information
+			for _, declaration := range n.Declarations {
+				if declaration.Type() == ast.VariableDeclarationType {
+					// treat the declaration as a variable declaration
+					vd := declaration.(*ast.VariableDeclarationNode)
+
+					// determine the intermediate code name of the abstract syntax variable declaration
+					name := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
+
+					// take the abstract syntax variable declaration name as the variable source name
+					nameSource := vd.Name
+
+					// append the local variable of the function to the debug information
+					info.AppendVariable(function, functionSource, name, nameSource, vd.TokenStreamIndex)
+				}
+			}
+		}
 	}
 }
