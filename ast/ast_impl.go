@@ -211,12 +211,13 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(variable, expression Expression, index int) Statement {
+func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) Statement {
 	assignment := &AssignmentStatementNode{
-		TypeName:         nodeTypeNames[AssignmentStatementType],
-		Variable:         variable,
-		Expression:       expression,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[AssignmentStatementType],
+		Variable:              variable,
+		Expression:            expression,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	variable.SetParent(assignment)
@@ -225,11 +226,12 @@ func newAssignmentStatement(variable, expression Expression, index int) Statemen
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(variable Expression, index int) Statement {
+func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 	read := &ReadStatementNode{
-		TypeName:         nodeTypeNames[ReadStatementType],
-		Variable:         variable,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[ReadStatementType],
+		Variable:              variable,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	variable.SetParent(read)
@@ -237,11 +239,12 @@ func newReadStatement(variable Expression, index int) Statement {
 }
 
 // Create a new write statement node in the abstract syntax tree.
-func newWriteStatement(expression Expression, index int) Statement {
+func newWriteStatement(expression Expression, beginIndex, endIndex int) Statement {
 	write := &WriteStatementNode{
-		TypeName:         nodeTypeNames[WriteStatementType],
-		Expression:       expression,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[WriteStatementType],
+		Expression:            expression,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	expression.SetParent(write)
@@ -249,11 +252,12 @@ func newWriteStatement(expression Expression, index int) Statement {
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(procedure Expression, index int) Statement {
+func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement {
 	call := &CallStatementNode{
-		TypeName:         nodeTypeNames[CallStatementType],
-		Procedure:        procedure,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[CallStatementType],
+		Procedure:             procedure,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	procedure.SetParent(call)
@@ -261,12 +265,13 @@ func newCallStatement(procedure Expression, index int) Statement {
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
-func newIfStatement(condition Expression, statement Statement, index int) Statement {
+func newIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	ifStmt := &IfStatementNode{
-		TypeName:         nodeTypeNames[IfStatementType],
-		Condition:        condition,
-		Statement:        statement,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[IfStatementType],
+		Condition:             condition,
+		Statement:             statement,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	condition.SetParent(ifStmt)
@@ -275,12 +280,13 @@ func newIfStatement(condition Expression, statement Statement, index int) Statem
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
-func newWhileStatement(condition Expression, statement Statement, index int) Statement {
+func newWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	whileStmt := &WhileStatementNode{
-		TypeName:         nodeTypeNames[WhileStatementType],
-		Condition:        condition,
-		Statement:        statement,
-		TokenStreamIndex: index,
+		TypeName:              nodeTypeNames[WhileStatementType],
+		Condition:             condition,
+		Statement:             statement,
+		TokenStreamIndexBegin: beginIndex,
+		TokenStreamIndexEnd:   endIndex,
 	}
 
 	condition.SetParent(whileStmt)
@@ -291,8 +297,8 @@ func newWhileStatement(condition Expression, statement Statement, index int) Sta
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	compound := &CompoundStatementNode{
-		TypeName:   nodeTypeNames[CompoundStatementType],
-		Statements: statements,
+		TypeName:              nodeTypeNames[CompoundStatementType],
+		Statements:            statements,
 		TokenStreamIndexBegin: beginIndex,
 		TokenStreamIndexEnd:   endIndex,
 	}
@@ -893,7 +899,12 @@ func (s *AssignmentStatementNode) Children() []Node {
 
 // Index returns the token stream index of the assignment statement node.
 func (s *AssignmentStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the assignment statement node.
+func (s *AssignmentStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the assignment statement.
@@ -933,7 +944,12 @@ func (s *ReadStatementNode) Children() []Node {
 
 // Index returns the token stream index of the read statement node.
 func (s *ReadStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the read statement node.
+func (s *ReadStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the read statement.
@@ -978,7 +994,12 @@ func (s *WriteStatementNode) StatementString() string {
 
 // Index returns the token stream index of the write statement node.
 func (s *WriteStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the write statement node.
+func (s *WriteStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // Accept the visitor for the write statement node.
@@ -1013,7 +1034,12 @@ func (s *CallStatementNode) Children() []Node {
 
 // Index returns the token stream index of the call statement node.
 func (s *CallStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the call statement node.
+func (s *CallStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the call statement.
@@ -1053,7 +1079,12 @@ func (s *IfStatementNode) Children() []Node {
 
 // Index returns the token stream index of the if-then statement node.
 func (s *IfStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the if-then statement node.
+func (s *IfStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the if-then statement.
@@ -1093,7 +1124,12 @@ func (s *WhileStatementNode) Children() []Node {
 
 // Index returns the token stream index of the while-do statement node.
 func (s *WhileStatementNode) Index() int {
-	return s.TokenStreamIndex
+	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the while-do statement node.
+func (s *WhileStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the while statement.
@@ -1140,6 +1176,11 @@ func (s *CompoundStatementNode) Children() []Node {
 // Index returns the token stream index of the compound statement node.
 func (s *CompoundStatementNode) Index() int {
 	return s.TokenStreamIndexBegin
+}
+
+// IndexPair returns the token stream index begin/end pair of the compound statement node.
+func (s *CompoundStatementNode) IndexPair() (int, int) {
+	return s.TokenStreamIndexBegin, s.TokenStreamIndexEnd
 }
 
 // StatementString returns the string representation of the compound statement.

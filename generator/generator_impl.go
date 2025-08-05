@@ -191,11 +191,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	bn.Statement.Accept(g)
 
 	// determine the token stream index after the last statement of the block
-	indexEnd := cor.NoTokenStreamIndex
-
-	if bn.Statement.Type() == ast.CompoundStatementType {
-		indexEnd = bn.Statement.(*ast.CompoundStatementNode).TokenStreamIndexEnd
-	}
+	_, indexEnd := bn.Statement.IndexPair()
 
 	// create exit sequence for the block
 	g.intermediateCode.AppendInstruction(
@@ -515,7 +511,7 @@ func (g *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 		right,            // consumed right-hand-side result
 		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
-		s.TokenStreamIndex) // assignment statement in the token stream
+		s.TokenStreamIndexBegin)                                     // assignment statement in the token stream
 }
 
 // Generate code for a read statement.
@@ -548,7 +544,7 @@ func (g *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 		ic.NewLiteralAddress(ic.String, readStatementSymbol),                                      // label of standard function to call
 		ic.NewLiteralAddress(ic.Integer32, int32(0)),                                              // block nesting depth difference ignored for standard functions
 		ic.NewTemporaryAddress(codeSymbol.DataType, scope.NewIdentifier(prefix[temporaryPrefix])), // the standard function result
-		s.TokenStreamIndex) // call statement in the token stream
+		s.TokenStreamIndexBegin) // call statement in the token stream
 
 	// store the resultant value into the variable used by the read statement
 	store := ic.NewInstruction(
@@ -556,7 +552,7 @@ func (g *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 		call.Quadruple.Result, // standard function resultant value
 		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
-		s.TokenStreamIndex) // read statement in the token stream
+		s.TokenStreamIndexBegin)                                     // read statement in the token stream
 
 	// append the instructions to the intermediate code unit
 	g.intermediateCode.AppendExistingInstruction(call)
@@ -575,7 +571,7 @@ func (g *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 		right,        // consumed right-hand-side result
 		noAddress,
 		noAddress,
-		s.TokenStreamIndex) // write statement in the token stream
+		s.TokenStreamIndexBegin) // write statement in the token stream
 
 	// append the instruction to the intermediate code unit
 	g.intermediateCode.AppendInstruction(
@@ -583,7 +579,7 @@ func (g *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 		ic.NewLiteralAddress(ic.String, writeStatementSymbol), // label of standard function to call
 		ic.NewLiteralAddress(ic.Integer32, int32(0)),          // block nesting depth difference ignored for standard functions
 		noAddress,
-		s.TokenStreamIndex) // call statement in the token stream
+		s.TokenStreamIndexBegin) // call statement in the token stream
 }
 
 // Generate code for a call statement.
@@ -610,7 +606,7 @@ func (g *generator) VisitCallStatement(s *ast.CallStatementNode) {
 		ic.NewLiteralAddress(ic.String, codeName),           // label of intermediate code function to call
 		ic.NewLiteralAddress(ic.Integer32, depthDifference), // block nesting depth difference
 		noAddress,
-		s.TokenStreamIndex) // call statement in the token stream
+		s.TokenStreamIndexBegin) // call statement in the token stream
 }
 
 // Generate code for an if-then statement.
@@ -634,7 +630,7 @@ func (g *generator) VisitIfStatement(s *ast.IfStatementNode) {
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, behindStatement), // behind if-then statement
-		s.TokenStreamIndex) // if-then statement in the token stream
+		s.TokenStreamIndexBegin)                          // if-then statement in the token stream
 }
 
 // Generate code for a while-do statement.
@@ -650,7 +646,7 @@ func (g *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
-		s.TokenStreamIndex) // before while-do statement condition expression in the token stream
+		s.TokenStreamIndexBegin)                          // before while-do statement condition expression in the token stream
 
 	// calculate the result of the condition expression
 	s.Condition.Accept(g)
@@ -667,7 +663,7 @@ func (g *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
-		s.TokenStreamIndex) // end of while-do statement in the token stream
+		s.TokenStreamIndexBegin)                          // end of while-do statement in the token stream
 
 	// append a branch-target instruction behind the statement instructions
 	g.intermediateCode.AppendInstruction(
@@ -675,7 +671,7 @@ func (g *generator) VisitWhileStatement(s *ast.WhileStatementNode) {
 		noAddress,
 		noAddress,
 		ic.NewLiteralAddress(ic.String, behindStatement), // behind while-do statement
-		s.TokenStreamIndex) // behind while-do statement in the token stream
+		s.TokenStreamIndexBegin)                          // behind while-do statement in the token stream
 }
 
 // Generate code for a compound begin-end statement.
@@ -831,8 +827,8 @@ func collectDebugStringTable(node ast.Node, code any) {
 		} else {
 			// treat the parent node as a procedure declaration
 			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
-			
-			// take the flattened name from intermediate code as the function name			
+
+			// take the flattened name from intermediate code as the function name
 			function = n.Scope.Lookup(pd.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 			// take the abstract syntax procedure declaration name as the function source name

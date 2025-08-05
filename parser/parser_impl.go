@@ -296,7 +296,8 @@ func (p *parser) assignment(scope *ast.Scope, anchors cor.Tokens) ast.Statement 
 	// the left side of an assignment is an identifier
 	left := ast.NewIdentifierUse(name, scope, ast.VariableEntry, nameIndex)
 
-	return ast.NewAssignmentStatement(left, right, becomesIndex)
+	endIndex := p.lastTokenIndex()
+	return ast.NewAssignmentStatement(left, right, becomesIndex, endIndex)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
@@ -321,7 +322,8 @@ func (p *parser) read(scope *ast.Scope) ast.Statement {
 	}
 
 	// a read statement that uses a variable identifier
-	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.VariableEntry, nameIndex), readIndex)
+	endIndex := p.lastTokenIndex()
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, ast.VariableEntry, nameIndex), readIndex, endIndex)
 }
 
 // A write statement is the write operator followed by an expression.
@@ -329,7 +331,9 @@ func (p *parser) write(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 	writeIndex := p.lastTokenIndex()
 	p.nextToken()
 	expression := p.expression(scope, anchors)
-	return ast.NewWriteStatement(expression, writeIndex)
+
+	endIndex := p.lastTokenIndex()
+	return ast.NewWriteStatement(expression, writeIndex, endIndex)
 }
 
 // A call statement is the call word followed by a procedure identifier.
@@ -353,7 +357,8 @@ func (p *parser) callWord(scope *ast.Scope) ast.Statement {
 	}
 
 	// a call statement that uses a procedure identifier
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.ProcedureEntry, nameIndex), callIndex)
+	endIndex := p.lastTokenIndex()
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, ast.ProcedureEntry, nameIndex), callIndex, endIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -378,7 +383,8 @@ func (p *parser) ifWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 		statement = ast.NewEmptyStatement()
 	}
 
-	return ast.NewIfStatement(condition, statement, ifIndex)
+	endIndex := p.lastTokenIndex()
+	return ast.NewIfStatement(condition, statement, ifIndex, endIndex)
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
@@ -403,13 +409,14 @@ func (p *parser) whileWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
 		statement = ast.NewEmptyStatement()
 	}
 
-	return ast.NewWhileStatement(condition, statement, whileIndex)
+	endIndex := p.lastTokenIndex()
+	return ast.NewWhileStatement(condition, statement, whileIndex, endIndex)
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
 func (p *parser) beginWord(scope *ast.Scope, anchors cor.Tokens) ast.Statement {
-	p.nextToken()
 	beginIndex := p.lastTokenIndex()
+	p.nextToken()
 
 	// all statements of the begin-end compound
 	compound := make([]ast.Statement, 0)
