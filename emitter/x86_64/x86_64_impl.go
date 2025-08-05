@@ -28,6 +28,7 @@ type (
 		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
 		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
 		TextSection        *elf.ElfSection[*Instruction]          `json:"text_section"`        // text section with assembly instructions
+		DebugStrSection    *elf.ElfSection[*elf.StringItem]       `json:"debug_str_section"`   // DWARF section with string items referenced by DIEs
 	}
 )
 
@@ -210,6 +211,12 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 			[]elf.DirectiveKind{elf.Section, elf.Text},
 			[]elf.SectionAttribute{},
 			elf.P2align16),
+
+		// DWARF debug strings section for string items referenced by DIEs
+		DebugStrSection: elf.NewSection[*elf.StringItem](
+			[]elf.DirectiveKind{elf.Section, elf.DebugStr},
+			[]elf.SectionAttribute{elf.SectionMergeableStrings, elf.SectionProgramBits},
+			elf.P2align1),
 	}
 
 	// define default global and external symbols based on the output kind
@@ -678,6 +685,13 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 	// write the text section to the print writer
 	if len(u.TextSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.TextSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
+	// write the DWARF debug strings section to the print writer
+	if len(u.DebugStrSection.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
 	}

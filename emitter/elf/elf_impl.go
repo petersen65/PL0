@@ -40,6 +40,9 @@ var (
 		Utf32:             ".rodata.str4.4",
 		Int64:             ".rodata.int8.8",
 		StrDesc:           ".rodata.strdesc",
+		DebugAbbrev:       ".debug_abbrev",
+		DebugInfo:         ".debug_info",
+		DebugStr:          ".debug_str",
 		P2align:           ".p2align",
 		Align:             ".align",
 		Balign:            ".balign",
@@ -72,14 +75,15 @@ var (
 
 	// Map section attributes to their string representation.
 	sectionAttributeNames = map[SectionAttribute]string{
-		SectionNone:        "\"\"",
-		SectionAllocatable: "\"a\"",
-		SectionWritable:    "\"w\"",
-		SectionExecutable:  "\"x\"",
-		SectionMergeable:   "\"M\"",
-		SectionStringTable: "\"S\"",
-		SectionProgramBits: "@progbits",
-		SectionNoBits:      "@nobits",
+		SectionNone:             "\"\"",
+		SectionAllocatable:      "\"a\"",
+		SectionWritable:         "\"w\"",
+		SectionExecutable:       "\"x\"",
+		SectionMergeable:        "\"M\"",
+		SectionStrings:          "\"S\"",
+		SectionMergeableStrings: "\"MS\"",
+		SectionProgramBits:      "@progbits",
+		SectionNoBits:           "@nobits",
 	}
 
 	// Map file attributes to their string representation.
@@ -317,6 +321,19 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// the read-only data item string representation does not end with a newline
 	return builder.String()
+}
+
+// String representation of a DWARF string item.
+func (i *StringItem) String() string {
+	const labelWidth = 20
+	const directiveWidth = 10
+
+	return fmt.Sprintf(
+		".%-*v: %-*v \"%v\"",
+		labelWidth, i.Label,
+		directiveWidth, i.Directive,
+		i.Operand,
+	)
 }
 
 // String representation of a directive.

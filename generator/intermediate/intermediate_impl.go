@@ -210,7 +210,8 @@ func (q *Quadruple) String() string {
 		operationWidth, q.Operation,
 		argWidth, q.Arg1,
 		argWidth, q.Arg2,
-		argWidth, q.Result)
+		argWidth, q.Result,
+	)
 }
 
 // Append a new instruction to the intermediate code.

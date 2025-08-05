@@ -49,6 +49,11 @@ const (
 	Int64   // switches to the .rodata.int8.8 (64-bit integers) section (.rodata.int8.8,"a",@progbits)
 	StrDesc // switches to the .rodata.strdesc (string descriptors) section (.rodata.strdesc,"a",@progbits)
 
+	// DWARF debug information directives
+	DebugAbbrev // switches to the .debug_abbrev (debug abbreviation) section (.debug_abbrev,"",@progbits)
+	DebugInfo   // switches to the .debug_info (debug information) section (.debug_info,"",@progbits)
+	DebugStr    // switches to the .debug_str (debug strings) section (.debug_str,"MS",@progbits)
+
 	// alignment and layout directives
 	P2align // aligns to 2^n bytes (.p2align <n>) — used for ABI alignment
 	Align   // aligns to n bytes (.align <n>) — less portable across platforms
@@ -91,7 +96,8 @@ const (
 	SectionWritable                            // section is writable at runtime (flag "w")
 	SectionExecutable                          // section contains executable code (flag "x")
 	SectionMergeable                           // section can be merged with other sections (flag "M")
-	SectionStringTable                         // section is a string table (flag "S")
+	SectionStrings                             // section contains zero-terminated strings (flag "S")
+	SectionMergeableStrings                    // section contains mergeable zero-terminated strings (flag "MS")
 	SectionProgramBits                         // section contains data or instruction program bits (section kind "@progbits")
 	SectionNoBits                              // section does not occupy space in the file (section kind "@nobits")
 )
@@ -200,6 +206,13 @@ type (
 		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
 		Labels []string         `json:"labels"` // literal data labels to access the read-only data item
 		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
+	}
+
+	// A DWARF string item will be referenced by DIEs (debugging information entries) in the DWARF debug information.
+	StringItem struct {
+		Label     string        `json:"label"`     // literal data label to access the string item
+		Directive DirectiveKind `json:"directive"` // directive to use for the string item (e.g., .string, .asciz)
+		Operand   string        `json:"operand"`   // the string value to be stored in the item
 	}
 
 	// Directive represents a structured assembler directive with formal syntax.
