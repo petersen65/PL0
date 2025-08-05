@@ -289,15 +289,14 @@ type (
 	}
 )
 
-// Return the interface of the assembly code unit implementation (with or without source code support).
-func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler ...cor.TokenHandler) AssemblyCodeUnit {
-	// check if support for source code file to assembly code mapping shall be provided
-	if len(tokenHandler) == 1 && tokenHandler[0] != nil {
-		tokenHandler[0].ReplaceComponent(cor.Intel, failureMap)
-		return newAssemblyCodeUnit(buildConfiguration, tokenHandler[0])
+// Return the interface of the assembly code unit implementation (with or without debug information support).
+func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation ...cor.DebugInformation) AssemblyCodeUnit {
+	// check if support for debug information shall be provided
+	if len(debugInformation) == 1 && debugInformation[0] != nil {
+		return newAssemblyCodeUnit(buildConfiguration, debugInformation[0])
 	}
 
-	// create a new assembly code unit without source code support
+	// create a new assembly code unit without debug information support
 	return newAssemblyCodeUnit(buildConfiguration, nil)
 }
 

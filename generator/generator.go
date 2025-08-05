@@ -6,6 +6,7 @@ package generator
 
 import (
 	ast "github.com/petersen65/PL0/v2/ast"
+	cor "github.com/petersen65/PL0/v2/core"
 	ic "github.com/petersen65/PL0/v2/generator/intermediate"
 )
 
@@ -13,9 +14,10 @@ import (
 type Generator interface {
 	Generate()
 	GetIntermediateCodeUnit() ic.IntermediateCodeUnit
+	GetDebugInformation() cor.DebugInformation
 }
 
 // Return the interface of the generator implementation.
-func NewGenerator(abstractSyntax ast.Block) Generator {
-	return newGenerator(abstractSyntax)
+func NewGenerator(abstractSyntax ast.Block, compilationUnit string, tokenHandler cor.TokenHandler) Generator {
+	return newGenerator(abstractSyntax, compilationUnit, tokenHandler)
 }

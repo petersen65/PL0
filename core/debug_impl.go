@@ -22,11 +22,12 @@ func newDebugStringTable(compilationUnit string) *DebugStringTable {
 	}
 }
 
-func newFunctionDescription(name, nameSource string) *FunctionDescription {
+func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *FunctionDescription {
 	return &FunctionDescription{
-		Name:       name,
-		NameSource: nameSource,
-		Variables:  make([]*VariableDescription, 0),
+		Name:             name,
+		NameSource:       nameSource,
+		TokenStreamIndex: tokenStreamIndex,
+		Variables:        make([]*VariableDescription, 0),
 	}
 }
 
@@ -40,14 +41,14 @@ func newVariableDescription(function, functionSource, name, nameSource string, t
 	}
 }
 
-func (d *debugInformation) AppendFunction(name, nameSource string) bool {
+func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIndex int) bool {
 	for _, f := range d.table.Functions {
 		if f.Name == name {
 			return false
 		}
 	}
 
-	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource))
+	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, tokenStreamIndex))
 	return true
 }
 
@@ -64,10 +65,22 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 func (d *debugInformation) GetDebugStringTable() DebugStringTable {
 	return *d.table
+}
+
+func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (line, column int, currentLine string, ok bool) {
+	if d.tokenHandler == nil {
+		return 0, 0, "", false
+	}
+
+	if tokenDescription, ok := d.tokenHandler.GetTokenDescription(tokenStreamIndex); !ok {
+		return 0, 0, "", false
+	} else {
+		return tokenDescription.Line, tokenDescription.Column, string(tokenDescription.CurrentLine), true
+	}
 }

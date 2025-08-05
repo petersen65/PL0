@@ -23,7 +23,7 @@ type (
 		SymbolTable        map[string]*Symbol                     `json:"symbol_table"`        // symbol table for assembly code label names
 		FileIdentifier     map[string]int                         `json:"file_identifier"`     // file identifier for source code files
 		BuildConfiguration cor.BuildConfiguration                 `json:"build_configuration"` // build configuration of the assembly code unit
-		tokenHandler       cor.TokenHandler                       `json:"-"`                   // token handler that manages the tokens of the token stream
+		debugInformation   cor.DebugInformation                   `json:"-"`                   // debug information collected from earlier compilation phases
 		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
 		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
 		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
@@ -178,14 +178,14 @@ var (
 	}
 )
 
-// Create a new assembly code unit with its sections and and set the kind of output it produces.
-func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) AssemblyCodeUnit {
+// Create a new assembly code unit with its sections and provide build and debug information.
+func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation cor.DebugInformation) AssemblyCodeUnit {
 	unit := &assemblyCodeUnit{
 		Labels:             make([]string, 0),
 		SymbolTable:        make(map[string]*Symbol),
 		FileIdentifier:     map[string]int{buildConfiguration.SourcePath: 1},
 		BuildConfiguration: buildConfiguration,
-		tokenHandler:       tokenHandler,
+		debugInformation:   debugInformation,
 
 		// read-only data section for static UTF-32 strings
 		RoUtf32Section: elf.NewSection[*elf.ReadOnlyDataItem](
@@ -574,16 +574,16 @@ func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes
 	debug := u.BuildConfiguration.Optimization&cor.Debug != 0
 
 	// if source code files cannot be supported by the assembly code unit return nil
-	if index == cor.NoTokenStreamIndex || u.tokenHandler == nil || !debug || id == 0 {
+	if index == cor.NoTokenStreamIndex || u.debugInformation == nil || !debug || id == 0 {
 		return nil
 	}
 
-	// if the token handler has a token description for the given index, return the location directive for it
-	if tokenDescription, ok := u.tokenHandler.GetTokenDescription(index); ok {
-		return elf.NewLocation(id, tokenDescription.Line, tokenDescription.Column, debugger, attributes...)
+	// if debug information is available, create a location directive with the source code context
+	if line, column, _, ok := u.debugInformation.GetSourceCodeContext(index); ok {
+		return elf.NewLocation(id, line, column, debugger, attributes...)
 	}
 
-	// if no token description is available, return nil
+	// if no source code context is available, return nil
 	return nil
 }
 

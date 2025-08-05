@@ -110,7 +110,7 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Emitter {
+func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, debugInformation cor.DebugInformation) Emitter {
 	targetPlatform := buildConfiguration.TargetPlatform
 
 	// check if the target platform is supported by the emitter implementation
@@ -122,7 +122,7 @@ func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration
 
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
-		assemblyCode:     x64.NewAssemblyCodeUnit(buildConfiguration, tokenHandler),
+		assemblyCode:     x64.NewAssemblyCodeUnit(buildConfiguration, debugInformation),
 		offsetTable:      make(map[string]int32),
 	}
 }

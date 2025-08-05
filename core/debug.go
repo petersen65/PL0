@@ -10,9 +10,10 @@ type (
 	}
 
 	FunctionDescription struct {
-		Name       string
-		NameSource string
-		Variables  []*VariableDescription
+		Name             string
+		NameSource       string
+		TokenStreamIndex int
+		Variables        []*VariableDescription
 	}
 
 	VariableDescription struct {
@@ -24,9 +25,10 @@ type (
 	}
 
 	DebugInformation interface {
-		AppendFunction(name, nameSource string) bool
+		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource string, tokenStreamIndex int) bool
 		GetDebugStringTable() DebugStringTable
+		GetSourceCodeContext(tokenStreamIndex int) (line, column int, currentLine string, ok bool)
 	}
 )
 

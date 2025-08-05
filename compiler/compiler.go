@@ -82,6 +82,7 @@ type (
 
 	// CompilationUnit represents source content and all intermediate results of the compilation process.
 	CompilationUnit struct {
+		Name             string                  // unique name of the compilation unit
 		SourceContent    []byte                  // UTF-8 source content
 		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
 		TokenHandler     cor.TokenHandler        // token handler for the source content
@@ -164,12 +165,12 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	// compile source code to compilation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
-		
+
 		// print optimization message if optimization algorithms are applied
 		if options&Optimize != 0 {
 			fmt.Fprintf(print, textOptimizing, optimization)
 		}
-		
+
 		// compile source code to compilation unit and return I/O errors
 		compilationUnit, err = CompileSourceToCompilationUnit(buildConfiguration)
 
@@ -238,25 +239,46 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) C
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
-		return CompilationUnit{content, errorHandler, tokenHandler, tokenStream, nil, nil, nil, nil}
+		return CompilationUnit{
+			Name:             buildConfiguration.SourcePath,
+			SourceContent:    content,
+			ErrorHandler:     errorHandler,
+			TokenHandler:     tokenHandler,
+			TokenStream:      tokenStream,
+			AbstractSyntax:   nil,
+			IntermediateCode: nil,
+			ControlFlow:      nil,
+			AssemblyCode:     nil,
+		}
 	}
 
-	// code generation based on the abstract syntax tree results in an intermediate code unit
-	generator := gen.NewGenerator(abstractSyntax)
+	// code generation based on the abstract syntax tree results in an intermediate code unit and debug information
+	generator := gen.NewGenerator(abstractSyntax, buildConfiguration.SourcePath, tokenHandler)
 	generator.Generate()
 	intermediateCode := generator.GetIntermediateCodeUnit()
+	debugInformation := generator.GetDebugInformation()
 
 	// build control flow graph from an intermediate code unit
 	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
 	controlFlow.Build()
 
 	// emit assembly code for a target platform from the intermediate code unit
-	emitter := emi.NewEmitter(intermediateCode, buildConfiguration, tokenHandler)
+	emitter := emi.NewEmitter(intermediateCode, buildConfiguration, debugInformation)
 	emitter.Emit()
 	assemblyCode := emitter.GetAssemblyCodeUnit()
 
 	// return compilation unit with all intermediate results and error handler
-	return CompilationUnit{content, errorHandler, tokenHandler, tokenStream, abstractSyntax, intermediateCode, controlFlow, assemblyCode}
+	return CompilationUnit{
+		Name:             buildConfiguration.SourcePath,
+		SourceContent:    content,
+		ErrorHandler:     errorHandler,
+		TokenHandler:     tokenHandler,
+		TokenStream:      tokenStream,
+		AbstractSyntax:   abstractSyntax,
+		IntermediateCode: intermediateCode,
+		ControlFlow:      controlFlow,
+		AssemblyCode:     assemblyCode,
+	}
 }
 
 // Persist the assembly code unit of the application.

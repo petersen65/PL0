@@ -38,6 +38,7 @@ type (
 	generator struct {
 		abstractSyntax   ast.Block               // abstract syntax tree to generate intermediate code for
 		intermediateCode ic.IntermediateCodeUnit // intermediate code unit to store the generated intermediate code
+		debugInformation cor.DebugInformation    // debug information collected during the code generation
 		results          *list.List              // last-in-first-out results-list holding results from expressions
 	}
 
@@ -79,10 +80,11 @@ var (
 )
 
 // Create a new intermediate code generator.
-func newGenerator(abstractSyntax ast.Block) Generator {
+func newGenerator(abstractSyntax ast.Block, compilationUnit string, tokenHandler cor.TokenHandler) Generator {
 	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: ic.NewIntermediateCodeUnit(),
+		debugInformation: cor.NewDebugInformation(compilationUnit, tokenHandler),
 		results:          list.New(),
 	}
 }
@@ -100,10 +102,8 @@ func (g *generator) Generate() {
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
-	debugInfo := cor.NewDebugInformation("generator", nil)
-
 	// collect the debug string table by providing a visit function that is called for each node
-	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, debugInfo, collectDebugStringTable); err != nil {
+	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.debugInformation, collectDebugStringTable); err != nil {
 		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
@@ -114,6 +114,11 @@ func (g *generator) Generate() {
 // Get access to the generated intermediate code.
 func (g *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 	return g.intermediateCode
+}
+
+// Provide access to the collected debug information.
+func (g *generator) GetDebugInformation() cor.DebugInformation {
+	return g.debugInformation
 }
 
 // Generate code for a block, all nested procedure blocks, and its statement.
@@ -809,17 +814,20 @@ func configureSymbols(node ast.Node, code any) {
 
 // Collect the debug string table from the abstract syntax tree and store it as debug information.
 func collectDebugStringTable(node ast.Node, code any) {
+	var function, functionSource string
+	var tokenStreamIndex int
 	info := code.(cor.DebugInformation)
 
-	switch n := node.(type) {
-	case *ast.BlockNode:
-		var function, functionSource string
-
+	// only process block nodes from the abstract syntax tree
+	if n, ok := node.(*ast.BlockNode); ok {
 		// only the main block has no parent procedure declaration
 		if n.ParentNode == nil {
 			// take the entry point label as the function name and the function source name
 			function = cor.EntryPointLabel
 			functionSource = cor.EntryPointLabel
+
+			// token stream index of the main block
+			tokenStreamIndex = n.Index()
 		} else {
 			// treat the parent node as a procedure declaration
 			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
@@ -829,10 +837,13 @@ func collectDebugStringTable(node ast.Node, code any) {
 
 			// take the abstract syntax procedure declaration name as the function source name
 			functionSource = pd.Name
+
+			// token stream index of the procedure declaration
+			tokenStreamIndex = pd.TokenStreamIndex
 		}
 
 		// append the function to the debug information
-		if info.AppendFunction(function, functionSource) {
+		if info.AppendFunction(function, functionSource, tokenStreamIndex) {
 			// append all variable declarations of the function to the debug information
 			for _, declaration := range n.Declarations {
 				if declaration.Type() == ast.VariableDeclarationType {
