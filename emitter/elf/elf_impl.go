@@ -11,6 +11,9 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Provide a format for a comment.
+const commentFormat = "# %v\n"
+
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
@@ -316,11 +319,18 @@ func (rdi *ReadOnlyDataItem) String() string {
 	return builder.String()
 }
 
-// String representation of a directive detail.
+// String representation of a directive.
 func (dd *Directive) String() string {
+	var comments string
+
+	// optional comments to be emitted before the directive
+	for _, comment := range dd.Comments {
+		comments += fmt.Sprintf(commentFormat, comment)
+	}
+
 	// join symbol and arguments with commas for multi-argument directives
 	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
-	return strings.TrimSpace(fmt.Sprintf("%v %v", dd.Directive, parts))
+	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, dd.Directive, parts))
 }
 
 // Append content to the assembly section.

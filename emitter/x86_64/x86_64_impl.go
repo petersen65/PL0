@@ -579,8 +579,10 @@ func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes
 	}
 
 	// if debug information is available, create a location directive with the source code context
-	if line, column, _, ok := u.debugInformation.GetSourceCodeContext(index); ok {
-		return elf.NewLocation(id, line, column, debugger, attributes...)
+	if line, column, currentLine, ok := u.debugInformation.GetSourceCodeContext(index); ok {
+		loc := elf.NewLocation(id, line, column, debugger, attributes...)
+		loc.AppendComment(currentLine)
+		return loc
 	}
 
 	// if no source code context is available, return nil

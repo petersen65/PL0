@@ -5,7 +5,10 @@
 // Note: ELF is part the System V ABI for x86_64 architecture and is used for linking and loading executable files.
 package elf
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Debugger flags augment the directive generation with additional information (bit-mask).
 const (
@@ -204,6 +207,7 @@ type (
 		Directive DirectiveKind `json:"kind"`      // the directive kind (e.g., .type, .size, .global)
 		Symbols   []string      `json:"symbols"`   // the symbol names this directive applies to
 		Arguments []string      `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
+		Comments  []string      `json:"comments"`  // comments associated with this directive
 	}
 )
 
@@ -217,9 +221,9 @@ func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *Re
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
 }
 
-// Create a new directive detail for symbol declarations.
+// Create a new directive for the assembler.
 func NewDirective(directive DirectiveKind, symbols []string, args ...string) *Directive {
-	return &Directive{Directive: directive, Symbols: symbols, Arguments: args}
+	return &Directive{Directive: directive, Symbols: symbols, Arguments: args, Comments: make([]string, 0)}
 }
 
 // Create a .intel_syntax directive for Intel assembly syntax.
@@ -335,6 +339,13 @@ func (sa SizeAttribute) String() string {
 // String representation of a call frame information attribute.
 func (cfi CallFrameInformationAttribute) String() string {
 	return callFrameInformationAttributeNames[cfi]
+}
+
+// Append a comment to a directive that will be emitted before the directive.
+func (d *Directive) AppendComment(comment string) {
+	if comment = strings.TrimSpace(comment); comment != "" {
+		d.Comments = append(d.Comments, comment)
+	}
 }
 
 // String representation of a descriptor label.
