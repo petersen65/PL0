@@ -831,9 +831,9 @@ func collectDebugStringTable(node ast.Node, code any) {
 		} else {
 			// treat the parent node as a procedure declaration
 			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
-
-			// determine the intermediate code name of the abstract syntax procedure declaration
-			function = n.Scope.LookupCurrent(pd.Name).Extension[symbolExtension].(*symbolMetaData).name
+			
+			// take the flattened name from intermediate code as the function name			
+			function = n.Scope.Lookup(pd.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 			// take the abstract syntax procedure declaration name as the function source name
 			functionSource = pd.Name
