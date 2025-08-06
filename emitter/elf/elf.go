@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+// Standard DWARF label names for ELF sections.
+const (
+	CompilationUnitLabel = "compilation_unit" // label for the compilation unit in .debug_str section
+	ProducerLabel        = "producer"         // label for the producer in .debug_str section
+)
+
 // Debugger flags augment the directive generation with additional information (bit-mask).
 const (
 	DebuggerNone          Debugger = 0         // no debugger flags set
@@ -91,15 +97,15 @@ const (
 
 // Section attributes for the .section directive.
 const (
-	SectionNone        SectionAttribute = iota // no special attributes for the section
-	SectionAllocatable                         // section is allocatable in memory (flag "a")
-	SectionWritable                            // section is writable at runtime (flag "w")
-	SectionExecutable                          // section contains executable code (flag "x")
-	SectionMergeable                           // section can be merged with other sections (flag "M")
-	SectionStrings                             // section contains zero-terminated strings (flag "S")
-	SectionMergeableStrings                    // section contains mergeable zero-terminated strings (flag "MS")
-	SectionProgramBits                         // section contains data or instruction program bits (section kind "@progbits")
-	SectionNoBits                              // section does not occupy space in the file (section kind "@nobits")
+	SectionNone             SectionAttribute = iota // no special attributes for the section
+	SectionAllocatable                              // section is allocatable in memory (flag "a")
+	SectionWritable                                 // section is writable at runtime (flag "w")
+	SectionExecutable                               // section contains executable code (flag "x")
+	SectionMergeable                                // section can be merged with other sections (flag "M")
+	SectionStrings                                  // section contains zero-terminated strings (flag "S")
+	SectionMergeableStrings                         // section contains mergeable zero-terminated strings (flag "MS")
+	SectionProgramBits                              // section contains data or instruction program bits (section kind "@progbits")
+	SectionNoBits                                   // section does not occupy space in the file (section kind "@nobits")
 )
 
 // File attributes for the .file directive.
@@ -162,6 +168,68 @@ const (
 	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
 )
 
+// DWARF attributes for debugging information entries (DIEs).
+const (
+	// compile unit–level attributes
+	DW_AT_name         DwarfAttribute = 0x03 // DW_AT_name: source file or entity name
+	DW_AT_comp_dir     DwarfAttribute = 0x1b // DW_AT_comp_dir: compilation directory
+	DW_AT_language     DwarfAttribute = 0x13 // DW_AT_language: source language (DW_LANG_…)
+	DW_AT_stmt_list    DwarfAttribute = 0x10 // DW_AT_stmt_list: offset into .debug_line
+	DW_AT_producer     DwarfAttribute = 0x3e // DW_AT_producer: producing compiler/toolchain
+	DW_AT_split_dwarf  DwarfAttribute = 0x3f // DW_AT_split_dwarf: indicates Split-DWARF support
+	DW_AT_GNU_dwo_name DwarfAttribute = 0x3d // DW_AT_GNU_dwo_name: .dwo file name for Split-DWARF
+	DW_AT_optimized    DwarfAttribute = 0x3a // DW_AT_optimized: whether optimizations were applied
+	DW_AT_ranges       DwarfAttribute = 0x55 // DW_AT_ranges: .debug_ranges offset
+	DW_AT_GNU_pubnames DwarfAttribute = 0x3b // DW_AT_GNU_pubnames: offset into .debug_pubnames
+
+	// subprogram (function/procedure) attributes
+	DW_AT_linkage_name       DwarfAttribute = 0x1d // DW_AT_linkage_name: linker/mangled name
+	DW_AT_low_pc             DwarfAttribute = 0x11 // DW_AT_low_pc: start address
+	DW_AT_high_pc            DwarfAttribute = 0x12 // DW_AT_high_pc: end address or size
+	DW_AT_frame_base         DwarfAttribute = 0x13 // DW_AT_frame_base: base for location expressions
+	DW_AT_prototyped         DwarfAttribute = 0x3f // DW_AT_prototyped: has function prototype
+	DW_AT_calling_convention DwarfAttribute = 0x52 // DW_AT_calling_convention: calling convention
+	DW_AT_inline             DwarfAttribute = 0x20 // DW_AT_inline: inlining status
+	DW_AT_artificial         DwarfAttribute = 0x34 // DW_AT_artificial: compiler-generated entity
+	DW_AT_accessibility      DwarfAttribute = 0x32 // DW_AT_accessibility: C++ access (public/prot/priv)
+	DW_AT_decl_file          DwarfAttribute = 0x3c // DW_AT_decl_file: file index in .debug_line file table
+	DW_AT_decl_line          DwarfAttribute = 0x3d // DW_AT_decl_line: line number of declaration
+	DW_AT_decl_column        DwarfAttribute = 0x3e // DW_AT_decl_column: column number of declaration
+	DW_AT_description        DwarfAttribute = 0x08 // DW_AT_description: free-text description
+
+	// variable / parameter attributes
+	DW_AT_type           DwarfAttribute = 0x49 // DW_AT_type: reference to type DIE
+	DW_AT_location       DwarfAttribute = 0x2e // DW_AT_location: location expression
+	DW_AT_declaration    DwarfAttribute = 0x3b // DW_AT_declaration: only declared vs. defined
+	DW_AT_visibility     DwarfAttribute = 0x3f // DW_AT_visibility: default/protected/private
+	DW_AT_start_scope    DwarfAttribute = 0x62 // DW_AT_start_scope: starting PC offset
+	DW_AT_constant_value DwarfAttribute = 0x3c // DW_AT_constant_value: constant literal value
+	DW_AT_external       DwarfAttribute = 0x3e // DW_AT_external: external linkage
+
+	// type attributes (base, struct, array, pointer, etc.)
+	DW_AT_byte_size            DwarfAttribute = 0x0b // DW_AT_byte_size: size in bytes
+	DW_AT_encoding             DwarfAttribute = 0x3e // DW_AT_encoding: base type encoding
+	DW_AT_bit_size             DwarfAttribute = 0x0c // DW_AT_bit_size: size of bitfield in bits
+	DW_AT_bit_offset           DwarfAttribute = 0x0d // DW_AT_bit_offset: bit offset within containing type
+	DW_AT_upper_bound          DwarfAttribute = 0x2f // DW_AT_upper_bound: array upper bound
+	DW_AT_lower_bound          DwarfAttribute = 0x30 // DW_AT_lower_bound: array lower bound
+	DW_AT_abstract_origin      DwarfAttribute = 0x31 // DW_AT_abstract_origin: refer to abstract DIE
+	DW_AT_specification        DwarfAttribute = 0x32 // DW_AT_specification: refer to declaration DIE
+	DW_AT_sibling              DwarfAttribute = 0x33 // DW_AT_sibling: offset to next sibling DIE
+	DW_AT_containing_type      DwarfAttribute = 0x34 // DW_AT_containing_type: parent struct/class DIE
+	DW_AT_data_member_location DwarfAttribute = 0x38 // DW_AT_data_member_location: struct member offset
+
+	// miscellaneous / vendor-defined attributes
+	DW_AT_MACRO_INFO         DwarfAttribute = 0x2c // DW_AT_MACRO_INFO: offset into .debug_macro
+	DW_AT_CALL_LINE          DwarfAttribute = 0x56 // DW_AT_CALL_LINE: call-site line number
+	DW_AT_CALL_FILE          DwarfAttribute = 0x57 // DW_AT_CALL_FILE: call-site file index
+	DW_AT_CALL_COLUMN        DwarfAttribute = 0x58 // DW_AT_CALL_COLUMN: call-site column number
+	DW_AT_object_pointer     DwarfAttribute = 0x50 // DW_AT_object_pointer: "this" for methods
+	DW_AT_allocated          DwarfAttribute = 0x21 // DW_AT_allocated: heap allocation info
+	DW_AT_associated         DwarfAttribute = 0x22 // DW_AT_associated: GC/heap association
+	DW_AT_GNU_old_call_frame DwarfAttribute = 0x40 // DW_AT_GNU_old_call_frame: legacy CFI format
+)
+
 type (
 	// Represents debugger flags (bit-mask).
 	Debugger uint64
@@ -192,6 +260,9 @@ type (
 
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
+
+	// Represents a DWARF attribute (ULEB128-encoded).
+	DwarfAttribute uint64
 
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
@@ -232,6 +303,11 @@ func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []Section
 // Create a new read-only data item with literal data labels for a read-only section.
 func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *ReadOnlyDataItem {
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
+}
+
+// Create a new string item for the .debug_str section.
+func NewStringItem(label string, directive DirectiveKind, operand string) *StringItem {
+	return &StringItem{Label: label, Directive: directive, Operand: operand}
 }
 
 // Create a new directive for the assembler.

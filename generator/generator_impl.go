@@ -80,11 +80,15 @@ var (
 )
 
 // Create a new intermediate code generator.
-func newGenerator(abstractSyntax ast.Block, compilationUnit string, tokenHandler cor.TokenHandler) Generator {
+func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Generator {
+	compilationUnit := buildConfiguration.SourcePath
+	producer := buildConfiguration.DriverDisplayName
+	optimized := buildConfiguration.Optimization&cor.Debug == 0
+
 	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: ic.NewIntermediateCodeUnit(),
-		debugInformation: cor.NewDebugInformation(compilationUnit, tokenHandler),
+		debugInformation: cor.NewDebugInformation(compilationUnit, producer, optimized, tokenHandler),
 		results:          list.New(),
 	}
 }

@@ -17,6 +17,9 @@ const commentFormat = "# %v\n"
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
+// Prefix for DWARF string items.
+const debugStringPrefix = ".str_"
+
 var (
 	// Map directives to their string representation.
 	directiveNames = map[DirectiveKind]string{
@@ -325,11 +328,12 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 // String representation of a DWARF string item.
 func (i *StringItem) String() string {
-	const labelWidth = 20
+	const labelWidth = 30
 	const directiveWidth = 10
 
 	return fmt.Sprintf(
-		".%-*v: %-*v \"%v\"",
+		"%v%-*v: %-*v \"%v\"",
+		debugStringPrefix,
 		labelWidth, i.Label,
 		directiveWidth, i.Directive,
 		i.Operand,

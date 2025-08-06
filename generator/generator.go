@@ -18,6 +18,6 @@ type Generator interface {
 }
 
 // Return the interface of the generator implementation.
-func NewGenerator(abstractSyntax ast.Block, compilationUnit string, tokenHandler cor.TokenHandler) Generator {
-	return newGenerator(abstractSyntax, compilationUnit, tokenHandler)
+func NewGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Generator {
+	return newGenerator(abstractSyntax, buildConfiguration, tokenHandler)
 }

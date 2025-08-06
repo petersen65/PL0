@@ -8,16 +8,18 @@ type debugInformation struct {
 	table        *DebugStringTable
 }
 
-func newDebugInformation(compilationUnit string, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
-		table:        newDebugStringTable(compilationUnit),
+		table:        newDebugStringTable(compilationUnit, producer, optimized),
 	}
 }
 
-func newDebugStringTable(compilationUnit string) *DebugStringTable {
+func newDebugStringTable(compilationUnit, producer string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
 		CompilationUnit: compilationUnit,
+		Producer:        producer,
+		Optimized:       optimized,
 		Functions:       make([]*FunctionDescription, 0),
 	}
 }

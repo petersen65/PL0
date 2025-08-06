@@ -256,6 +256,12 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownOutputKind, buildConfiguration.OutputKind, nil))
 	}
 
+	// transfer the debug string table from the debug information into the .debug_str section
+	if unit.HasDebugInformation() {
+		dstab := unit.debugInformation.GetDebugStringTable()
+		updateDebugStrSection(unit.DebugStrSection, &dstab)
+	}
+
 	return unit
 }
 
@@ -440,6 +446,10 @@ func (u *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 
 // Append a set of instructions to create all runtime functions.
 func (u *assemblyCodeUnit) AppendRuntime() {
+	if u.HasDebugInformation() {
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, optimizationDebugNotSupportedinRuntime, u.BuildConfiguration.Optimization, nil))
+	}
+
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
 	behindLoop := fmt.Sprintf("%v.2", FollowStaticLinkLabel)
 	noIndex := cor.NoTokenStreamIndex
@@ -578,10 +588,9 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive {
 	// extract file identifier and debug flag required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
-	debug := u.BuildConfiguration.Optimization&cor.Debug != 0
 
 	// if source code files cannot be supported by the assembly code unit return nil
-	if index == cor.NoTokenStreamIndex || u.debugInformation == nil || !debug || id == 0 {
+	if index == cor.NoTokenStreamIndex || u.debugInformation == nil || !u.HasDebugInformation() || id == 0 {
 		return nil
 	}
 
@@ -598,11 +607,16 @@ func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes
 
 // Filter the directive based on the build configuration and return nil if it should not be included in the assembly code.
 func (u *assemblyCodeUnit) Filter(directive *elf.Directive) *elf.Directive {
-	if u.BuildConfiguration.Optimization&cor.Debug != 0 {
+	if u.HasDebugInformation() {
 		return directive
 	}
 
 	return nil
+}
+
+// Check whether the assembly code unit is configured with debug information.
+func (u *assemblyCodeUnit) HasDebugInformation() bool {
+	return u.BuildConfiguration.Optimization&cor.Debug != 0 && u.debugInformation != nil
 }
 
 // Print the assembly code to the specified writer and optionally accept global symbols as arguments.
@@ -643,8 +657,8 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 		header += elf.NewExtern(externals).String() + "\n"
 	}
 
-	// add the file directive with file identifier and name to the header if optimization is debug
-	if u.BuildConfiguration.Optimization&cor.Debug != 0 {
+	// add the file directive with file identifier and name to the header if debug information is available
+	if u.HasDebugInformation() {
 		name := u.BuildConfiguration.SourcePath
 		id := u.FileIdentifier[name]
 
@@ -725,5 +739,48 @@ func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 
 	default:
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+	}
+}
+
+// Update the .debug_str section with the debug string table from the debug information.
+func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dstab *cor.DebugStringTable) {
+	// deduplicate function and variable names ensuring unique label names in the .debug_str section
+	labels := make(map[string]bool)
+
+	// compilation unit and producer are required for the .debug_str section
+	if len(dstab.CompilationUnit) == 0 || len(dstab.Producer) == 0 {
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationUnitAndProducerRequired, nil, nil))
+	}
+
+	// add the compilation unit and producer to the debug string section
+	debugStrSection.Append(elf.NewStringItem(elf.CompilationUnitLabel, elf.String, dstab.CompilationUnit))
+	debugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
+
+	// collect all function names from the debug string table
+	for _, f := range dstab.Functions {
+		// ensure that the function name is a unique label name in the .debug_str section
+		if ok, exists := labels[f.NameSource]; ok && exists {
+			continue
+		}
+
+		// mark the function name as used
+		labels[f.NameSource] = true
+
+		// add the function name to the .debug_str section
+		debugStrSection.Append(elf.NewStringItem(f.NameSource, elf.String, f.NameSource))
+
+		// collect all variable names of a function from the debug string table
+		for _, v := range f.Variables {
+			// ensure that the variable name is a unique label name in the .debug_str section
+			if ok, exists := labels[v.NameSource]; ok && exists {
+				continue
+			}
+
+			// mark the variable name as used
+			labels[v.NameSource] = true
+
+			// add the variable name to the .debug_str section
+			debugStrSection.Append(elf.NewStringItem(v.NameSource, elf.String, v.NameSource))
+		}
 	}
 }

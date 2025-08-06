@@ -253,7 +253,7 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) C
 	}
 
 	// code generation based on the abstract syntax tree results in an intermediate code unit and debug information
-	generator := gen.NewGenerator(abstractSyntax, buildConfiguration.SourcePath, tokenHandler)
+	generator := gen.NewGenerator(abstractSyntax, buildConfiguration, tokenHandler)
 	generator.Generate()
 	intermediateCode := generator.GetIntermediateCodeUnit()
 	debugInformation := generator.GetDebugInformation()
@@ -288,14 +288,14 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 
 // Persist the assembly code unit of the runtime.
 func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string) error {
-	// setup build configuration for the runtime
+	// setup build configuration for the runtime which does not support debug information
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        runtimePath,
 		TargetPath:        runtimePath,
 		TargetPlatform:    targetPlatform,
 		DriverDisplayName: DriverDisplayName,
 		OutputKind:        cor.Runtime,
-		Optimization:      optimization,
+		Optimization:      optimization &^ cor.Debug,
 	}
 
 	// create a new assembly code unit for the runtime without support for source code file to assembly code mapping

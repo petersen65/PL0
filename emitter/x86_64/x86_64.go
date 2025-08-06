@@ -284,6 +284,7 @@ type (
 		AppendRuntime()
 		Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive
 		Filter(directive *elf.Directive) *elf.Directive
+		HasDebugInformation() bool
 		Print(print io.Writer, args ...any) error
 		Export(format cor.ExportFormat, print io.Writer) error
 	}

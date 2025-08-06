@@ -6,6 +6,8 @@ package core
 type (
 	DebugStringTable struct {
 		CompilationUnit string
+		Producer        string
+		Optimized       bool
 		Functions       []*FunctionDescription
 	}
 
@@ -32,6 +34,6 @@ type (
 	}
 )
 
-func NewDebugInformation(compilationUnit string, tokenHandler TokenHandler) DebugInformation {
-	return newDebugInformation(compilationUnit, tokenHandler)
+func NewDebugInformation(compilationUnit, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, producer, optimized, tokenHandler)
 }
