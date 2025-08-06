@@ -269,6 +269,7 @@ type (
 		Directives []DirectiveKind    `json:"directives"` // directives for building the section (e.g., .section, .p2align)
 		Attributes []SectionAttribute `json:"attributes"` // attributes of the section (e.g., allocatable, writable, executable)
 		Alignment  int                `json:"alignment"`  // power-of-2 alignment for section contents (used with ".p2align")
+		Offsets    bool               `json:"offsets"`    // whether the section requires labels for offset calculations (e.g., .debug_str)
 		Content    []T                `json:"content"`    // typed contents of this section (e.g., read-only data items, instructions)
 	}
 
@@ -295,9 +296,9 @@ type (
 	}
 )
 
-// Create a new ELF section with the specified directives, attributes, and alignment.
-func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []SectionAttribute, alignment int) *ElfSection[T] {
-	return &ElfSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Content: make([]T, 0)}
+// Create a new ELF section with the specified directives, attributes, alignment, and offset calculation support.
+func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []SectionAttribute, alignment int, offsets bool) *ElfSection[T] {
+	return &ElfSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Offsets: offsets, Content: make([]T, 0)}
 }
 
 // Create a new read-only data item with literal data labels for a read-only section.

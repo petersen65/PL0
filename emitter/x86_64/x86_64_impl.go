@@ -192,31 +192,36 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		RoUtf32Section: elf.NewSection[*elf.ReadOnlyDataItem](
 			[]elf.DirectiveKind{elf.Section, elf.Utf32},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
-			elf.P2align4),
+			elf.P2align4,
+			false),
 
 		// read-only data section for static 64-bit integers (signed and unsigned)
 		RoInt64Section: elf.NewSection[*elf.ReadOnlyDataItem](
 			[]elf.DirectiveKind{elf.Section, elf.Int64},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
-			elf.P2align8),
+			elf.P2align8,
+			false),
 
 		// read-only data section for string descriptors (64-bit string addresses and lengths)
 		RoStrDescSection: elf.NewSection[*elf.ReadOnlyDataItem](
 			[]elf.DirectiveKind{elf.Section, elf.StrDesc},
 			[]elf.SectionAttribute{elf.SectionAllocatable, elf.SectionProgramBits},
-			elf.P2align8),
+			elf.P2align8,
+			false),
 
 		// text section for all assembly instructions
 		TextSection: elf.NewSection[*Instruction](
 			[]elf.DirectiveKind{elf.Section, elf.Text},
 			[]elf.SectionAttribute{},
-			elf.P2align16),
+			elf.P2align16,
+			false),
 
 		// DWARF debug strings section for string items referenced by DIEs
 		DebugStrSection: elf.NewSection[*elf.StringItem](
 			[]elf.DirectiveKind{elf.Section, elf.DebugStr},
 			[]elf.SectionAttribute{elf.SectionMergeableStrings, elf.SectionProgramBits},
-			elf.P2align1),
+			elf.P2align1,
+			true),
 	}
 
 	// define default global and external symbols based on the output kind

@@ -17,6 +17,14 @@ const commentFormat = "# %v\n"
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
+// Prefix for label names.
+const labelPrefix = "."
+
+// Provide formats for labels that are used in ELF sections.
+const labelFormat = ".L%v:\n"
+const startLabelFormat = ".L%v_start:\n"
+const endLabelFormat = "\n.L%v_end:"
+
 // Prefix for DWARF string items.
 const debugStringPrefix = ".str_"
 
@@ -207,6 +215,11 @@ func (s *ElfSection[T]) String() string {
 		}
 	}
 
+	// write a start label if the section requires offset calculations
+	if len(s.Directives) > 1 && s.Offsets {
+		builder.WriteString(fmt.Sprintf(startLabelFormat, strings.TrimLeft(s.Directives[1].String(), labelPrefix)))
+	}
+
 	// write all contents with a newline after each item (expect the last one)
 	for i, content := range s.Content {
 		builder.WriteString(content.String())
@@ -214,6 +227,11 @@ func (s *ElfSection[T]) String() string {
 		if i < len(s.Content)-1 {
 			builder.WriteString("\n")
 		}
+	}
+
+	// write an end label if the section requires offset calculations
+	if len(s.Directives) > 1 && s.Offsets {
+		builder.WriteString(fmt.Sprintf(endLabelFormat, strings.TrimLeft(s.Directives[1].String(), labelPrefix)))
 	}
 
 	// the section string representation does not end with a newline
@@ -226,7 +244,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// write the literal data labels first and mark them with a local label prefix
 	for _, label := range rdi.Labels {
-		builder.WriteString(fmt.Sprintf(".L%v:\n", label))
+		builder.WriteString(fmt.Sprintf(labelFormat, label))
 	}
 
 	// check if the values are nil, which is not allowed for read-only data items
