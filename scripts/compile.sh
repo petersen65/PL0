@@ -5,17 +5,17 @@
 set -e
 
 # check for debug/release mode
-MODE=${1:-debug}  # default to debug mode
+MODE=${1:-debug}
 
 if [[ "$MODE" = "debug" ]]; then
     CFLAGS="-std=c23 -m64 -ggdb -g3 -O0 -DDEBUG -fno-omit-frame-pointer"
-    ASFLAGS="-m64 -ggdb"  # 64-bit assembly with debug info
-    LDFLAGS="-m64 -ggdb -fno-omit-frame-pointer"  # 64-bit linking with debug info
+    ASFLAGS="-m64 -ggdb"
+    LDFLAGS="-m64 -ggdb -fno-omit-frame-pointer"
     echo "Compiling in debug mode with DWARF symbols"
 elif [[ "$MODE" = "release" ]]; then
     CFLAGS="-std=c23 -m64 -O2 -DNDEBUG"
-    ASFLAGS="-m64"  # 64-bit assembly
-    LDFLAGS="-m64 -s"  # 64-bit linking, strip symbols in release mode
+    ASFLAGS="-m64"
+    LDFLAGS="-m64 -s"
     echo "Compiling in release mode with optimizations"
 else
     echo "Usage: $0 [debug|release]"
@@ -48,9 +48,9 @@ OUT_RT_OBJ="$BUILD_DIR/out.rt.o"
 OUTPUT_BIN="$BUILD_DIR/out"
 
 # perform C and assembly compilation with a final linking step
-mkdir --parents $BUILD_DIR  # ensure build directory exists
+mkdir --parents $BUILD_DIR
 gcc-15 -no-pie $CFLAGS -c -o $STANDARD_OBJ $STANDARD_SRC
 gcc-15 -no-pie $ASFLAGS -c -o $OUT_OBJ $OUT_ASM
 gcc-15 -no-pie $ASFLAGS -c -o $OUT_RT_OBJ $OUT_RT_ASM
 gcc-15 -no-pie $LDFLAGS -o $OUTPUT_BIN $OUT_OBJ $OUT_RT_OBJ $STANDARD_OBJ
-echo "Compilation complete: $OUTPUT_BIN"
+echo "C and assembly compilation complete: $OUTPUT_BIN"
