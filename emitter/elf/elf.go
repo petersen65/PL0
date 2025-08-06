@@ -168,7 +168,59 @@ const (
 	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
 )
 
-// DWARF attributes for debugging information entries (DIEs).
+// DWARF tags define the structure of debugging information entries (DIEs).
+const (
+	// type constructors
+	DW_TAG_array_type       DwarfTag = 0x01 // array type
+	DW_TAG_class_type       DwarfTag = 0x02 // class (C++) type
+	DW_TAG_entry_point      DwarfTag = 0x03 // entry point of program
+	DW_TAG_enumeration_type DwarfTag = 0x04 // enumeration type
+	DW_TAG_subroutine_type  DwarfTag = 0x15 // subroutine type (function type)
+	DW_TAG_base_type        DwarfTag = 0x24 // base type (e.g. int, float)
+	DW_TAG_pointer_type     DwarfTag = 0x0f // pointer type
+	DW_TAG_reference_type   DwarfTag = 0x10 // reference type (& in C++)
+	DW_TAG_const_type       DwarfTag = 0x26 // const-qualified type
+	DW_TAG_volatile_type    DwarfTag = 0x35 // volatile-qualified type
+	DW_TAG_restrict_type    DwarfTag = 0x37 // restrict-qualified type
+	DW_TAG_typedef          DwarfTag = 0x16 // typedef
+	DW_TAG_subrange_type    DwarfTag = 0x21 // subrange (array bounds)
+	DW_TAG_string_type      DwarfTag = 0x12 // string type
+	DW_TAG_structure_type   DwarfTag = 0x13 // struct type
+	DW_TAG_union_type       DwarfTag = 0x17 // union type
+
+	// program structure
+	DW_TAG_compile_unit       DwarfTag = 0x11 // compile unit (source file)
+	DW_TAG_namespace          DwarfTag = 0x39 // C++ namespace
+	DW_TAG_module             DwarfTag = 0x1e // module or file-scope grouping
+	DW_TAG_imported_unit      DwarfTag = 0x3d // imported (split) unit
+	DW_TAG_lexical_block      DwarfTag = 0x0b // lexical block ({} scope)
+	DW_TAG_try_block          DwarfTag = 0x32 // try/catch block
+	DW_TAG_catch_block        DwarfTag = 0x25 // catch block
+	DW_TAG_inlined_subroutine DwarfTag = 0x1d // inlined function instance
+
+	// functions and parameters
+	DW_TAG_subprogram       DwarfTag = 0x2e // function or procedure
+	DW_TAG_formal_parameter DwarfTag = 0x05 // function parameter
+
+	// data objects
+	DW_TAG_variable DwarfTag = 0x34 // variable (local, global)
+	DW_TAG_constant DwarfTag = 0x27 // constant value
+	DW_TAG_label    DwarfTag = 0x0a // code label
+
+	// class/struct members & enumeration values
+	DW_TAG_member     DwarfTag = 0x0d // member of struct/class/union
+	DW_TAG_enumerator DwarfTag = 0x28 // enumerator (value of enum)
+
+	// miscellaneous
+	DW_TAG_imported_declaration DwarfTag = 0x08   // imported declaration
+	DW_TAG_common_block         DwarfTag = 0x1a   // common block (Fortran)
+	DW_TAG_common_inclusion     DwarfTag = 0x1b   // common inclusion
+	DW_TAG_sibling              DwarfTag = 0x04   // see DW_TAG_enumeration_type (used in certain schemas)
+	DW_TAG_lo_user              DwarfTag = 0x4080 // start of user-defined tag range
+	DW_TAG_hi_user              DwarfTag = 0xffff // end of user-defined tag range
+)
+
+// DWARF attributes define the properties of debugging information entries (DIEs).
 const (
 	// compile unit–level attributes
 	DW_AT_name         DwarfAttribute = 0x03 // DW_AT_name: source file or entity name
@@ -230,6 +282,64 @@ const (
 	DW_AT_GNU_old_call_frame DwarfAttribute = 0x40 // DW_AT_GNU_old_call_frame: legacy CFI format
 )
 
+// DWARF form codes specify the on-disk encoding of a DWARF attribute’s value.
+const (
+	// fixed-size data forms
+	DW_FORM_data1  DwarfForm = 0x0b // 1-byte unsigned constant
+	DW_FORM_data2  DwarfForm = 0x05 // 2-byte unsigned constant (little-endian)
+	DW_FORM_data4  DwarfForm = 0x06 // 4-byte unsigned constant
+	DW_FORM_data8  DwarfForm = 0x07 // 8-byte unsigned constant
+	DW_FORM_data16 DwarfForm = 0x1e // 16-byte constant (for 128-bit data)
+
+	// address and offset forms
+	DW_FORM_addr       DwarfForm = 0x01 // address (size = target address size)
+	DW_FORM_sec_offset DwarfForm = 0x17 // 4-byte section offset (e.g. into .debug_line)
+
+	// block (binary blob) forms
+	DW_FORM_block1 DwarfForm = 0x0a // block: length is 1-byte constant
+	DW_FORM_block2 DwarfForm = 0x03 // block: length is 2-byte constant
+	DW_FORM_block4 DwarfForm = 0x04 // block: length is 4-byte constant
+	DW_FORM_block  DwarfForm = 0x09 // block: ULEB128 length prefix
+
+	// literal and flag forms
+	DW_FORM_flag         DwarfForm = 0x0c // 1-byte flag (0=false, non-zero=true)
+	DW_FORM_flag_present DwarfForm = 0x19 // no value bytes; presence alone = true
+	DW_FORM_sdata        DwarfForm = 0x0d // signed LEB128 constant
+	DW_FORM_udata        DwarfForm = 0x0f // unsigned LEB128 constant
+
+	// string forms
+	DW_FORM_string DwarfForm = 0x08 // null-terminated string inline in .debug_info
+	DW_FORM_strp   DwarfForm = 0x0e // 4-byte offset into .debug_str
+
+	// DWARF5 string‐offset table forms
+	DW_FORM_strx  DwarfForm = 0x1a // ULEB128 index into .debug_str_offsets
+	DW_FORM_strx1 DwarfForm = 0x25 // 1-byte  index into .debug_str_offsets
+	DW_FORM_strx2 DwarfForm = 0x26 // 2-byte  index into .debug_str_offsets
+	DW_FORM_strx3 DwarfForm = 0x27 // 3-byte  index into .debug_str_offsets
+	DW_FORM_strx4 DwarfForm = 0x28 // 4-byte  index into .debug_str_offsets
+
+	// reference forms (point to another DIE within the same CU)
+	DW_FORM_ref1      DwarfForm = 0x11 // 1-byte  offset to a DIE
+	DW_FORM_ref2      DwarfForm = 0x12 // 2-byte  offset to a DIE
+	DW_FORM_ref4      DwarfForm = 0x13 // 4-byte  offset to a DIE
+	DW_FORM_ref8      DwarfForm = 0x14 // 8-byte  offset to a DIE
+	DW_FORM_ref_udata DwarfForm = 0x15 // ULEB128 offset to a DIE
+	DW_FORM_ref_addr  DwarfForm = 0x10 // address-sized offset to a DIE (à la ref4/ref8)
+
+	// expression and indirect forms
+	DW_FORM_exprloc  DwarfForm = 0x18 // ULEB128 length + DW_OP-stream (location expression)
+	DW_FORM_indirect DwarfForm = 0x16 // ULEB128 form code follows, then value in that form
+
+	// implicit constant form
+	DW_FORM_implicit_const DwarfForm = 0x20 // ULEB128 constant encoded indirectly
+
+	// address-indexed form (DWARF5):
+	DW_FORM_addrx DwarfForm = 0x1b // ULEB128 index into .debug_addr
+
+	// line-string form (DWARF5):
+	DW_FORM_line_strp DwarfForm = 0x1f // 4-byte offset into .debug_line_str (introduced in DWARF5)
+)
+
 type (
 	// Represents debugger flags (bit-mask).
 	Debugger uint64
@@ -261,8 +371,14 @@ type (
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
 
+	// Represents a DWARF tag (ULEB128-encoded).
+	DwarfTag uint32
+
 	// Represents a DWARF attribute (ULEB128-encoded).
 	DwarfAttribute uint64
+
+	// Represents a DWARF form (ULEB128-encoded).
+	DwarfForm uint32
 
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
@@ -280,7 +396,21 @@ type (
 		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
 	}
 
-	// A DWARF string item will be referenced by DIEs (debugging information entries) in the DWARF debug information.
+	// A DWARF abbreviation entry defines a structure for debugging information entries (DIEs) used in the .debug_abbrev section.
+	AbbreviationEntry struct {
+		Code        uint64                  // abbreviation code used to reference this DIE (ULEB128)
+		Tag         uint64                  // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
+		HasChildren bool                    // 1 byte indicating if this DIE can have children
+		Attributes  []AbbreviationAttribute // list of <attribute,form> children, implicitly ends before 0
+	}
+
+	// A DWARF abbreviation attribute defines a single child attribute of a debugging information entry (DIE).
+	AbbreviationAttribute struct {
+		Attribute uint64 // DW_AT_* code defines what this attribute represents (ULEB128)
+		Form      uint64 // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
+	}
+
+	// A DWARF string item represents a string literal stored in the .debug_str section.
 	StringItem struct {
 		Label     string        `json:"label"`     // literal data label to access the string item
 		Directive DirectiveKind `json:"directive"` // directive to use for the string item (e.g., .string, .asciz)
