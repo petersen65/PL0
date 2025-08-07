@@ -270,8 +270,12 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownOutputKind, buildConfiguration.OutputKind, nil))
 	}
 
-	// transfer the debug string table from the debug information into the .debug_str section
+	// if debug information is enabled, create the .debug_abbrev, .debug_info, and .debug_str sections
 	if unit.HasDebugInformation() {
+		// update the .debug_abbrev section with abbreviation entry schemas required for the .debug_info section
+		updateDebugAbbrevSection(unit.DebugAbbrevSection)
+
+		// transfer the debug string table from the debug information into the .debug_str section
 		dstab := unit.debugInformation.GetDebugStringTable()
 		updateDebugStrSection(unit.DebugStrSection, &dstab)
 	}
@@ -379,7 +383,7 @@ func (i *Instruction) String() string {
 
 	// write the prefix and operation code
 	builder.WriteString(fmt.Sprintf(
-		"  %-*v", prefixOperationWidth,
+		"%v%-*v", elf.DefaultIndentation, prefixOperationWidth,
 		strings.TrimSpace(fmt.Sprintf("%v %v", i.Prefix, i.Operation))))
 
 	// write the operands
@@ -717,6 +721,13 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 		}
 	}
 
+	// write the DWARF debug abbreviation section to the print writer
+	if len(u.DebugAbbrevSection.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugAbbrevSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
 	// write the DWARF debug strings section to the print writer
 	if len(u.DebugStrSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
@@ -756,7 +767,30 @@ func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 	}
 }
 
-// Update the .debug_str section with the debug string table from the debug information.
+// Update the .debug_abbrev section with abbreviation entry schemas	required for DIEs in the .debug_info section.
+func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry]) {
+	// compilation unit abbreviation entry
+	compilationUnit := elf.NewAbbreviationEntry(
+		elf.DW_CODE_compilation_unit,
+		elf.DW_TAG_compile_unit,
+		true,
+		[]*elf.AbbreviationAttribute{
+			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),            // source file name
+			elf.NewAbbreviationAttribute(elf.DW_AT_comp_dir, elf.DW_FORM_strp),        // compilation directory
+			elf.NewAbbreviationAttribute(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
+			elf.NewAbbreviationAttribute(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
+			elf.NewAbbreviationAttribute(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
+		})
+
+	// the termination abbreviation entry is used to mark the end of abbreviation entries in the .debug_abbrev section
+	termination := elf.NewAbbreviationEntry(elf.DW_CODE_termination, 0, false, nil)
+
+	// add all entries to the .debug_abbrev section
+	debugAbbrevSection.Append(compilationUnit)
+	debugAbbrevSection.Append(termination)
+}
+
+// Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
 func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dstab *cor.DebugStringTable) {
 	// deduplicate function and variable names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)

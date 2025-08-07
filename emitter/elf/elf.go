@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// Provide a default indentation for directives and instructions.
+const DefaultIndentation = "  "
+
 // Standard DWARF label names for ELF sections.
 const (
 	CompilationUnitLabel = "compilation_unit" // label for the compilation unit in .debug_str section
@@ -170,7 +173,16 @@ const (
 	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
 )
 
-// DWARF tags define the structure of debugging information entries (DIEs).
+// DWARF codes are used to identify debugging information entries and are not formally part of the DWARF specification.
+const (
+	DW_CODE_termination      DwarfCode = iota // termination code (0 for ending a DWARF section)
+	DW_CODE_compilation_unit                  // compilation unit (e.g., a source file name)
+	DW_CODE_base_type                         // base type (e.g., int8_t, float)
+	DW_CODE_subprogram                        // subprogram (e.g., function)
+	DW_CODE_variable                          // variable (e.g., local variable in a function)
+)
+
+// DWARF tags define the structure of debugging information entries.
 const (
 	// type constructors
 	DW_TAG_array_type       DwarfTag = 0x01 // array type
@@ -222,7 +234,7 @@ const (
 	DW_TAG_hi_user              DwarfTag = 0xffff // end of user-defined tag range
 )
 
-// DWARF attributes define the properties of debugging information entries (DIEs).
+// DWARF attributes define the properties of debugging information entries.
 const (
 	// compile unit–level attributes
 	DW_AT_name         DwarfAttribute = 0x03 // DW_AT_name: source file or entity name
@@ -403,10 +415,10 @@ type (
 
 	// A DWARF abbreviation entry defines a structure for debugging information entries (DIEs) used in the .debug_abbrev section.
 	AbbreviationEntry struct {
-		Code        DwarfCode               // abbreviation code used to reference this DIE (ULEB128)
-		Tag         DwarfTag                // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
-		HasChildren bool                    // 1 byte indicating if this DIE can have children
-		Attributes  []AbbreviationAttribute // list of <attribute,form> children, implicitly ends before 0
+		Code        DwarfCode                // abbreviation code used to reference this DIE (ULEB128)
+		Tag         DwarfTag                 // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
+		HasChildren bool                     // 1 byte indicating if this DIE can have children
+		Attributes  []*AbbreviationAttribute // list of <attribute,form> children, implicitly ends before 0
 	}
 
 	// A DWARF abbreviation attribute defines a single child attribute of a debugging information entry (DIE).
@@ -442,7 +454,7 @@ func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *Re
 }
 
 // Create a new abbreviation entry for the .debug_abbrev section.
-func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []AbbreviationAttribute) *AbbreviationEntry {
+func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []*AbbreviationAttribute) *AbbreviationEntry {
 	return &AbbreviationEntry{Code: code, Tag: tag, HasChildren: hasChildren, Attributes: attributes}
 }
 

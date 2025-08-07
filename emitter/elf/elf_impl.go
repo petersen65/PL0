@@ -279,24 +279,24 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 		// write all code points with a newline after each item (expect the last one)
 		for _, r := range utf32 {
-			builder.WriteString(fmt.Sprintf("  %v 0x%08X\n", Long, uint32(r)))
+			builder.WriteString(fmt.Sprintf("%v%v 0x%08X\n", DefaultIndentation, Long, uint32(r)))
 		}
 
 		// write the zero terminator to the UTF-32 string
-		builder.WriteString(fmt.Sprintf("  %v 0x%08X", Long, uint32(0)))
+		builder.WriteString(fmt.Sprintf("%v%v 0x%08X", DefaultIndentation, Long, uint32(0)))
 
 	case ReadOnlyInt64:
 		// encode to 64-bit integers based on supported Go data types
 		switch values := rdi.Values.(type) {
 		case int64:
-			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(values)))
+			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, uint64(values)))
 
 		case uint64:
-			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, values))
+			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, values))
 
 		case []int64:
 			for i, value := range values {
-				builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, uint64(value)))
+				builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, uint64(value)))
 
 				if i < len(values)-1 {
 					builder.WriteString("\n")
@@ -305,7 +305,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 		case []uint64:
 			for i, value := range values {
-				builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, value))
+				builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, value))
 
 				if i < len(values)-1 {
 					builder.WriteString("\n")
@@ -320,19 +320,19 @@ func (rdi *ReadOnlyDataItem) String() string {
 		// encode to string descriptors with a 64-bit pointer and a 64-bit length based on supported Go data types
 		switch values := rdi.Values.(type) {
 		case string:
-			builder.WriteString(fmt.Sprintf("  %v .L%v", Quad, values))
+			builder.WriteString(fmt.Sprintf("%v%v .L%v", DefaultIndentation, Quad, values))
 
 		case uint64:
-			builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, values))
+			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, values))
 
 		case []any:
 			for i, value := range values {
 				switch desc := value.(type) {
 				case string:
-					builder.WriteString(fmt.Sprintf("  %v .L%v", Quad, desc))
+					builder.WriteString(fmt.Sprintf("%v%v .L%v", DefaultIndentation, Quad, desc))
 
 				case uint64:
-					builder.WriteString(fmt.Sprintf("  %v 0x%016X", Quad, desc))
+					builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, desc))
 
 				default:
 					panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, value, nil))
@@ -354,31 +354,39 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 // String representation of an abbreviation entry.
 func (ae *AbbreviationEntry) String() string {
-    var builder strings.Builder
+	const EncodingWidth = 10
+	var builder strings.Builder
 
-	// write the abbreviation code and tag as attribute-list parent
-    builder.WriteString(fmt.Sprintf("%v 0x%02x  # entry code = %d\n", Uleb128, ae.Code, ae.Code))
-    builder.WriteString(fmt.Sprintf("%v 0x%02x  # entry tag = %d\n", Uleb128, ae.Tag, ae.Tag))
+	// write the abbreviation code as attribute-list parent
+	builder.WriteString(fmt.Sprintf("%-*v 0x%02x", EncodingWidth, Uleb128, ae.Code))
+
+	// if the abbreviation code is the termination code, only return the representation of the code without a newline
+	if ae.Code == DW_CODE_termination {
+		return builder.String()
+	}
+
+	// write the abbreviation tag as attribute-list parent
+	builder.WriteString(fmt.Sprintf("\n%-*v 0x%02x\n", EncodingWidth, Uleb128, ae.Tag))
 
 	// has children flag
-    builder.WriteString(fmt.Sprintf("%v    0x%02x  # has children flag\n", Byte, boolToIntMap[ae.HasChildren]))
+	builder.WriteString(fmt.Sprintf("%-*v 0x%02x\n", EncodingWidth, Byte, boolToIntMap[ae.HasChildren]))
 
 	// write the abbreviation attribute-list that are children of the entry
-    for _, attr := range ae.Attributes {
-        builder.WriteString(attr.String())
-        builder.WriteByte('\n')
-    }
+	for _, attribute := range ae.Attributes {
+		builder.WriteString(fmt.Sprintf("%v%v\n", DefaultIndentation, attribute))
+	}
 
 	// zero terminator
-    builder.WriteString(fmt.Sprintf("%v 0x00  # end of attribute-list\n", Uleb128))
+	builder.WriteString(fmt.Sprintf("%-*v 0x00", EncodingWidth, Uleb128))
 
-	// the abbreviation entry string representation ends with a newline
-    return builder.String()
+	// the abbreviation entry string representation does not end with a newline
+	return builder.String()
 }
 
 // String representation of an abbreviation attribute.
 func (aa *AbbreviationAttribute) String() string {
-    return fmt.Sprintf("    %v 0x%02x %v 0x%02x", Uleb128, aa.Attribute, Uleb128, aa.Form)
+	const EncodingWidth = 10
+	return fmt.Sprintf("%-*v 0x%02x %-*v 0x%02x", EncodingWidth, Uleb128, aa.Attribute, EncodingWidth, Uleb128, aa.Form)
 }
 
 // String representation of a DWARF string item.
