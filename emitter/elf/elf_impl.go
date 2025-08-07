@@ -29,6 +29,12 @@ const endLabelFormat = "\n.L%v_end:"
 const debugStringPrefix = ".str_"
 
 var (
+	// Map a boolean value to a 0 or 1 integer representation.
+	boolToIntMap = map[bool]int8{
+		true:  1,
+		false: 0,
+	}
+
 	// Map directives to their string representation.
 	directiveNames = map[DirectiveKind]string{
 		IntelSyntax:       ".intel_syntax",
@@ -64,6 +70,8 @@ var (
 		Zero:              ".zero",
 		String:            ".string",
 		Ascii:             ".ascii",
+		Uleb128:           ".uleb128",
+		Sleb128:           ".sleb128",
 		File:              ".file",
 		Loc:               ".loc",
 		Line:              ".line",
@@ -342,6 +350,35 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// the read-only data item string representation does not end with a newline
 	return builder.String()
+}
+
+// String representation of an abbreviation entry.
+func (ae AbbreviationEntry) String() string {
+    var builder strings.Builder
+
+	// write the abbreviation code and tag as attribute-list parent
+    builder.WriteString(fmt.Sprintf("%v 0x%02x  # entry code = %d\n", Uleb128, ae.Code, ae.Code))
+    builder.WriteString(fmt.Sprintf("%v 0x%02x  # entry tag = %d\n", Uleb128, ae.Tag, ae.Tag))
+
+	// has children flag
+    builder.WriteString(fmt.Sprintf("%v    0x%02x  # has children flag\n", Byte, boolToIntMap[ae.HasChildren]))
+
+	// write the abbreviation attribute-list that are children of the entry
+    for _, attr := range ae.Attributes {
+        builder.WriteString(attr.String())
+        builder.WriteByte('\n')
+    }
+
+	// zero terminator
+    builder.WriteString(fmt.Sprintf("%v 0x00  # end of attribute-list\n", Uleb128))
+
+	// the abbreviation entry string representation ends with a newline
+    return builder.String()
+}
+
+// String representation of an abbreviation attribute.
+func (aa AbbreviationAttribute) String() string {
+    return fmt.Sprintf("    %v 0x%02x %v 0x%02x", Uleb128, aa.Attribute, Uleb128, aa.Form)
 }
 
 // String representation of a DWARF string item.

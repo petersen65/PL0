@@ -66,13 +66,15 @@ const (
 	Balign  // aligns using byte-boundary logic (.balign <n>) — same as .align but stricter in ELF
 
 	// value emission directives
-	Byte   // emits a single byte value (.byte 0xFF)
-	Word   // emits a 16-bit word (.word 0xABCD)
-	Long   // emits a 32-bit value (.long 0x12345678)
-	Quad   // emits a 64-bit value (.quad 0xDEADBEEFCAFEBABE)
-	Zero   // emits a run of zero bytes (.zero <count>)
-	String // emits a null-terminated ASCII string (.string "text")
-	Ascii  // emits an unterminated ASCII string (.ascii "text")
+	Byte    // emits a single byte value (.byte 0xFF)
+	Word    // emits a 16-bit word (.word 0xABCD)
+	Long    // emits a 32-bit value (.long 0x12345678)
+	Quad    // emits a 64-bit value (.quad 0xDEADBEEFCAFEBABE)
+	Zero    // emits a run of zero bytes (.zero <count>)
+	String  // emits a null-terminated ASCII string (.string "text")
+	Ascii   // emits an unterminated ASCII string (.ascii "text")
+	Uleb128 // emits an unsigned LEB128 value (.uleb128 0x1234, unsigned little-endian base 128 7-bit encoding)
+	Sleb128 // emits a signed LEB128 value (.sleb128 -1234, signed little-endian base 128 7-bit encoding)
 
 	// debug info and DWARF metadata
 	File              // specifies the source file name for debug info (.file "source.c")
