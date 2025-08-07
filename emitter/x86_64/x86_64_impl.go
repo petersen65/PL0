@@ -19,16 +19,17 @@ const assemblyCodeHeader = "# %v assembly code\n# optimization %v\n# generated b
 type (
 	// Represents a logical unit of assembly instructions created from one intermediate code unit.
 	assemblyCodeUnit struct {
-		Labels             []string                               `json:"labels"`              // enable deterministic iteration over the symbol table in the order of past inserts
-		SymbolTable        map[string]*Symbol                     `json:"symbol_table"`        // symbol table for assembly code label names
-		FileIdentifier     map[string]int                         `json:"file_identifier"`     // file identifier for source code files
-		BuildConfiguration cor.BuildConfiguration                 `json:"build_configuration"` // build configuration of the assembly code unit
-		debugInformation   cor.DebugInformation                   `json:"-"`                   // debug information collected from earlier compilation phases
-		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"utf32_section"`       // read-only data section for static UTF-32 strings
-		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"int64_section"`       // read-only data section for static 64-bit integers
-		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem] `json:"strdesc_section"`     // read-only data section for string descriptors
-		TextSection        *elf.ElfSection[*Instruction]          `json:"text_section"`        // text section with assembly instructions
-		DebugStrSection    *elf.ElfSection[*elf.StringItem]       `json:"debug_str_section"`   // DWARF section with string items referenced by DIEs
+		Labels             []string                                `json:"labels"`               // enable deterministic iteration over the symbol table in the order of past inserts
+		SymbolTable        map[string]*Symbol                      `json:"symbol_table"`         // symbol table for assembly code label names
+		FileIdentifier     map[string]int                          `json:"file_identifier"`      // file identifier for source code files
+		BuildConfiguration cor.BuildConfiguration                  `json:"build_configuration"`  // build configuration of the assembly code unit
+		debugInformation   cor.DebugInformation                    `json:"-"`                    // debug information collected from earlier compilation phases
+		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"utf32_section"`        // read-only data section for static UTF-32 strings
+		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"int64_section"`        // read-only data section for static 64-bit integers
+		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"strdesc_section"`      // read-only data section for string descriptors
+		TextSection        *elf.ElfSection[*Instruction]           `json:"text_section"`         // text section with assembly instructions
+		DebugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry] `json:"debug_abbrev_section"` // DWARF section with abbreviation entries and their attributes
+		DebugStrSection    *elf.ElfSection[*elf.StringItem]        `json:"debug_str_section"`    // DWARF section with string items referenced by DIEs
 	}
 )
 
@@ -215,6 +216,14 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 			[]elf.SectionAttribute{},
 			elf.P2align16,
 			false),
+
+		// DWARF debug abbreviation section with schemas for DIEs
+		DebugAbbrevSection: elf.NewSection[*elf.AbbreviationEntry](
+			[]elf.DirectiveKind{elf.Section, elf.DebugAbbrev},
+			[]elf.SectionAttribute{elf.SectionNone, elf.SectionProgramBits},
+			elf.P2align1,
+			true,
+		),
 
 		// DWARF debug strings section for string items referenced by DIEs
 		DebugStrSection: elf.NewSection[*elf.StringItem](

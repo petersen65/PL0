@@ -373,6 +373,9 @@ type (
 	// Kind of read-only static data.
 	ReadOnlyDataKind int
 
+	// Represents a DWARF abbreviation entry code (ULEB128-encoded).
+	DwarfCode uint64
+
 	// Represents a DWARF tag (ULEB128-encoded).
 	DwarfTag uint32
 
@@ -400,16 +403,16 @@ type (
 
 	// A DWARF abbreviation entry defines a structure for debugging information entries (DIEs) used in the .debug_abbrev section.
 	AbbreviationEntry struct {
-		Code        uint64                  // abbreviation code used to reference this DIE (ULEB128)
-		Tag         uint64                  // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
+		Code        DwarfCode               // abbreviation code used to reference this DIE (ULEB128)
+		Tag         DwarfTag                // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
 		HasChildren bool                    // 1 byte indicating if this DIE can have children
 		Attributes  []AbbreviationAttribute // list of <attribute,form> children, implicitly ends before 0
 	}
 
 	// A DWARF abbreviation attribute defines a single child attribute of a debugging information entry (DIE).
 	AbbreviationAttribute struct {
-		Attribute uint64 // DW_AT_* code defines what this attribute represents (ULEB128)
-		Form      uint64 // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
+		Attribute DwarfAttribute // DW_AT_* code defines what this attribute represents (ULEB128)
+		Form      DwarfForm      // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
 	}
 
 	// A DWARF string item represents a string literal stored in the .debug_str section.
@@ -436,6 +439,16 @@ func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []Section
 // Create a new read-only data item with literal data labels for a read-only section.
 func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *ReadOnlyDataItem {
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
+}
+
+// Create a new abbreviation entry for the .debug_abbrev section.
+func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []AbbreviationAttribute) *AbbreviationEntry {
+	return &AbbreviationEntry{Code: code, Tag: tag, HasChildren: hasChildren, Attributes: attributes}
+}
+
+// Create a new abbreviation attribute for a debugging information entry (DIE).
+func NewAbbreviationAttribute(attribute DwarfAttribute, form DwarfForm) *AbbreviationAttribute {
+	return &AbbreviationAttribute{Attribute: attribute, Form: form}
 }
 
 // Create a new string item for the .debug_str section.

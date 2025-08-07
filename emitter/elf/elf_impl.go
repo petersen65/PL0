@@ -353,7 +353,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 }
 
 // String representation of an abbreviation entry.
-func (ae AbbreviationEntry) String() string {
+func (ae *AbbreviationEntry) String() string {
     var builder strings.Builder
 
 	// write the abbreviation code and tag as attribute-list parent
@@ -377,7 +377,7 @@ func (ae AbbreviationEntry) String() string {
 }
 
 // String representation of an abbreviation attribute.
-func (aa AbbreviationAttribute) String() string {
+func (aa *AbbreviationAttribute) String() string {
     return fmt.Sprintf("    %v 0x%02x %v 0x%02x", Uleb128, aa.Attribute, Uleb128, aa.Form)
 }
 
