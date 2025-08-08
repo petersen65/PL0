@@ -782,11 +782,59 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 			elf.NewAbbreviationAttribute(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
 		})
 
+	// base type abbreviation entry
+	baseType := elf.NewAbbreviationEntry(
+		elf.DW_CODE_base_type,
+		elf.DW_TAG_base_type,
+		false,
+		[]*elf.AbbreviationAttribute{
+			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
+			elf.NewAbbreviationAttribute(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
+			elf.NewAbbreviationAttribute(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
+			elf.NewAbbreviationAttribute(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
+		},
+	)
+
+	// subprogram abbreviation entry
+	subprogram := elf.NewAbbreviationEntry(
+		elf.DW_CODE_subprogram,
+		elf.DW_TAG_subprogram,
+		true,
+		[]*elf.AbbreviationAttribute{
+			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),          // function name
+			elf.NewAbbreviationAttribute(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
+			elf.NewAbbreviationAttribute(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
+			elf.NewAbbreviationAttribute(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
+			elf.NewAbbreviationAttribute(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
+			elf.NewAbbreviationAttribute(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
+			elf.NewAbbreviationAttribute(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
+			elf.NewAbbreviationAttribute(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
+			elf.NewAbbreviationAttribute(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
+		},
+	)
+
+	// variable abbreviation entry
+	variable := elf.NewAbbreviationEntry(
+		elf.DW_CODE_variable,
+		elf.DW_TAG_variable,
+		false,
+		[]*elf.AbbreviationAttribute{
+			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
+			elf.NewAbbreviationAttribute(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
+			elf.NewAbbreviationAttribute(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
+			elf.NewAbbreviationAttribute(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
+			elf.NewAbbreviationAttribute(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
+		},
+	)
+
 	// the termination abbreviation entry is used to mark the end of abbreviation entries in the .debug_abbrev section
 	termination := elf.NewAbbreviationEntry(elf.DW_CODE_termination, 0, false, nil)
 
 	// add all entries to the .debug_abbrev section
 	debugAbbrevSection.Append(compilationUnit)
+	debugAbbrevSection.Append(baseType)
+	debugAbbrevSection.Append(subprogram)
+	debugAbbrevSection.Append(variable)
 	debugAbbrevSection.Append(termination)
 }
 

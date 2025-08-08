@@ -182,176 +182,222 @@ const (
 	DW_CODE_variable                          // variable (e.g., local variable in a function)
 )
 
-// DWARF tags define the structure of debugging information entries.
+// DwarfTag represents DWARF v5 tag values for debugging information entries.
 const (
-	// type constructors
+	// base/type tags
 	DW_TAG_array_type       DwarfTag = 0x01 // array type
-	DW_TAG_class_type       DwarfTag = 0x02 // class (C++) type
-	DW_TAG_entry_point      DwarfTag = 0x03 // entry point of program
+	DW_TAG_class_type       DwarfTag = 0x02 // class (C++), supports methods/member access
 	DW_TAG_enumeration_type DwarfTag = 0x04 // enumeration type
-	DW_TAG_subroutine_type  DwarfTag = 0x15 // subroutine type (function type)
-	DW_TAG_base_type        DwarfTag = 0x24 // base type (e.g. int, float)
-	DW_TAG_pointer_type     DwarfTag = 0x0f // pointer type
-	DW_TAG_reference_type   DwarfTag = 0x10 // reference type (& in C++)
-	DW_TAG_const_type       DwarfTag = 0x26 // const-qualified type
-	DW_TAG_volatile_type    DwarfTag = 0x35 // volatile-qualified type
-	DW_TAG_restrict_type    DwarfTag = 0x37 // restrict-qualified type
-	DW_TAG_typedef          DwarfTag = 0x16 // typedef
-	DW_TAG_subrange_type    DwarfTag = 0x21 // subrange (array bounds)
+	DW_TAG_pointer_type     DwarfTag = 0x0f // pointer type (T*)
+	DW_TAG_reference_type   DwarfTag = 0x10 // reference type (T&)
+	DW_TAG_compile_unit     DwarfTag = 0x11 // compilation unit root
 	DW_TAG_string_type      DwarfTag = 0x12 // string type
 	DW_TAG_structure_type   DwarfTag = 0x13 // struct type
+	DW_TAG_subroutine_type  DwarfTag = 0x15 // function type (signature)
+	DW_TAG_typedef          DwarfTag = 0x16 // typedef or alias
 	DW_TAG_union_type       DwarfTag = 0x17 // union type
 
-	// program structure
-	DW_TAG_compile_unit       DwarfTag = 0x11 // compile unit (source file)
-	DW_TAG_namespace          DwarfTag = 0x39 // C++ namespace
-	DW_TAG_module             DwarfTag = 0x1e // module or file-scope grouping
-	DW_TAG_imported_unit      DwarfTag = 0x3d // imported (split) unit
-	DW_TAG_lexical_block      DwarfTag = 0x0b // lexical block ({} scope)
-	DW_TAG_try_block          DwarfTag = 0x32 // try/catch block
-	DW_TAG_catch_block        DwarfTag = 0x25 // catch block
-	DW_TAG_inlined_subroutine DwarfTag = 0x1d // inlined function instance
+	// aggregate/derived types
+	DW_TAG_subrange_type DwarfTag = 0x21 // subrange (array bounds)
+	DW_TAG_base_type     DwarfTag = 0x24 // built-in type (int, float)
+	DW_TAG_const_type    DwarfTag = 0x26 // const-qualified type
+	DW_TAG_volatile_type DwarfTag = 0x35 // volatile-qualified type
+	DW_TAG_restrict_type DwarfTag = 0x37 // restrict-qualified type (C99)
+	DW_TAG_shared_type   DwarfTag = 0x3e // shared type across compilation units
 
-	// functions and parameters
-	DW_TAG_subprogram       DwarfTag = 0x2e // function or procedure
-	DW_TAG_formal_parameter DwarfTag = 0x05 // function parameter
+	// data/value descriptors
+	DW_TAG_enumerator       DwarfTag = 0x28 // enumerator (enum value)
+	DW_TAG_constant         DwarfTag = 0x27 // constant value
+	DW_TAG_variable         DwarfTag = 0x34 // variable (global or local)
+	DW_TAG_member           DwarfTag = 0x0d // member of struct/class/union
+	DW_TAG_formal_parameter DwarfTag = 0x05 // function/method parameter
 
-	// data objects
-	DW_TAG_variable DwarfTag = 0x34 // variable (local, global)
-	DW_TAG_constant DwarfTag = 0x27 // constant value
-	DW_TAG_label    DwarfTag = 0x0a // code label
+	// function/procedure entries
+	DW_TAG_subprogram         DwarfTag = 0x2e // function definition or declaration
+	DW_TAG_inlined_subroutine DwarfTag = 0x1d // inlined subroutine instance
 
-	// class/struct members & enumeration values
-	DW_TAG_member     DwarfTag = 0x0d // member of struct/class/union
-	DW_TAG_enumerator DwarfTag = 0x28 // enumerator (value of enum)
+	// scope and control flow
+	DW_TAG_lexical_block DwarfTag = 0x0b // anonymous block ({} scope)
+	DW_TAG_try_block     DwarfTag = 0x32 // try-catch block
+	DW_TAG_catch_block   DwarfTag = 0x25 // catch block for exception handling
 
-	// miscellaneous
-	DW_TAG_imported_declaration DwarfTag = 0x08   // imported declaration
-	DW_TAG_common_block         DwarfTag = 0x1a   // common block (Fortran)
-	DW_TAG_common_inclusion     DwarfTag = 0x1b   // common inclusion
-	DW_TAG_sibling              DwarfTag = 0x04   // see DW_TAG_enumeration_type (used in certain schemas)
-	DW_TAG_lo_user              DwarfTag = 0x4080 // start of user-defined tag range
-	DW_TAG_hi_user              DwarfTag = 0xffff // end of user-defined tag range
+	// modules, namespaces, imports
+	DW_TAG_namespace            DwarfTag = 0x39 // C++ namespace
+	DW_TAG_module               DwarfTag = 0x1e // module or file grouping
+	DW_TAG_imported_unit        DwarfTag = 0x3d // split or imported compilation unit
+	DW_TAG_imported_declaration DwarfTag = 0x08 // imported declaration (using/import)
+	DW_TAG_common_block         DwarfTag = 0x1a // fortran COMMON block
+	DW_TAG_common_inclusion     DwarfTag = 0x1b // fortran COMMON inclusion
+
+	// others
+	DW_TAG_entry_point      DwarfTag = 0x03 // program’s entry point (legacy)
+	DW_TAG_unspecified_type DwarfTag = 0x3f // unspecified type ('void' or unknown)
+
+	// user-defined tag range
+	DW_TAG_lo_user DwarfTag = 0x4080 // start of user-defined tags
+	DW_TAG_hi_user DwarfTag = 0xffff // end of user-defined tags
 )
 
-// DWARF attributes define the properties of debugging information entries.
+// DwarfAttribute represents DWARF v5 attribute values for debugging information entries.
 const (
-	// compile unit–level attributes
-	DW_AT_name         DwarfAttribute = 0x03 // DW_AT_name: source file or entity name
-	DW_AT_comp_dir     DwarfAttribute = 0x1b // DW_AT_comp_dir: compilation directory
-	DW_AT_language     DwarfAttribute = 0x13 // DW_AT_language: source language (DW_LANG_…)
-	DW_AT_stmt_list    DwarfAttribute = 0x10 // DW_AT_stmt_list: offset into .debug_line
-	DW_AT_producer     DwarfAttribute = 0x3e // DW_AT_producer: producing compiler/toolchain
-	DW_AT_split_dwarf  DwarfAttribute = 0x3f // DW_AT_split_dwarf: indicates Split-DWARF support
-	DW_AT_GNU_dwo_name DwarfAttribute = 0x3d // DW_AT_GNU_dwo_name: .dwo file name for Split-DWARF
-	DW_AT_optimized    DwarfAttribute = 0x3a // DW_AT_optimized: whether optimizations were applied
-	DW_AT_ranges       DwarfAttribute = 0x55 // DW_AT_ranges: .debug_ranges offset
-	DW_AT_GNU_pubnames DwarfAttribute = 0x3b // DW_AT_GNU_pubnames: offset into .debug_pubnames
+	DW_AT_sibling              DwarfAttribute = 0x01 // reference to sibling DIE
+	DW_AT_location             DwarfAttribute = 0x02 // location of object
+	DW_AT_name                 DwarfAttribute = 0x03 // name of entity
+	DW_AT_ordering             DwarfAttribute = 0x09 // array element ordering (row/column-major)
+	DW_AT_byte_size            DwarfAttribute = 0x0b // size in bytes
+	DW_AT_bit_offset           DwarfAttribute = 0x0c // bit offset from container
+	DW_AT_bit_size             DwarfAttribute = 0x0d // bit size of type or field
+	DW_AT_stmt_list            DwarfAttribute = 0x10 // offset into .debug_line
+	DW_AT_low_pc               DwarfAttribute = 0x11 // start address of code range
+	DW_AT_high_pc              DwarfAttribute = 0x12 // end address or size from low_pc
+	DW_AT_language             DwarfAttribute = 0x13 // source language (DW_LANG_*)
+	DW_AT_discr                DwarfAttribute = 0x15 // discriminant reference
+	DW_AT_discr_value          DwarfAttribute = 0x16 // discriminant value
+	DW_AT_visibility           DwarfAttribute = 0x17 // access level (public/private/etc.)
+	DW_AT_import               DwarfAttribute = 0x18 // reference to imported entity
+	DW_AT_string_length        DwarfAttribute = 0x19 // location of string length
+	DW_AT_common_reference     DwarfAttribute = 0x1a // reference to common block
+	DW_AT_comp_dir             DwarfAttribute = 0x1b // compilation directory
+	DW_AT_const_value          DwarfAttribute = 0x1c // constant value
+	DW_AT_containing_type      DwarfAttribute = 0x1d // reference to enclosing type
+	DW_AT_default_value        DwarfAttribute = 0x1e // default template or parameter value
+	DW_AT_inline               DwarfAttribute = 0x20 // inlining info
+	DW_AT_is_optional          DwarfAttribute = 0x21 // optional parameter
+	DW_AT_lower_bound          DwarfAttribute = 0x22 // array lower bound
+	DW_AT_producer             DwarfAttribute = 0x25 // compiler identification string
+	DW_AT_prototyped           DwarfAttribute = 0x27 // function has prototype
+	DW_AT_return_addr          DwarfAttribute = 0x2a // return address location
+	DW_AT_start_scope          DwarfAttribute = 0x2c // lifetime of variable
+	DW_AT_stride               DwarfAttribute = 0x2e // array stride
+	DW_AT_upper_bound          DwarfAttribute = 0x2f // array upper bound
+	DW_AT_abstract_origin      DwarfAttribute = 0x31 // reference to canonical definition
+	DW_AT_accessibility        DwarfAttribute = 0x32 // class member access level
+	DW_AT_address_class        DwarfAttribute = 0x33 // memory segment / address space
+	DW_AT_artificial           DwarfAttribute = 0x34 // compiler-generated flag
+	DW_AT_base_types           DwarfAttribute = 0x35 // base type list (Fortran-style)
+	DW_AT_calling_convention   DwarfAttribute = 0x36 // calling convention
+	DW_AT_count                DwarfAttribute = 0x37 // number of elements
+	DW_AT_data_member_location DwarfAttribute = 0x38 // member offset (struct/class)
+	DW_AT_decl_column          DwarfAttribute = 0x39 // declaration source column
+	DW_AT_decl_file            DwarfAttribute = 0x3a // declaration file index
+	DW_AT_decl_line            DwarfAttribute = 0x3b // declaration line number
+	DW_AT_declaration          DwarfAttribute = 0x3c // declares but does not define
+	DW_AT_discr_list           DwarfAttribute = 0x3d // discriminant case ranges
+	DW_AT_encoding             DwarfAttribute = 0x3e // type encoding (e.g. signed, float)
+	DW_AT_external             DwarfAttribute = 0x3f // symbol is externally visible
+	DW_AT_frame_base           DwarfAttribute = 0x40 // location of frame base (CFA)
+	DW_AT_friend               DwarfAttribute = 0x41 // reference to friend declaration
+	DW_AT_identifier_case      DwarfAttribute = 0x42 // identifier case sensitivity
+	DW_AT_macro_info           DwarfAttribute = 0x43 // offset into .debug_macinfo
+	DW_AT_namelist_item        DwarfAttribute = 0x44 // fortran namelist item
+	DW_AT_priority             DwarfAttribute = 0x45 // task scheduling priority
+	DW_AT_segment              DwarfAttribute = 0x46 // segment selector
+	DW_AT_specification        DwarfAttribute = 0x47 // reference to a specification DIE
+	DW_AT_static_link          DwarfAttribute = 0x48 // static link (closure environment)
+	DW_AT_type                 DwarfAttribute = 0x49 // reference to type DIE
+	DW_AT_use_location         DwarfAttribute = 0x4a // reference to usage location
+	DW_AT_variable_parameter   DwarfAttribute = 0x4b // fortran: parameter passed by ref
+	DW_AT_virtuality           DwarfAttribute = 0x4c // virtual/pure virtual member
+	DW_AT_vtable_elem_location DwarfAttribute = 0x4d // offset in vtable
 
-	// subprogram (function/procedure) attributes
-	DW_AT_linkage_name       DwarfAttribute = 0x1d // DW_AT_linkage_name: linker/mangled name
-	DW_AT_low_pc             DwarfAttribute = 0x11 // DW_AT_low_pc: start address
-	DW_AT_high_pc            DwarfAttribute = 0x12 // DW_AT_high_pc: end address or size
-	DW_AT_frame_base         DwarfAttribute = 0x13 // DW_AT_frame_base: base for location expressions
-	DW_AT_prototyped         DwarfAttribute = 0x3f // DW_AT_prototyped: has function prototype
-	DW_AT_calling_convention DwarfAttribute = 0x52 // DW_AT_calling_convention: calling convention
-	DW_AT_inline             DwarfAttribute = 0x20 // DW_AT_inline: inlining status
-	DW_AT_artificial         DwarfAttribute = 0x34 // DW_AT_artificial: compiler-generated entity
-	DW_AT_accessibility      DwarfAttribute = 0x32 // DW_AT_accessibility: C++ access (public/prot/priv)
-	DW_AT_decl_file          DwarfAttribute = 0x3c // DW_AT_decl_file: file index in .debug_line file table
-	DW_AT_decl_line          DwarfAttribute = 0x3d // DW_AT_decl_line: line number of declaration
-	DW_AT_decl_column        DwarfAttribute = 0x3e // DW_AT_decl_column: column number of declaration
-	DW_AT_description        DwarfAttribute = 0x08 // DW_AT_description: free-text description
+	// DWARF v5-specific
+	DW_AT_allocated       DwarfAttribute = 0x4f // fortran: storage allocated indicator
+	DW_AT_associated      DwarfAttribute = 0x50 // fortran: pointer association status
+	DW_AT_data_location   DwarfAttribute = 0x51 // memory location
+	DW_AT_byte_stride     DwarfAttribute = 0x52 // distance between array elements
+	DW_AT_entry_pc        DwarfAttribute = 0x53 // entry address
+	DW_AT_use_UTF8        DwarfAttribute = 0x54 // strings are UTF-8
+	DW_AT_extension       DwarfAttribute = 0x55 // reference to DIE for extension
+	DW_AT_ranges          DwarfAttribute = 0x56 // offset into .debug_ranges
+	DW_AT_trampoline      DwarfAttribute = 0x57 // trampoline function reference
+	DW_AT_call_column     DwarfAttribute = 0x58 // call site column
+	DW_AT_call_file       DwarfAttribute = 0x59 // call site file
+	DW_AT_call_line       DwarfAttribute = 0x5a // call site line
+	DW_AT_description     DwarfAttribute = 0x5b // description of type or object
+	DW_AT_binary_scale    DwarfAttribute = 0x5c // scale for fixed-point type
+	DW_AT_decimal_scale   DwarfAttribute = 0x5d // decimal scale
+	DW_AT_small           DwarfAttribute = 0x5e // indicates use of small register class
+	DW_AT_decimal_sign    DwarfAttribute = 0x5f // decimal sign style (leading, trailing, overpunch)
+	DW_AT_digit_count     DwarfAttribute = 0x60 // number of decimal digits
+	DW_AT_picture_string  DwarfAttribute = 0x61 // picture formatting string
+	DW_AT_mutable         DwarfAttribute = 0x62 // c++ mutable keyword
+	DW_AT_threads_scaled  DwarfAttribute = 0x63 // indicates thread-scaling applied
+	DW_AT_explicit        DwarfAttribute = 0x64 // explicit instantiation
+	DW_AT_object_pointer  DwarfAttribute = 0x65 // `this` pointer or closure self
+	DW_AT_endianity       DwarfAttribute = 0x66 // endianess of the data
+	DW_AT_elemental       DwarfAttribute = 0x67 // fortran elemental procedure
+	DW_AT_pure            DwarfAttribute = 0x68 // fortran pure procedure
+	DW_AT_recursive       DwarfAttribute = 0x69 // fortran recursive procedure
+	DW_AT_signature       DwarfAttribute = 0x6a // signature reference (for type units)
+	DW_AT_main_subprogram DwarfAttribute = 0x6b // entry point of main subprogram
+	DW_AT_data_bit_offset DwarfAttribute = 0x6c // bit offset from storage unit
+	DW_AT_const_expr      DwarfAttribute = 0x6d // value is constant expression
+	DW_AT_enum_class      DwarfAttribute = 0x6e // strongly typed enum (C++11)
+	DW_AT_linkage_name    DwarfAttribute = 0x6f // linker-visible (mangled) name
 
-	// variable / parameter attributes
-	DW_AT_type           DwarfAttribute = 0x49 // DW_AT_type: reference to type DIE
-	DW_AT_location       DwarfAttribute = 0x2e // DW_AT_location: location expression
-	DW_AT_declaration    DwarfAttribute = 0x3b // DW_AT_declaration: only declared vs. defined
-	DW_AT_visibility     DwarfAttribute = 0x3f // DW_AT_visibility: default/protected/private
-	DW_AT_start_scope    DwarfAttribute = 0x62 // DW_AT_start_scope: starting PC offset
-	DW_AT_constant_value DwarfAttribute = 0x3c // DW_AT_constant_value: constant literal value
-	DW_AT_external       DwarfAttribute = 0x3e // DW_AT_external: external linkage
+	// split DWARF / debug fission
+	DW_AT_string_length_bit_size  DwarfAttribute = 0x70 // bit size of string length field
+	DW_AT_string_length_byte_size DwarfAttribute = 0x71 // byte size of string length field
+	DW_AT_rank                    DwarfAttribute = 0x72 // rank expression for arrays
+	DW_AT_str_offsets_base        DwarfAttribute = 0x73 // offset into .debug_str_offsets
+	DW_AT_addr_base               DwarfAttribute = 0x74 // offset into .debug_addr
+	DW_AT_rnglists_base           DwarfAttribute = 0x75 // offset into .debug_rnglists
+	DW_AT_dwo_name                DwarfAttribute = 0x76 // dWO filename
+	DW_AT_reference               DwarfAttribute = 0x77 // split unit reference
+	DW_AT_dwo_id                  DwarfAttribute = 0x78 // unique ID for DWO
+	DW_AT_dwo_file                DwarfAttribute = 0x79 // file index in DWO
+	DW_AT_dwo_line                DwarfAttribute = 0x7a // offset into .debug_line in DWO
+	DW_AT_stmt_list_base          DwarfAttribute = 0x7b // offset to stmt list in DWO
+	DW_AT_loclists_base           DwarfAttribute = 0x7c // offset into .debug_loclists
 
-	// type attributes (base, struct, array, pointer, etc.)
-	DW_AT_byte_size            DwarfAttribute = 0x0b // DW_AT_byte_size: size in bytes
-	DW_AT_encoding             DwarfAttribute = 0x3e // DW_AT_encoding: base type encoding
-	DW_AT_bit_size             DwarfAttribute = 0x0c // DW_AT_bit_size: size of bitfield in bits
-	DW_AT_bit_offset           DwarfAttribute = 0x0d // DW_AT_bit_offset: bit offset within containing type
-	DW_AT_upper_bound          DwarfAttribute = 0x2f // DW_AT_upper_bound: array upper bound
-	DW_AT_lower_bound          DwarfAttribute = 0x30 // DW_AT_lower_bound: array lower bound
-	DW_AT_abstract_origin      DwarfAttribute = 0x31 // DW_AT_abstract_origin: refer to abstract DIE
-	DW_AT_specification        DwarfAttribute = 0x32 // DW_AT_specification: refer to declaration DIE
-	DW_AT_sibling              DwarfAttribute = 0x33 // DW_AT_sibling: offset to next sibling DIE
-	DW_AT_containing_type      DwarfAttribute = 0x34 // DW_AT_containing_type: parent struct/class DIE
-	DW_AT_data_member_location DwarfAttribute = 0x38 // DW_AT_data_member_location: struct member offset
-
-	// miscellaneous / vendor-defined attributes
-	DW_AT_MACRO_INFO         DwarfAttribute = 0x2c // DW_AT_MACRO_INFO: offset into .debug_macro
-	DW_AT_CALL_LINE          DwarfAttribute = 0x56 // DW_AT_CALL_LINE: call-site line number
-	DW_AT_CALL_FILE          DwarfAttribute = 0x57 // DW_AT_CALL_FILE: call-site file index
-	DW_AT_CALL_COLUMN        DwarfAttribute = 0x58 // DW_AT_CALL_COLUMN: call-site column number
-	DW_AT_object_pointer     DwarfAttribute = 0x50 // DW_AT_object_pointer: "this" for methods
-	DW_AT_allocated          DwarfAttribute = 0x21 // DW_AT_allocated: heap allocation info
-	DW_AT_associated         DwarfAttribute = 0x22 // DW_AT_associated: GC/heap association
-	DW_AT_GNU_old_call_frame DwarfAttribute = 0x40 // DW_AT_GNU_old_call_frame: legacy CFI format
+	// reserved for user extensions
+	DW_AT_lo_user DwarfAttribute = 0x2000 // start of user-defined attributes
+	DW_AT_hi_user DwarfAttribute = 0x3fff // end of user-defined attributes
 )
 
-// DWARF form codes specify the on-disk encoding of a DWARF attribute’s value.
+// DWARF form codes specify the on-disk encoding of a DWARF v5 attribute's value.
 const (
-	// fixed-size data forms
-	DW_FORM_data1  DwarfForm = 0x0b // 1-byte unsigned constant
-	DW_FORM_data2  DwarfForm = 0x05 // 2-byte unsigned constant (little-endian)
-	DW_FORM_data4  DwarfForm = 0x06 // 4-byte unsigned constant
-	DW_FORM_data8  DwarfForm = 0x07 // 8-byte unsigned constant
-	DW_FORM_data16 DwarfForm = 0x1e // 16-byte constant (for 128-bit data)
+	DW_FORM_addr      DwarfForm = 0x01 // absolute address
+	DW_FORM_block2    DwarfForm = 0x02 // block with 2-byte length (MISSING in your code)
+	DW_FORM_block4    DwarfForm = 0x03 // block with 4-byte length
+	DW_FORM_data2     DwarfForm = 0x05 // 2-byte constant data
+	DW_FORM_data4     DwarfForm = 0x06 // 4-byte constant data
+	DW_FORM_data8     DwarfForm = 0x07 // 8-byte constant data
+	DW_FORM_string    DwarfForm = 0x08 // null-terminated string
+	DW_FORM_block     DwarfForm = 0x09 // block with ULEB128 length
+	DW_FORM_block1    DwarfForm = 0x0a // block with 1-byte length
+	DW_FORM_data1     DwarfForm = 0x0b // 1-byte constant data
+	DW_FORM_flag      DwarfForm = 0x0c // 1-byte flag (boolean)
+	DW_FORM_sdata     DwarfForm = 0x0d // sLEB128 constant
+	DW_FORM_strp      DwarfForm = 0x0e // offset into .debug_str (string section)
+	DW_FORM_udata     DwarfForm = 0x0f // uLEB128 constant
+	DW_FORM_ref_addr  DwarfForm = 0x10 // address-sized reference to another DIE
+	DW_FORM_ref1      DwarfForm = 0x11 // 1-byte reference to another DIE
+	DW_FORM_ref2      DwarfForm = 0x12 // 2-byte reference to another DIE
+	DW_FORM_ref4      DwarfForm = 0x13 // 4-byte reference to another DIE
+	DW_FORM_ref8      DwarfForm = 0x14 // 8-byte reference to another DIE
+	DW_FORM_ref_udata DwarfForm = 0x15 // uLEB128 reference to another DIE
+	DW_FORM_indirect  DwarfForm = 0x16 // indirect form; next ULEB128 is the real form
 
-	// address and offset forms
-	DW_FORM_addr       DwarfForm = 0x01 // address (size = target address size)
-	DW_FORM_sec_offset DwarfForm = 0x17 // 4-byte section offset (e.g. into .debug_line)
-
-	// block (binary blob) forms
-	DW_FORM_block1 DwarfForm = 0x0a // block: length is 1-byte constant
-	DW_FORM_block2 DwarfForm = 0x03 // block: length is 2-byte constant
-	DW_FORM_block4 DwarfForm = 0x04 // block: length is 4-byte constant
-	DW_FORM_block  DwarfForm = 0x09 // block: ULEB128 length prefix
-
-	// literal and flag forms
-	DW_FORM_flag         DwarfForm = 0x0c // 1-byte flag (0=false, non-zero=true)
-	DW_FORM_flag_present DwarfForm = 0x19 // no value bytes; presence alone = true
-	DW_FORM_sdata        DwarfForm = 0x0d // signed LEB128 constant
-	DW_FORM_udata        DwarfForm = 0x0f // unsigned LEB128 constant
-
-	// string forms
-	DW_FORM_string DwarfForm = 0x08 // null-terminated string inline in .debug_info
-	DW_FORM_strp   DwarfForm = 0x0e // 4-byte offset into .debug_str
-
-	// DWARF5 string‐offset table forms
-	DW_FORM_strx  DwarfForm = 0x1a // ULEB128 index into .debug_str_offsets
-	DW_FORM_strx1 DwarfForm = 0x25 // 1-byte  index into .debug_str_offsets
-	DW_FORM_strx2 DwarfForm = 0x26 // 2-byte  index into .debug_str_offsets
-	DW_FORM_strx3 DwarfForm = 0x27 // 3-byte  index into .debug_str_offsets
-	DW_FORM_strx4 DwarfForm = 0x28 // 4-byte  index into .debug_str_offsets
-
-	// reference forms (point to another DIE within the same CU)
-	DW_FORM_ref1      DwarfForm = 0x11 // 1-byte  offset to a DIE
-	DW_FORM_ref2      DwarfForm = 0x12 // 2-byte  offset to a DIE
-	DW_FORM_ref4      DwarfForm = 0x13 // 4-byte  offset to a DIE
-	DW_FORM_ref8      DwarfForm = 0x14 // 8-byte  offset to a DIE
-	DW_FORM_ref_udata DwarfForm = 0x15 // ULEB128 offset to a DIE
-	DW_FORM_ref_addr  DwarfForm = 0x10 // address-sized offset to a DIE (à la ref4/ref8)
-
-	// expression and indirect forms
-	DW_FORM_exprloc  DwarfForm = 0x18 // ULEB128 length + DW_OP-stream (location expression)
-	DW_FORM_indirect DwarfForm = 0x16 // ULEB128 form code follows, then value in that form
-
-	// implicit constant form
-	DW_FORM_implicit_const DwarfForm = 0x20 // ULEB128 constant encoded indirectly
-
-	// address-indexed form (DWARF5):
-	DW_FORM_addrx DwarfForm = 0x1b // ULEB128 index into .debug_addr
-
-	// line-string form (DWARF5):
-	DW_FORM_line_strp DwarfForm = 0x1f // 4-byte offset into .debug_line_str (introduced in DWARF5)
+	// DWARF v4/v5-specific
+	DW_FORM_sec_offset     DwarfForm = 0x17 // offset into section (e.g. for ranges)
+	DW_FORM_exprloc        DwarfForm = 0x18 // location expression (block)
+	DW_FORM_flag_present   DwarfForm = 0x19 // implicit 'true' flag (no data)
+	DW_FORM_strx           DwarfForm = 0x1a // string via .debug_str_offsets
+	DW_FORM_addrx          DwarfForm = 0x1b // address via .debug_addr section
+	DW_FORM_ref_sup4       DwarfForm = 0x1c // 4-byte reference to supplementary file
+	DW_FORM_strp_sup       DwarfForm = 0x1d // string in supplementary .debug_str section
+	DW_FORM_data16         DwarfForm = 0x1e // 16-byte constant data
+	DW_FORM_line_strp      DwarfForm = 0x1f // offset into .debug_line_str
+	DW_FORM_ref_sig8       DwarfForm = 0x20 // 8-byte signature reference (type units)
+	DW_FORM_implicit_const DwarfForm = 0x21 // no data; value is implicit constant
+	DW_FORM_loclistx       DwarfForm = 0x22 // index into location list
+	DW_FORM_rnglistx       DwarfForm = 0x23 // index into range list
+	DW_FORM_ref_sup8       DwarfForm = 0x24 // 8-byte reference to supplementary file
+	DW_FORM_strx1          DwarfForm = 0x25 // strx with 1-byte index
+	DW_FORM_strx2          DwarfForm = 0x26 // strx with 2-byte index
+	DW_FORM_strx3          DwarfForm = 0x27 // strx with 3-byte index
+	DW_FORM_strx4          DwarfForm = 0x28 // strx with 4-byte index
 )
 
 type (
@@ -386,16 +432,16 @@ type (
 	ReadOnlyDataKind int
 
 	// Represents a DWARF abbreviation entry code (ULEB128-encoded).
-	DwarfCode uint64
+	DwarfCode uint16
 
 	// Represents a DWARF tag (ULEB128-encoded).
-	DwarfTag uint32
+	DwarfTag uint16
 
 	// Represents a DWARF attribute (ULEB128-encoded).
-	DwarfAttribute uint64
+	DwarfAttribute uint16
 
 	// Represents a DWARF form (ULEB128-encoded).
-	DwarfForm uint32
+	DwarfForm uint16
 
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
@@ -586,6 +632,26 @@ func (sa SizeAttribute) String() string {
 // String representation of a call frame information attribute.
 func (cfi CallFrameInformationAttribute) String() string {
 	return callFrameInformationAttributeNames[cfi]
+}
+
+// String representation of DWARF codes.
+func (dc DwarfCode) String() string {
+	return dwarfCodeNames[dc]
+}
+
+// String representation of DWARF tags.
+func (dt DwarfTag) String() string {
+	return dwarfTagNames[dt]
+}
+
+// String representation of DWARF attributes.
+func (da DwarfAttribute) String() string {
+	return dwarfAttributeNames[da]
+}
+
+// String representation of DWARF forms.
+func (df DwarfForm) String() string {
+    return dwarfFormNames[df]
 }
 
 // Append a comment to a directive that will be emitted before the directive.

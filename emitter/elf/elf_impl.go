@@ -12,7 +12,7 @@ import (
 )
 
 // Provide a format for a comment.
-const commentFormat = "# %v\n"
+const commentFormat = "# %v"
 
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
@@ -145,6 +145,210 @@ var (
 	// Map call frame information attributes to their string representation.
 	callFrameInformationAttributeNames = map[CallFrameInformationAttribute]string{
 		CallFrameInformationOffset: "%d",
+	}
+
+	// Map DWARF code names to their string representation.
+	dwarfCodeNames = map[DwarfCode]string{
+		DW_CODE_termination:      "DW_CODE_termination",
+		DW_CODE_compilation_unit: "DW_CODE_compilation_unit",
+		DW_CODE_base_type:        "DW_CODE_base_type",
+		DW_CODE_subprogram:       "DW_CODE_subprogram",
+		DW_CODE_variable:         "DW_CODE_variable",
+	}
+
+	// Map DWARF tag names to their string representation.
+	dwarfTagNames = map[DwarfTag]string{
+		DW_TAG_array_type:           "DW_TAG_array_type",
+		DW_TAG_class_type:           "DW_TAG_class_type",
+		DW_TAG_enumeration_type:     "DW_TAG_enumeration_type",
+		DW_TAG_pointer_type:         "DW_TAG_pointer_type",
+		DW_TAG_reference_type:       "DW_TAG_reference_type",
+		DW_TAG_compile_unit:         "DW_TAG_compile_unit",
+		DW_TAG_string_type:          "DW_TAG_string_type",
+		DW_TAG_structure_type:       "DW_TAG_structure_type",
+		DW_TAG_subroutine_type:      "DW_TAG_subroutine_type",
+		DW_TAG_typedef:              "DW_TAG_typedef",
+		DW_TAG_union_type:           "DW_TAG_union_type",
+		DW_TAG_subrange_type:        "DW_TAG_subrange_type",
+		DW_TAG_base_type:            "DW_TAG_base_type",
+		DW_TAG_const_type:           "DW_TAG_const_type",
+		DW_TAG_volatile_type:        "DW_TAG_volatile_type",
+		DW_TAG_restrict_type:        "DW_TAG_restrict_type",
+		DW_TAG_shared_type:          "DW_TAG_shared_type",
+		DW_TAG_enumerator:           "DW_TAG_enumerator",
+		DW_TAG_constant:             "DW_TAG_constant",
+		DW_TAG_variable:             "DW_TAG_variable",
+		DW_TAG_member:               "DW_TAG_member",
+		DW_TAG_formal_parameter:     "DW_TAG_formal_parameter",
+		DW_TAG_subprogram:           "DW_TAG_subprogram",
+		DW_TAG_inlined_subroutine:   "DW_TAG_inlined_subroutine",
+		DW_TAG_lexical_block:        "DW_TAG_lexical_block",
+		DW_TAG_try_block:            "DW_TAG_try_block",
+		DW_TAG_catch_block:          "DW_TAG_catch_block",
+		DW_TAG_namespace:            "DW_TAG_namespace",
+		DW_TAG_module:               "DW_TAG_module",
+		DW_TAG_imported_unit:        "DW_TAG_imported_unit",
+		DW_TAG_imported_declaration: "DW_TAG_imported_declaration",
+		DW_TAG_common_block:         "DW_TAG_common_block",
+		DW_TAG_common_inclusion:     "DW_TAG_common_inclusion",
+		DW_TAG_entry_point:          "DW_TAG_entry_point",
+		DW_TAG_unspecified_type:     "DW_TAG_unspecified_type",
+		DW_TAG_lo_user:              "DW_TAG_lo_user",
+		DW_TAG_hi_user:              "DW_TAG_hi_user",
+	}
+
+	// Map DWARF attribute names to their string representation.
+	dwarfAttributeNames = map[DwarfAttribute]string{
+		DW_AT_sibling:                 "DW_AT_sibling",
+		DW_AT_location:                "DW_AT_location",
+		DW_AT_name:                    "DW_AT_name",
+		DW_AT_ordering:                "DW_AT_ordering",
+		DW_AT_byte_size:               "DW_AT_byte_size",
+		DW_AT_bit_offset:              "DW_AT_bit_offset",
+		DW_AT_bit_size:                "DW_AT_bit_size",
+		DW_AT_stmt_list:               "DW_AT_stmt_list",
+		DW_AT_low_pc:                  "DW_AT_low_pc",
+		DW_AT_high_pc:                 "DW_AT_high_pc",
+		DW_AT_language:                "DW_AT_language",
+		DW_AT_discr:                   "DW_AT_discr",
+		DW_AT_discr_value:             "DW_AT_discr_value",
+		DW_AT_visibility:              "DW_AT_visibility",
+		DW_AT_import:                  "DW_AT_import",
+		DW_AT_string_length:           "DW_AT_string_length",
+		DW_AT_common_reference:        "DW_AT_common_reference",
+		DW_AT_comp_dir:                "DW_AT_comp_dir",
+		DW_AT_const_value:             "DW_AT_const_value",
+		DW_AT_containing_type:         "DW_AT_containing_type",
+		DW_AT_default_value:           "DW_AT_default_value",
+		DW_AT_inline:                  "DW_AT_inline",
+		DW_AT_is_optional:             "DW_AT_is_optional",
+		DW_AT_lower_bound:             "DW_AT_lower_bound",
+		DW_AT_producer:                "DW_AT_producer",
+		DW_AT_prototyped:              "DW_AT_prototyped",
+		DW_AT_return_addr:             "DW_AT_return_addr",
+		DW_AT_start_scope:             "DW_AT_start_scope",
+		DW_AT_stride:                  "DW_AT_stride",
+		DW_AT_upper_bound:             "DW_AT_upper_bound",
+		DW_AT_abstract_origin:         "DW_AT_abstract_origin",
+		DW_AT_accessibility:           "DW_AT_accessibility",
+		DW_AT_address_class:           "DW_AT_address_class",
+		DW_AT_artificial:              "DW_AT_artificial",
+		DW_AT_base_types:              "DW_AT_base_types",
+		DW_AT_calling_convention:      "DW_AT_calling_convention",
+		DW_AT_count:                   "DW_AT_count",
+		DW_AT_data_member_location:    "DW_AT_data_member_location",
+		DW_AT_decl_column:             "DW_AT_decl_column",
+		DW_AT_decl_file:               "DW_AT_decl_file",
+		DW_AT_decl_line:               "DW_AT_decl_line",
+		DW_AT_declaration:             "DW_AT_declaration",
+		DW_AT_discr_list:              "DW_AT_discr_list",
+		DW_AT_encoding:                "DW_AT_encoding",
+		DW_AT_decimal_sign:            "DW_AT_decimal_sign",
+		DW_AT_external:                "DW_AT_external",
+		DW_AT_frame_base:              "DW_AT_frame_base",
+		DW_AT_friend:                  "DW_AT_friend",
+		DW_AT_identifier_case:         "DW_AT_identifier_case",
+		DW_AT_macro_info:              "DW_AT_macro_info",
+		DW_AT_namelist_item:           "DW_AT_namelist_item",
+		DW_AT_priority:                "DW_AT_priority",
+		DW_AT_segment:                 "DW_AT_segment",
+		DW_AT_specification:           "DW_AT_specification",
+		DW_AT_static_link:             "DW_AT_static_link",
+		DW_AT_type:                    "DW_AT_type",
+		DW_AT_use_location:            "DW_AT_use_location",
+		DW_AT_variable_parameter:      "DW_AT_variable_parameter",
+		DW_AT_virtuality:              "DW_AT_virtuality",
+		DW_AT_vtable_elem_location:    "DW_AT_vtable_elem_location",
+		DW_AT_allocated:               "DW_AT_allocated",
+		DW_AT_associated:              "DW_AT_associated",
+		DW_AT_data_location:           "DW_AT_data_location",
+		DW_AT_byte_stride:             "DW_AT_byte_stride",
+		DW_AT_entry_pc:                "DW_AT_entry_pc",
+		DW_AT_use_UTF8:                "DW_AT_use_UTF8",
+		DW_AT_extension:               "DW_AT_extension",
+		DW_AT_ranges:                  "DW_AT_ranges",
+		DW_AT_trampoline:              "DW_AT_trampoline",
+		DW_AT_call_column:             "DW_AT_call_column",
+		DW_AT_call_file:               "DW_AT_call_file",
+		DW_AT_call_line:               "DW_AT_call_line",
+		DW_AT_description:             "DW_AT_description",
+		DW_AT_binary_scale:            "DW_AT_binary_scale",
+		DW_AT_decimal_scale:           "DW_AT_decimal_scale",
+		DW_AT_small:                   "DW_AT_small",
+		DW_AT_digit_count:             "DW_AT_digit_count",
+		DW_AT_picture_string:          "DW_AT_picture_string",
+		DW_AT_mutable:                 "DW_AT_mutable",
+		DW_AT_threads_scaled:          "DW_AT_threads_scaled",
+		DW_AT_explicit:                "DW_AT_explicit",
+		DW_AT_object_pointer:          "DW_AT_object_pointer",
+		DW_AT_endianity:               "DW_AT_endianity",
+		DW_AT_elemental:               "DW_AT_elemental",
+		DW_AT_pure:                    "DW_AT_pure",
+		DW_AT_recursive:               "DW_AT_recursive",
+		DW_AT_signature:               "DW_AT_signature",
+		DW_AT_main_subprogram:         "DW_AT_main_subprogram",
+		DW_AT_data_bit_offset:         "DW_AT_data_bit_offset",
+		DW_AT_const_expr:              "DW_AT_const_expr",
+		DW_AT_enum_class:              "DW_AT_enum_class",
+		DW_AT_linkage_name:            "DW_AT_linkage_name",
+		DW_AT_string_length_bit_size:  "DW_AT_string_length_bit_size",
+		DW_AT_string_length_byte_size: "DW_AT_string_length_byte_size",
+		DW_AT_rank:                    "DW_AT_rank",
+		DW_AT_str_offsets_base:        "DW_AT_str_offsets_base",
+		DW_AT_addr_base:               "DW_AT_addr_base",
+		DW_AT_rnglists_base:           "DW_AT_rnglists_base",
+		DW_AT_dwo_name:                "DW_AT_dwo_name",
+		DW_AT_reference:               "DW_AT_reference",
+		DW_AT_dwo_id:                  "DW_AT_dwo_id",
+		DW_AT_dwo_file:                "DW_AT_dwo_file",
+		DW_AT_dwo_line:                "DW_AT_dwo_line",
+		DW_AT_stmt_list_base:          "DW_AT_stmt_list_base",
+		DW_AT_loclists_base:           "DW_AT_loclists_base",
+		DW_AT_lo_user:                 "DW_AT_lo_user",
+		DW_AT_hi_user:                 "DW_AT_hi_user",
+	}
+
+	// Map DWARF form names to their string representation.
+	dwarfFormNames = map[DwarfForm]string{
+		DW_FORM_addr:           "DW_FORM_addr",
+		DW_FORM_block2:         "DW_FORM_block2",
+		DW_FORM_block4:         "DW_FORM_block4",
+		DW_FORM_data2:          "DW_FORM_data2",
+		DW_FORM_data4:          "DW_FORM_data4",
+		DW_FORM_data8:          "DW_FORM_data8",
+		DW_FORM_string:         "DW_FORM_string",
+		DW_FORM_block:          "DW_FORM_block",
+		DW_FORM_block1:         "DW_FORM_block1",
+		DW_FORM_data1:          "DW_FORM_data1",
+		DW_FORM_flag:           "DW_FORM_flag",
+		DW_FORM_sdata:          "DW_FORM_sdata",
+		DW_FORM_strp:           "DW_FORM_strp",
+		DW_FORM_udata:          "DW_FORM_udata",
+		DW_FORM_ref_addr:       "DW_FORM_ref_addr",
+		DW_FORM_ref1:           "DW_FORM_ref1",
+		DW_FORM_ref2:           "DW_FORM_ref2",
+		DW_FORM_ref4:           "DW_FORM_ref4",
+		DW_FORM_ref8:           "DW_FORM_ref8",
+		DW_FORM_ref_udata:      "DW_FORM_ref_udata",
+		DW_FORM_indirect:       "DW_FORM_indirect",
+		DW_FORM_sec_offset:     "DW_FORM_sec_offset",
+		DW_FORM_exprloc:        "DW_FORM_exprloc",
+		DW_FORM_flag_present:   "DW_FORM_flag_present",
+		DW_FORM_strx:           "DW_FORM_strx",
+		DW_FORM_addrx:          "DW_FORM_addrx",
+		DW_FORM_ref_sup4:       "DW_FORM_ref_sup4",
+		DW_FORM_strp_sup:       "DW_FORM_strp_sup",
+		DW_FORM_data16:         "DW_FORM_data16",
+		DW_FORM_line_strp:      "DW_FORM_line_strp",
+		DW_FORM_ref_sig8:       "DW_FORM_ref_sig8",
+		DW_FORM_implicit_const: "DW_FORM_implicit_const",
+		DW_FORM_loclistx:       "DW_FORM_loclistx",
+		DW_FORM_rnglistx:       "DW_FORM_rnglistx",
+		DW_FORM_ref_sup8:       "DW_FORM_ref_sup8",
+		DW_FORM_strx1:          "DW_FORM_strx1",
+		DW_FORM_strx2:          "DW_FORM_strx2",
+		DW_FORM_strx3:          "DW_FORM_strx3",
+		DW_FORM_strx4:          "DW_FORM_strx4",
 	}
 )
 
@@ -358,7 +562,13 @@ func (ae *AbbreviationEntry) String() string {
 	var builder strings.Builder
 
 	// write the abbreviation code as attribute-list parent
-	builder.WriteString(fmt.Sprintf("%-*v 0x%02x", EncodingWidth, Uleb128, ae.Code))
+	builder.WriteString(fmt.Sprintf(
+		"%-*v 0x%02x%v"+commentFormat,
+		EncodingWidth, Uleb128,
+		uint16(ae.Code),
+		DefaultIndentation,
+		ae.Code,
+	))
 
 	// if the abbreviation code is the termination code, only return the representation of the code without a newline
 	if ae.Code == DW_CODE_termination {
@@ -366,18 +576,34 @@ func (ae *AbbreviationEntry) String() string {
 	}
 
 	// write the abbreviation tag as attribute-list parent
-	builder.WriteString(fmt.Sprintf("\n%-*v 0x%02x\n", EncodingWidth, Uleb128, ae.Tag))
+	builder.WriteString(fmt.Sprintf(
+		"\n%-*v 0x%02x%v"+commentFormat,
+		EncodingWidth, Uleb128,
+		uint16(ae.Tag),
+		DefaultIndentation,
+		ae.Tag))
 
 	// has children flag
-	builder.WriteString(fmt.Sprintf("%-*v 0x%02x\n", EncodingWidth, Byte, boolToIntMap[ae.HasChildren]))
+	builder.WriteString(fmt.Sprintf(
+		"\n%-*v 0x%02x",
+		EncodingWidth, Byte,
+		boolToIntMap[ae.HasChildren],
+	))
 
 	// write the abbreviation attribute-list that are children of the entry
 	for _, attribute := range ae.Attributes {
-		builder.WriteString(fmt.Sprintf("%v%v\n", DefaultIndentation, attribute))
+		builder.WriteString(fmt.Sprintf(
+			"\n%v%v",
+			DefaultIndentation,
+			attribute,
+		))
 	}
 
 	// zero terminator
-	builder.WriteString(fmt.Sprintf("%-*v 0x00", EncodingWidth, Uleb128))
+	builder.WriteString(fmt.Sprintf(
+		"\n%-*v 0x00",
+		EncodingWidth, Uleb128,
+	))
 
 	// the abbreviation entry string representation does not end with a newline
 	return builder.String()
@@ -385,8 +611,29 @@ func (ae *AbbreviationEntry) String() string {
 
 // String representation of an abbreviation attribute.
 func (aa *AbbreviationAttribute) String() string {
+	const commentWidth = 20
 	const EncodingWidth = 10
-	return fmt.Sprintf("%-*v 0x%02x %-*v 0x%02x", EncodingWidth, Uleb128, aa.Attribute, EncodingWidth, Uleb128, aa.Form)
+
+	comment := strings.TrimSpace(fmt.Sprintf(
+		commentFormat,
+		fmt.Sprintf(
+			"%-*v%v%-*v",
+			commentWidth,
+			aa.Attribute,
+			DefaultIndentation,
+			commentWidth,
+			aa.Form,
+		)))
+
+	return fmt.Sprintf(
+		"%-*v 0x%02x %-*v 0x%02x%v%v",
+		EncodingWidth, Uleb128,
+		uint16(aa.Attribute),
+		EncodingWidth, Uleb128,
+		uint16(aa.Form),
+		DefaultIndentation,
+		comment,
+	)
 }
 
 // String representation of a DWARF string item.
@@ -409,7 +656,7 @@ func (dd *Directive) String() string {
 
 	// optional comments to be emitted before the directive
 	for _, comment := range dd.Comments {
-		comments += fmt.Sprintf(commentFormat, comment)
+		comments += fmt.Sprintf(commentFormat, comment) + "\n"
 	}
 
 	// join symbol and arguments with commas for multi-argument directives
