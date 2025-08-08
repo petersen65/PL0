@@ -450,6 +450,20 @@ func (s *ElfSection[T]) String() string {
 	return builder.String()
 }
 
+// String representation of a directive.
+func (dd *Directive) String() string {
+	var comments string
+
+	// optional comments to be emitted before the directive
+	for _, comment := range dd.Comments {
+		comments += fmt.Sprintf(commentFormat, comment) + "\n"
+	}
+
+	// join symbol and arguments with commas for multi-argument directives
+	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
+	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, dd.Directive, parts))
+}
+
 // String representation of a read-only data item.
 func (rdi *ReadOnlyDataItem) String() string {
 	var builder strings.Builder
@@ -556,7 +570,48 @@ func (rdi *ReadOnlyDataItem) String() string {
 	return builder.String()
 }
 
-// String representation of an abbreviation entry.
+// String representation of a DWARF string item.
+func (i *StringItem) String() string {
+	const labelWidth = 30
+	const directiveWidth = 10
+
+	return fmt.Sprintf(
+		"%v%-*v: %-*v \"%v\"",
+		debugStringPrefix,
+		labelWidth, i.Label,
+		directiveWidth, i.Directive,
+		i.Operand,
+	)
+}
+
+// String representation of an DWARF attribute.
+func (aa *AttributeItem) String() string {
+	const commentWidth = 20
+	const EncodingWidth = 10
+
+	comment := strings.TrimSpace(fmt.Sprintf(
+		commentFormat,
+		fmt.Sprintf(
+			"%-*v%v%-*v",
+			commentWidth,
+			aa.Attribute,
+			DefaultIndentation,
+			commentWidth,
+			aa.Form,
+		)))
+
+	return fmt.Sprintf(
+		"%-*v 0x%02x %-*v 0x%02x%v%v",
+		EncodingWidth, Uleb128,
+		uint16(aa.Attribute),
+		EncodingWidth, Uleb128,
+		uint16(aa.Form),
+		DefaultIndentation,
+		comment,
+	)
+}
+
+// String representation of a DWARF abbreviation entry.
 func (ae *AbbreviationEntry) String() string {
 	const EncodingWidth = 10
 	var builder strings.Builder
@@ -590,7 +645,7 @@ func (ae *AbbreviationEntry) String() string {
 		boolToIntMap[ae.HasChildren],
 	))
 
-	// write the abbreviation attribute-list that are children of the entry
+	// write the attribute-list as children of the parent code and tag
 	for _, attribute := range ae.Attributes {
 		builder.WriteString(fmt.Sprintf(
 			"\n%v%v",
@@ -609,59 +664,25 @@ func (ae *AbbreviationEntry) String() string {
 	return builder.String()
 }
 
-// String representation of an abbreviation attribute.
-func (aa *AbbreviationAttribute) String() string {
-	const commentWidth = 20
-	const EncodingWidth = 10
+// String representation of a DWARF debugging information entry.
+func (die *DebuggingInformationEntry) String() string {
+	var builder strings.Builder
 
-	comment := strings.TrimSpace(fmt.Sprintf(
-		commentFormat,
-		fmt.Sprintf(
-			"%-*v%v%-*v",
-			commentWidth,
-			aa.Attribute,
+	// write the attribute-list of the debugging information entry
+	for i, attribute := range die.Attributes {
+		builder.WriteString(fmt.Sprintf(
+			"%v%v",
 			DefaultIndentation,
-			commentWidth,
-			aa.Form,
-		)))
+			attribute,
+		))
 
-	return fmt.Sprintf(
-		"%-*v 0x%02x %-*v 0x%02x%v%v",
-		EncodingWidth, Uleb128,
-		uint16(aa.Attribute),
-		EncodingWidth, Uleb128,
-		uint16(aa.Form),
-		DefaultIndentation,
-		comment,
-	)
-}
-
-// String representation of a DWARF string item.
-func (i *StringItem) String() string {
-	const labelWidth = 30
-	const directiveWidth = 10
-
-	return fmt.Sprintf(
-		"%v%-*v: %-*v \"%v\"",
-		debugStringPrefix,
-		labelWidth, i.Label,
-		directiveWidth, i.Directive,
-		i.Operand,
-	)
-}
-
-// String representation of a directive.
-func (dd *Directive) String() string {
-	var comments string
-
-	// optional comments to be emitted before the directive
-	for _, comment := range dd.Comments {
-		comments += fmt.Sprintf(commentFormat, comment) + "\n"
+		if i < len(die.Attributes)-1 {
+			builder.WriteString("\n")
+		}
 	}
 
-	// join symbol and arguments with commas for multi-argument directives
-	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
-	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, dd.Directive, parts))
+	// the debugging information entry string representation does not end with a newline
+	return builder.String()
 }
 
 // Append content to the assembly section.

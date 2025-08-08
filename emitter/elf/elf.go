@@ -432,16 +432,16 @@ type (
 	ReadOnlyDataKind int
 
 	// Represents a DWARF abbreviation entry code (ULEB128-encoded).
-	DwarfCode uint16
+	DwarfCode int
 
 	// Represents a DWARF tag (ULEB128-encoded).
-	DwarfTag uint16
+	DwarfTag int
 
 	// Represents a DWARF attribute (ULEB128-encoded).
-	DwarfAttribute uint16
+	DwarfAttribute int
 
 	// Represents a DWARF form (ULEB128-encoded).
-	DwarfForm uint16
+	DwarfForm int
 
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
@@ -452,25 +452,19 @@ type (
 		Content    []T                `json:"content"`    // typed contents of this section (e.g., read-only data items, instructions)
 	}
 
-	// A read-only data item holds one or several constant values that are not modified during program execution.
+	// Directive represents a structured assembler directive with formal syntax.
+	Directive struct {
+		Directive DirectiveKind `json:"kind"`      // the directive kind (e.g., .type, .size, .global)
+		Symbols   []string      `json:"symbols"`   // the symbol names this directive applies to
+		Arguments []string      `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
+		Comments  []string      `json:"comments"`  // comments associated with this directive
+	}
+
+	// A read-only data item holds one or several constant values that are not modified during program execution in an .rodata section.
 	ReadOnlyDataItem struct {
 		Kind   ReadOnlyDataKind `json:"kind"`   // kind of the read-only data item
 		Labels []string         `json:"labels"` // literal data labels to access the read-only data item
 		Values any              `json:"values"` // the values will be stored in a read-only section and encoded based on its kind
-	}
-
-	// A DWARF abbreviation entry defines a structure for debugging information entries (DIEs) used in the .debug_abbrev section.
-	AbbreviationEntry struct {
-		Code        DwarfCode                // abbreviation code used to reference this DIE (ULEB128)
-		Tag         DwarfTag                 // DW_TAG_* code for the entry used to identify the type of DIE (ULEB128)
-		HasChildren bool                     // 1 byte indicating if this DIE can have children
-		Attributes  []*AbbreviationAttribute // list of <attribute,form> children, implicitly ends before 0
-	}
-
-	// A DWARF abbreviation attribute defines a single child attribute of a debugging information entry (DIE).
-	AbbreviationAttribute struct {
-		Attribute DwarfAttribute // DW_AT_* code defines what this attribute represents (ULEB128)
-		Form      DwarfForm      // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
 	}
 
 	// A DWARF string item represents a string literal stored in the .debug_str section.
@@ -480,12 +474,24 @@ type (
 		Operand   string        `json:"operand"`   // the string value to be stored in the item
 	}
 
-	// Directive represents a structured assembler directive with formal syntax.
-	Directive struct {
-		Directive DirectiveKind `json:"kind"`      // the directive kind (e.g., .type, .size, .global)
-		Symbols   []string      `json:"symbols"`   // the symbol names this directive applies to
-		Arguments []string      `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
-		Comments  []string      `json:"comments"`  // comments associated with this directive
+	// A DWARF attribute item defines a single child attribute of a debugging information entry in the .debug_info section.
+	AttributeItem struct {
+		Attribute DwarfAttribute `json:"attribute"` // DW_AT_* code defines what this attribute represents (ULEB128)
+		Form      DwarfForm      `json:"form"`      // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
+	}
+
+	// A DWARF abbreviation entry defines a structure for debugging information entries in the .debug_abbrev section.
+	AbbreviationEntry struct {
+		Code        DwarfCode        `json:"code"`         // abbreviation code used to reference a DIE (ULEB128)
+		Tag         DwarfTag         `json:"tag"`          // DW_TAG_* code for the entry used to identify the type of a DIE (ULEB128)
+		HasChildren bool             `json:"has_children"` // 1 byte indicating if a DIE can have children
+		Attributes  []*AttributeItem `json:"attributes"`   // list of attribute children, implicitly ends before 0x00
+	}
+
+	// A DWARF debugging information entry represents a single unit of debugging information in the .debug_info section.
+	DebuggingInformationEntry struct {
+		Code       DwarfCode       `json:"dwarf_code"` // identify debugging information entry
+		Attributes []AttributeItem `json:"attributes"` // attributes associated with the entry
 	}
 )
 
@@ -494,19 +500,14 @@ func NewSection[T fmt.Stringer](directives []DirectiveKind, attributes []Section
 	return &ElfSection[T]{Directives: directives, Attributes: attributes, Alignment: alignment, Offsets: offsets, Content: make([]T, 0)}
 }
 
+// Create a new directive for the assembler.
+func NewDirective(directive DirectiveKind, symbols []string, args ...string) *Directive {
+	return &Directive{Directive: directive, Symbols: symbols, Arguments: args, Comments: make([]string, 0)}
+}
+
 // Create a new read-only data item with literal data labels for a read-only section.
 func NewReadOnlyDataItem(kind ReadOnlyDataKind, labels []string, values any) *ReadOnlyDataItem {
 	return &ReadOnlyDataItem{Kind: kind, Labels: labels, Values: values}
-}
-
-// Create a new abbreviation entry for the .debug_abbrev section.
-func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []*AbbreviationAttribute) *AbbreviationEntry {
-	return &AbbreviationEntry{Code: code, Tag: tag, HasChildren: hasChildren, Attributes: attributes}
-}
-
-// Create a new abbreviation attribute for a debugging information entry (DIE).
-func NewAbbreviationAttribute(attribute DwarfAttribute, form DwarfForm) *AbbreviationAttribute {
-	return &AbbreviationAttribute{Attribute: attribute, Form: form}
 }
 
 // Create a new string item for the .debug_str section.
@@ -514,9 +515,19 @@ func NewStringItem(label string, directive DirectiveKind, operand string) *Strin
 	return &StringItem{Label: label, Directive: directive, Operand: operand}
 }
 
-// Create a new directive for the assembler.
-func NewDirective(directive DirectiveKind, symbols []string, args ...string) *Directive {
-	return &Directive{Directive: directive, Symbols: symbols, Arguments: args, Comments: make([]string, 0)}
+// Create a new attribute item for the .debug_info section.
+func NewAttributeItem(attribute DwarfAttribute, form DwarfForm) *AttributeItem {
+	return &AttributeItem{Attribute: attribute, Form: form}
+}
+
+// Create a new abbreviation entry for the .debug_abbrev section.
+func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []*AttributeItem) *AbbreviationEntry {
+	return &AbbreviationEntry{Code: code, Tag: tag, HasChildren: hasChildren, Attributes: attributes}
+}
+
+// Create a new debugging information entry for the .debug_info section.
+func NewDebuggingInformationEntry(code DwarfCode, attributes []AttributeItem) *DebuggingInformationEntry {
+	return &DebuggingInformationEntry{Code: code, Attributes: attributes}
 }
 
 // Create a .intel_syntax directive for Intel assembly syntax.
@@ -651,7 +662,7 @@ func (da DwarfAttribute) String() string {
 
 // String representation of DWARF forms.
 func (df DwarfForm) String() string {
-    return dwarfFormNames[df]
+	return dwarfFormNames[df]
 }
 
 // Append a comment to a directive that will be emitted before the directive.

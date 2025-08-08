@@ -19,17 +19,18 @@ const assemblyCodeHeader = "# %v assembly code\n# optimization %v\n# generated b
 type (
 	// Represents a logical unit of assembly instructions created from one intermediate code unit.
 	assemblyCodeUnit struct {
-		Labels             []string                                `json:"labels"`               // enable deterministic iteration over the symbol table in the order of past inserts
-		SymbolTable        map[string]*Symbol                      `json:"symbol_table"`         // symbol table for assembly code label names
-		FileIdentifier     map[string]int                          `json:"file_identifier"`      // file identifier for source code files
-		BuildConfiguration cor.BuildConfiguration                  `json:"build_configuration"`  // build configuration of the assembly code unit
-		debugInformation   cor.DebugInformation                    `json:"-"`                    // debug information collected from earlier compilation phases
-		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"utf32_section"`        // read-only data section for static UTF-32 strings
-		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"int64_section"`        // read-only data section for static 64-bit integers
-		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem]  `json:"strdesc_section"`      // read-only data section for string descriptors
-		TextSection        *elf.ElfSection[*Instruction]           `json:"text_section"`         // text section with assembly instructions
-		DebugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry] `json:"debug_abbrev_section"` // DWARF section with abbreviation entries and their attributes
-		DebugStrSection    *elf.ElfSection[*elf.StringItem]        `json:"debug_str_section"`    // DWARF section with string items referenced by DIEs
+		Labels             []string                                        `json:"labels"`               // enable deterministic iteration over the symbol table in the order of past inserts
+		SymbolTable        map[string]*Symbol                              `json:"symbol_table"`         // symbol table for assembly code label names
+		FileIdentifier     map[string]int                                  `json:"file_identifier"`      // file identifier for source code files
+		BuildConfiguration cor.BuildConfiguration                          `json:"build_configuration"`  // build configuration of the assembly code unit
+		debugInformation   cor.DebugInformation                            `json:"-"`                    // debug information collected from earlier compilation phases
+		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"utf32_section"`        // read-only data section for static UTF-32 strings
+		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"int64_section"`        // read-only data section for static 64-bit integers
+		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"strdesc_section"`      // read-only data section for string descriptors
+		TextSection        *elf.ElfSection[*Instruction]                   `json:"text_section"`         // text section with assembly instructions
+		DebugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry]         `json:"debug_abbrev_section"` // DWARF section with abbreviation schema entries required by DIEs
+		DebugInfoSection   *elf.ElfSection[*elf.DebuggingInformationEntry] `json:"debug_info_section"`   // DWARF section with debugging information entries (DIEs)
+		DebugStrSection    *elf.ElfSection[*elf.StringItem]                `json:"debug_str_section"`    // DWARF section with string items referenced by DIEs
 	}
 )
 
@@ -217,7 +218,7 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 			elf.P2align16,
 			false),
 
-		// DWARF debug abbreviation section with schemas for DIEs
+		// DWARF debug abbreviation section with schema entries required by DIEs
 		DebugAbbrevSection: elf.NewSection[*elf.AbbreviationEntry](
 			[]elf.DirectiveKind{elf.Section, elf.DebugAbbrev},
 			[]elf.SectionAttribute{elf.SectionNone, elf.SectionProgramBits},
@@ -225,7 +226,15 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 			true,
 		),
 
-		// DWARF debug strings section for string items referenced by DIEs
+		// DWARF debug information section with debugging information entries (DIEs)
+		DebugInfoSection: elf.NewSection[*elf.DebuggingInformationEntry](
+			[]elf.DirectiveKind{elf.Section, elf.DebugInfo},
+			[]elf.SectionAttribute{elf.SectionNone, elf.SectionProgramBits},
+			elf.P2align1,
+			true,
+		),
+
+		// DWARF debug strings section with string items referenced by DIEs
 		DebugStrSection: elf.NewSection[*elf.StringItem](
 			[]elf.DirectiveKind{elf.Section, elf.DebugStr},
 			[]elf.SectionAttribute{elf.SectionMergeableStrings, elf.SectionProgramBits},
@@ -278,6 +287,9 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		// transfer the debug string table from the debug information into the .debug_str section
 		dstab := unit.debugInformation.GetDebugStringTable()
 		updateDebugStrSection(unit.DebugStrSection, &dstab)
+
+		// update the .debug_info section with debugging information entries (DIEs) that reference the .debug_str section
+		updateDebugInfoSection(unit.DebugInfoSection, &dstab)
 	}
 
 	return unit
@@ -728,6 +740,13 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 		}
 	}
 
+	// write the DWARF debug information section to the print writer
+	if len(u.DebugInfoSection.Content) > 0 {
+		if _, err := fmt.Fprintf(print, "%v\n", u.DebugInfoSection); err != nil {
+			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
+		}
+	}
+
 	// write the DWARF debug strings section to the print writer
 	if len(u.DebugStrSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
@@ -767,19 +786,19 @@ func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 	}
 }
 
-// Update the .debug_abbrev section with abbreviation entry schemas	required for DIEs in the .debug_info section.
+// Update the .debug_abbrev section with abbreviation schema entries required by DIEs in the .debug_info section.
 func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry]) {
 	// compilation unit abbreviation entry
 	compilationUnit := elf.NewAbbreviationEntry(
 		elf.DW_CODE_compilation_unit,
 		elf.DW_TAG_compile_unit,
 		true,
-		[]*elf.AbbreviationAttribute{
-			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),            // source file name
-			elf.NewAbbreviationAttribute(elf.DW_AT_comp_dir, elf.DW_FORM_strp),        // compilation directory
-			elf.NewAbbreviationAttribute(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
-			elf.NewAbbreviationAttribute(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
-			elf.NewAbbreviationAttribute(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),            // source file name
+			elf.NewAttributeItem(elf.DW_AT_comp_dir, elf.DW_FORM_strp),        // compilation directory
+			elf.NewAttributeItem(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
+			elf.NewAttributeItem(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
+			elf.NewAttributeItem(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
 		})
 
 	// base type abbreviation entry
@@ -787,11 +806,11 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_base_type,
 		elf.DW_TAG_base_type,
 		false,
-		[]*elf.AbbreviationAttribute{
-			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
-			elf.NewAbbreviationAttribute(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
-			elf.NewAbbreviationAttribute(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
-			elf.NewAbbreviationAttribute(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
+			elf.NewAttributeItem(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
+			elf.NewAttributeItem(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
+			elf.NewAttributeItem(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
 		},
 	)
 
@@ -800,16 +819,16 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_subprogram,
 		elf.DW_TAG_subprogram,
 		true,
-		[]*elf.AbbreviationAttribute{
-			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),          // function name
-			elf.NewAbbreviationAttribute(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
-			elf.NewAbbreviationAttribute(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
-			elf.NewAbbreviationAttribute(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
-			elf.NewAbbreviationAttribute(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
-			elf.NewAbbreviationAttribute(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
-			elf.NewAbbreviationAttribute(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
-			elf.NewAbbreviationAttribute(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
-			elf.NewAbbreviationAttribute(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),          // function name
+			elf.NewAttributeItem(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
+			elf.NewAttributeItem(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
+			elf.NewAttributeItem(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
+			elf.NewAttributeItem(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
+			elf.NewAttributeItem(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
+			elf.NewAttributeItem(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
+			elf.NewAttributeItem(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
+			elf.NewAttributeItem(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
 		},
 	)
 
@@ -818,12 +837,12 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_variable,
 		elf.DW_TAG_variable,
 		false,
-		[]*elf.AbbreviationAttribute{
-			elf.NewAbbreviationAttribute(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
-			elf.NewAbbreviationAttribute(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
-			elf.NewAbbreviationAttribute(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
-			elf.NewAbbreviationAttribute(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
-			elf.NewAbbreviationAttribute(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
+			elf.NewAttributeItem(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
+			elf.NewAttributeItem(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
+			elf.NewAttributeItem(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
+			elf.NewAttributeItem(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
 		},
 	)
 
@@ -836,6 +855,10 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 	debugAbbrevSection.Append(subprogram)
 	debugAbbrevSection.Append(variable)
 	debugAbbrevSection.Append(termination)
+}
+
+// Update the .debug_info section with debugging information entries (DIEs).
+func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable) {
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
@@ -877,6 +900,22 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 
 			// add the variable name to the .debug_str section
 			debugStrSection.Append(elf.NewStringItem(v.NameSource, elf.String, v.NameSource))
+		}
+	}
+
+	// collect all data types from all variables of all functions from the debug string table
+	for _, f := range dstab.Functions {
+		for _, v := range f.Variables {
+			// ensure that the variable data type is a unique label name in the .debug_str section
+			if ok, exists := labels[v.DataType]; ok && exists {
+				continue
+			}
+
+			// mark the variable data type as used
+			labels[v.DataType] = true
+
+			// add the variable data type to the .debug_str section
+			debugStrSection.Append(elf.NewStringItem(v.DataType, elf.String, v.DataType))
 		}
 	}
 }

@@ -229,86 +229,86 @@ func (i *Instruction) String() string {
 }
 
 // Return the plain datatype without modifiers.
-func (dataType DataType) AsPlain() DataType {
-	return dataType & 0xFF
+func (dt DataType) AsPlain() DataType {
+	return dt & 0xFF
 }
 
 // Check whether the datatype is a plain datatype without modifiers.
-func (dataType DataType) IsPlain() bool {
-	return dataType == dataType.AsPlain()
+func (dt DataType) IsPlain() bool {
+	return dt == dt.AsPlain()
 }
 
 // Return the plain datatype with a pointer modifier.
-func (dataType DataType) AsPointer() DataType {
-	return dataType.AsPlain() | Pointer
+func (dt DataType) AsPointer() DataType {
+	return dt.AsPlain() | Pointer
 }
 
 // Check whether the datatype is a pointer type.
-func (dataType DataType) IsPointer() bool {
-	return dataType&Pointer != 0
+func (dt DataType) IsPointer() bool {
+	return dt&Pointer != 0
 }
 
 // Return the plain datatype with a reference modifier.
-func (dataType DataType) AsReference() DataType {
-	return dataType.AsPlain() | Reference
+func (dt DataType) AsReference() DataType {
+	return dt.AsPlain() | Reference
 }
 
 // Check whether the datatype is a reference type.
-func (dataType DataType) IsReference() bool {
-	return dataType&Reference != 0
+func (dt DataType) IsReference() bool {
+	return dt&Reference != 0
 }
 
 // Check whether the datatype is untyped.
-func (dataType DataType) IsUntyped() bool {
-	return dataType.AsPlain() == Untyped
+func (dt DataType) IsUntyped() bool {
+	return dt.AsPlain() == Untyped
 }
 
 // Supported data types for symbol entries, temporaries, literals, and variables.
-func (dataType DataType) IsSupported() bool {
-	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= String
+func (dt DataType) IsSupported() bool {
+	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= String
 }
 
 // Check whether the datatype has a signed representation.
-func (dataType DataType) IsSigned() bool {
-	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Float32
+func (dt DataType) IsSigned() bool {
+	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Float32
 }
 
 // Check whether the datatype has an unsigned representation.
-func (dataType DataType) IsUnsigned() bool {
-	return dataType.AsPlain() >= Unsigned64 && dataType.AsPlain() <= Boolean
+func (dt DataType) IsUnsigned() bool {
+	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Boolean
 }
 
 // Check whether the datatype is a signed integer.
-func (dataType DataType) IsSignedInteger() bool {
-	return dataType.AsPlain() >= Integer64 && dataType.AsPlain() <= Integer8
+func (dt DataType) IsSignedInteger() bool {
+	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Integer8
 }
 
 // Check whether the datatype is an unsigned integer.
-func (dataType DataType) IsUnsignedInteger() bool {
-	return dataType.AsPlain() >= Unsigned64 && dataType.AsPlain() <= Unsigned8
+func (dt DataType) IsUnsignedInteger() bool {
+	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Unsigned8
 }
 
 // Check whether the datatype is an integer.
-func (dataType DataType) IsInteger() bool {
-	return dataType.IsSignedInteger() || dataType.IsUnsignedInteger()
+func (dt DataType) IsInteger() bool {
+	return dt.IsSignedInteger() || dt.IsUnsignedInteger()
 }
 
 // Check whether the datatype is a floating point number.
-func (dataType DataType) IsFloatingPoint() bool {
-	return dataType.AsPlain() == Float64 || dataType == Float32
+func (dt DataType) IsFloatingPoint() bool {
+	return dt.AsPlain() == Float64 || dt == Float32
 }
 
 // Check whether the datatype is a boolean.
-func (dataType DataType) IsBoolean() bool {
-	return dataType.AsPlain() == Boolean
+func (dt DataType) IsBoolean() bool {
+	return dt.AsPlain() == Boolean
 }
 
 // Check whether the datatype is a character.
-func (dataType DataType) IsCharacter() bool {
-	return dataType.AsPlain() == Character
+func (dt DataType) IsCharacter() bool {
+	return dt.AsPlain() == Character
 }
 
 // Check whether the datatype is a string.
-func (dataType DataType) IsString() bool {
-	return dataType.AsPlain() == String
+func (dt DataType) IsString() bool {
+	return dt.AsPlain() == String
 }
