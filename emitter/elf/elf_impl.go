@@ -17,16 +17,17 @@ const commentFormat = "# %v"
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
-// Prefix for label names.
+// Prefix and postfix for label names.
 const labelPrefix = "."
+const labelPostfix = ":"
 
 // Provide formats for labels that are used in ELF sections.
-const labelFormat = ".L%v:\n"
-const startLabelFormat = ".L%v_start:\n"
-const endLabelFormat = "\n.L%v_end:"
+const labelFormat = labelPrefix + "L%v" + labelPostfix
+const startLabelFormat = labelPrefix + "L%v_start" + labelPostfix
+const endLabelFormat = labelPrefix + "L%v_end" + labelPostfix
 
 // Prefix for DWARF string items.
-const debugStringPrefix = ".str_"
+const debugStringPrefix = labelPrefix + "str_"
 
 var (
 	// Map a boolean value to a 0 or 1 integer representation.
@@ -439,7 +440,8 @@ func (s *ElfSection[T]) String() string {
 
 	// write a start label if the section requires offset calculations
 	if len(s.Directives) > 1 && s.Offsets {
-		builder.WriteString(fmt.Sprintf(startLabelFormat, strings.TrimLeft(s.Directives[1].String(), labelPrefix)))
+		builder.WriteString(s.Directives[1].StartLabel())
+		builder.WriteString("\n")
 	}
 
 	// write all contents with a newline after each item (expect the last one)
@@ -453,7 +455,8 @@ func (s *ElfSection[T]) String() string {
 
 	// write an end label if the section requires offset calculations
 	if len(s.Directives) > 1 && s.Offsets {
-		builder.WriteString(fmt.Sprintf(endLabelFormat, strings.TrimLeft(s.Directives[1].String(), labelPrefix)))
+		builder.WriteString("\n")
+		builder.WriteString(s.Directives[1].EndLabel())
 	}
 
 	// the section string representation does not end with a newline
@@ -461,17 +464,17 @@ func (s *ElfSection[T]) String() string {
 }
 
 // String representation of a directive.
-func (dd *Directive) String() string {
+func (d *Directive) String() string {
 	var comments string
 
 	// optional comments to be emitted before the directive
-	for _, comment := range dd.Comments {
+	for _, comment := range d.Comments {
 		comments += fmt.Sprintf(commentFormat, comment) + "\n"
 	}
 
 	// join symbol and arguments with commas for multi-argument directives
-	parts := strings.Join(append(dd.Symbols, dd.Arguments...), ", ")
-	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, dd.Directive, parts))
+	parts := strings.Join(append(d.Symbols, d.Arguments...), ", ")
+	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, d.Directive, parts))
 }
 
 // String representation of a read-only data item.
@@ -481,6 +484,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 	// write the literal data labels first and mark them with a local label prefix
 	for _, label := range rdi.Labels {
 		builder.WriteString(fmt.Sprintf(labelFormat, label))
+		builder.WriteString("\n")
 	}
 
 	// check if the values are nil, which is not allowed for read-only data items
@@ -586,7 +590,7 @@ func (i *StringItem) String() string {
 	const directiveWidth = 10
 
 	return fmt.Sprintf(
-		"%v%-*v: %-*v \"%v\"",
+		"%v%-*v: %-*v\"%v\"",
 		debugStringPrefix,
 		labelWidth, i.Label,
 		directiveWidth, i.Directive,
@@ -611,11 +615,11 @@ func (a *AttributeForm) String() string {
 		)))
 
 	return fmt.Sprintf(
-		"%-*v %#002x %-*v %#002x%v%v",
+		"%-*v%#002x %-*v%#002x%v%v",
 		encodingWidth, Uleb128,
-		uint16(a.Attribute),
+		uint8(a.Attribute),
 		encodingWidth, Uleb128,
-		uint16(a.Form),
+		uint8(a.Form),
 		DefaultIndentation,
 		comment,
 	)
@@ -638,41 +642,41 @@ func (a *AttributeItem) String() string {
 }
 
 // String representation of a DWARF abbreviation entry.
-func (ae *AbbreviationEntry) String() string {
+func (e *AbbreviationEntry) String() string {
 	const EncodingWidth = 10
 	var builder strings.Builder
 
 	// write the abbreviation code
 	builder.WriteString(fmt.Sprintf(
-		"%-*v %#002x%v"+commentFormat,
+		"%-*v%#002x%v"+commentFormat,
 		EncodingWidth, Uleb128,
-		uint16(ae.Code),
+		uint8(e.Code),
 		DefaultIndentation,
-		ae.Code,
+		e.Code,
 	))
 
 	// if the abbreviation code is the termination code, only return the representation of the code without a newline
-	if ae.Code == DW_CODE_termination {
+	if e.Code == DW_CODE_termination {
 		return builder.String()
 	}
 
 	// write the abbreviation tag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v %#002x%v"+commentFormat,
+		"\n%-*v%#002x%v"+commentFormat,
 		EncodingWidth, Uleb128,
-		uint16(ae.Tag),
+		uint8(e.Tag),
 		DefaultIndentation,
-		ae.Tag))
+		e.Tag))
 
 	// has children flag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v %#002x",
+		"\n%-*v%#002x",
 		EncodingWidth, Byte,
-		boolToIntMap[ae.HasChildren],
+		boolToIntMap[e.HasChildren],
 	))
 
 	// write the attribute-list
-	for _, attribute := range ae.Attributes {
+	for _, attribute := range e.Attributes {
 		builder.WriteString(fmt.Sprintf(
 			"\n%v%v",
 			DefaultIndentation,
@@ -682,7 +686,7 @@ func (ae *AbbreviationEntry) String() string {
 
 	// zero terminator
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v %#002x",
+		"\n%-*v%#002x",
 		EncodingWidth, Uleb128, 0,
 	))
 
@@ -691,18 +695,24 @@ func (ae *AbbreviationEntry) String() string {
 }
 
 // String representation of a DWARF debugging information entry.
-func (die *DebuggingInformationEntry) String() string {
+func (e *DebuggingInformationEntry) String() string {
+	const EncodingWidth = 10
 	var builder strings.Builder
 
-	// write the attribute-list of the debugging information entry
-	for i, attribute := range die.Attributes {
+	// write the abbreviation code only if it's not the suppression code
+	if e.Code != DW_CODE_suppression {
 		builder.WriteString(fmt.Sprintf(
-			"%v%v",
-			DefaultIndentation,
-			attribute,
+			"%-*v%#002x\n",
+			EncodingWidth, Uleb128,
+			uint8(e.Code),
 		))
+	}
 
-		if i < len(die.Attributes)-1 {
+	// write the attribute-list of the debugging information entry
+	for i, attribute := range e.Attributes {
+		builder.WriteString(attribute.String())
+
+		if i < len(e.Attributes)-1 {
 			builder.WriteString("\n")
 		}
 	}

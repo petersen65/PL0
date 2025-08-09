@@ -13,6 +13,9 @@ import (
 // Provide a default indentation for directives and instructions.
 const DefaultIndentation = "  "
 
+// DWARF version number used for debugging information in ELF files.
+const DwarfVersion = 5
+
 // Standard DWARF label names for ELF sections.
 const (
 	CompilationUnitLabel = "compilation_unit" // label for the compilation unit in .debug_str section
@@ -175,11 +178,15 @@ const (
 
 // DWARF codes are used to identify debugging information entries and are not formally part of the DWARF specification.
 const (
-	DW_CODE_termination      DwarfCode = iota // termination code (0 for ending a DWARF section)
-	DW_CODE_compilation_unit                  // compilation unit (e.g., a source file name)
-	DW_CODE_base_type                         // base type (e.g., int8_t, float)
-	DW_CODE_subprogram                        // subprogram (e.g., function)
-	DW_CODE_variable                          // variable (e.g., local variable in a function)
+	_                        DwarfCode = iota
+	DW_CODE_compilation_unit           // compilation unit (e.g., a source file name)
+	DW_CODE_base_type                  // base type (e.g., int8_t, float)
+	DW_CODE_subprogram                 // subprogram (e.g., function)
+	DW_CODE_variable                   // variable (e.g., local variable in a function)
+
+	// DWARF codes with special meaning
+	DW_CODE_suppression DwarfCode = -1 // suppression code (code will not be emitted)
+	DW_CODE_termination DwarfCode = 0  // termination code (0 for ending a DWARF section)
 )
 
 // DwarfTag represents DWARF v5 tag values for debugging information entries.
@@ -505,7 +512,7 @@ type (
 
 	// A DWARF abbreviation entry defines a structure for debugging information entries in the .debug_abbrev section.
 	AbbreviationEntry struct {
-		Code        DwarfCode        `json:"code"`         // abbreviation code used to reference a DIE (ULEB128)
+		Code        DwarfCode        `json:"code"`         // abbreviation code to be referenced by a DIE (ULEB128)
 		Tag         DwarfTag         `json:"tag"`          // DW_TAG_* code for the entry used to identify the type of a DIE (ULEB128)
 		HasChildren bool             `json:"has_children"` // 1 byte indicating if a DIE can have children
 		Attributes  []*AttributeForm `json:"attributes"`   // list of attributes, implicitly ends before 0x00
@@ -634,68 +641,68 @@ func NewCfiDefCfaRegister(register string) *Directive {
 }
 
 // String representation of a directive kind.
-func (dk DirectiveKind) String() string {
-	return directiveNames[dk]
+func (d DirectiveKind) String() string {
+	return directiveNames[d]
 }
 
 // String representation of a prefix attribute.
-func (pa PrefixAttribute) String() string {
-	return prefixAttributeNames[pa]
+func (a PrefixAttribute) String() string {
+	return prefixAttributeNames[a]
 }
 
 // String representation of a section attribute.
-func (sa SectionAttribute) String() string {
-	return sectionAttributeNames[sa]
+func (a SectionAttribute) String() string {
+	return sectionAttributeNames[a]
 }
 
 // String representation of a file attribute.
-func (fa FileAttribute) String() string {
-	return fileAttributeNames[fa]
+func (a FileAttribute) String() string {
+	return fileAttributeNames[a]
 }
 
 // String representation of a location attribute.
-func (la LocationAttribute) String() string {
-	return locationAttributeNames[la]
+func (a LocationAttribute) String() string {
+	return locationAttributeNames[a]
 }
 
 // String representation of a type attribute.
-func (ta TypeAttribute) String() string {
-	return typeAttributeNames[ta]
+func (a TypeAttribute) String() string {
+	return typeAttributeNames[a]
 }
 
 // String representation of a size attribute.
-func (sa SizeAttribute) String() string {
-	return sizeAttributeNames[sa]
+func (a SizeAttribute) String() string {
+	return sizeAttributeNames[a]
 }
 
 // String representation of a call frame information attribute.
-func (cfi CallFrameInformationAttribute) String() string {
-	return callFrameInformationAttributeNames[cfi]
+func (a CallFrameInformationAttribute) String() string {
+	return callFrameInformationAttributeNames[a]
 }
 
 // String representation of DWARF codes.
-func (dc DwarfCode) String() string {
-	return dwarfCodeNames[dc]
+func (c DwarfCode) String() string {
+	return dwarfCodeNames[c]
 }
 
 // String representation of DWARF tags.
-func (dt DwarfTag) String() string {
-	return dwarfTagNames[dt]
+func (t DwarfTag) String() string {
+	return dwarfTagNames[t]
 }
 
 // String representation of DWARF attributes.
-func (da DwarfAttribute) String() string {
-	return dwarfAttributeNames[da]
+func (a DwarfAttribute) String() string {
+	return dwarfAttributeNames[a]
 }
 
 // String representation of DWARF forms.
-func (df DwarfForm) String() string {
-	return dwarfFormNames[df]
+func (f DwarfForm) String() string {
+	return dwarfFormNames[f]
 }
 
 // String representation of DWARF unit types.
-func (dut DwarfUnitType) String() string {
-	return dwarfUnitTypeNames[dut]
+func (t DwarfUnitType) String() string {
+	return dwarfUnitTypeNames[t]
 }
 
 // Append a comment to a directive that will be emitted before the directive.
@@ -705,7 +712,27 @@ func (d *Directive) AppendComment(comment string) {
 	}
 }
 
+// Create a start label for a directive.
+func (d DirectiveKind) StartLabel() string {
+	return fmt.Sprintf(startLabelFormat, strings.TrimLeft(d.String(), labelPrefix))
+}
+
+// Create an end label for a directive.
+func (d DirectiveKind) EndLabel() string {
+	return fmt.Sprintf(endLabelFormat, strings.TrimLeft(d.String(), labelPrefix))
+}
+
+// String representation of a section offset based on its start label.
+func (d DirectiveKind) ToSectionOffset() string {
+	return strings.TrimRight(d.StartLabel(), labelPostfix)
+}
+
 // String representation of a descriptor label.
 func ToDescriptor(label string) string {
 	return fmt.Sprintf(descriptorLabel, label)
+}
+
+// String representation of a section length calculation based on its start and end labels.
+func ToSectionLength(endLabel, startLabel string) string {
+	return fmt.Sprintf("%v - %v - 4", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
 }

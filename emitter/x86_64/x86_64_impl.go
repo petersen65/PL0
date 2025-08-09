@@ -859,20 +859,20 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 
 // Update the .debug_info section with debugging information entries (DIEs).
 func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], _ *cor.DebugStringTable) {
-	// compilation unit debugging information entry
-	compilationUnit := elf.NewDebuggingInformationEntry(
-		elf.DW_CODE_compilation_unit,
+	// compilation unit header entry
+	compilationUnitHeader := elf.NewDebuggingInformationEntry(
+		elf.DW_CODE_suppression,
 		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, ".Ldebug_info_end - .Ldebug_info_start - 4"),
-			elf.NewAttributeItem(elf.Short, uint16(5)),
+			elf.NewAttributeItem(elf.Long, elf.ToSectionLength(elf.DebugInfo.EndLabel(), elf.DebugInfo.StartLabel())),
+			elf.NewAttributeItem(elf.Short, uint16(elf.DwarfVersion)),
 			elf.NewAttributeItem(elf.Byte, uint8(elf.DW_UT_compile)),
-			elf.NewAttributeItem(elf.Byte, uint8(8)),
-			elf.NewAttributeItem(elf.Long, ".Ldebug_abbrev_start"),
+			elf.NewAttributeItem(elf.Byte, uint8(PointerSize)),
+			elf.NewAttributeItem(elf.Long, elf.DebugAbbrev.ToSectionOffset()),
 		},
 	)
 
 	// add all entries to the .debug_info section
-	debugInfoSection.Append(compilationUnit)
+	debugInfoSection.Append(compilationUnitHeader)
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
