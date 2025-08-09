@@ -64,7 +64,7 @@ var (
 		Align:             ".align",
 		Balign:            ".balign",
 		Byte:              ".byte",
-		Word:              ".word",
+		Short:             ".short",
 		Long:              ".long",
 		Quad:              ".quad",
 		Zero:              ".zero",
@@ -350,6 +350,16 @@ var (
 		DW_FORM_strx3:          "DW_FORM_strx3",
 		DW_FORM_strx4:          "DW_FORM_strx4",
 	}
+
+	// Map DWARF unit-type names to their string representation.
+	dwarfUnitTypeNames = map[DwarfUnitType]string{
+		DW_UT_compile:       "DW_UT_compile",
+		DW_UT_type:          "DW_UT_type",
+		DW_UT_partial:       "DW_UT_partial",
+		DW_UT_skeleton:      "DW_UT_skeleton",
+		DW_UT_split_compile: "DW_UT_split_compile",
+		DW_UT_split_type:    "DW_UT_split_type",
+	}
 )
 
 // Create a .file directive with a file identifier and name.
@@ -497,24 +507,24 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 		// write all code points with a newline after each item (expect the last one)
 		for _, r := range utf32 {
-			builder.WriteString(fmt.Sprintf("%v%v 0x%08X\n", DefaultIndentation, Long, uint32(r)))
+			builder.WriteString(fmt.Sprintf("%v%v %#008x\n", DefaultIndentation, Long, uint32(r)))
 		}
 
 		// write the zero terminator to the UTF-32 string
-		builder.WriteString(fmt.Sprintf("%v%v 0x%08X", DefaultIndentation, Long, uint32(0)))
+		builder.WriteString(fmt.Sprintf("%v%v %#008x", DefaultIndentation, Long, uint32(0)))
 
 	case ReadOnlyInt64:
 		// encode to 64-bit integers based on supported Go data types
 		switch values := rdi.Values.(type) {
 		case int64:
-			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, uint64(values)))
+			builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, uint64(values)))
 
 		case uint64:
-			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, values))
+			builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, values))
 
 		case []int64:
 			for i, value := range values {
-				builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, uint64(value)))
+				builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, uint64(value)))
 
 				if i < len(values)-1 {
 					builder.WriteString("\n")
@@ -523,7 +533,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 		case []uint64:
 			for i, value := range values {
-				builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, value))
+				builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, value))
 
 				if i < len(values)-1 {
 					builder.WriteString("\n")
@@ -541,7 +551,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 			builder.WriteString(fmt.Sprintf("%v%v .L%v", DefaultIndentation, Quad, values))
 
 		case uint64:
-			builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, values))
+			builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, values))
 
 		case []any:
 			for i, value := range values {
@@ -550,7 +560,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 					builder.WriteString(fmt.Sprintf("%v%v .L%v", DefaultIndentation, Quad, desc))
 
 				case uint64:
-					builder.WriteString(fmt.Sprintf("%v%v 0x%016X", DefaultIndentation, Quad, desc))
+					builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, desc))
 
 				default:
 					panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, value, nil))
@@ -584,31 +594,47 @@ func (i *StringItem) String() string {
 	)
 }
 
-// String representation of an DWARF attribute.
-func (aa *AttributeItem) String() string {
+// String representation of an DWARF attribute form.
+func (a *AttributeForm) String() string {
 	const commentWidth = 20
-	const EncodingWidth = 10
+	const encodingWidth = 10
 
 	comment := strings.TrimSpace(fmt.Sprintf(
 		commentFormat,
 		fmt.Sprintf(
 			"%-*v%v%-*v",
 			commentWidth,
-			aa.Attribute,
+			a.Attribute,
 			DefaultIndentation,
 			commentWidth,
-			aa.Form,
+			a.Form,
 		)))
 
 	return fmt.Sprintf(
-		"%-*v 0x%02x %-*v 0x%02x%v%v",
-		EncodingWidth, Uleb128,
-		uint16(aa.Attribute),
-		EncodingWidth, Uleb128,
-		uint16(aa.Form),
+		"%-*v %#002x %-*v %#002x%v%v",
+		encodingWidth, Uleb128,
+		uint16(a.Attribute),
+		encodingWidth, Uleb128,
+		uint16(a.Form),
 		DefaultIndentation,
 		comment,
 	)
+}
+
+// String representation of a DWARF attribute item.
+func (a *AttributeItem) String() string {
+	const directiveWidth = 10
+
+	switch operand := a.Operand.(type) {
+	case uint8:
+		return fmt.Sprintf("%-*v%#002x", directiveWidth, a.Directive, operand)
+
+	case uint16:
+		return fmt.Sprintf("%-*v%#004x", directiveWidth, a.Directive, operand)
+
+	default:
+		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, a.Operand)
+	}
 }
 
 // String representation of a DWARF abbreviation entry.
@@ -616,9 +642,9 @@ func (ae *AbbreviationEntry) String() string {
 	const EncodingWidth = 10
 	var builder strings.Builder
 
-	// write the abbreviation code as attribute-list parent
+	// write the abbreviation code
 	builder.WriteString(fmt.Sprintf(
-		"%-*v 0x%02x%v"+commentFormat,
+		"%-*v %#002x%v"+commentFormat,
 		EncodingWidth, Uleb128,
 		uint16(ae.Code),
 		DefaultIndentation,
@@ -630,9 +656,9 @@ func (ae *AbbreviationEntry) String() string {
 		return builder.String()
 	}
 
-	// write the abbreviation tag as attribute-list parent
+	// write the abbreviation tag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v 0x%02x%v"+commentFormat,
+		"\n%-*v %#002x%v"+commentFormat,
 		EncodingWidth, Uleb128,
 		uint16(ae.Tag),
 		DefaultIndentation,
@@ -640,12 +666,12 @@ func (ae *AbbreviationEntry) String() string {
 
 	// has children flag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v 0x%02x",
+		"\n%-*v %#002x",
 		EncodingWidth, Byte,
 		boolToIntMap[ae.HasChildren],
 	))
 
-	// write the attribute-list as children of the parent code and tag
+	// write the attribute-list
 	for _, attribute := range ae.Attributes {
 		builder.WriteString(fmt.Sprintf(
 			"\n%v%v",
@@ -656,8 +682,8 @@ func (ae *AbbreviationEntry) String() string {
 
 	// zero terminator
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v 0x00",
-		EncodingWidth, Uleb128,
+		"\n%-*v %#002x",
+		EncodingWidth, Uleb128, 0,
 	))
 
 	// the abbreviation entry string representation does not end with a newline

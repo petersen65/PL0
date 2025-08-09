@@ -70,7 +70,7 @@ const (
 
 	// value emission directives
 	Byte    // emits a single byte value (.byte 0xFF)
-	Word    // emits a 16-bit word (.word 0xABCD)
+	Short   // emits a 16-bit word (.short 0xABCD)
 	Long    // emits a 32-bit value (.long 0x12345678)
 	Quad    // emits a 64-bit value (.quad 0xDEADBEEFCAFEBABE)
 	Zero    // emits a run of zero bytes (.zero <count>)
@@ -400,6 +400,20 @@ const (
 	DW_FORM_strx4          DwarfForm = 0x28 // strx with 4-byte index
 )
 
+// DwarfUnitType represents the type of a DWARF v5 compilation unit or type unit.
+const (
+	DW_UT_compile       DwarfUnitType = 0x01 // full (non-split) compilation unit
+	DW_UT_type          DwarfUnitType = 0x02 // type unit (conventional, lives in .debug_info in v5)
+	DW_UT_partial       DwarfUnitType = 0x03 // partial compilation unit (non-split)
+	DW_UT_skeleton      DwarfUnitType = 0x04 // skeleton compilation unit (paired with a split full CU)
+	DW_UT_split_compile DwarfUnitType = 0x05 // split full compilation unit (.dwo / supplementary object)
+	DW_UT_split_type    DwarfUnitType = 0x06 // split type unit (.dwo / supplementary object)
+
+	// vendor range
+	DW_UT_lo_user DwarfUnitType = 0x80 // start of user-defined unit-types
+	DW_UT_hi_user DwarfUnitType = 0xff // end of user-defined unit-types
+)
+
 type (
 	// Represents debugger flags (bit-mask).
 	Debugger uint64
@@ -443,6 +457,9 @@ type (
 	// Represents a DWARF form (ULEB128-encoded).
 	DwarfForm int
 
+	// Represents a DWARF unit type (byte-encoded).
+	DwarfUnitType int
+
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
 		Directives []DirectiveKind    `json:"directives"` // directives for building the section (e.g., .section, .p2align)
@@ -474,10 +491,16 @@ type (
 		Operand   string        `json:"operand"`   // the string value to be stored in the item
 	}
 
-	// A DWARF attribute item defines a single child attribute of a debugging information entry in the .debug_info section.
-	AttributeItem struct {
+	// A DWARF attribute form defines a single attribute in the .debug_abbrev section.
+	AttributeForm struct {
 		Attribute DwarfAttribute `json:"attribute"` // DW_AT_* code defines what this attribute represents (ULEB128)
 		Form      DwarfForm      `json:"form"`      // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
+	}
+
+	// A DWARF attribute item defines a single attribute of a debugging information entry in the .debug_info section.
+	AttributeItem struct {
+		Directive DirectiveKind `json:"directive"` // directive to use for the attribute (e.g., .byte, .uleb128)
+		Operand   any           `json:"operand"`   // the value to be stored in the attribute item (e.g., 0x00, .str_producer)
 	}
 
 	// A DWARF abbreviation entry defines a structure for debugging information entries in the .debug_abbrev section.
@@ -485,13 +508,13 @@ type (
 		Code        DwarfCode        `json:"code"`         // abbreviation code used to reference a DIE (ULEB128)
 		Tag         DwarfTag         `json:"tag"`          // DW_TAG_* code for the entry used to identify the type of a DIE (ULEB128)
 		HasChildren bool             `json:"has_children"` // 1 byte indicating if a DIE can have children
-		Attributes  []*AttributeItem `json:"attributes"`   // list of attribute children, implicitly ends before 0x00
+		Attributes  []*AttributeForm `json:"attributes"`   // list of attributes, implicitly ends before 0x00
 	}
 
 	// A DWARF debugging information entry represents a single unit of debugging information in the .debug_info section.
 	DebuggingInformationEntry struct {
-		Code       DwarfCode       `json:"dwarf_code"` // identify debugging information entry
-		Attributes []AttributeItem `json:"attributes"` // attributes associated with the entry
+		Code       DwarfCode        `json:"dwarf_code"` // identify the debugging information entry
+		Attributes []*AttributeItem `json:"attributes"` // attributes associated with the entry
 	}
 )
 
@@ -515,18 +538,23 @@ func NewStringItem(label string, directive DirectiveKind, operand string) *Strin
 	return &StringItem{Label: label, Directive: directive, Operand: operand}
 }
 
+// Create a new attribute form for the .debug_abbrev section.
+func NewAttributeForm(attribute DwarfAttribute, form DwarfForm) *AttributeForm {
+	return &AttributeForm{Attribute: attribute, Form: form}
+}
+
 // Create a new attribute item for the .debug_info section.
-func NewAttributeItem(attribute DwarfAttribute, form DwarfForm) *AttributeItem {
-	return &AttributeItem{Attribute: attribute, Form: form}
+func NewAttributeItem(directive DirectiveKind, operand any) *AttributeItem {
+	return &AttributeItem{Directive: directive, Operand: operand}
 }
 
 // Create a new abbreviation entry for the .debug_abbrev section.
-func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []*AttributeItem) *AbbreviationEntry {
+func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attributes []*AttributeForm) *AbbreviationEntry {
 	return &AbbreviationEntry{Code: code, Tag: tag, HasChildren: hasChildren, Attributes: attributes}
 }
 
 // Create a new debugging information entry for the .debug_info section.
-func NewDebuggingInformationEntry(code DwarfCode, attributes []AttributeItem) *DebuggingInformationEntry {
+func NewDebuggingInformationEntry(code DwarfCode, attributes []*AttributeItem) *DebuggingInformationEntry {
 	return &DebuggingInformationEntry{Code: code, Attributes: attributes}
 }
 
@@ -605,7 +633,7 @@ func NewCfiDefCfaRegister(register string) *Directive {
 	return NewDirective(CfiDefCfaRegister, nil, register)
 }
 
-// String representation of a directive.
+// String representation of a directive kind.
 func (dk DirectiveKind) String() string {
 	return directiveNames[dk]
 }
@@ -663,6 +691,11 @@ func (da DwarfAttribute) String() string {
 // String representation of DWARF forms.
 func (df DwarfForm) String() string {
 	return dwarfFormNames[df]
+}
+
+// String representation of DWARF unit types.
+func (dut DwarfUnitType) String() string {
+	return dwarfUnitTypeNames[dut]
 }
 
 // Append a comment to a directive that will be emitted before the directive.

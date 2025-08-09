@@ -793,12 +793,12 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_compilation_unit,
 		elf.DW_TAG_compile_unit,
 		true,
-		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),            // source file name
-			elf.NewAttributeItem(elf.DW_AT_comp_dir, elf.DW_FORM_strp),        // compilation directory
-			elf.NewAttributeItem(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
-			elf.NewAttributeItem(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
-			elf.NewAttributeItem(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),            // source file name
+			elf.NewAttributeForm(elf.DW_AT_comp_dir, elf.DW_FORM_strp),        // compilation directory
+			elf.NewAttributeForm(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
+			elf.NewAttributeForm(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
+			elf.NewAttributeForm(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
 		})
 
 	// base type abbreviation entry
@@ -806,11 +806,11 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_base_type,
 		elf.DW_TAG_base_type,
 		false,
-		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
-			elf.NewAttributeItem(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
-			elf.NewAttributeItem(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
-			elf.NewAttributeItem(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
+			elf.NewAttributeForm(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
+			elf.NewAttributeForm(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
+			elf.NewAttributeForm(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
 		},
 	)
 
@@ -819,16 +819,16 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_subprogram,
 		elf.DW_TAG_subprogram,
 		true,
-		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),          // function name
-			elf.NewAttributeItem(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
-			elf.NewAttributeItem(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
-			elf.NewAttributeItem(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
-			elf.NewAttributeItem(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
-			elf.NewAttributeItem(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
-			elf.NewAttributeItem(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
-			elf.NewAttributeItem(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
-			elf.NewAttributeItem(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),          // function name
+			elf.NewAttributeForm(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
+			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
+			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
+			elf.NewAttributeForm(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
+			elf.NewAttributeForm(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
+			elf.NewAttributeForm(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
+			elf.NewAttributeForm(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
+			elf.NewAttributeForm(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
 		},
 	)
 
@@ -837,12 +837,12 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_CODE_variable,
 		elf.DW_TAG_variable,
 		false,
-		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
-			elf.NewAttributeItem(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
-			elf.NewAttributeItem(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
-			elf.NewAttributeItem(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
-			elf.NewAttributeItem(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
+			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
+			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
+			elf.NewAttributeForm(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
 		},
 	)
 
@@ -858,7 +858,21 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 }
 
 // Update the .debug_info section with debugging information entries (DIEs).
-func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable) {
+func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], _ *cor.DebugStringTable) {
+	// compilation unit debugging information entry
+	compilationUnit := elf.NewDebuggingInformationEntry(
+		elf.DW_CODE_compilation_unit,
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.Long, ".Ldebug_info_end - .Ldebug_info_start - 4"),
+			elf.NewAttributeItem(elf.Short, uint16(5)),
+			elf.NewAttributeItem(elf.Byte, uint8(elf.DW_UT_compile)),
+			elf.NewAttributeItem(elf.Byte, uint8(8)),
+			elf.NewAttributeItem(elf.Long, ".Ldebug_abbrev_start"),
+		},
+	)
+
+	// add all entries to the .debug_info section
+	debugInfoSection.Append(compilationUnit)
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
