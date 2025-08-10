@@ -807,10 +807,9 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_TAG_base_type,
 		false,
 		[]*elf.AttributeForm{
-			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),          // type name
-			elf.NewAttributeForm(elf.DW_AT_byte_size, elf.DW_FORM_data1),    // byte size
-			elf.NewAttributeForm(elf.DW_AT_encoding, elf.DW_FORM_data1),     // encoding
-			elf.NewAttributeForm(elf.DW_AT_decimal_sign, elf.DW_FORM_data1), // decimal sign
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),       // type name
+			elf.NewAttributeForm(elf.DW_AT_byte_size, elf.DW_FORM_data1), // byte size
+			elf.NewAttributeForm(elf.DW_AT_encoding, elf.DW_FORM_data1),  // encoding
 		},
 	)
 
