@@ -28,7 +28,7 @@ func newDebugStringTable(compilationUnit, compilationDirectory, producer string,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
 		Variables:            make([]*VariableDescription, 0),
-		DataTypes:            make([]string, 0),
+		DataTypes:            make([]*DataTypeDescription, 0),
 	}
 }
 

@@ -33,6 +33,7 @@ const (
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     x64.AssemblyCodeUnit    // assembly code unit for the target platform
+	debugInformation cor.DebugInformation    // debug information collected during the code generation
 	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
@@ -123,6 +124,7 @@ func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration
 	return &emitter{
 		intermediateCode: intermediateCodeUnit,
 		assemblyCode:     x64.NewAssemblyCodeUnit(buildConfiguration, debugInformation),
+		debugInformation: debugInformation,
 		offsetTable:      make(map[string]int32),
 	}
 }
@@ -1419,3 +1421,5 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 		}
 	}
 }
+
+func (e *emitter) enrichDebugStringTable() {}

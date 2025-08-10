@@ -12,7 +12,7 @@ type (
 		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
 		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
 		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
-		DataTypes            []string                `json:"data_types"`           // list of all data types in the compilation unit
+		DataTypes            []*DataTypeDescription `json:"data_types"`            // list of all data types in the compilation unit
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
@@ -25,18 +25,26 @@ type (
 
 	// VariableDescription holds information about a variable in the compilation unit.
 	VariableDescription struct {
-		Name             string `json:"name"`               // name of the variable in the compilation unit
-		NameSource       string `json:"name_source"`        // name of the variable in the source code
-		Function         string `json:"function"`           // name of the function containing the variable
-		FunctionSource   string `json:"function_source"`    // name of the function in the source code containing the variable
-		DataType         string `json:"data_type"`          // data type name of the variable
-		TokenStreamIndex int    `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
+		Name             string               `json:"name"`               // name of the variable in the compilation unit
+		NameSource       string               `json:"name_source"`        // name of the variable in the source code
+		Function         string               `json:"function"`           // name of the function containing the variable
+		FunctionSource   string               `json:"function_source"`    // name of the function in the source code containing the variable
+		DataType         *DataTypeDescription `json:"data_type"`          // data type of the variable
+		TokenStreamIndex int                  `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
+	}
+
+	// DataTypeDescription holds information about a data type in the compilation unit.
+	DataTypeDescription struct {
+		Name       string `json:"name"`        // name of the data type
+		NameSource string `json:"name_source"` // name of the data type in the source code
+		Size       int32  `json:"size"`        // size of the data type in bytes
+		Alignment  int32  `json:"alignment"`   // alignment of the data type in bytes
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
-		AppendVariable(function, functionSource, name, nameSource, dataType string, tokenStreamIndex int) bool
+		AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}
