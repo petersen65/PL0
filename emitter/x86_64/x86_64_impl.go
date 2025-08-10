@@ -890,9 +890,6 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
 func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dstab *cor.DebugStringTable) {
-	// deduplicate function and variable names ensuring unique label names in the .debug_str section
-	labels := make(map[string]bool)
-
 	// compilation details and producer are required for the .debug_str section
 	if len(dstab.CompilationUnit) == 0 || len(dstab.CompilationDirectory) == 0 || len(dstab.Producer) == 0 {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationDetailsAndProducerRequired, nil, nil))
@@ -903,47 +900,48 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	debugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
 	debugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
 
-	// collect all function names from the debug string table
-	for _, f := range dstab.Functions {
+	// deduplicate function, variable, and data type names ensuring unique label names in the .debug_str section
+	labels := make(map[string]bool)
+
+	// iterate over all unique function names
+	for _, fd := range dstab.Functions {
 		// ensure that the function name is a unique label name in the .debug_str section
-		if ok, exists := labels[f.NameSource]; ok && exists {
+		if ok, exists := labels[fd.NameSource]; ok && exists {
 			continue
 		}
 
 		// mark the function name as used
-		labels[f.NameSource] = true
+		labels[fd.NameSource] = true
 
 		// add the function name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(f.NameSource, elf.String, f.NameSource))
-
-		// collect all variable names of a function from the debug string table
-		for _, v := range f.Variables {
-			// ensure that the variable name is a unique label name in the .debug_str section
-			if ok, exists := labels[v.NameSource]; ok && exists {
-				continue
-			}
-
-			// mark the variable name as used
-			labels[v.NameSource] = true
-
-			// add the variable name to the .debug_str section
-			debugStrSection.Append(elf.NewStringItem(v.NameSource, elf.String, v.NameSource))
-		}
+		debugStrSection.Append(elf.NewStringItem(fd.NameSource, elf.String, fd.NameSource))
 	}
 
-	// collect all data types from all variables of all functions from the debug string table
-	for _, f := range dstab.Functions {
-		for _, v := range f.Variables {
-			// ensure that the variable data type is a unique label name in the .debug_str section
-			if ok, exists := labels[v.DataType]; ok && exists {
-				continue
-			}
-
-			// mark the variable data type as used
-			labels[v.DataType] = true
-
-			// add the variable data type to the .debug_str section
-			debugStrSection.Append(elf.NewStringItem(v.DataType, elf.String, v.DataType))
+	// iterate over all unique variable names
+	for _, vd := range dstab.Variables {
+		// ensure that the variable name is a unique label name in the .debug_str section
+		if ok, exists := labels[vd.NameSource]; ok && exists {
+			continue
 		}
+
+		// mark the variable name as used
+		labels[vd.NameSource] = true
+
+		// add the variable name to the .debug_str section
+		debugStrSection.Append(elf.NewStringItem(vd.NameSource, elf.String, vd.NameSource))
+	}
+
+	// iterate over all unique data type names
+	for _, dt := range dstab.DataTypes {
+		// ensure that the data type name is a unique label name in the .debug_str section
+		if ok, exists := labels[dt]; ok && exists {
+			continue
+		}
+
+		// mark the data type name as used
+		labels[dt] = true
+
+		// add the data type name to the .debug_str section
+		debugStrSection.Append(elf.NewStringItem(dt, elf.String, dt))
 	}
 }

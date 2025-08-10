@@ -3,6 +3,8 @@
 
 package core
 
+import "slices"
+
 // Private implementation of the DebugInformation interface.
 type debugInformation struct {
 	tokenHandler TokenHandler // token handler that manages the tokens of the token stream
@@ -25,6 +27,8 @@ func newDebugStringTable(compilationUnit, compilationDirectory, producer string,
 		Producer:             producer,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
+		Variables:            make([]*VariableDescription, 0),
+		DataTypes:            make([]string, 0),
 	}
 }
 
@@ -64,23 +68,28 @@ func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIn
 
 // Append a variable description to the debug information.
 func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource, dataType string, tokenStreamIndex int) bool {
-	for _, f := range d.table.Functions {
-		if f.Name == function {
-			for _, v := range f.Variables {
-				if v.Name == name {
-					return false
-				}
-			}
+	if index := slices.IndexFunc(d.table.Functions, func(f *FunctionDescription) bool { return f.Name == function }); index == -1 {
+		return false
+	} else {
+		fd := d.table.Functions[index]
 
-			f.Variables = append(f.Variables, newVariableDescription(function, functionSource, name, nameSource, dataType, tokenStreamIndex))
-			return true
+		if slices.ContainsFunc(fd.Variables, func(v *VariableDescription) bool { return v.Name == name }) {
+			return false
 		}
-	}
 
-	return false
+		vd := newVariableDescription(function, functionSource, name, nameSource, dataType, tokenStreamIndex)
+		fd.Variables = append(fd.Variables, vd)
+		d.table.Variables = append(d.table.Variables, vd)
+
+		if !slices.ContainsFunc(d.table.DataTypes, func(dt string) bool { return dt == dataType }) {
+			d.table.DataTypes = append(d.table.DataTypes, dataType)
+		}
+
+		return true
+	}
 }
 
-// Return a full copy of the debug string table.
+// Return a full deep copy of the debug string table.
 func (d *debugInformation) GetDebugStringTable() DebugStringTable {
 	return *d.table
 }

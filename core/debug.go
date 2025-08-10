@@ -10,7 +10,9 @@ type (
 		CompilationDirectory string                 `json:"compilation_directory"` // absolute directory path of the compilation unit
 		Producer             string                 `json:"producer"`              // name of the producer (e.g., compiler name and its version)
 		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
-		Functions            []*FunctionDescription `json:"functions"`             // list of functions in the compilation unit
+		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
+		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
+		DataTypes            []string                `json:"data_types"`           // list of all data types in the compilation unit
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
