@@ -867,12 +867,25 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 			elf.NewAttributeItem(elf.Short, uint16(elf.DwarfVersion)),
 			elf.NewAttributeItem(elf.Byte, uint8(elf.DW_UT_compile)),
 			elf.NewAttributeItem(elf.Byte, uint8(PointerSize)),
-			elf.NewAttributeItem(elf.Long, elf.DebugAbbrev.ToSectionOffset()),
+			elf.NewAttributeItem(elf.Long, elf.DebugAbbrev.ToSectionLabel()),
+		},
+	)
+
+	// compilation unit entry
+	compilationUnit := elf.NewDebuggingInformationEntry(
+		elf.DW_CODE_compilation_unit,
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationUnitLabel)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationDirectoryLabel)),
+			elf.NewAttributeItem(elf.Short, uint16(elf.DW_LANG_C23)),
+			elf.NewAttributeItem(elf.Long, elf.DebugLine.String()),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.ProducerLabel)),
 		},
 	)
 
 	// add all entries to the .debug_info section
 	debugInfoSection.Append(compilationUnitHeader)
+	debugInfoSection.Append(compilationUnit)
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
@@ -880,13 +893,14 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// deduplicate function and variable names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)
 
-	// compilation unit and producer are required for the .debug_str section
-	if len(dstab.CompilationUnit) == 0 || len(dstab.Producer) == 0 {
-		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationUnitAndProducerRequired, nil, nil))
+	// compilation details and producer are required for the .debug_str section
+	if len(dstab.CompilationUnit) == 0 || len(dstab.CompilationDirectory) == 0 || len(dstab.Producer) == 0 {
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationDetailsAndProducerRequired, nil, nil))
 	}
 
-	// add the compilation unit and producer to the debug string section
+	// add the compilation details and producer to the debug string section
 	debugStrSection.Append(elf.NewStringItem(elf.CompilationUnitLabel, elf.String, dstab.CompilationUnit))
+	debugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
 	debugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
 
 	// collect all function names from the debug string table

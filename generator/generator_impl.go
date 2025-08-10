@@ -5,6 +5,8 @@ package generator
 
 import (
 	"container/list"
+	"path/filepath"
+	"strings"
 
 	ast "github.com/petersen65/PL0/v2/ast"
 	cor "github.com/petersen65/PL0/v2/core"
@@ -82,13 +84,14 @@ var (
 // Create a new intermediate code generator.
 func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Generator {
 	compilationUnit := buildConfiguration.SourcePath
+	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
 
 	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: ic.NewIntermediateCodeUnit(),
-		debugInformation: cor.NewDebugInformation(compilationUnit, producer, optimized, tokenHandler),
+		debugInformation: cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler),
 		results:          list.New(),
 	}
 }

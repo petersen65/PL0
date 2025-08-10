@@ -24,9 +24,6 @@ import (
 	scn "github.com/petersen65/PL0/v2/scanner"
 )
 
-// Display name of the compiler driver. It is used to identify the source of any generated code.
-const DriverDisplayName = "PL/0 Compiler"
-
 // Default target filename for the compilation driver.
 const defaultTarget = "out"
 
@@ -43,7 +40,8 @@ const (
 	textOptimizing         = "Applying optimization algorithms '%v'\n"
 	textErrorCompiling     = "Error compiling source '%v': %v"
 	textAbortCompilation   = "compilation aborted\n"
-	textErrorPersisting    = "Error persisting target file '%v': %v"
+	textErrorReading       = "Error reading source file '%v': %v"
+	textErrorWriting       = "Error writing target file '%v': %v"
 	textExporting          = "Exporting intermediate representations to '%v'\n"
 	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
 	textDriverSourceTarget = "Compiler Driver with source '%v' and target '%v' completed\n"
@@ -109,15 +107,21 @@ var ExtensionMap = map[Extension]string{
 	Ensure:    ".ensure",
 }
 
-// Driver for the compilation process with the given options source path, target path, optimization algorithms, and print writer.
-func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, print io.Writer) {
-	var targetDirectory, baseFileName, runtimePath string
+// Driver for the compilation process with options, source path, target path, optimization algorithms, display name, and print writer.
+func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, displayName string, print io.Writer) {
+	var sourceAbsolutePath, targetDirectory, baseFileName, targetAbsolutePath, runtimePath string
 	var compilationUnit CompilationUnit
 	var err error
 
-	// ensure target path exists and print persistence error message if an error occurred
-	if targetDirectory, baseFileName, err = EnsureTargetPath(targetPath); err != nil {
-		fmt.Fprintf(print, textErrorPersisting, targetPath, err)
+	// ensure source path exists and print error message if an error occurred
+	if sourcePath, sourceAbsolutePath, err = EnsureSourcePath(sourcePath); err != nil {
+		fmt.Fprintf(print, textErrorReading, sourcePath, err)
+		return
+	}
+
+	// ensure target path exists and print error message if an error occurred
+	if targetDirectory, baseFileName, targetAbsolutePath, err = EnsureTargetPath(targetPath); err != nil {
+		fmt.Fprintf(print, textErrorWriting, targetPath, err)
 		return
 	}
 
@@ -133,8 +137,8 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		// repeat ensuring existance of target path only if compile option is set
 		if options&Compile != 0 {
 			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
-			if targetDirectory, baseFileName, err = EnsureTargetPath(targetPath); err != nil {
-				fmt.Fprintf(print, textErrorPersisting, targetPath, err)
+			if targetDirectory, baseFileName, targetAbsolutePath, err = EnsureTargetPath(targetPath); err != nil {
+				fmt.Fprintf(print, textErrorWriting, targetPath, err)
 				return
 			}
 
@@ -154,12 +158,14 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 
 	// setup build configuration for the application
 	buildConfiguration := cor.BuildConfiguration{
-		SourcePath:        sourcePath,
-		TargetPath:        targetPath,
-		TargetPlatform:    targetPlatform,
-		DriverDisplayName: DriverDisplayName,
-		OutputKind:        cor.Application,
-		Optimization:      optimization,
+		SourcePath:         sourcePath,
+		TargetPath:         targetPath,
+		SourceAbsolutePath: sourceAbsolutePath,
+		TargetAbsolutePath: targetAbsolutePath,
+		TargetPlatform:     targetPlatform,
+		DriverDisplayName:  displayName,
+		OutputKind:         cor.Application,
+		Optimization:       optimization,
 	}
 
 	// compile source code to compilation unit and print an error report if errors occurred during compilation
@@ -203,12 +209,12 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	// persist application and runtime as target files and print persistence error message if an error occurred
 	if options&Compile != 0 && !compilationUnit.ErrorHandler.HasErrors() {
 		if err = PersistApplication(compilationUnit.AssemblyCode, targetPath); err != nil {
-			fmt.Fprintf(print, textErrorPersisting, targetPath, err)
+			fmt.Fprintf(print, textErrorWriting, targetPath, err)
 			return
 		}
 
-		if err = PersistRuntime(targetPlatform, optimization, runtimePath); err != nil {
-			fmt.Fprintf(print, textErrorPersisting, runtimePath, err)
+		if err = PersistRuntime(targetPlatform, optimization, runtimePath, displayName); err != nil {
+			fmt.Fprintf(print, textErrorWriting, runtimePath, err)
 			return
 		}
 	}
@@ -287,13 +293,13 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 }
 
 // Persist the assembly code unit of the runtime.
-func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string) error {
+func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string, displayName string) error {
 	// setup build configuration for the runtime which does not support debug information
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:        runtimePath,
 		TargetPath:        runtimePath,
 		TargetPlatform:    targetPlatform,
-		DriverDisplayName: DriverDisplayName,
+		DriverDisplayName: displayName,
 		OutputKind:        cor.Runtime,
 		Optimization:      optimization &^ cor.Debug,
 	}
@@ -338,7 +344,7 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 	targetDirectory = filepath.Join(targetDirectory, intermediateDirectory)
 
 	// create full directory path and check if an ensure-test file can be created by creating it and removing it afterwards
-	if _, _, err := EnsureTargetPath(targetDirectory); err != nil {
+	if _, _, _, err := EnsureTargetPath(targetDirectory); err != nil {
 		return err
 	}
 
@@ -444,8 +450,8 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 }
 
 // Ensure target path exists and create and remove empty ensure-file to proof write access.
-func EnsureTargetPath(target string) (string, string, error) {
-	var targetDirectory string
+func EnsureTargetPath(target string) (string, string, string, error) {
+	var targetDirectory, targetAbsolutePath string
 	target = filepath.Clean(target)
 
 	// enforce default build directory if target is empty, current directory, or root directory
@@ -467,12 +473,12 @@ func EnsureTargetPath(target string) (string, string, error) {
 
 	// 0755 is octal and means that the owner can read, write, and execute the file, and others can read and execute it
 	if err := os.MkdirAll(targetDirectory, 0755); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	// return if target directory does not exist after trying to create it
 	if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	// get base file name of target path without extension
@@ -488,7 +494,7 @@ func EnsureTargetPath(target string) (string, string, error) {
 
 	// create and remove empty target file to proof write access
 	if targetFile, err := os.Create(targetFullPath); err != nil {
-		return "", "", err
+		return "", "", "", err
 	} else {
 		defer func() {
 			targetFile.Close()
@@ -496,7 +502,41 @@ func EnsureTargetPath(target string) (string, string, error) {
 		}()
 	}
 
-	return targetDirectory, baseFileName, nil
+	// absolute full file path of target with extension based on current working directory
+	if absolutePath, err := filepath.Abs(targetFullPath); err != nil {
+		return "", "", "", err
+	} else {
+		targetAbsolutePath = absolutePath
+	}
+
+	return filepath.ToSlash(targetDirectory), baseFileName, filepath.ToSlash(targetAbsolutePath), nil
+}
+
+// Ensure source path exists and open it to proof read access.
+func EnsureSourcePath(source string) (string, string, error) {
+	var sourceAbsolutePath string
+	source = filepath.Clean(source)
+
+	// return if source path does not exist
+	if _, err := os.Stat(source); os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	// absolute full file path of source based on current working directory
+	if absolutePath, err := filepath.Abs(source); err != nil {
+		return "", "", err
+	} else {
+		sourceAbsolutePath = absolutePath
+	}
+
+	// open source file to proof read access
+	if sourceFile, err := os.Open(source); err != nil {
+		return "", "", err
+	} else {
+		defer sourceFile.Close()
+	}
+
+	return filepath.ToSlash(source), filepath.ToSlash(sourceAbsolutePath), nil
 }
 
 // Return the full path of the target file with the given base file name and extensions.
@@ -507,5 +547,5 @@ func GetFullPath(targetDirectory, baseFileName string, extensions ...Extension) 
 		targetFullPath += ExtensionMap[extension]
 	}
 
-	return targetFullPath
+	return filepath.ToSlash(targetFullPath)
 }

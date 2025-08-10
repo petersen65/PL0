@@ -71,9 +71,12 @@ func main() {
 	// parse command line arguments into variables
 	flag.Parse()
 
+	// create driver display name used to identify the source of any generated code
+	display := strings.TrimSpace(fmt.Sprintf("%v %v %v", textTitle, textVersion, CommitHash))
+
 	// print title, version, and copyright
-	fmt.Fprintf(os.Stdout, "%v %v %v\n", textTitle, textVersion, CommitHash)
-	fmt.Fprintf(os.Stdout, "%v\n", textCopyright)
+	fmt.Fprintln(os.Stdout, display)
+	fmt.Fprintln(os.Stdout, textCopyright)
 
 	// print help message if requested
 	if help {
@@ -155,5 +158,5 @@ func main() {
 	}
 
 	// call the compiler driver with the options and source and target files
-	com.Driver(options, source, target, optimization, os.Stdout)
+	com.Driver(options, source, target, optimization, display, os.Stdout)
 }

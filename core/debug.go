@@ -6,10 +6,11 @@ package core
 type (
 	// DebugStringTable holds generic debug information for a compilation unit.
 	DebugStringTable struct {
-		CompilationUnit string                 `json:"compilation_unit"` // name of the compilation unit (e.g., source code file name)
-		Producer        string                 `json:"producer"`         // name of the producer (e.g., compiler name and its version)
-		Optimized       bool                   `json:"optimized"`        // whether the code is optimized
-		Functions       []*FunctionDescription `json:"functions"`        // list of functions in the compilation unit
+		CompilationUnit      string                 `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
+		CompilationDirectory string                 `json:"compilation_directory"` // absolute directory path of the compilation unit
+		Producer             string                 `json:"producer"`              // name of the producer (e.g., compiler name and its version)
+		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
+		Functions            []*FunctionDescription `json:"functions"`             // list of functions in the compilation unit
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
@@ -26,7 +27,7 @@ type (
 		NameSource       string `json:"name_source"`        // name of the variable in the source code
 		Function         string `json:"function"`           // name of the function containing the variable
 		FunctionSource   string `json:"function_source"`    // name of the function in the source code containing the variable
-		DataType         string `json:"data_type"`          // data type of the variable
+		DataType         string `json:"data_type"`          // data type name of the variable
 		TokenStreamIndex int    `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
 	}
 
@@ -35,11 +36,11 @@ type (
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource, dataType string, tokenStreamIndex int) bool
 		GetDebugStringTable() DebugStringTable
-		GetSourceCodeContext(tokenStreamIndex int) (line, column int, currentLine string, ok bool)
+		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}
 )
 
 // Create a new debug information instance for a compilation unit.
-func NewDebugInformation(compilationUnit, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
-	return newDebugInformation(compilationUnit, producer, optimized, tokenHandler)
+func NewDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
 }

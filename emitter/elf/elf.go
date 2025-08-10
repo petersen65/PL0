@@ -18,8 +18,9 @@ const DwarfVersion = 5
 
 // Standard DWARF label names for ELF sections.
 const (
-	CompilationUnitLabel = "compilation_unit" // label for the compilation unit in .debug_str section
-	ProducerLabel        = "producer"         // label for the producer in .debug_str section
+	CompilationUnitLabel      = "compilation_unit"      // label for the compilation unit in .debug_str section
+	CompilationDirectoryLabel = "compilation_directory" // label for the compilation directory in .debug_str section
+	ProducerLabel             = "producer"              // label for the producer in .debug_str section
 )
 
 // Debugger flags augment the directive generation with additional information (bit-mask).
@@ -65,6 +66,7 @@ const (
 	DebugAbbrev // switches to the .debug_abbrev (debug abbreviation) section (.debug_abbrev,"",@progbits)
 	DebugInfo   // switches to the .debug_info (debug information) section (.debug_info,"",@progbits)
 	DebugStr    // switches to the .debug_str (debug strings) section (.debug_str,"MS",@progbits)
+	DebugLine   // switches to the .debug_line (debug line numbers) section (.debug_line,"",@progbits)
 
 	// alignment and layout directives
 	P2align // aligns to 2^n bytes (.p2align <n>) — used for ABI alignment
@@ -421,6 +423,56 @@ const (
 	DW_UT_hi_user DwarfUnitType = 0xff // end of user-defined unit-types
 )
 
+// DwarfLanguage represents DWARF v5 language codes for source languages.
+const (
+	DW_LANG_C89            DwarfLanguage = 0x0001 // ansi c
+	DW_LANG_C              DwarfLanguage = 0x0002 // c
+	DW_LANG_Ada83          DwarfLanguage = 0x0003 // ada 83
+	DW_LANG_C_plus_plus    DwarfLanguage = 0x0004 // c++
+	DW_LANG_Cobol74        DwarfLanguage = 0x0005 // cobol 74
+	DW_LANG_Cobol85        DwarfLanguage = 0x0006 // cobol 85
+	DW_LANG_Fortran77      DwarfLanguage = 0x0007 // fortran 77
+	DW_LANG_Fortran90      DwarfLanguage = 0x0008 // fortran 90
+	DW_LANG_Pascal83       DwarfLanguage = 0x0009 // pascal 83
+	DW_LANG_Modula2        DwarfLanguage = 0x000a // modula-2
+	DW_LANG_Java           DwarfLanguage = 0x000b // java
+	DW_LANG_C99            DwarfLanguage = 0x000c // c99
+	DW_LANG_Ada95          DwarfLanguage = 0x000d // ada 95
+	DW_LANG_Fortran95      DwarfLanguage = 0x000e // fortran 95
+	DW_LANG_PLI            DwarfLanguage = 0x000f // pl/i
+	DW_LANG_ObjC           DwarfLanguage = 0x0010 // objective-c
+	DW_LANG_ObjC_plus_plus DwarfLanguage = 0x0011 // objective-c++
+	DW_LANG_UPC            DwarfLanguage = 0x0012 // upc
+	DW_LANG_D              DwarfLanguage = 0x0013 // d
+	DW_LANG_Python         DwarfLanguage = 0x0014 // python
+	DW_LANG_OpenCL         DwarfLanguage = 0x0015 // opencl
+	DW_LANG_Go             DwarfLanguage = 0x0016 // go
+	DW_LANG_Modula3        DwarfLanguage = 0x0017 // modula-3
+	DW_LANG_Haskell        DwarfLanguage = 0x0018 // haskell
+	DW_LANG_C_plus_plus_03 DwarfLanguage = 0x0019 // c++03
+	DW_LANG_C_plus_plus_11 DwarfLanguage = 0x001a // c++11
+	DW_LANG_OCaml          DwarfLanguage = 0x001b // ocaml
+	DW_LANG_Rust           DwarfLanguage = 0x001c // rust
+	DW_LANG_C11            DwarfLanguage = 0x001d // c11
+	DW_LANG_Swift          DwarfLanguage = 0x001e // swift
+	DW_LANG_Julia          DwarfLanguage = 0x001f // julia
+	DW_LANG_Dylan          DwarfLanguage = 0x0020 // dylan
+	DW_LANG_C_plus_plus_14 DwarfLanguage = 0x0021 // c++14
+	DW_LANG_Fortran03      DwarfLanguage = 0x0022 // fortran 2003
+	DW_LANG_Fortran08      DwarfLanguage = 0x0023 // fortran 2008
+	DW_LANG_RenderScript   DwarfLanguage = 0x0024 // renderscript
+	DW_LANG_Blend2D        DwarfLanguage = 0x0025 // blend2d
+	DW_LANG_C17            DwarfLanguage = 0x0026 // c17
+	DW_LANG_C_plus_plus_17 DwarfLanguage = 0x0027 // c++17
+	DW_LANG_C_plus_plus_20 DwarfLanguage = 0x0028 // c++20
+	DW_LANG_C23            DwarfLanguage = 0x0029 // c23
+	DW_LANG_C_plus_plus_23 DwarfLanguage = 0x002a // c++23
+
+	// Reserved vendor range
+	DW_LANG_lo_user DwarfLanguage = 0x8000 // lo user
+	DW_LANG_hi_user DwarfLanguage = 0xffff // hi user
+)
+
 type (
 	// Represents debugger flags (bit-mask).
 	Debugger uint64
@@ -466,6 +518,9 @@ type (
 
 	// Represents a DWARF unit type (byte-encoded).
 	DwarfUnitType int
+
+	// Represents  a DWARF source language encoding (short-encoded).
+	DwarfLanguage int
 
 	// ElfSection represents a generic ELF section with typed line-contents.
 	ElfSection[T fmt.Stringer] struct {
@@ -705,6 +760,11 @@ func (t DwarfUnitType) String() string {
 	return dwarfUnitTypeNames[t]
 }
 
+// String representation of DWARF languages.
+func (l DwarfLanguage) String() string {
+	return dwarfLanguageNames[l]
+}
+
 // Append a comment to a directive that will be emitted before the directive.
 func (d *Directive) AppendComment(comment string) {
 	if comment = strings.TrimSpace(comment); comment != "" {
@@ -722,17 +782,22 @@ func (d DirectiveKind) EndLabel() string {
 	return fmt.Sprintf(endLabelFormat, strings.TrimLeft(d.String(), labelPrefix))
 }
 
-// String representation of a section offset based on its start label.
-func (d DirectiveKind) ToSectionOffset() string {
+// String representation of a section address based on its start label.
+func (d DirectiveKind) ToSectionLabel() string {
 	return strings.TrimRight(d.StartLabel(), labelPostfix)
-}
-
-// String representation of a descriptor label.
-func ToDescriptor(label string) string {
-	return fmt.Sprintf(descriptorLabel, label)
 }
 
 // String representation of a section length calculation based on its start and end labels.
 func ToSectionLength(endLabel, startLabel string) string {
 	return fmt.Sprintf("%v - %v - 4", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
+}
+
+// String representation of a string item address based on its label.
+func ToStringItemLabel(item string) string {
+	return fmt.Sprintf("%v%v", debugStringPrefix, item)
+}
+
+// String representation of a descriptor label.
+func ToDescriptor(label string) string {
+	return fmt.Sprintf(descriptorLabel, label)
 }

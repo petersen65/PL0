@@ -113,12 +113,14 @@ type (
 
 	// Build configuration used during the compilation process.
 	BuildConfiguration struct {
-		SourcePath        string         `json:"source_path"`         // path to the source code file
-		TargetPath        string         `json:"target_path"`         // path to the target assembly file
-		TargetPlatform    TargetPlatform `json:"target_platform"`     // target platform for which the assembly code is generated
-		DriverDisplayName string         `json:"driver_display_name"` // compiler driver display name
-		OutputKind        OutputKind     `json:"output_kind"`         // kind of output represented by the assembly code
-		Optimization      Optimization   `json:"optimization"`        // optimization algorithms to be applied during code emission
+		SourcePath         string         `json:"source_path"`          // path to the source code file
+		TargetPath         string         `json:"target_path"`          // path to the target assembly file
+		SourceAbsolutePath string         `json:"source_absolute_path"` // absolute path to the source code file
+		TargetAbsolutePath string         `json:"target_absolute_path"` // absolute path to the target assembly file
+		TargetPlatform     TargetPlatform `json:"target_platform"`      // target platform for which the assembly code is generated
+		DriverDisplayName  string         `json:"driver_display_name"`  // compiler driver display name
+		OutputKind         OutputKind     `json:"output_kind"`          // kind of output represented by the assembly code
+		Optimization       Optimization   `json:"optimization"`         // optimization algorithms to be applied during code emission
 	}
 
 	// Exporter is an interface that provides methods for exporting intermediate results.

@@ -10,20 +10,21 @@ type debugInformation struct {
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
-		table:        newDebugStringTable(compilationUnit, producer, optimized),
+		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, optimized),
 	}
 }
 
 // Create a new debug string table for a compilation unit.
-func newDebugStringTable(compilationUnit, producer string, optimized bool) *DebugStringTable {
+func newDebugStringTable(compilationUnit, compilationDirectory, producer string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
-		CompilationUnit: compilationUnit,
-		Producer:        producer,
-		Optimized:       optimized,
-		Functions:       make([]*FunctionDescription, 0),
+		CompilationUnit:      compilationUnit,
+		CompilationDirectory: compilationDirectory,
+		Producer:             producer,
+		Optimized:            optimized,
+		Functions:            make([]*FunctionDescription, 0),
 	}
 }
 
@@ -85,7 +86,7 @@ func (d *debugInformation) GetDebugStringTable() DebugStringTable {
 }
 
 // Provide the source code context for a given token stream index including line and column information.
-func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (line, column int, currentLine string, ok bool) {
+func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool) {
 	if d.tokenHandler == nil {
 		return 0, 0, "", false
 	}

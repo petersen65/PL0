@@ -14,7 +14,7 @@ const (
 	unknownOutputKind
 	invalidAttributeForDirective
 	optimizationDebugNotSupportedinRuntime
-	compilationUnitAndProducerRequired
+	compilationDetailsAndProducerRequired
 	unknownExportFormat
 	assemblyCodeExportFailed
 )
@@ -27,7 +27,7 @@ var failureMap = map[cor.Failure]string{
 	unknownOutputKind:                      "unknown output kind for assembly code: %v",
 	invalidAttributeForDirective:           "invalid attribute for directive: %v",
 	optimizationDebugNotSupportedinRuntime: "debug optimization is not supported for runtime functions: %v",
-	compilationUnitAndProducerRequired:     "compilation unit and producer are required for debug information",
+	compilationDetailsAndProducerRequired:  "compilation details and producer are required for debug information",
 	unknownExportFormat:                    "unknown export format: %v",
 	assemblyCodeExportFailed:               "failed to export assembly code",
 }
