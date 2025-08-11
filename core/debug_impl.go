@@ -43,23 +43,21 @@ func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *Func
 }
 
 // Create a new variable description for a variable in the compilation unit.
-func newVariableDescription(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) *VariableDescription {
+func newVariableDescription(function, functionSource, name, nameSource string, dataTypeDescription *DataTypeDescription, tokenStreamIndex int) *VariableDescription {
 	return &VariableDescription{
 		Function:         function,
 		FunctionSource:   functionSource,
 		Name:             name,
 		NameSource:       nameSource,
-		DataType:         &DataTypeDescription{Name: dataType, NameSource: dataTypeSource},
+		DataType:         dataTypeDescription,
 		TokenStreamIndex: tokenStreamIndex,
 	}
 }
 
 // Append a function description to the debug information.
 func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIndex int) bool {
-	for _, f := range d.table.Functions {
-		if f.Name == name {
-			return false
-		}
+	if slices.ContainsFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.Name == name }) {
+		return false
 	}
 
 	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, tokenStreamIndex))
@@ -68,35 +66,51 @@ func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIn
 
 // Append a variable description to the debug information.
 func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool {
-	if index := slices.IndexFunc(d.table.Functions, func(f *FunctionDescription) bool { return f.Name == function }); index == -1 {
+	if index := slices.IndexFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.Name == function }); index == -1 {
 		return false
 	} else {
 		fd := d.table.Functions[index]
 
-		if slices.ContainsFunc(fd.Variables, func(v *VariableDescription) bool { return v.Name == name }) {
+		if slices.ContainsFunc(fd.Variables, func(vd *VariableDescription) bool { return vd.Name == name }) {
 			return false
 		}
 
-		vd := newVariableDescription(function, functionSource, name, nameSource, dataType, dataTypeSource, tokenStreamIndex)
+		var dtd *DataTypeDescription
+
+		if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == dataType }); index == -1 {
+			dtd = &DataTypeDescription{Name: dataType, NameSource: dataTypeSource}
+			d.table.DataTypes = append(d.table.DataTypes, dtd)
+		} else {
+			dtd = d.table.DataTypes[index]
+		}
+		
+		vd := newVariableDescription(function, functionSource, name, nameSource, dtd, tokenStreamIndex)
 		fd.Variables = append(fd.Variables, vd)
 		d.table.Variables = append(d.table.Variables, vd)
-
-		if !slices.ContainsFunc(d.table.DataTypes, func(dt *DataTypeDescription) bool { return dt.Name == dataType }) {
-			d.table.DataTypes = append(d.table.DataTypes, vd.DataType)
-		}
 
 		return true
 	}
 }
 
-func (d *debugInformation) UpdateDataType(name string, size int32) bool {
-	for _, dt := range d.table.DataTypes {
-		if dt.Name == name {
-			dt.Size = size
-			return true
-		}
+// Update the offset of a variable in the debug information.
+func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
+	if index := slices.IndexFunc(d.table.Variables, func(vd *VariableDescription) bool { return vd.Name == name }); index != -1 {
+		vd := d.table.Variables[index]
+		vd.Offset = offset
+		return true
 	}
-	
+
+	return false
+}
+
+// Update the size of a data type in the debug information.
+func (d *debugInformation) UpdateDataType(name string, size int32) bool {
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == name }); index != -1 {
+		dtd := d.table.DataTypes[index]
+		dtd.Size = size
+		return true
+	}
+
 	return false
 }
 

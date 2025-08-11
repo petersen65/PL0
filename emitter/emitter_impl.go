@@ -34,7 +34,7 @@ type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     x64.AssemblyCodeUnit    // assembly code unit for the target platform
 	debugInformation cor.DebugInformation    // debug information collected during the code generation
-	offsetTable      map[string]int32        // 32-bit offset of local variables in their activation record
+	variableOffsets  map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
 var (
@@ -125,7 +125,7 @@ func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration
 		intermediateCode: intermediateCodeUnit,
 		assemblyCode:     x64.NewAssemblyCodeUnit(buildConfiguration, debugInformation),
 		debugInformation: debugInformation,
-		offsetTable:      make(map[string]int32),
+		variableOffsets:  make(map[string]int32),
 	}
 }
 
@@ -317,7 +317,7 @@ func (e *emitter) Emit() {
 			dataType := i.Quadruple.Arg1.DataType
 
 			// determine offset of the local variable in its activation record
-			offset := e.offsetTable[i.Quadruple.Arg1.Name]
+			offset := e.variableOffsets[i.Quadruple.Arg1.Name]
 
 			// extract the depth difference between variable use and variable declaration
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
@@ -333,7 +333,7 @@ func (e *emitter) Emit() {
 			dataType := i.Quadruple.Result.DataType
 
 			// determine offset of the local variable in its activation record
-			offset := e.offsetTable[i.Quadruple.Result.Name]
+			offset := e.variableOffsets[i.Quadruple.Result.Name]
 
 			// extract the depth difference between variable use and variable declaration
 			depthDifference := i.Quadruple.Arg2.Value.(int32)
@@ -352,6 +352,16 @@ func (e *emitter) Emit() {
 		if i.Quadruple.Operation != ic.BranchTarget {
 			l = make([]string, 0)
 		}
+	}
+
+	// update all data type sizes in the debug information
+	for dataType, size := range dataTypeSize {
+		e.debugInformation.UpdateDataType(dataType.String(), size)
+	}
+
+	// update all variable offsets in the debug information
+	for name, offset := range e.variableOffsets {
+		e.debugInformation.UpdateVariable(name, offset)
 	}
 }
 
@@ -1035,7 +1045,7 @@ func (e *emitter) allocateVariables(iterator ic.Iterator, btLabels []string, deb
 			offset = x64.Align(offset-byteSize, alignment)
 
 			// remember offset of the local variable in its activation record
-			e.offsetTable[result.Name] = offset
+			e.variableOffsets[result.Name] = offset
 		}
 
 		// break if all local variables int the activiation record have been allocated
@@ -1420,8 +1430,4 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 			panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
 		}
 	}
-}
-
-func (e *emitter) enrichDebugStringTable() {
-	
 }

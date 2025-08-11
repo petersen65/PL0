@@ -30,6 +30,7 @@ type (
 		Function         string               `json:"function"`           // name of the function containing the variable
 		FunctionSource   string               `json:"function_source"`    // name of the function in the source code containing the variable
 		DataType         *DataTypeDescription `json:"data_type"`          // data type of the variable
+		Offset           int32                `json:"offset"`             // offset of the variable in its logical memory space
 		TokenStreamIndex int                  `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
 	}
 
@@ -44,6 +45,7 @@ type (
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool
+		UpdateVariable(name string, offset int32) bool
 		UpdateDataType(name string, size int32) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)

@@ -279,19 +279,6 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownOutputKind, buildConfiguration.OutputKind, nil))
 	}
 
-	// if debug information is enabled, create the .debug_abbrev, .debug_info, and .debug_str sections
-	if unit.HasDebugInformation() {
-		// update the .debug_abbrev section with abbreviation entry schemas required for the .debug_info section
-		updateDebugAbbrevSection(unit.DebugAbbrevSection)
-
-		// transfer the debug string table from the debug information into the .debug_str section
-		dstab := unit.debugInformation.GetDebugStringTable()
-		updateDebugStrSection(unit.DebugStrSection, &dstab)
-
-		// update the .debug_info section with debugging information entries (DIEs) that reference the .debug_str section
-		updateDebugInfoSection(unit.DebugInfoSection, &dstab)
-	}
-
 	return unit
 }
 
@@ -733,22 +720,37 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 		}
 	}
 
-	// write the DWARF debug abbreviation section to the print writer
-	if len(u.DebugAbbrevSection.Content) > 0 {
+	// if debug information is enabled, update the .debug_abbrev, .debug_info, and .debug_str sections
+	if u.HasDebugInformation() {
+		// get the debug string table from the debug information and use it to populate the .debug_info and .debug_str sections
+		dstab := u.debugInformation.GetDebugStringTable()
+
+		// update the .debug_abbrev section with abbreviation entry schemas required for the .debug_info section
+		if len(u.DebugAbbrevSection.Content) == 0 {
+			updateDebugAbbrevSection(u.DebugAbbrevSection)
+		}
+
+		// update the .debug_info section with debugging information entries (DIEs) that reference the .debug_str section
+		if len(u.DebugInfoSection.Content) == 0 {
+			updateDebugInfoSection(u.DebugInfoSection, &dstab)
+		}
+
+		// update the .debug_str section with string items referenced by DIEs in the .debug_info section
+		if len(u.DebugStrSection.Content) == 0 {
+			updateDebugStrSection(u.DebugStrSection, &dstab)
+		}
+
+		// write the DWARF debug abbreviation section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugAbbrevSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
-	}
 
-	// write the DWARF debug information section to the print writer
-	if len(u.DebugInfoSection.Content) > 0 {
+		// write the DWARF debug information section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugInfoSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
-	}
 
-	// write the DWARF debug strings section to the print writer
-	if len(u.DebugStrSection.Content) > 0 {
+		// write the DWARF debug strings section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
 			return cor.NewGeneralError(cor.Intel, failureMap, cor.Error, assemblyCodeExportFailed, nil, err)
 		}
@@ -857,7 +859,7 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 }
 
 // Update the .debug_info section with debugging information entries (DIEs).
-func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], _ *cor.DebugStringTable) {
+func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable) {
 	// compilation unit header entry
 	compilationUnitHeader := elf.NewDebuggingInformationEntry(
 		elf.DW_CODE_suppression,
@@ -882,9 +884,28 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		},
 	)
 
-	// add all entries to the .debug_info section
+	// base types entries
+	basetypes := make([]*elf.DebuggingInformationEntry, 0)
+
+	for _, dtd := range dstab.DataTypes {
+		basetypes = append(basetypes, elf.NewDebuggingInformationEntry(
+			elf.DW_CODE_base_type,
+			[]*elf.AttributeItem{
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource)),
+				elf.NewAttributeItem(elf.Byte, uint8(dtd.Size)),
+				elf.NewAttributeItem(elf.Byte, uint8(5)),
+			},
+		))
+	}
+
+	// add compilation unit entries to the .debug_info section
 	debugInfoSection.Append(compilationUnitHeader)
 	debugInfoSection.Append(compilationUnit)
+
+	// add all base type entries to the .debug_info section
+	for _, die := range basetypes {
+		debugInfoSection.Append(die)
+	}
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
@@ -931,16 +952,16 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	}
 
 	// iterate over all unique data type names
-	for _, dt := range dstab.DataTypes {
+	for _, dtd := range dstab.DataTypes {
 		// ensure that the data type name is a unique label name in the .debug_str section
-		if ok, exists := labels[dt.NameSource]; ok && exists {
+		if ok, exists := labels[dtd.NameSource]; ok && exists {
 			continue
 		}
 
 		// mark the data type name as used
-		labels[dt.NameSource] = true
+		labels[dtd.NameSource] = true
 
 		// add the data type name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(dt.NameSource, elf.String, dt.NameSource))
+		debugStrSection.Append(elf.NewStringItem(dtd.NameSource, elf.String, dtd.NameSource))
 	}
 }
