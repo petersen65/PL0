@@ -38,13 +38,13 @@ type (
 		Name       string `json:"name"`        // name of the data type
 		NameSource string `json:"name_source"` // name of the data type in the source code
 		Size       int32  `json:"size"`        // size of the data type in bytes
-		Alignment  int32  `json:"alignment"`   // alignment of the data type in bytes
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool
+		UpdateDataType(name string, size int32) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}

@@ -1422,4 +1422,6 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 	}
 }
 
-func (e *emitter) enrichDebugStringTable() {}
+func (e *emitter) enrichDebugStringTable() {
+	
+}

@@ -933,14 +933,14 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// iterate over all unique data type names
 	for _, dt := range dstab.DataTypes {
 		// ensure that the data type name is a unique label name in the .debug_str section
-		if ok, exists := labels[dt]; ok && exists {
+		if ok, exists := labels[dt.NameSource]; ok && exists {
 			continue
 		}
 
 		// mark the data type name as used
-		labels[dt] = true
+		labels[dt.NameSource] = true
 
 		// add the data type name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(dt, elf.String, dt))
+		debugStrSection.Append(elf.NewStringItem(dt.NameSource, elf.String, dt.NameSource))
 	}
 }

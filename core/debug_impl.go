@@ -43,13 +43,13 @@ func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *Func
 }
 
 // Create a new variable description for a variable in the compilation unit.
-func newVariableDescription(function, functionSource, name, nameSource, dataType string, tokenStreamIndex int) *VariableDescription {
+func newVariableDescription(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) *VariableDescription {
 	return &VariableDescription{
 		Function:         function,
 		FunctionSource:   functionSource,
 		Name:             name,
 		NameSource:       nameSource,
-		DataType:         dataType,
+		DataType:         &DataTypeDescription{Name: dataType, NameSource: dataTypeSource},
 		TokenStreamIndex: tokenStreamIndex,
 	}
 }
@@ -67,7 +67,7 @@ func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIn
 }
 
 // Append a variable description to the debug information.
-func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource, dataType string, tokenStreamIndex int) bool {
+func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool {
 	if index := slices.IndexFunc(d.table.Functions, func(f *FunctionDescription) bool { return f.Name == function }); index == -1 {
 		return false
 	} else {
@@ -77,16 +77,27 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 			return false
 		}
 
-		vd := newVariableDescription(function, functionSource, name, nameSource, dataType, tokenStreamIndex)
+		vd := newVariableDescription(function, functionSource, name, nameSource, dataType, dataTypeSource, tokenStreamIndex)
 		fd.Variables = append(fd.Variables, vd)
 		d.table.Variables = append(d.table.Variables, vd)
 
-		if !slices.ContainsFunc(d.table.DataTypes, func(dt string) bool { return dt == dataType }) {
-			d.table.DataTypes = append(d.table.DataTypes, dataType)
+		if !slices.ContainsFunc(d.table.DataTypes, func(dt *DataTypeDescription) bool { return dt.Name == dataType }) {
+			d.table.DataTypes = append(d.table.DataTypes, vd.DataType)
 		}
 
 		return true
 	}
+}
+
+func (d *debugInformation) UpdateDataType(name string, size int32) bool {
+	for _, dt := range d.table.DataTypes {
+		if dt.Name == name {
+			dt.Size = size
+			return true
+		}
+	}
+	
+	return false
 }
 
 // Return a full deep copy of the debug string table.
