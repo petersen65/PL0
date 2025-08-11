@@ -893,7 +893,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 			[]*elf.AttributeItem{
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource)),
 				elf.NewAttributeItem(elf.Byte, uint8(dtd.Size)),
-				elf.NewAttributeItem(elf.Byte, uint8(5)),
+				elf.NewAttributeItem(elf.Byte, uint8(dtd.BaseType)),
 			},
 		))
 	}

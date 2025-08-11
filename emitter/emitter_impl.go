@@ -108,6 +108,23 @@ var (
 
 	// For returning a pointer or reference, the address is returned in the Rax register.
 	addressTypeReturn = x64.Rax
+
+	// Map intermediate code data types to their DWARF attribute encodings for base types.
+	dataTypeEncoding = map[ic.DataType]elf.DwarfAttributeEncoding{
+		ic.Integer64:  elf.DW_ATE_signed,
+		ic.Integer32:  elf.DW_ATE_signed,
+		ic.Integer16:  elf.DW_ATE_signed,
+		ic.Integer8:   elf.DW_ATE_signed,
+		ic.Float64:    elf.DW_ATE_float,
+		ic.Float32:    elf.DW_ATE_float,
+		ic.Unsigned64: elf.DW_ATE_unsigned,
+		ic.Unsigned32: elf.DW_ATE_unsigned,
+		ic.Unsigned16: elf.DW_ATE_unsigned,
+		ic.Unsigned8:  elf.DW_ATE_unsigned,
+		ic.Boolean:    elf.DW_ATE_boolean,
+		ic.Character:  elf.DW_ATE_UTF,
+		ic.String:     elf.DW_ATE_UTF,
+	}
 )
 
 // Return the interface of the emitter implementation.
@@ -354,9 +371,10 @@ func (e *emitter) Emit() {
 		}
 	}
 
-	// update all data type sizes in the debug information
+	// update all data type sizes and base types in the debug information
 	for dataType, size := range dataTypeSize {
-		e.debugInformation.UpdateDataType(dataType.String(), size)
+		encoding := int(dataTypeEncoding[dataType])
+		e.debugInformation.UpdateDataType(dataType.String(), size, encoding)
 	}
 
 	// update all variable offsets in the debug information

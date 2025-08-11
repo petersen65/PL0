@@ -83,7 +83,7 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 		} else {
 			dtd = d.table.DataTypes[index]
 		}
-		
+
 		vd := newVariableDescription(function, functionSource, name, nameSource, dtd, tokenStreamIndex)
 		fd.Variables = append(fd.Variables, vd)
 		d.table.Variables = append(d.table.Variables, vd)
@@ -103,11 +103,12 @@ func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
 	return false
 }
 
-// Update the size of a data type in the debug information.
-func (d *debugInformation) UpdateDataType(name string, size int32) bool {
+// Update the size and base type of a data type in the debug information.
+func (d *debugInformation) UpdateDataType(name string, size int32, baseType int) bool {
 	if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == name }); index != -1 {
 		dtd := d.table.DataTypes[index]
 		dtd.Size = size
+		dtd.BaseType = baseType
 		return true
 	}
 
