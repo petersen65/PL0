@@ -46,6 +46,7 @@ type (
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool
+		AppendDataType(name, nameSource string) bool
 		UpdateVariable(name string, offset int32) bool
 		UpdateDataType(name string, size int32, baseType int) bool
 		GetDebugStringTable() DebugStringTable

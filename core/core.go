@@ -47,6 +47,13 @@ const (
 	ISA_ARMv9_2 // later refinements: extended SVE, more cryptographic and ML instructions
 )
 
+// String encodings for which the assembly code is generated.
+const (
+	UTF8  StringEncoding = 1 << iota // UTF-8 encoding, used for text in source code and string literals
+	UTF16                            // UTF-16 encoding, used for wide character strings
+	UTF32                            // UTF-32 encoding, used for fixed-width character strings
+)
+
 // Packages of the compiler which can generate errors as a bit-mask enumeration.
 const (
 	Core Component = 1 << iota
@@ -92,6 +99,9 @@ type (
 	// Determine the specific instruction set features available on the target ISA.
 	InstructionSet int
 
+	// String encoding format constants represent the encoding and byte size in each single value.
+	StringEncoding int
+
 	// Component describes packages of the compiler which can generate errors (bit-mask).
 	Component uint64
 
@@ -109,6 +119,7 @@ type (
 		OperatingSystem            OperatingSystem            `json:"operating_system"`             // operating system name
 		InstructionSetArchitecture InstructionSetArchitecture `json:"instruction_set_architecture"` // CPU family name
 		InstructionSet             InstructionSet             `json:"instruction_set"`              // instruction set of the CPU
+		StringEncoding             StringEncoding             `json:"string_encoding"`              // string encoding format
 	}
 
 	// Build configuration used during the compilation process.
@@ -150,9 +161,14 @@ func (is InstructionSet) String() string {
 	return instructionSetNames[is]
 }
 
+// String representation of the string encoding.
+func (se StringEncoding) String() string {
+	return stringEncodingNames[se]
+}
+
 // String representation of the target platform.
 func (t TargetPlatform) String() string {
-	return fmt.Sprintf("%v %v %v", t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet)
+	return fmt.Sprintf("%v %v %v %v", t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet, t.StringEncoding)
 }
 
 // String representation of the output kind.

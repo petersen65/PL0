@@ -22,7 +22,10 @@ const (
 const (
 	_                        DwarfCode = iota
 	DW_CODE_compilation_unit           // compilation unit (e.g., a source file name)
-	DW_CODE_base_type                  // base type (e.g., int8_t, float)
+	DW_CODE_base_type                  // base type (e.g., int, float)
+	DW_CODE_pointer_type               // pointer type (e.g., int*, float*)
+	DW_CODE_structure_type             // structure type (e.g., struct {int a; float b;})
+	DW_CODE_member                     // field member of a structure type (e.g., a or b)
 	DW_CODE_subprogram                 // subprogram (e.g., function)
 	DW_CODE_variable                   // variable (e.g., local variable in a function)
 
@@ -363,7 +366,7 @@ type (
 
 	// A DWARF string item represents a string literal stored in the .debug_str section.
 	StringItem struct {
-		Label     string        `json:"label"`     // literal data label to access the string item
+		Label     string        `json:"label"`     // label to access the string item
 		Directive DirectiveKind `json:"directive"` // directive to use for the string item (e.g., .string, .asciz)
 		Operand   string        `json:"operand"`   // the string value to be stored in the item
 	}
@@ -390,6 +393,7 @@ type (
 
 	// A DWARF debugging information entry represents a single unit of debugging information in the .debug_info section.
 	DebuggingInformationEntry struct {
+		Label      string           `json:"label"`      // label to access the debugging information entry
 		Code       DwarfCode        `json:"dwarf_code"` // identify the debugging information entry
 		Attributes []*AttributeItem `json:"attributes"` // attributes associated with the entry
 	}
@@ -416,8 +420,8 @@ func NewAbbreviationEntry(code DwarfCode, tag DwarfTag, hasChildren bool, attrib
 }
 
 // Create a new debugging information entry for the .debug_info section.
-func NewDebuggingInformationEntry(code DwarfCode, attributes []*AttributeItem) *DebuggingInformationEntry {
-	return &DebuggingInformationEntry{Code: code, Attributes: attributes}
+func NewDebuggingInformationEntry(label string, code DwarfCode, attributes []*AttributeItem) *DebuggingInformationEntry {
+	return &DebuggingInformationEntry{Label: label, Code: code, Attributes: attributes}
 }
 
 // String representation of DWARF codes.
@@ -465,17 +469,27 @@ func (d DirectiveKind) EndLabel() string {
 	return fmt.Sprintf(endLabelFormat, strings.TrimLeft(d.String(), labelPrefix))
 }
 
-// String representation of a section address based on its start label.
+// String representation of a section label.
 func (d DirectiveKind) ToSectionLabel() string {
 	return strings.TrimRight(d.StartLabel(), labelPostfix)
 }
 
-// String representation of a section length calculation based on its start and end labels.
+// String representation of a section length calculation based on its end and start labels.
 func ToSectionLength(endLabel, startLabel string) string {
 	return fmt.Sprintf("%v - %v - 4", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
 }
 
-// String representation of a string item address based on its label.
+// String representation of a relative reference between a target label and a source label.
+func ToRelativeReference(targetLabel, sourceLabel string) string {
+	return fmt.Sprintf("(%v - %v)", targetLabel, sourceLabel)
+}
+
+// String representation of a DIE label.
+func ToDebuggingInformationEntryLabel(entry string) string {
+	return fmt.Sprintf("%v%v", debugEntryPrefix, entry)
+}
+
+// String representation of a string item label.
 func ToStringItemLabel(item string) string {
 	return fmt.Sprintf("%v%v", debugStringPrefix, item)
 }

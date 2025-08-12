@@ -33,6 +33,13 @@ var (
 		ISA_ARMv9_2: "ARMv9.2",
 	}
 
+	// Map string encodings to their names.
+	stringEncodingNames = map[StringEncoding]string{
+		UTF8:  "UTF-8",
+		UTF16: "UTF-16",
+		UTF32: "UTF-32",
+	}
+
 	// Map compiler components to their corresponding names.
 	componentMap = map[Component]string{
 		Core:                     "core",

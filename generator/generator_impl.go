@@ -87,11 +87,18 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
+
+	if !optimized {
+		for ast, ic := range dataTypeMap {
+			debugInformation.AppendDataType(ic.String(), ast.String())
+		}
+	}
 
 	return &generator{
 		abstractSyntax:   abstractSyntax,
 		intermediateCode: ic.NewIntermediateCodeUnit(),
-		debugInformation: cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler),
+		debugInformation: debugInformation,
 		results:          list.New(),
 	}
 }

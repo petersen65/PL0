@@ -11,11 +11,15 @@ import (
 // Prefix and postfix for label names.
 const labelPrefix = "."
 const labelPostfix = ":"
+const localPrefix = "L"
 
 // Provide formats for labels that are used in ELF sections.
-const labelFormat = labelPrefix + "L%v" + labelPostfix
-const startLabelFormat = labelPrefix + "L%v_start" + labelPostfix
-const endLabelFormat = labelPrefix + "L%v_end" + labelPostfix
+const labelFormat = labelPrefix + localPrefix + "%v" + labelPostfix
+const startLabelFormat = labelPrefix + localPrefix + "%v_start" + labelPostfix
+const endLabelFormat = labelPrefix + localPrefix + "%v_end" + labelPostfix
+
+// Prefix for DWARF debugging information entries.
+const debugEntryPrefix = labelPrefix + localPrefix + "die_"
 
 // Prefix for DWARF string items.
 const debugStringPrefix = labelPrefix + "str_"
@@ -29,6 +33,9 @@ var (
 		DW_CODE_termination:      "DW_CODE_termination",
 		DW_CODE_compilation_unit: "DW_CODE_compilation_unit",
 		DW_CODE_base_type:        "DW_CODE_base_type",
+		DW_CODE_pointer_type:     "DW_CODE_pointer_type",
+		DW_CODE_structure_type:   "DW_CODE_structure_type",
+		DW_CODE_member:           "DW_CODE_member",
 		DW_CODE_subprogram:       "DW_CODE_subprogram",
 		DW_CODE_variable:         "DW_CODE_variable",
 	}
@@ -425,6 +432,11 @@ func (e *AbbreviationEntry) String() string {
 func (e *DebuggingInformationEntry) String() string {
 	const EncodingWidth = 10
 	var builder strings.Builder
+
+	// write the label only if it's not empty
+	if e.Label != "" {
+		builder.WriteString(fmt.Sprintf("%v\n", e.Label))
+	}
 
 	// write the abbreviation code only if it's not the suppression code
 	if e.Code != DW_CODE_suppression {

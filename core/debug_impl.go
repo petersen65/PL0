@@ -87,9 +87,18 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 		vd := newVariableDescription(function, functionSource, name, nameSource, dtd, tokenStreamIndex)
 		fd.Variables = append(fd.Variables, vd)
 		d.table.Variables = append(d.table.Variables, vd)
-
 		return true
 	}
+}
+
+// Append a data type description to the debug information.
+func (d *debugInformation) AppendDataType(name, nameSource string) bool {
+	if slices.ContainsFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == name }) {
+		return false
+	}
+
+	d.table.DataTypes = append(d.table.DataTypes, &DataTypeDescription{Name: name, NameSource: nameSource})
+	return true
 }
 
 // Update the offset of a variable in the debug information.

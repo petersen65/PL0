@@ -815,6 +815,39 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		},
 	)
 
+	// pointer type abbreviation entry (pointer to some type)
+	pointerType := elf.NewAbbreviationEntry(
+		elf.DW_CODE_pointer_type,
+		elf.DW_TAG_pointer_type,
+		false,
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4), // data type reference
+		},
+	)
+
+	// structure type abbreviation entry (a struct DIE that will have child DW_TAG_member DIEs)
+	structureType := elf.NewAbbreviationEntry(
+		elf.DW_CODE_structure_type,
+		elf.DW_TAG_structure_type,
+		true,
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),       // type name
+			elf.NewAttributeForm(elf.DW_AT_byte_size, elf.DW_FORM_data1), // byte size
+		},
+	)
+
+	// structure member abbreviation entry (a single field inside a struct)
+	structMember := elf.NewAbbreviationEntry(
+		elf.DW_CODE_member,
+		elf.DW_TAG_member,
+		false,
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),                  // member name
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),                  // data type reference
+			elf.NewAttributeForm(elf.DW_AT_data_member_location, elf.DW_FORM_data1), // byte offset from the start of the struct
+		},
+	)
+
 	// subprogram abbreviation entry
 	subprogram := elf.NewAbbreviationEntry(
 		elf.DW_CODE_subprogram,
@@ -853,6 +886,9 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 	// add all entries to the .debug_abbrev section
 	debugAbbrevSection.Append(compilationUnit)
 	debugAbbrevSection.Append(baseType)
+	debugAbbrevSection.Append(pointerType)
+	debugAbbrevSection.Append(structureType)
+	debugAbbrevSection.Append(structMember)
 	debugAbbrevSection.Append(subprogram)
 	debugAbbrevSection.Append(variable)
 	debugAbbrevSection.Append(termination)
@@ -862,6 +898,7 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable) {
 	// compilation unit header entry
 	compilationUnitHeader := elf.NewDebuggingInformationEntry(
+		"",
 		elf.DW_CODE_suppression,
 		[]*elf.AttributeItem{
 			elf.NewAttributeItem(elf.Long, elf.ToSectionLength(elf.DebugInfo.EndLabel(), elf.DebugInfo.StartLabel())),
@@ -874,6 +911,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 
 	// compilation unit entry
 	compilationUnit := elf.NewDebuggingInformationEntry(
+		elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel),
 		elf.DW_CODE_compilation_unit,
 		[]*elf.AttributeItem{
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationUnitLabel)),
@@ -885,10 +923,11 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	)
 
 	// base types entries
-	basetypes := make([]*elf.DebuggingInformationEntry, 0)
+	baseTypes := make([]*elf.DebuggingInformationEntry, 0)
 
 	for _, dtd := range dstab.DataTypes {
-		basetypes = append(basetypes, elf.NewDebuggingInformationEntry(
+		baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
+			elf.ToDebuggingInformationEntryLabel(dtd.NameSource),
 			elf.DW_CODE_base_type,
 			[]*elf.AttributeItem{
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource)),
@@ -898,14 +937,40 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		))
 	}
 
+	charBaseTypeLabel := elf.ToDebuggingInformationEntryLabel("char")
+	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
+	pointerToCharTypeLabel := elf.ToDebuggingInformationEntryLabel("pointer_to_char")
+
+	pointerToCharType := elf.NewDebuggingInformationEntry(
+		pointerToCharTypeLabel,
+		elf.DW_CODE_pointer_type,
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(charBaseTypeLabel, compilationUnitLabel)),
+		},
+	)
+
+
+	// string type entry
+	// stringType := elf.NewDebuggingInformationEntry(
+	// 	elf.DW_CODE_base_type,
+	// 	[]*elf.AttributeItem{
+	// 		elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel("string")),
+	// 		elf.NewAttributeItem(elf.Byte, uint8(16)), // assuming 16 bytes for string type
+	// 		elf.NewAttributeItem(elf.Byte, uint8(elf.DW_TAG_string_type)),
+	// 	},
+	// )
+
 	// add compilation unit entries to the .debug_info section
 	debugInfoSection.Append(compilationUnitHeader)
 	debugInfoSection.Append(compilationUnit)
 
 	// add all base type entries to the .debug_info section
-	for _, die := range basetypes {
+	for _, die := range baseTypes {
 		debugInfoSection.Append(die)
 	}
+
+	// add all remaining entries to the .debug_info section
+	debugInfoSection.Append(pointerToCharType)
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.

@@ -149,11 +149,12 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	}
 
 	// define target platform for the application
-	// note: only Linux with x86_64 CPU and SSE2 instruction set is supported for now
+	// note: only Linux with x86_64 CPU, SSE2 instruction set, and UTF-32 string encoding is supported for now
 	targetPlatform := cor.TargetPlatform{
 		OperatingSystem:            cor.Linux,
 		InstructionSetArchitecture: cor.X86_64,
 		InstructionSet:             cor.ISA_SSE2,
+		StringEncoding:             cor.UTF32,
 	}
 
 	// setup build configuration for the application
