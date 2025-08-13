@@ -6,14 +6,13 @@ package core
 type (
 	// DebugStringTable holds generic debug information for a compilation unit.
 	DebugStringTable struct {
-		CompilationUnit      string                 `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
-		CompilationDirectory string                 `json:"compilation_directory"` // absolute directory path of the compilation unit
-		Producer             string                 `json:"producer"`              // name of the producer (e.g., compiler name and its version)
-		StringBaseType       string                 `json:"string_base_type"`      // base type name of the string type based on UTF encoding
-		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
-		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
-		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
-		DataTypes            []*DataTypeDescription `json:"data_types"`            // list of all data types in the compilation unit
+		CompilationUnit      string                          `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
+		CompilationDirectory string                          `json:"compilation_directory"` // absolute directory path of the compilation unit
+		Producer             string                          `json:"producer"`              // name of the producer (e.g., compiler name and its version)
+		Optimized            bool                            `json:"optimized"`             // whether the code is optimized
+		Functions            []*FunctionDescription          `json:"functions"`             // list of all functions in the compilation unit
+		Variables            []*VariableDescription          `json:"variables"`             // list of all variables in the compilation unit
+		DataTypes            []*DataTypeStructureDescription `json:"data_types"`            // list of all data types in the compilation unit
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
@@ -26,21 +25,31 @@ type (
 
 	// VariableDescription holds information about a variable in the compilation unit.
 	VariableDescription struct {
-		Name             string               `json:"name"`               // name of the variable in the compilation unit
-		NameSource       string               `json:"name_source"`        // name of the variable in the source code
-		Function         string               `json:"function"`           // name of the function containing the variable
-		FunctionSource   string               `json:"function_source"`    // name of the function in the source code containing the variable
-		DataType         *DataTypeDescription `json:"data_type"`          // data type of the variable
-		Offset           int32                `json:"offset"`             // offset of the variable in its logical memory space
-		TokenStreamIndex int                  `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
+		Name             string                        `json:"name"`               // name of the variable in the compilation unit
+		NameSource       string                        `json:"name_source"`        // name of the variable in the source code
+		Function         string                        `json:"function"`           // name of the function containing the variable
+		FunctionSource   string                        `json:"function_source"`    // name of the function in the source code containing the variable
+		DataType         *DataTypeStructureDescription `json:"data_type"`          // data type of the variable
+		Offset           int32                         `json:"offset"`             // offset of the variable in its logical memory space
+		TokenStreamIndex int                           `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
 	}
 
-	// DataTypeDescription holds information about a data type in the compilation unit.
-	DataTypeDescription struct {
-		Name       string `json:"name"`        // name of the data type
-		NameSource string `json:"name_source"` // name of the data type in the source code
-		Size       int32  `json:"size"`        // size of the data type in bytes
-		BaseType   int    `json:"base_type"`   // base type encoding for a target debug information format
+	// DataTypeStructureDescription holds information about a data type structure in the compilation unit.
+	DataTypeStructureDescription struct {
+		Name       string                       `json:"name"`        // name of the data type structure
+		NameSource string                       `json:"name_source"` // name of the data type structure in the source code
+		Members    []*DataTypeMemberDescription `json:"members"`     // list of members in the data type structure
+	}
+
+	// DataTypeMemberDescription holds information about a member of a data type structure in the compilation unit.
+	DataTypeMemberDescription struct {
+		Member       string `json:"name"`        // name of the member
+		MemberSource string `json:"name_source"` // name of the member in the source code
+		Type         string `json:"type"`        // name of the data type
+		TypeSource   string `json:"type_source"` // name of the data type in the source code
+		Order        int    `json:"order"`       // order of the member in the data type structure
+		Size         int32  `json:"size"`        // size of the member in bytes
+		BaseType     int    `json:"base_type"`   // base type encoding for a target debug information format
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
@@ -56,6 +65,6 @@ type (
 )
 
 // Create a new debug information instance for a compilation unit.
-func NewDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool, tokenHandler TokenHandler) DebugInformation {
-	return newDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType, optimized, tokenHandler)
+func NewDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
 }

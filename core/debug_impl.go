@@ -12,24 +12,23 @@ type debugInformation struct {
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
-		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, stringBaseType, optimized),
+		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, optimized),
 	}
 }
 
 // Create a new debug string table for a compilation unit.
-func newDebugStringTable(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool) *DebugStringTable {
+func newDebugStringTable(compilationUnit, compilationDirectory, producer string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
 		CompilationUnit:      compilationUnit,
 		CompilationDirectory: compilationDirectory,
 		Producer:             producer,
-		StringBaseType:       stringBaseType,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
 		Variables:            make([]*VariableDescription, 0),
-		DataTypes:            make([]*DataTypeDescription, 0),
+		DataTypes:            make([]*DataTypeStructureDescription, 0),
 	}
 }
 
@@ -44,7 +43,7 @@ func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *Func
 }
 
 // Create a new variable description for a variable in the compilation unit.
-func newVariableDescription(function, functionSource, name, nameSource string, dataTypeDescription *DataTypeDescription, tokenStreamIndex int) *VariableDescription {
+func newVariableDescription(function, functionSource, name, nameSource string, dataTypeDescription *DataTypeStructureDescription, tokenStreamIndex int) *VariableDescription {
 	return &VariableDescription{
 		Function:         function,
 		FunctionSource:   functionSource,
@@ -76,10 +75,10 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 			return false
 		}
 
-		var dtd *DataTypeDescription
+		var dtd *DataTypeStructureDescription
 
-		if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == dataType }); index == -1 {
-			dtd = &DataTypeDescription{Name: dataType, NameSource: dataTypeSource}
+		if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == dataType }); index == -1 {
+			dtd = &DataTypeStructureDescription{Name: dataType, NameSource: dataTypeSource}
 			d.table.DataTypes = append(d.table.DataTypes, dtd)
 		} else {
 			dtd = d.table.DataTypes[index]
@@ -94,11 +93,11 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 
 // Append a data type description to the debug information.
 func (d *debugInformation) AppendDataType(name, nameSource string) bool {
-	if slices.ContainsFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == name }) {
+	if slices.ContainsFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == name }) {
 		return false
 	}
 
-	d.table.DataTypes = append(d.table.DataTypes, &DataTypeDescription{Name: name, NameSource: nameSource})
+	d.table.DataTypes = append(d.table.DataTypes, &DataTypeStructureDescription{Name: name, NameSource: nameSource})
 	return true
 }
 
@@ -115,7 +114,7 @@ func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
 
 // Update the size and base type of a data type in the debug information.
 func (d *debugInformation) UpdateDataType(name string, size int32, baseType int) bool {
-	if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeDescription) bool { return dtd.Name == name }); index != -1 {
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == name }); index != -1 {
 		dtd := d.table.DataTypes[index]
 		dtd.Size = size
 		dtd.BaseType = baseType
