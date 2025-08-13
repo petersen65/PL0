@@ -21,6 +21,9 @@ const endLabelFormat = labelPrefix + localPrefix + "%v_end" + labelPostfix
 // Prefix for DWARF debugging information entries.
 const debugEntryPrefix = labelPrefix + localPrefix + "die_"
 
+// Prefix for DWARF debugging information entries that are pointers.
+const debugEntryPointerPrefix = debugEntryPrefix + "ptr_"
+
 // Prefix for DWARF string items.
 const debugStringPrefix = labelPrefix + "str_"
 

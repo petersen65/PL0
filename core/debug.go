@@ -9,6 +9,7 @@ type (
 		CompilationUnit      string                 `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
 		CompilationDirectory string                 `json:"compilation_directory"` // absolute directory path of the compilation unit
 		Producer             string                 `json:"producer"`              // name of the producer (e.g., compiler name and its version)
+		StringBaseType       string                 `json:"string_base_type"`      // base type name of the string type based on UTF encoding
 		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
 		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
 		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
@@ -55,6 +56,6 @@ type (
 )
 
 // Create a new debug information instance for a compilation unit.
-func NewDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
-	return newDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
+func NewDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType, optimized, tokenHandler)
 }

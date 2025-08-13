@@ -321,7 +321,7 @@ const (
 	DW_ATE_address         DwarfAttributeEncoding = 0x01 // machine address
 	DW_ATE_boolean         DwarfAttributeEncoding = 0x02 // boolean type
 	DW_ATE_complex_float   DwarfAttributeEncoding = 0x03 // complex floating point
-	DW_ATE_float           DwarfAttributeEncoding = 0x04 // ieee 754 floating point
+	DW_ATE_float           DwarfAttributeEncoding = 0x04 // IEEE 754 floating point
 	DW_ATE_signed          DwarfAttributeEncoding = 0x05 // signed binary integer
 	DW_ATE_signed_char     DwarfAttributeEncoding = 0x06 // signed character
 	DW_ATE_unsigned        DwarfAttributeEncoding = 0x07 // unsigned binary integer
@@ -487,6 +487,11 @@ func ToRelativeReference(targetLabel, sourceLabel string) string {
 // String representation of a DIE label.
 func ToDebuggingInformationEntryLabel(entry string) string {
 	return fmt.Sprintf("%v%v", debugEntryPrefix, entry)
+}
+
+// String representation of a DIE label for a pointers.
+func ToDebuggingInformationEntryPointerLabel(entry string) string {
+	return fmt.Sprintf("%v%v", debugEntryPointerPrefix, entry)
 }
 
 // String representation of a string item label.

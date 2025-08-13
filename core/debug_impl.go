@@ -12,19 +12,20 @@ type debugInformation struct {
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
-		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, optimized),
+		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, stringBaseType, optimized),
 	}
 }
 
 // Create a new debug string table for a compilation unit.
-func newDebugStringTable(compilationUnit, compilationDirectory, producer string, optimized bool) *DebugStringTable {
+func newDebugStringTable(compilationUnit, compilationDirectory, producer, stringBaseType string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
 		CompilationUnit:      compilationUnit,
 		CompilationDirectory: compilationDirectory,
 		Producer:             producer,
+		StringBaseType:       stringBaseType,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
 		Variables:            make([]*VariableDescription, 0),

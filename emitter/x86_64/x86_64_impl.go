@@ -937,28 +937,40 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		))
 	}
 
-	charBaseTypeLabel := elf.ToDebuggingInformationEntryLabel("char")
+	// pointer to string base type entry (the base type is dependent on the string UTF encoding)
+	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel(dstab.StringBaseType)
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
-	pointerToCharTypeLabel := elf.ToDebuggingInformationEntryLabel("pointer_to_char")
+	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel(dstab.StringBaseType)
 
-	pointerToCharType := elf.NewDebuggingInformationEntry(
-		pointerToCharTypeLabel,
+	pointerToStringBaseType := elf.NewDebuggingInformationEntry(
+		pointerToStringBaseTypeLabel,
 		elf.DW_CODE_pointer_type,
 		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(charBaseTypeLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(stringBaseTypeLabel, compilationUnitLabel)),
 		},
 	)
 
-
 	// string type entry
-	// stringType := elf.NewDebuggingInformationEntry(
-	// 	elf.DW_CODE_base_type,
-	// 	[]*elf.AttributeItem{
-	// 		elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel("string")),
-	// 		elf.NewAttributeItem(elf.Byte, uint8(16)), // assuming 16 bytes for string type
-	// 		elf.NewAttributeItem(elf.Byte, uint8(elf.DW_TAG_string_type)),
-	// 	},
-	// )
+	stringType := elf.NewDebuggingInformationEntry(
+		elf.ToDebuggingInformationEntryLabel("string"),
+		elf.DW_CODE_structure_type,
+		[]*elf.AttributeItem{
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel("string")),
+			elf.NewAttributeItem(elf.Byte, uint8(16)),
+			
+			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
+			elf.NewAttributeItem(elf.Long, ".str_length"),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(".Ldie_u64", compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Byte, uint8(0)), // data member location (offset 0)
+
+			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
+			elf.NewAttributeItem(elf.Long, ".str_data"),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(pointerToStringBaseTypeLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Byte, uint8(8)), // data member location (offset 8)
+
+			elf.NewAttributeItem(elf.Byte, uint8(0)), // end of struct’s children (null DIE)
+		},
+	)
 
 	// add compilation unit entries to the .debug_info section
 	debugInfoSection.Append(compilationUnitHeader)
@@ -970,7 +982,8 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	}
 
 	// add all remaining entries to the .debug_info section
-	debugInfoSection.Append(pointerToCharType)
+	debugInfoSection.Append(pointerToStringBaseType)
+	debugInfoSection.Append(stringType)
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.

@@ -68,6 +68,13 @@ var (
 		ast.String:     ic.String,
 	}
 
+	// Map UTF string encodings to their abstract syntax string base data type.
+	stringBaseTypeMap = map[cor.StringEncoding]ast.DataType{
+		cor.UTF8:  ast.Unsigned8,
+		cor.UTF16: ast.Unsigned16,
+		cor.UTF32: ast.Character,
+	}
+
 	// Prefixes used for names of addresses.
 	prefix = map[prefixType]rune{
 		labelPrefix:     'l',
@@ -86,8 +93,9 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationUnit := buildConfiguration.SourcePath
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
+	stringBaseType := stringBaseTypeMap[buildConfiguration.TargetPlatform.StringEncoding].String()
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType, optimized, tokenHandler)
 
 	if !optimized {
 		for ast, ic := range dataTypeMap {
