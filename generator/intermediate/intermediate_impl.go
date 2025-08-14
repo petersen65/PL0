@@ -12,6 +12,12 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Prefixes for pointer and reference modifier string representations.
+const (
+	pointerPrefix  = "ptr "
+	referencePrefix = "ref "
+)
+
 type (
 	// Represents a logical unit of instructions created from one source file.
 	intermediateCodeUnit struct {
@@ -163,9 +169,9 @@ func (dt DataType) String() string {
 	var prefix string
 
 	if dt.IsPointer() {
-		prefix = "ptr "
+		prefix = pointerPrefix
 	} else if dt.IsReference() {
-		prefix = "ref "
+		prefix = referencePrefix
 	}
 
 	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])

@@ -75,6 +75,7 @@ const (
 )
 
 // Data types of literals, constants, and variables.
+// The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
 const (
 	Integer64  DataType = iota // signed 64-bit integer
 	Integer32                  // signed 32-bit integer
@@ -89,6 +90,12 @@ const (
 	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
 	Character                  // Unicode code point (signed 32-bit integer, U+0000 ... U+10FFFF)
 	String                     // Encoded string (sequence of UTF encoded characters)
+)
+
+// Data type bit flags for pointer and reference modifiers (bits 8+).
+const (
+	Pointer   DataType = 1 << 8 // bit 8: pointer type (^T)
+	Reference DataType = 1 << 9 // bit 9: reference type (var T)
 )
 
 // Kind of supported symbol entry as bit-mask.
@@ -491,6 +498,31 @@ func NewWhileStatement(condition Expression, statement Statement, beginIndex, en
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
 func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	return newCompoundStatement(statements, beginIndex, endIndex)
+}
+
+// Return the plain data type without modifiers.
+func (dt DataType) AsPlain() DataType {
+	return dt & 0xFF
+}
+
+// Return the plain data type with a pointer modifier.
+func (dt DataType) AsPointer() DataType {
+	return dt.AsPlain() | Pointer
+}
+
+// Check whether the data type is a pointer type.
+func (dt DataType) IsPointer() bool {
+	return dt&Pointer != 0
+}
+
+// Return the plain data type with a reference modifier.
+func (dt DataType) AsReference() DataType {
+	return dt.AsPlain() | Reference
+}
+
+// Check whether the data type is a reference type.
+func (dt DataType) IsReference() bool {
+	return dt&Reference != 0
 }
 
 // Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.

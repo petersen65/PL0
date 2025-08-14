@@ -32,6 +32,12 @@ const (
 	writeStatementSymbol = "@write"      // write statement symbol is used to call the write function from the standard library
 )
 
+// String has to be represented as a composite data type with a length and a data pointer.
+const (
+	stringLengthMemberName = "length" // unsigned integer based length
+	stringDataMemberName   = "data"   // pointer to UTF encoding-dependent string data
+)
+
 type (
 	// Enumeration of prefixes used for names of addresses.
 	prefixType int
@@ -93,14 +99,24 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationUnit := buildConfiguration.SourcePath
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
-	stringBaseType := stringBaseTypeMap[buildConfiguration.TargetPlatform.StringEncoding].String()
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, stringBaseType, optimized, tokenHandler)
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
 
+	// define the structure of the "string" composite data type and add it to debugging information
 	if !optimized {
-		for ast, ic := range dataTypeMap {
-			debugInformation.AppendDataType(ic.String(), ast.String())
-		}
+		// string base data type names in abstract syntax and intermediate code
+		stringBaseTypeSource := stringBaseTypeMap[buildConfiguration.TargetPlatform.StringEncoding].AsPointer()
+		stringBaseType := dataTypeMap[stringBaseTypeSource.AsPlain()].AsPointer()
+
+		// create the string composite data type and its member data types
+		uint64Type := cor.NewDataType(ic.Unsigned64.String(), ast.Unsigned64.String(), cor.DataTypeSimple)
+		stringBaseTypePointerType := cor.NewDataType(stringBaseType.String(), stringBaseTypeSource.String(), cor.DataTypeSimple)
+		stringType := cor.NewDataType(ic.String.String(), ast.String.String(), cor.DataTypeComposite).(*cor.CompositeDataType)
+
+		// append the string composite data type and its member data types to debugging information
+		debugInformation.AppendDataType(stringType)
+		debugInformation.AppendMember(stringType.Name(), stringLengthMemberName, stringLengthMemberName, uint64Type)
+		debugInformation.AppendMember(stringType.Name(), stringDataMemberName, stringDataMemberName, stringBaseTypePointerType)
 	}
 
 	return &generator{

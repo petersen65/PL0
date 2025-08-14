@@ -100,9 +100,16 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 	// extract function description
 	fd := d.table.Functions[index]
 
-	// check if variable already exists in function
+	// check if the variable already exists in the function
 	if slices.ContainsFunc(fd.Variables, func(vd *VariableDescription) bool { return vd.VariableName == name }) {
 		return false
+	}
+
+	// check if the data type already exists and append it if not
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() }); index == -1 {
+		d.AppendDataType(dataType)
+	} else {
+		dataType = d.table.DataTypes[index]
 	}
 
 	// create the variable description
@@ -117,16 +124,46 @@ func (d *debugInformation) AppendVariable(function, functionSource, name, nameSo
 
 // Append a data type to the debug information.
 func (d *debugInformation) AppendDataType(dataType DataTypeDescription) bool {
-	// find the data type
-	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() })
-
-	// data type found
-	if index != -1 {
+	if slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() }) != -1 {
 		return false
 	}
 
-	// append the new data type
 	d.table.DataTypes = append(d.table.DataTypes, dataType)
+	return true
+}
+
+// Append a member of a composite data type to the debug information.
+func (d *debugInformation) AppendMember(compositeName, name, nameSource string, dataType DataTypeDescription) bool {
+	// find the composite data type
+	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
+		return dtd.Name() == compositeName && dtd.Kind() == DataTypeComposite
+	})
+
+	// composite not found
+	if index == -1 {
+		return false
+	}
+
+	// extract composite data type
+	cdt := d.table.DataTypes[index].(*CompositeDataType)
+
+	// check if member already exists
+	if slices.ContainsFunc(cdt.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }) {
+		return false
+	}
+
+	// check if the member data type already exists and append it if not
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() }); index == -1 {
+		d.AppendDataType(dataType)
+	} else {
+		dataType = d.table.DataTypes[index]
+	}
+
+	// create and append the member
+	member := &DataTypeMember{MemberName: name, MemberNameSource: nameSource, Type: dataType}
+	member.Order = len(cdt.CompositeMembers)
+	cdt.CompositeMembers = append(cdt.CompositeMembers, member)
+
 	return true
 }
 
@@ -160,6 +197,30 @@ func (d *debugInformation) UpdateDataType(name string, size int32, encoding int)
 	return false
 }
 
+// Update the offset of a member in a composite data type that exists in the debug information.
+func (d *debugInformation) UpdateMember(compositeName, name string, offset int32) bool {
+	// find the composite data type
+	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
+		return dtd.Name() == compositeName && dtd.Kind() == DataTypeComposite
+	})
+
+	// composite not found
+	if index == -1 {
+		return false
+	}
+
+	// extract composite data type
+	cdt := d.table.DataTypes[index].(*CompositeDataType)
+
+	// update the offset if the member is found
+	if index := slices.IndexFunc(cdt.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }); index != -1 {
+		cdt.CompositeMembers[index].Offset = offset
+		return true
+	}
+
+	return false
+}
+
 // Return a full deep copy of the debug string table.
 func (d *debugInformation) GetDebugStringTable() DebugStringTable {
 	return *d.table
@@ -176,19 +237,4 @@ func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (int, int,
 	} else {
 		return tokenDescription.Line, tokenDescription.Column, string(tokenDescription.CurrentLine), true
 	}
-}
-
-// Append a member to a composite data type.
-func (c *CompositeDataType) AppendMember(name, nameSource string, dataType DataTypeDescription) bool {
-	// check if member already exists
-	if slices.ContainsFunc(c.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }) {
-		return false
-	}
-
-	// create and append the member
-	member := &DataTypeMember{MemberName: name, MemberNameSource: nameSource, Type: dataType}
-	member.Order = len(c.CompositeMembers)
-	c.CompositeMembers = append(c.CompositeMembers, member)
-
-	return true
 }

@@ -64,16 +64,16 @@ const (
 // Three-address code address variants of the intermediate code.
 const (
 	Empty     Variant = iota // the address does not have a variant and does not hold any value
-	Temporary                // temporary address holds the result from an expression and has a name and a datatype
-	Literal                  // literal address holds a literal value and its datatype
-	Variable                 // variable address holds a variable name and its datatype
+	Temporary                // temporary address holds the result from an expression and has a name and a data type
+	Literal                  // literal address holds a literal value and its data type
+	Variable                 // variable address holds a variable name and its data type
 )
 
-// Datatype of an address in the three-address code concept.
-// The first 8 bits (0-7) are used for the plain datatype, the next bits (8+) are used for modifiers.
+// Data type of an address in the three-address code concept.
+// The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
 const (
 	// note: the order of the data types is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
-	Untyped    DataType = iota // the address does not have a datatype
+	Untyped    DataType = iota // the address does not have a data type
 	Integer64                  // signed 64-bit integer
 	Integer32                  // signed 32-bit integer
 	Integer16                  // signed 16-bit integer
@@ -89,10 +89,10 @@ const (
 	String                     // Encoded string (sequence of UTF encoded characters)
 )
 
-// Datatype bit flags for pointer and reference modifiers (bits 8+).
+// Data type bit flags for pointer and reference modifiers (bits 8+).
 const (
-	Pointer   DataType = 1 << 8 // bit 8: pointer type (^T)
-	Reference DataType = 1 << 9 // bit 9: reference type (&T)
+	Pointer   DataType = 1 << 8 // bit 8: pointer type (ptr T)
+	Reference DataType = 1 << 9 // bit 9: reference type (ref T)
 )
 
 // Kind of supported symbol entry in the intermediate code.
@@ -109,7 +109,7 @@ type (
 	// The variant type is used to distinguish between different kinds of addresses in the three-address code concept.
 	Variant int
 
-	// The datatype of an address in the three-address code concept.
+	// The data type of an address in the three-address code concept.
 	DataType int
 
 	// Kind of symbol entries with flattened names in the intermediate code.
@@ -118,7 +118,7 @@ type (
 	// Address is the data structure for an argument or a result in the three-address code concept.
 	Address struct {
 		Variant  Variant  `json:"variant"`   // variant of what the address represents
-		DataType DataType `json:"data_type"` // datatype of the address
+		DataType DataType `json:"data_type"` // data type of the address
 		Name     string   `json:"name"`      // name of an address
 		Value    any      `json:"value"`     // value of the address
 	}
@@ -149,7 +149,7 @@ type (
 	Symbol struct {
 		Name       string        `json:"name"`      // flattened name in the intermediate code
 		Kind       Entry         `json:"kind"`      // kind of symbol entry
-		DataType   DataType      `json:"data_type"` // datatype of the symbol
+		DataType   DataType      `json:"data_type"` // data type of the symbol
 		Definition *list.Element `json:"-"`         // instruction where the symbol is defined
 	}
 
@@ -228,37 +228,37 @@ func (i *Instruction) String() string {
 	return fmt.Sprintf("%*v    %v", tokenStreamIndexWidth, i.TokenStreamIndex, i.Quadruple)
 }
 
-// Return the plain datatype without modifiers.
+// Return the plain data type without modifiers.
 func (dt DataType) AsPlain() DataType {
 	return dt & 0xFF
 }
 
-// Check whether the datatype is a plain datatype without modifiers.
+// Check whether the data type is a plain data type without modifiers.
 func (dt DataType) IsPlain() bool {
 	return dt == dt.AsPlain()
 }
 
-// Return the plain datatype with a pointer modifier.
+// Return the plain data type with a pointer modifier.
 func (dt DataType) AsPointer() DataType {
 	return dt.AsPlain() | Pointer
 }
 
-// Check whether the datatype is a pointer type.
+// Check whether the data type is a pointer type.
 func (dt DataType) IsPointer() bool {
 	return dt&Pointer != 0
 }
 
-// Return the plain datatype with a reference modifier.
+// Return the plain data type with a reference modifier.
 func (dt DataType) AsReference() DataType {
 	return dt.AsPlain() | Reference
 }
 
-// Check whether the datatype is a reference type.
+// Check whether the data type is a reference type.
 func (dt DataType) IsReference() bool {
 	return dt&Reference != 0
 }
 
-// Check whether the datatype is untyped.
+// Check whether the data type is untyped.
 func (dt DataType) IsUntyped() bool {
 	return dt.AsPlain() == Untyped
 }
@@ -268,47 +268,47 @@ func (dt DataType) IsSupported() bool {
 	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= String
 }
 
-// Check whether the datatype has a signed representation.
+// Check whether the data type has a signed representation.
 func (dt DataType) IsSigned() bool {
 	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Float32
 }
 
-// Check whether the datatype has an unsigned representation.
+// Check whether the data type has an unsigned representation.
 func (dt DataType) IsUnsigned() bool {
 	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Boolean
 }
 
-// Check whether the datatype is a signed integer.
+// Check whether the data type is a signed integer.
 func (dt DataType) IsSignedInteger() bool {
 	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Integer8
 }
 
-// Check whether the datatype is an unsigned integer.
+// Check whether the data type is an unsigned integer.
 func (dt DataType) IsUnsignedInteger() bool {
 	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Unsigned8
 }
 
-// Check whether the datatype is an integer.
+// Check whether the data type is an integer.
 func (dt DataType) IsInteger() bool {
 	return dt.IsSignedInteger() || dt.IsUnsignedInteger()
 }
 
-// Check whether the datatype is a floating point number.
+// Check whether the data type is a floating point number.
 func (dt DataType) IsFloatingPoint() bool {
 	return dt.AsPlain() == Float64 || dt == Float32
 }
 
-// Check whether the datatype is a boolean.
+// Check whether the data type is a boolean.
 func (dt DataType) IsBoolean() bool {
 	return dt.AsPlain() == Boolean
 }
 
-// Check whether the datatype is a character.
+// Check whether the data type is a character.
 func (dt DataType) IsCharacter() bool {
 	return dt.AsPlain() == Character
 }
 
-// Check whether the datatype is a string.
+// Check whether the data type is a string.
 func (dt DataType) IsString() bool {
 	return dt.AsPlain() == String
 }

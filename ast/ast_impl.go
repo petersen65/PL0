@@ -12,8 +12,14 @@ import (
 	cor "github.com/petersen65/PL0/v2/core"
 )
 
+// Prefixes for pointer and reference modifier string representations.
+const (
+	pointerPrefix  = "^"
+	referencePrefix = "var "
+)
+
 var (
-	// dataTypeNames maps a datatype to its string representation.
+	// dataTypeNames maps a data type to its string representation.
 	dataTypeNames = map[DataType]string{
 		Integer64:  "int64",
 		Integer32:  "int32",
@@ -310,20 +316,17 @@ func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Stat
 	return compound
 }
 
-// String representation of a datatype.
+// String representation of a data type.
 func (dt DataType) String() string {
-	return dataTypeNames[dt]
-}
+	var prefix string
 
-// Get a datatype from its representation.
-func (dtr DataTypeRepresentation) DataType() DataType {
-	for dataType, representation := range dataTypeNames {
-		if representation == string(dtr) {
-			return dataType
-		}
+	if dt.IsPointer() {
+		prefix = pointerPrefix
+	} else if dt.IsReference() {
+		prefix = referencePrefix
 	}
 
-	panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownDataTypeRepresentation, dtr, nil))
+	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
 }
 
 // String representation of a symbol entry kind.

@@ -37,8 +37,8 @@ type (
 		VariableName       string              `json:"name"`               // name of the variable
 		VariableNameSource string              `json:"name_source"`        // name in the source code
 		FunctionName       string              `json:"function"`           // containing function
-		FunctionNameSource string              `json:"function_source"`    // function name in source
-		Type               DataTypeDescription `json:"data_type"`          // data type of the variable
+		FunctionNameSource string              `json:"function_source"`    // function name in the source code
+		Type               DataTypeDescription `json:"type"`               // data type of the variable
 		Offset             int32               `json:"offset"`             // offset in memory space (will be set separately)
 		TokenStreamIndex   int                 `json:"token_stream_index"` // token stream index
 	}
@@ -79,7 +79,10 @@ type (
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool
 		AppendDataType(dataType DataTypeDescription) bool
+		AppendMember(compositeName, name, nameSource string, dataType DataTypeDescription) bool
 		UpdateVariable(name string, offset int32) bool
+		UpdateDataType(name string, size int32, encoding int) bool
+		UpdateMember(compositeName, name string, offset int32) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}

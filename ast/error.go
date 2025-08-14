@@ -8,7 +8,6 @@ import cor "github.com/petersen65/PL0/v2/core"
 // Failure codes for the abstract syntax tree.
 const (
 	_ cor.Failure = iota + 3000
-	unknownDataTypeRepresentation
 	unknownSymbolKind
 	unknownUnaryOperation
 	unknownBinaryOperation
@@ -23,7 +22,6 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[cor.Failure]string{
-	unknownDataTypeRepresentation:   "unknown datatype representation: %v",
 	unknownSymbolKind:               "unknown symbol kind",
 	unknownUnaryOperation:           "unknown unary operation",
 	unknownBinaryOperation:          "unknown binary operation",
