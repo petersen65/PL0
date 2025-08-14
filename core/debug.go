@@ -3,62 +3,83 @@
 
 package core
 
+// Distinguishes between different kinds of data types.
+const (
+	DataTypeSimple DataTypeKind = iota
+	DataTypeComposite
+)
+
 type (
-	// DebugStringTable holds generic debug information for a compilation unit.
+	// DataTypeKind represents the kind of a data type.
+	DataTypeKind int
+
+	// DebugStringTable holds generic debug information.
 	DebugStringTable struct {
-		CompilationUnit      string                          `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
-		CompilationDirectory string                          `json:"compilation_directory"` // absolute directory path of the compilation unit
-		Producer             string                          `json:"producer"`              // name of the producer (e.g., compiler name and its version)
-		Optimized            bool                            `json:"optimized"`             // whether the code is optimized
-		Functions            []*FunctionDescription          `json:"functions"`             // list of all functions in the compilation unit
-		Variables            []*VariableDescription          `json:"variables"`             // list of all variables in the compilation unit
-		DataTypes            []*DataTypeStructureDescription `json:"data_types"`            // list of all data types in the compilation unit
+		CompilationUnit      string                 `json:"compilation_unit"`
+		CompilationDirectory string                 `json:"compilation_directory"`
+		Producer             string                 `json:"producer"`
+		Optimized            bool                   `json:"optimized"`
+		Functions            []*FunctionDescription `json:"functions"`
+		Variables            []*VariableDescription `json:"variables"`
+		DataTypes            []DataTypeDescription  `json:"data_types"`
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
 	FunctionDescription struct {
-		Name             string                 `json:"name"`               // name of the function in the compilation unit
-		NameSource       string                 `json:"name_source"`        // name of the function in the source code
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token stream for the function (e.g., line, column)
-		Variables        []*VariableDescription `json:"variables"`          // list of variables in the function
+		FunctionName       string                 `json:"name"`               // name of the function in the compilation unit
+		FunctionNameSource string                 `json:"name_source"`        // name of the function in the source code
+		TokenStreamIndex   int                    `json:"token_stream_index"` // index of the token stream for the function (e.g., line, column)
+		Variables          []*VariableDescription `json:"variables"`          // list of variables in the function
 	}
 
-	// VariableDescription holds information about a variable in the compilation unit.
+	// VariableDescription holds information about a variable.
 	VariableDescription struct {
-		Name             string                        `json:"name"`               // name of the variable in the compilation unit
-		NameSource       string                        `json:"name_source"`        // name of the variable in the source code
-		Function         string                        `json:"function"`           // name of the function containing the variable
-		FunctionSource   string                        `json:"function_source"`    // name of the function in the source code containing the variable
-		DataType         *DataTypeStructureDescription `json:"data_type"`          // data type of the variable
-		Offset           int32                         `json:"offset"`             // offset of the variable in its logical memory space
-		TokenStreamIndex int                           `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
+		VariableName       string              `json:"name"`               // name of the variable
+		VariableNameSource string              `json:"name_source"`        // name in the source code
+		FunctionName       string              `json:"function"`           // containing function
+		FunctionNameSource string              `json:"function_source"`    // function name in source
+		Type               DataTypeDescription `json:"data_type"`          // data type of the variable
+		Offset             int32               `json:"offset"`             // offset in memory space (will be set separately)
+		TokenStreamIndex   int                 `json:"token_stream_index"` // token stream index
 	}
 
-	// DataTypeStructureDescription holds information about a data type structure in the compilation unit.
-	DataTypeStructureDescription struct {
-		Name       string                       `json:"name"`        // name of the data type structure
-		NameSource string                       `json:"name_source"` // name of the data type structure in the source code
-		Members    []*DataTypeMemberDescription `json:"members"`     // list of members in the data type structure
+	// SimpleDataType represents primitive/built-in data types.
+	SimpleDataType struct {
+		TypeName         string `json:"name"`        // name of the data type
+		TypeNameSource   string `json:"name_source"` // name in the source code
+		ByteSize         int32  `json:"size"`        // size in bytes (will be set separately)
+		BaseTypeEncoding int    `json:"base_type"`   // base type encoding in target debugger (will be set separately)
 	}
 
-	// DataTypeMemberDescription holds information about a member of a data type structure in the compilation unit.
-	DataTypeMemberDescription struct {
-		Member       string `json:"name"`        // name of the member
-		MemberSource string `json:"name_source"` // name of the member in the source code
-		Type         string `json:"type"`        // name of the data type
-		TypeSource   string `json:"type_source"` // name of the data type in the source code
-		Order        int    `json:"order"`       // order of the member in the data type structure
-		Size         int32  `json:"size"`        // size of the member in bytes
-		BaseType     int    `json:"base_type"`   // base type encoding for a target debug information format
+	// CompositeDataType represents structured data types with members.
+	CompositeDataType struct {
+		SimpleDataType                     // embed SimpleDataType for common fields
+		CompositeMembers []*DataTypeMember `json:"members"` // list of members
+	}
+
+	// DataTypeMember holds information about a member of a composite type.
+	DataTypeMember struct {
+		MemberName       string              `json:"name"`        // name of the member
+		MemberNameSource string              `json:"name_source"` // name in the source code
+		Type             DataTypeDescription `json:"type"`        // data type of the member
+		Order            int                 `json:"order"`       // order in the structure
+		Offset           int32               `json:"offset"`      // offset within the composite type (will be set separately)
+	}
+
+	// DataTypeDescription is the common interface for all data types.
+	DataTypeDescription interface {
+		Kind() DataTypeKind
+		Name() string
+		NameSource() string
+		Size() int32
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, tokenStreamIndex int) bool
-		AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool
-		AppendDataType(name, nameSource string) bool
+		AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool
+		AppendDataType(dataType DataTypeDescription) bool
 		UpdateVariable(name string, offset int32) bool
-		UpdateDataType(name string, size int32, baseType int) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}
@@ -68,3 +89,22 @@ type (
 func NewDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return newDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
 }
+
+// Create a new data type of a specific kind.
+func NewDataType(name, nameSource string, kind DataTypeKind) DataTypeDescription {
+	return newDataType(name, nameSource, kind)
+}
+
+// SimpleDataType methods
+func (s *SimpleDataType) Kind() DataTypeKind { return DataTypeSimple }
+func (s *SimpleDataType) Name() string       { return s.TypeName }
+func (s *SimpleDataType) NameSource() string { return s.TypeNameSource }
+func (s *SimpleDataType) Size() int32        { return s.ByteSize }
+func (s *SimpleDataType) Encoding() int      { return s.BaseTypeEncoding }
+
+// CompositeDataType methods
+func (c *CompositeDataType) Kind() DataTypeKind         { return DataTypeComposite }
+func (c *CompositeDataType) Name() string               { return c.TypeName }
+func (c *CompositeDataType) NameSource() string         { return c.TypeNameSource }
+func (c *CompositeDataType) Size() int32                { return c.ByteSize }
+func (c *CompositeDataType) Members() []*DataTypeMember { return c.CompositeMembers }

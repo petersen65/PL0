@@ -201,7 +201,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 		}
 	}
 
-	// initialize logical memory space and internal data structures for the block
+	// initialize the memory space and internal data structures for the block
 	g.intermediateCode.AppendInstruction(
 		ic.Setup, // setup of function call before the statement of the block is generated
 		ic.NewLiteralAddress(ic.Integer32, bn.Depth), // block nesting depth
@@ -280,7 +280,7 @@ func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 
 	// append allocate instruction to the unit and set it as definition for the intermediate code variable
 	codeSymbol.Definition = g.intermediateCode.AppendInstruction(
-		ic.AllocateVariable, // allocate memory for the variable in its logical memory space
+		ic.AllocateVariable, // allocate memory for the variable in its memory space
 		noAddress,
 		noAddress,
 		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name

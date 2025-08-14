@@ -52,13 +52,13 @@ const (
 	// function entry and exit sequences
 	Prologue // function entry sequence inside the body of a function
 	Epilogue // function exit sequence inside the body of a function
-	Setup    // setup function call by initializing logical memory space and internal data structures
+	Setup    // setup function call by initializing the memory space and internal data structures
 
 	// memory management and handling of variables or literals
-	AllocateVariable // allocate memory for a variable in its logical memory space
+	AllocateVariable // allocate memory for a variable in its memory space
 	CopyLiteral      // copy the value of a literal into an address
-	LoadVariable     // load variable value from the logical memory space into an address
-	StoreVariable    // store variable value from an address into the logical memory space
+	LoadVariable     // load variable value from its memory space into an address
+	StoreVariable    // store variable value from an address into its memory space
 )
 
 // Three-address code address variants of the intermediate code.

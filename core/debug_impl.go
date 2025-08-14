@@ -19,6 +19,29 @@ func newDebugInformation(compilationUnit, compilationDirectory, producer string,
 	}
 }
 
+// Create a new data type of a specific kind.
+func newDataType(name, nameSource string, kind DataTypeKind) DataTypeDescription {
+	switch kind {
+	case DataTypeSimple:
+		return &SimpleDataType{
+			TypeName:       name,
+			TypeNameSource: nameSource,
+		}
+
+	case DataTypeComposite:
+		return &CompositeDataType{
+			SimpleDataType: SimpleDataType{
+				TypeName:       name,
+				TypeNameSource: nameSource,
+			},
+			CompositeMembers: make([]*DataTypeMember, 0),
+		}
+
+	default:
+		return nil
+	}
+}
+
 // Create a new debug string table for a compilation unit.
 func newDebugStringTable(compilationUnit, compilationDirectory, producer string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
@@ -28,35 +51,35 @@ func newDebugStringTable(compilationUnit, compilationDirectory, producer string,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
 		Variables:            make([]*VariableDescription, 0),
-		DataTypes:            make([]*DataTypeStructureDescription, 0),
+		DataTypes:            make([]DataTypeDescription, 0),
 	}
 }
 
 // Create a new function description for a function in the compilation unit.
 func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *FunctionDescription {
 	return &FunctionDescription{
-		Name:             name,
-		NameSource:       nameSource,
-		TokenStreamIndex: tokenStreamIndex,
-		Variables:        make([]*VariableDescription, 0),
+		FunctionName:       name,
+		FunctionNameSource: nameSource,
+		TokenStreamIndex:   tokenStreamIndex,
+		Variables:          make([]*VariableDescription, 0),
 	}
 }
 
 // Create a new variable description for a variable in the compilation unit.
-func newVariableDescription(function, functionSource, name, nameSource string, dataTypeDescription *DataTypeStructureDescription, tokenStreamIndex int) *VariableDescription {
+func newVariableDescription(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) *VariableDescription {
 	return &VariableDescription{
-		Function:         function,
-		FunctionSource:   functionSource,
-		Name:             name,
-		NameSource:       nameSource,
-		DataType:         dataTypeDescription,
-		TokenStreamIndex: tokenStreamIndex,
+		VariableName:       name,
+		VariableNameSource: nameSource,
+		FunctionName:       function,
+		FunctionNameSource: functionSource,
+		Type:               dataType,
+		TokenStreamIndex:   tokenStreamIndex,
 	}
 }
 
 // Append a function description to the debug information.
 func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIndex int) bool {
-	if slices.ContainsFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.Name == name }) {
+	if slices.ContainsFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == name }) {
 		return false
 	}
 
@@ -65,45 +88,51 @@ func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIn
 }
 
 // Append a variable description to the debug information.
-func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource string, tokenStreamIndex int) bool {
-	if index := slices.IndexFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.Name == function }); index == -1 {
+func (d *debugInformation) AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool {
+	// find the function
+	index := slices.IndexFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == function })
+
+	// function not found
+	if index == -1 {
 		return false
-	} else {
-		fd := d.table.Functions[index]
-
-		if slices.ContainsFunc(fd.Variables, func(vd *VariableDescription) bool { return vd.Name == name }) {
-			return false
-		}
-
-		var dtd *DataTypeStructureDescription
-
-		if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == dataType }); index == -1 {
-			dtd = &DataTypeStructureDescription{Name: dataType, NameSource: dataTypeSource}
-			d.table.DataTypes = append(d.table.DataTypes, dtd)
-		} else {
-			dtd = d.table.DataTypes[index]
-		}
-
-		vd := newVariableDescription(function, functionSource, name, nameSource, dtd, tokenStreamIndex)
-		fd.Variables = append(fd.Variables, vd)
-		d.table.Variables = append(d.table.Variables, vd)
-		return true
 	}
+
+	// extract function description
+	fd := d.table.Functions[index]
+
+	// check if variable already exists in function
+	if slices.ContainsFunc(fd.Variables, func(vd *VariableDescription) bool { return vd.VariableName == name }) {
+		return false
+	}
+
+	// create the variable description
+	vd := newVariableDescription(function, functionSource, name, nameSource, dataType, tokenStreamIndex)
+
+	// add to both function's variable list and global variable list
+	fd.Variables = append(fd.Variables, vd)
+	d.table.Variables = append(d.table.Variables, vd)
+
+	return true
 }
 
-// Append a data type description to the debug information.
-func (d *debugInformation) AppendDataType(name, nameSource string) bool {
-	if slices.ContainsFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == name }) {
+// Append a data type to the debug information.
+func (d *debugInformation) AppendDataType(dataType DataTypeDescription) bool {
+	// find the data type
+	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() })
+
+	// data type found
+	if index != -1 {
 		return false
 	}
 
-	d.table.DataTypes = append(d.table.DataTypes, &DataTypeStructureDescription{Name: name, NameSource: nameSource})
+	// append the new data type
+	d.table.DataTypes = append(d.table.DataTypes, dataType)
 	return true
 }
 
 // Update the offset of a variable in the debug information.
 func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
-	if index := slices.IndexFunc(d.table.Variables, func(vd *VariableDescription) bool { return vd.Name == name }); index != -1 {
+	if index := slices.IndexFunc(d.table.Variables, func(vd *VariableDescription) bool { return vd.VariableName == name }); index != -1 {
 		vd := d.table.Variables[index]
 		vd.Offset = offset
 		return true
@@ -112,12 +141,19 @@ func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
 	return false
 }
 
-// Update the size and base type of a data type in the debug information.
-func (d *debugInformation) UpdateDataType(name string, size int32, baseType int) bool {
-	if index := slices.IndexFunc(d.table.DataTypes, func(dtd *DataTypeStructureDescription) bool { return dtd.Name == name }); index != -1 {
-		dtd := d.table.DataTypes[index]
-		dtd.Size = size
-		dtd.BaseType = baseType
+// Update the byte size and base type encoding of a data type in the debug information.
+func (d *debugInformation) UpdateDataType(name string, size int32, encoding int) bool {
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == name }); index != -1 {
+		switch dt := d.table.DataTypes[index].(type) {
+		case *SimpleDataType:
+			dt.ByteSize = size
+			dt.BaseTypeEncoding = encoding
+
+		case *CompositeDataType:
+			dt.ByteSize = size
+			dt.BaseTypeEncoding = encoding
+		}
+
 		return true
 	}
 
@@ -140,4 +176,19 @@ func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (int, int,
 	} else {
 		return tokenDescription.Line, tokenDescription.Column, string(tokenDescription.CurrentLine), true
 	}
+}
+
+// Append a member to a composite data type.
+func (c *CompositeDataType) AppendMember(name, nameSource string, dataType DataTypeDescription) bool {
+	// check if member already exists
+	if slices.ContainsFunc(c.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }) {
+		return false
+	}
+
+	// create and append the member
+	member := &DataTypeMember{MemberName: name, MemberNameSource: nameSource, Type: dataType}
+	member.Order = len(c.CompositeMembers)
+	c.CompositeMembers = append(c.CompositeMembers, member)
+
+	return true
 }

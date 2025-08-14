@@ -957,7 +957,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		[]*elf.AttributeItem{
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel("string")),
 			elf.NewAttributeItem(elf.Byte, uint8(16)),
-			
+
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
 			elf.NewAttributeItem(elf.Long, ".str_length"),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(".Ldie_u64", compilationUnitLabel)),
@@ -1004,29 +1004,29 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// iterate over all unique function names
 	for _, fd := range dstab.Functions {
 		// ensure that the function name is a unique label name in the .debug_str section
-		if ok, exists := labels[fd.NameSource]; ok && exists {
+		if ok, exists := labels[fd.FunctionNameSource]; ok && exists {
 			continue
 		}
 
 		// mark the function name as used
-		labels[fd.NameSource] = true
+		labels[fd.FunctionNameSource] = true
 
 		// add the function name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(fd.NameSource, elf.String, fd.NameSource))
+		debugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
 	}
 
 	// iterate over all unique variable names
 	for _, vd := range dstab.Variables {
 		// ensure that the variable name is a unique label name in the .debug_str section
-		if ok, exists := labels[vd.NameSource]; ok && exists {
+		if ok, exists := labels[vd.VariableNameSource]; ok && exists {
 			continue
 		}
 
 		// mark the variable name as used
-		labels[vd.NameSource] = true
+		labels[vd.VariableNameSource] = true
 
 		// add the variable name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(vd.NameSource, elf.String, vd.NameSource))
+		debugStrSection.Append(elf.NewStringItem(vd.VariableNameSource, elf.String, vd.VariableNameSource))
 	}
 
 	// iterate over all unique data type names

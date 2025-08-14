@@ -300,14 +300,14 @@ func (e *emitter) Emit() {
 			// business logic after the prologue has been emitted
 			debugger &^= elf.DebuggerPrologueEnd
 
-		case ic.Setup: // initialize logical memory space and internal data structures
+		case ic.Setup: // initialize memory space and internal data structures
 			// panic if the depth of the block is not a valid signed integer
 			depth := i.Quadruple.Arg1.Value.(int32)
 
 			// emit assembly code to setup a function call and do not end the prologue
 			e.setup(depth, l, debugger&^elf.DebuggerPrologueEnd, i.TokenStreamIndex)
 
-		case ic.AllocateVariable: // allocate memory for all variables in their logical memory space
+		case ic.AllocateVariable: // allocate memory for all variables in their memory space
 			// emit assembly code to allocate space for local variables in the activation record
 			e.allocateVariables(iterator, l, debugger, i.TokenStreamIndex)
 
@@ -1027,7 +1027,7 @@ func (e *emitter) epilogue(btLabels []string, debugger elf.Debugger, index int) 
 	e.assemblyCode.AppendInstruction(x64.Pop, nil, index, x64.NewRegisterOperand(x64.Rbp))
 }
 
-// Setup a function call by initializing the logical memory space and internal data structures.
+// Setup a function call by initializing its memory space and internal data structures.
 func (e *emitter) setup(depth int32, btLabels []string, debugger elf.Debugger, index int) {
 	// only blocks with a depth greater than 0 have a static link
 	// the main block has depth 0, no lexical parent and therefore no static link
