@@ -3,6 +3,13 @@
 const a = 99;
 var x, y, z, r;
 
+procedure P;
+var v, w;
+begin
+    v := 5;
+    ! v;
+end;
+
 begin
     x := 4;
     y := 5;
@@ -18,6 +25,8 @@ begin
 
     if odd z then
         ! 42;
+
+    call P;
 
     {
         Correct output is:
