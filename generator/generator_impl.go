@@ -890,12 +890,13 @@ func collectDebugStringTable(node ast.Node, code any) {
 					// take the abstract syntax variable declaration name as the variable source name
 					nameSource := vd.Name
 
-					// extract the data type of the variable from its declaration and intermediate code
-					dataType := dataTypeMap[vd.DataType].String()
-					dataTypeSource := vd.DataType.String()
+					// extract the data type name of the variable from intermediate code and abstract syntax
+					dataTypeName := dataTypeMap[vd.DataType].String()
+					dataTypeNameSource := vd.DataType.String()
 
 					// append the local variable of the function to the debug information
-					info.AppendVariable(function, functionSource, name, nameSource, dataType, dataTypeSource, vd.TokenStreamIndex)
+					variableType := cor.NewDataType(dataTypeName, dataTypeNameSource, cor.DataTypeSimple)
+					info.AppendVariable(function, functionSource, name, nameSource, variableType, vd.TokenStreamIndex)
 				}
 			}
 		}
