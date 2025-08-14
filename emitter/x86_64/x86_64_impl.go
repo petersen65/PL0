@@ -926,21 +926,27 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	baseTypes := make([]*elf.DebuggingInformationEntry, 0)
 
 	for _, dtd := range dstab.DataTypes {
+		if dtd.Kind() != cor.DataTypeSimple {
+			continue
+		}
+
+		st := dtd.(*cor.SimpleDataType)
+
 		baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
-			elf.ToDebuggingInformationEntryLabel(dtd.NameSource),
+			elf.ToDebuggingInformationEntryLabel(st.NameSource()),
 			elf.DW_CODE_base_type,
 			[]*elf.AttributeItem{
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource)),
-				elf.NewAttributeItem(elf.Byte, uint8(dtd.Size)),
-				elf.NewAttributeItem(elf.Byte, uint8(dtd.BaseType)),
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(st.NameSource())),
+				elf.NewAttributeItem(elf.Byte, uint8(st.Size())),
+				elf.NewAttributeItem(elf.Byte, uint8(st.Encoding())),
 			},
 		))
 	}
 
 	// pointer to string base type entry (the base type is dependent on the string UTF encoding)
-	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel(dstab.StringBaseType)
+	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel("dstab.StringBaseType")
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
-	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel(dstab.StringBaseType)
+	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel("dstab.StringBaseType")
 
 	pointerToStringBaseType := elf.NewDebuggingInformationEntry(
 		pointerToStringBaseTypeLabel,
@@ -1032,14 +1038,14 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// iterate over all unique data type names
 	for _, dtd := range dstab.DataTypes {
 		// ensure that the data type name is a unique label name in the .debug_str section
-		if ok, exists := labels[dtd.NameSource]; ok && exists {
+		if ok, exists := labels[dtd.NameSource()]; ok && exists {
 			continue
 		}
 
 		// mark the data type name as used
-		labels[dtd.NameSource] = true
+		labels[dtd.NameSource()] = true
 
 		// add the data type name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(dtd.NameSource, elf.String, dtd.NameSource))
+		debugStrSection.Append(elf.NewStringItem(dtd.NameSource(), elf.String, dtd.NameSource()))
 	}
 }
