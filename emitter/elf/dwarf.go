@@ -338,8 +338,10 @@ const (
 	DW_ATE_ASCII           DwarfAttributeEncoding = 0x12 // ascii character
 
 	// reserved for user extensions
-	DW_ATE_lo_user DwarfAttributeEncoding = 0x80 // lo user
+	DW_ATE_lo_user DwarfAttributeEncoding = 0x81 // lo user
 	DW_ATE_hi_user DwarfAttributeEncoding = 0xff // hi user
+
+	DW_ATE_composite_no_encoding DwarfAttributeEncoding = 0x80 // user extension for composite types that do not have an attribute encoding
 )
 
 type (

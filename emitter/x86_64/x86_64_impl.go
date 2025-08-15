@@ -925,6 +925,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	// base types entries
 	baseTypes := make([]*elf.DebuggingInformationEntry, 0)
 
+	// create debugging information entries for each simple data type
 	for _, dtd := range dstab.DataTypes {
 		if dtd.Kind() != cor.DataTypeSimple {
 			continue
@@ -943,7 +944,15 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		))
 	}
 
+	// find predefined string data type in the debug string table
+	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != cor.DataTypeComposite {
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, predefinedDataTypeRequired, dstab.String, nil))
+	}
+
+	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
+
 	// pointer to string base type entry (the base type is dependent on the string UTF encoding)
+
 	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel("dstab.StringBaseType")
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
 	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel("dstab.StringBaseType")
@@ -957,7 +966,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	)
 
 	// string type entry
-	stringType := elf.NewDebuggingInformationEntry(
+	stringType2 := elf.NewDebuggingInformationEntry(
 		elf.ToDebuggingInformationEntryLabel("string"),
 		elf.DW_CODE_structure_type,
 		[]*elf.AttributeItem{

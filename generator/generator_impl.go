@@ -100,9 +100,9 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ic.String.String(), optimized, tokenHandler)
 
-	// define the structure of the "string" composite data type and add it to debugging information
+	// predefine the structure of the "string" composite data type and add it to debugging information
 	if !optimized {
 		// string base data type names in abstract syntax and intermediate code
 		stringBaseTypeSource := stringBaseTypeMap[buildConfiguration.TargetPlatform.StringEncoding].AsPointer()

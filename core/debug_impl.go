@@ -12,10 +12,10 @@ type debugInformation struct {
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
-		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, optimized),
+		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, stringName, optimized),
 	}
 }
 
@@ -43,11 +43,12 @@ func newDataType(name, nameSource string, kind DataTypeKind) DataTypeDescription
 }
 
 // Create a new debug string table for a compilation unit.
-func newDebugStringTable(compilationUnit, compilationDirectory, producer string, optimized bool) *DebugStringTable {
+func newDebugStringTable(compilationUnit, compilationDirectory, producer, stringName string, optimized bool) *DebugStringTable {
 	return &DebugStringTable{
 		CompilationUnit:      compilationUnit,
 		CompilationDirectory: compilationDirectory,
 		Producer:             producer,
+		String:               stringName,
 		Optimized:            optimized,
 		Functions:            make([]*FunctionDescription, 0),
 		Variables:            make([]*VariableDescription, 0),
@@ -237,4 +238,33 @@ func (d *debugInformation) GetSourceCodeContext(tokenStreamIndex int) (int, int,
 	} else {
 		return tokenDescription.Line, tokenDescription.Column, string(tokenDescription.CurrentLine), true
 	}
+}
+
+// Find a function by name in the debug string table.
+func (dst *DebugStringTable) FindFunction(name string) *FunctionDescription {
+	if index := slices.IndexFunc(dst.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == name }); index != -1 {
+		return dst.Functions[index]
+	}
+
+	return nil
+}
+
+// Find a variable by function name and variable name in the debug string table.
+func (dst *DebugStringTable) FindVariable(function, name string) *VariableDescription {
+	if index := slices.IndexFunc(dst.Variables, func(vd *VariableDescription) bool {
+		return vd.FunctionName == function && vd.VariableName == name
+	}); index != -1 {
+		return dst.Variables[index]
+	}
+
+	return nil
+}
+
+// Find a data type by name in the debug string table.
+func (dst *DebugStringTable) FindDataType(name string) DataTypeDescription {
+	if index := slices.IndexFunc(dst.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == name }); index != -1 {
+		return dst.DataTypes[index]
+	}
+
+	return nil
 }

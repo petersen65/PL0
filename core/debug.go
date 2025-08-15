@@ -3,6 +3,8 @@
 
 package core
 
+import "github.com/petersen65/PL0/v2/emitter/elf"
+
 // Distinguishes between different kinds of data types.
 const (
 	DataTypeSimple DataTypeKind = iota
@@ -15,13 +17,14 @@ type (
 
 	// DebugStringTable holds generic debug information.
 	DebugStringTable struct {
-		CompilationUnit      string                 `json:"compilation_unit"`
-		CompilationDirectory string                 `json:"compilation_directory"`
-		Producer             string                 `json:"producer"`
-		Optimized            bool                   `json:"optimized"`
-		Functions            []*FunctionDescription `json:"functions"`
-		Variables            []*VariableDescription `json:"variables"`
-		DataTypes            []DataTypeDescription  `json:"data_types"`
+		CompilationUnit      string                 `json:"compilation_unit"`      // name of the compilation unit (e.g., source code file name)
+		CompilationDirectory string                 `json:"compilation_directory"` // absolute directory path of the compilation unit
+		Producer             string                 `json:"producer"`              // name of the producer (e.g., compiler name and its version)
+		String               string                 `json:"string"`                // name of the string data type so that it can be specifically handled
+		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
+		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
+		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
+		DataTypes            []DataTypeDescription  `json:"data_types"`            // list of all data types in the compilation unit
 	}
 
 	// FunctionDescription holds information about a function in the compilation unit.
@@ -72,6 +75,7 @@ type (
 		Name() string
 		NameSource() string
 		Size() int32
+		Encoding() int
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
@@ -89,8 +93,8 @@ type (
 )
 
 // Create a new debug information instance for a compilation unit.
-func NewDebugInformation(compilationUnit, compilationDirectory, producer string, optimized bool, tokenHandler TokenHandler) DebugInformation {
-	return newDebugInformation(compilationUnit, compilationDirectory, producer, optimized, tokenHandler)
+func NewDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+	return newDebugInformation(compilationUnit, compilationDirectory, producer, stringName, optimized, tokenHandler)
 }
 
 // Create a new data type of a specific kind.
@@ -110,4 +114,5 @@ func (c *CompositeDataType) Kind() DataTypeKind         { return DataTypeComposi
 func (c *CompositeDataType) Name() string               { return c.TypeName }
 func (c *CompositeDataType) NameSource() string         { return c.TypeNameSource }
 func (c *CompositeDataType) Size() int32                { return c.ByteSize }
+func (c *CompositeDataType) Encoding() int              { return int(elf.DW_ATE_composite_no_encoding) }
 func (c *CompositeDataType) Members() []*DataTypeMember { return c.CompositeMembers }
