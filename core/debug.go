@@ -3,8 +3,6 @@
 
 package core
 
-import "github.com/petersen65/PL0/v2/emitter/elf"
-
 // Distinguishes between different kinds of data types.
 const (
 	DataTypeSimple DataTypeKind = iota
@@ -114,5 +112,5 @@ func (c *CompositeDataType) Kind() DataTypeKind         { return DataTypeComposi
 func (c *CompositeDataType) Name() string               { return c.TypeName }
 func (c *CompositeDataType) NameSource() string         { return c.TypeNameSource }
 func (c *CompositeDataType) Size() int32                { return c.ByteSize }
-func (c *CompositeDataType) Encoding() int              { return int(elf.DW_ATE_composite_no_encoding) }
+func (c *CompositeDataType) Encoding() int              { return c.BaseTypeEncoding }
 func (c *CompositeDataType) Members() []*DataTypeMember { return c.CompositeMembers }

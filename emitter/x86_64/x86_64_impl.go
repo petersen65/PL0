@@ -931,31 +931,32 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 			continue
 		}
 
-		st := dtd.(*cor.SimpleDataType)
-
 		baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
-			elf.ToDebuggingInformationEntryLabel(st.NameSource()),
+			elf.ToDebuggingInformationEntryLabel(dtd.NameSource()),
 			elf.DW_CODE_base_type,
 			[]*elf.AttributeItem{
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(st.NameSource())),
-				elf.NewAttributeItem(elf.Byte, uint8(st.Size())),
-				elf.NewAttributeItem(elf.Byte, uint8(st.Encoding())),
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource())),
+				elf.NewAttributeItem(elf.Byte, uint8(dtd.Size())),
+				elf.NewAttributeItem(elf.Byte, uint8(dtd.Encoding())),
 			},
 		))
 	}
 
-	// find predefined string data type in the debug string table
+	// find predefined string composite data type in the debug string table
 	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != cor.DataTypeComposite {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, predefinedDataTypeRequired, dstab.String, nil))
 	}
 
 	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
+	
+
+
 
 	// pointer to string base type entry (the base type is dependent on the string UTF encoding)
 
-	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel("dstab.StringBaseType")
+	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel(stringCompositeType.CompositeMembers[1].Type.Name())
+	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel(stringCompositeType.CompositeMembers[1].Type.Name())
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
-	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel("dstab.StringBaseType")
 
 	pointerToStringBaseType := elf.NewDebuggingInformationEntry(
 		pointerToStringBaseTypeLabel,
@@ -966,20 +967,20 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	)
 
 	// string type entry
-	stringType2 := elf.NewDebuggingInformationEntry(
-		elf.ToDebuggingInformationEntryLabel("string"),
+	stringType := elf.NewDebuggingInformationEntry(
+		elf.ToDebuggingInformationEntryLabel(dstab.String),
 		elf.DW_CODE_structure_type,
 		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel("string")),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dstab.String)),
 			elf.NewAttributeItem(elf.Byte, uint8(16)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, ".str_length"),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel((stringCompositeType.CompositeMembers[0].MemberName))),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(".Ldie_u64", compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Byte, uint8(0)), // data member location (offset 0)
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, ".str_data"),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(stringCompositeType.CompositeMembers[1].MemberName)),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(pointerToStringBaseTypeLabel, compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Byte, uint8(8)), // data member location (offset 8)
 
