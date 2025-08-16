@@ -372,7 +372,7 @@ func (e *emitter) Emit() {
 		}
 	}
 
-	// update all data type sizes and base types in the debug information
+	// update all data type sizes and encodings in the debug information
 	for dataType, size := range dataTypeSize {
 		encoding := int(dataTypeEncoding[dataType])
 		e.debugInformation.UpdateDataType(dataType.String(), size, encoding)

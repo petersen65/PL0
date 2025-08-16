@@ -925,9 +925,10 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	// base types entries
 	baseTypes := make([]*elf.DebuggingInformationEntry, 0)
 
-	// create debugging information entries for each simple data type
+	// create debugging information entries for each base data type
 	for _, dtd := range dstab.DataTypes {
-		if dtd.Kind() != cor.DataTypeSimple {
+		// skip the string data type as it is handled separately
+		if dtd.Name() == dstab.String {
 			continue
 		}
 
@@ -942,29 +943,22 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		))
 	}
 
-	// find predefined string composite data type in the debug string table
+	// the predefined string composite data type must exist
 	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != cor.DataTypeComposite {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, predefinedDataTypeRequired, dstab.String, nil))
 	}
-
-	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
 	
+	// find predefined string composite data type in the debug string table
+	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
 
+	// string member data types for length and data
+	lengthMember := stringCompositeType.CompositeMembers[0]
+	lengthMemberLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.NameSource())
+	dataPointerMember := stringCompositeType.CompositeMembers[1]
+	dataPointerMemberLabel := elf.ToDebuggingInformationEntryLabel(dataPointerMember.Type.NameSource())
 
-
-	// pointer to string base type entry (the base type is dependent on the string UTF encoding)
-
-	stringBaseTypeLabel := elf.ToDebuggingInformationEntryLabel(stringCompositeType.CompositeMembers[1].Type.Name())
-	pointerToStringBaseTypeLabel := elf.ToDebuggingInformationEntryPointerLabel(stringCompositeType.CompositeMembers[1].Type.Name())
+	// compilation unit label for relative references in the string type entry
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
-
-	pointerToStringBaseType := elf.NewDebuggingInformationEntry(
-		pointerToStringBaseTypeLabel,
-		elf.DW_CODE_pointer_type,
-		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(stringBaseTypeLabel, compilationUnitLabel)),
-		},
-	)
 
 	// string type entry
 	stringType := elf.NewDebuggingInformationEntry(
@@ -975,16 +969,16 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 			elf.NewAttributeItem(elf.Byte, uint8(16)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel((stringCompositeType.CompositeMembers[0].MemberName))),
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(".Ldie_u64", compilationUnitLabel)),
-			elf.NewAttributeItem(elf.Byte, uint8(0)), // data member location (offset 0)
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.Type.NameSource())),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(lengthMemberLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Byte, uint8(lengthMember.Offset)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(stringCompositeType.CompositeMembers[1].MemberName)),
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(pointerToStringBaseTypeLabel, compilationUnitLabel)),
-			elf.NewAttributeItem(elf.Byte, uint8(8)), // data member location (offset 8)
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.Type.NameSource())),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(dataPointerMemberLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Byte, uint8(dataPointerMember.Offset)),
 
-			elf.NewAttributeItem(elf.Byte, uint8(0)), // end of struct’s children (null DIE)
+			elf.NewAttributeItem(elf.Byte, uint8(0)),
 		},
 	)
 
@@ -997,8 +991,7 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		debugInfoSection.Append(die)
 	}
 
-	// add all remaining entries to the .debug_info section
-	debugInfoSection.Append(pointerToStringBaseType)
+	// add string type entry to the .debug_info section
 	debugInfoSection.Append(stringType)
 }
 

@@ -100,23 +100,11 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ic.String.String(), optimized, tokenHandler)
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ast.String.String(), optimized, tokenHandler)
 
 	// predefine the structure of the "string" composite data type and add it to debugging information
 	if !optimized {
-		// string base data type names in abstract syntax and intermediate code
-		stringBaseTypeSource := stringBaseTypeMap[buildConfiguration.TargetPlatform.StringEncoding].AsPointer()
-		stringBaseType := dataTypeMap[stringBaseTypeSource.AsPlain()].AsPointer()
-
-		// create the string composite data type and its member data types
-		uint64Type := cor.NewDataType(ic.Unsigned64.String(), ast.Unsigned64.String(), cor.DataTypeSimple)
-		stringBaseTypePointerType := cor.NewDataType(stringBaseType.String(), stringBaseTypeSource.String(), cor.DataTypeSimple)
-		stringType := cor.NewDataType(ic.String.String(), ast.String.String(), cor.DataTypeComposite).(*cor.CompositeDataType)
-
-		// append the string composite data type and its member data types to debugging information
-		debugInformation.AppendDataType(stringType)
-		debugInformation.AppendMember(stringType.Name(), stringLengthMemberName, stringLengthMemberName, uint64Type)
-		debugInformation.AppendMember(stringType.Name(), stringDataMemberName, stringDataMemberName, stringBaseTypePointerType)
+		appendStringDataType(buildConfiguration.TargetPlatform.StringEncoding, debugInformation)
 	}
 
 	return &generator{
@@ -901,4 +889,47 @@ func collectDebugStringTable(node ast.Node, code any) {
 			}
 		}
 	}
+}
+
+// Define the string composite data type structure with length and data pointer members for debug information.
+func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation cor.DebugInformation) {
+	// string target encoding data type names that depend on the target platform's string encoding
+	stringEncodingTypeNameSource := stringBaseTypeMap[stringEncoding]
+	stringEncodingTypeName := dataTypeMap[stringEncodingTypeNameSource]
+
+	// create the string member data type for length
+	uint64Type := cor.NewDataType(
+		ic.Unsigned64.String(),
+		ast.Unsigned64.String(),
+		cor.DataTypeSimple,
+	)
+
+	// create the string member data type for data
+	stringEncodingType := cor.NewDataType(
+		stringEncodingTypeName.String(),
+		stringEncodingTypeNameSource.String(),
+		cor.DataTypeSimple,
+	)
+
+	// create the string member data type for pointer to data
+	stringEncodingPointerType := cor.NewDataType(
+		stringEncodingTypeName.AsPointer().String(),
+		stringEncodingTypeNameSource.AsPointer().String(),
+		cor.DataTypeSimple,
+	)
+
+	// create the composite data type for the string that has to use the name provided by the debug information
+	stringType := cor.NewDataType(
+		debugInformation.GetDebugStringTable().String,
+		ast.String.String(),
+		cor.DataTypeComposite,
+	)
+
+	// append the string composite data type and its member data types to debugging information
+	debugInformation.AppendDataType(uint64Type)
+	debugInformation.AppendDataType(stringEncodingType)
+	debugInformation.AppendDataType(stringEncodingPointerType)
+	debugInformation.AppendDataType(stringType)
+	debugInformation.AppendMember(stringType.Name(), stringLengthMemberName, stringLengthMemberName, uint64Type)
+	debugInformation.AppendMember(stringType.Name(), stringDataMemberName, stringDataMemberName, stringEncodingPointerType)
 }
