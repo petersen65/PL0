@@ -491,11 +491,6 @@ func ToDebuggingInformationEntryLabel(entry string) string {
 	return fmt.Sprintf("%v%v", debugEntryPrefix, entry)
 }
 
-// String representation of a DIE label for a pointers.
-func ToDebuggingInformationEntryPointerLabel(entry string) string {
-	return fmt.Sprintf("%v%v", debugEntryPointerPrefix, entry)
-}
-
 // String representation of a string item label.
 func ToStringItemLabel(item string) string {
 	return fmt.Sprintf("%v%v", debugStringPrefix, item)

@@ -16,6 +16,7 @@ const (
 	optimizationDebugNotSupportedinRuntime
 	compilationDetailsAndProducerRequired
 	predefinedDataTypeRequired
+	unexpectedDataTypeKind
 	unknownExportFormat
 	assemblyCodeExportFailed
 )
@@ -30,6 +31,7 @@ var failureMap = map[cor.Failure]string{
 	optimizationDebugNotSupportedinRuntime: "debug optimization is not supported for runtime functions: %v",
 	compilationDetailsAndProducerRequired:  "compilation details and producer are required for debug information",
 	predefinedDataTypeRequired:             "predefined data type is required for debug information: %v",
+	unexpectedDataTypeKind:                 "unexpected kind of data type: %v",
 	unknownExportFormat:                    "unknown export format: %v",
 	assemblyCodeExportFailed:               "failed to export assembly code",
 }

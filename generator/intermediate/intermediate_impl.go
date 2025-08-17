@@ -14,8 +14,8 @@ import (
 
 // Prefixes for pointer and reference modifier string representations.
 const (
-	pointerPrefix  = "ptr "
-	referencePrefix = "ref "
+	pointerPrefix  = "ptr."
+	referencePrefix = "ref."
 )
 
 type (

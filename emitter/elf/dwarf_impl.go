@@ -328,9 +328,8 @@ func (i *StringItem) String() string {
 	const directiveWidth = 10
 
 	return fmt.Sprintf(
-		"%v%-*v: %-*v\"%v\"",
-		debugStringPrefix,
-		labelWidth, i.Label,
+		"%-*v: %-*v\"%v\"",
+		labelWidth, ToStringItemLabel(i.Label),
 		directiveWidth, i.Directive,
 		i.Operand,
 	)

@@ -110,6 +110,7 @@ var (
 	addressTypeReturn = x64.Rax
 
 	// Map intermediate code data types to their DWARF attribute encodings for base types.
+	// Note: the string data type is intentionally excluded from this mapping because it is a composite type without encoding.
 	dataTypeEncoding = map[ic.DataType]elf.DwarfAttributeEncoding{
 		ic.Integer64:  elf.DW_ATE_signed,
 		ic.Integer32:  elf.DW_ATE_signed,
@@ -123,7 +124,6 @@ var (
 		ic.Unsigned8:  elf.DW_ATE_unsigned,
 		ic.Boolean:    elf.DW_ATE_boolean,
 		ic.Character:  elf.DW_ATE_UTF,
-		ic.String:     elf.DW_ATE_UTF,
 	}
 )
 
@@ -372,15 +372,28 @@ func (e *emitter) Emit() {
 		}
 	}
 
-	// update all data type sizes and encodings in the debug information
+	// update all simple data type sizes in the debug information
 	for dataType, size := range dataTypeSize {
-		encoding := int(dataTypeEncoding[dataType])
-		e.debugInformation.UpdateDataType(dataType.String(), size, encoding)
+		e.debugInformation.UpdateSimpleDataTypeSize(dataType.String(), size)
 	}
+
+	// update all simple data type encodings in the debug information
+	for dataType, encoding := range dataTypeEncoding {
+		e.debugInformation.UpdateSimpleDataTypeEncoding(dataType.String(), int(encoding))
+	}
+
+	// update all pointer data type sizes in the debug information
+	e.debugInformation.UpdatePointerDataTypeSizes(x64.PointerSize)
+
+	// update all composite data type sizes in the debug information
+	e.debugInformation.UpdateCompositeDataTypeSizes()
+
+	// update all composite data type offsets in the debug information
+	e.debugInformation.UpdateCompositeDataTypeOffsets()
 
 	// update all variable offsets in the debug information
 	for name, offset := range e.variableOffsets {
-		e.debugInformation.UpdateVariable(name, offset)
+		e.debugInformation.UpdateVariableOffset(name, offset)
 	}
 }
 

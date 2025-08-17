@@ -883,7 +883,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 					dataTypeNameSource := vd.DataType.String()
 
 					// append the local variable of the function to the debug information
-					variableType := cor.NewDataType(dataTypeName, dataTypeNameSource, cor.DataTypeSimple)
+					variableType := cor.NewSimpleDataType(dataTypeName, dataTypeNameSource)
 					info.AppendVariable(function, functionSource, name, nameSource, variableType, vd.TokenStreamIndex)
 				}
 			}
@@ -898,31 +898,28 @@ func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation co
 	stringEncodingTypeName := dataTypeMap[stringEncodingTypeNameSource]
 
 	// create the string member data type for length
-	uint64Type := cor.NewDataType(
+	uint64Type := cor.NewSimpleDataType(
 		ic.Unsigned64.String(),
 		ast.Unsigned64.String(),
-		cor.DataTypeSimple,
 	)
 
 	// create the string member data type for data
-	stringEncodingType := cor.NewDataType(
+	stringEncodingType := cor.NewSimpleDataType(
 		stringEncodingTypeName.String(),
 		stringEncodingTypeNameSource.String(),
-		cor.DataTypeSimple,
 	)
 
 	// create the string member data type for pointer to data
-	stringEncodingPointerType := cor.NewDataType(
+	stringEncodingPointerType := cor.NewPointerDataType(
 		stringEncodingTypeName.AsPointer().String(),
 		stringEncodingTypeNameSource.AsPointer().String(),
-		cor.DataTypeSimple,
+		stringEncodingType,
 	)
 
 	// create the composite data type for the string that has to use the name provided by the debug information
-	stringType := cor.NewDataType(
+	stringType := cor.NewCompositeDataType(
 		debugInformation.GetDebugStringTable().String,
 		ast.String.String(),
-		cor.DataTypeComposite,
 	)
 
 	// append the string composite data type and its member data types to debugging information

@@ -19,26 +19,29 @@ func newDebugInformation(compilationUnit, compilationDirectory, producer, string
 	}
 }
 
-// Create a new data type of a specific kind.
-func newDataType(name, nameSource string, kind DataTypeKind) DataTypeDescription {
-	switch kind {
-	case DataTypeSimple:
-		return &SimpleDataType{
-			TypeName:       name,
-			TypeNameSource: nameSource,
-		}
+// Create a new simple data type whose size and encoding will be set later.
+func newSimpleDataType(name, nameSource string) *SimpleDataType {
+	return &SimpleDataType{
+		TypeName:       name,
+		TypeNameSource: nameSource,
+	}
+}
 
-	case DataTypeComposite:
-		return &CompositeDataType{
-			SimpleDataType: SimpleDataType{
-				TypeName:       name,
-				TypeNameSource: nameSource,
-			},
-			CompositeMembers: make([]*DataTypeMember, 0),
-		}
+// Create a new composite data type whose size and members will be set later.
+func newCompositeDataType(name, nameSource string) *CompositeDataType {
+	return &CompositeDataType{
+		TypeName:         name,
+		TypeNameSource:   nameSource,
+		CompositeMembers: make([]*CompositeMember, 0),
+	}
+}
 
-	default:
-		return nil
+// Create a new pointer data type whose size will be set later.
+func newPointerDataType(name, nameSource string, elementType DataTypeDescription) *PointerDataType {
+	return &PointerDataType{
+		TypeName:       name,
+		TypeNameSource: nameSource,
+		ElementType:    elementType,
 	}
 }
 
@@ -137,7 +140,7 @@ func (d *debugInformation) AppendDataType(dataType DataTypeDescription) bool {
 func (d *debugInformation) AppendMember(compositeName, name, nameSource string, dataType DataTypeDescription) bool {
 	// find the composite data type
 	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
-		return dtd.Name() == compositeName && dtd.Kind() == DataTypeComposite
+		return dtd.Kind() == DataTypeComposite && dtd.Name() == compositeName
 	})
 
 	// composite not found
@@ -149,7 +152,7 @@ func (d *debugInformation) AppendMember(compositeName, name, nameSource string, 
 	cdt := d.table.DataTypes[index].(*CompositeDataType)
 
 	// check if member already exists
-	if slices.ContainsFunc(cdt.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }) {
+	if slices.ContainsFunc(cdt.CompositeMembers, func(m *CompositeMember) bool { return m.MemberName == name }) {
 		return false
 	}
 
@@ -161,61 +164,151 @@ func (d *debugInformation) AppendMember(compositeName, name, nameSource string, 
 	}
 
 	// create and append the member
-	member := &DataTypeMember{MemberName: name, MemberNameSource: nameSource, Type: dataType}
+	member := &CompositeMember{MemberName: name, MemberNameSource: nameSource, Type: dataType}
 	member.Order = len(cdt.CompositeMembers)
 	cdt.CompositeMembers = append(cdt.CompositeMembers, member)
 
 	return true
 }
 
+// Update the byte size of a simple data type in the debug information.
+func (d *debugInformation) UpdateSimpleDataTypeSize(name string, size int32) bool {
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
+		return dtd.Kind() == DataTypeSimple && dtd.Name() == name
+	}); index != -1 {
+		d.table.DataTypes[index].(*SimpleDataType).ByteSize = size
+		return true
+	}
+
+	return false
+}
+
+// Update the encoding of a simple data type in the debug information.
+func (d *debugInformation) UpdateSimpleDataTypeEncoding(name string, encoding int) bool {
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
+		return dtd.Kind() == DataTypeSimple && dtd.Name() == name
+	}); index != -1 {
+		d.table.DataTypes[index].(*SimpleDataType).BaseTypeEncoding = encoding
+		return true
+	}
+
+	return false
+}
+
+// Update the size of all pointer data types in the debug information.
+func (d *debugInformation) UpdatePointerDataTypeSizes(size int32) bool {
+	found := false
+
+	for i := range d.table.DataTypes {
+		if d.table.DataTypes[i].Kind() == DataTypePointer {
+			d.table.DataTypes[i].(*PointerDataType).ByteSize = size
+			found = true
+		}
+	}
+
+	return found
+}
+
+// Recursively update the sizes of all composite data types in the debug information.
+// Note: all simple and pointer data types must have their sizes set before calling this function.
+func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
+    found := false
+    
+    // track which types are being processed to detect circular references
+    processing := make(map[string]bool)
+
+    // cache calculated sizes of types to avoid recalculation
+    calculated := make(map[string]bool)
+
+    // declaration of internal recursive function to calculate size (required because of recursive calls)
+    var calculateSize func(dataType DataTypeDescription) int32
+
+	// definition of internal recursive function to calculate size (knows itself because of declaration)
+	calculateSize = func(dataType DataTypeDescription) int32 {
+        // if already calculated, just return the size
+        if calculated[dataType.Name()] {
+            return dataType.Size()
+        }
+
+		// handle different data type kinds
+		switch dt := dataType.(type) {
+        case *SimpleDataType, *PointerDataType:
+            // simple and pointer types must already have their sizes set
+            calculated[dt.Name()] = true
+            return dt.Size()
+
+		case *CompositeDataType:
+            // check for circular reference
+            if processing[dt.Name()] {
+                panic(NewGeneralError(Core, failureMap, Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
+            }
+
+            // processing of this composite data type is running
+            processing[dt.Name()] = true
+
+            // always reset the size before calculating
+            dt.ByteSize = 0
+            
+            // recursively calculate size of each member
+            for i := range dt.CompositeMembers {
+                dt.ByteSize += calculateSize(dt.CompositeMembers[i].Type)
+            }
+
+			// processing of this composite data type is complete
+            delete(processing, dt.Name())
+
+            // mark this composite data type as calculated
+            calculated[dt.Name()] = true
+            return dt.ByteSize
+
+		default:
+			panic(NewGeneralError(Core, failureMap, Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
+		}
+    }
+
+    // process all composite data types by calling the internal calculation function
+    for i := range d.table.DataTypes {
+        if d.table.DataTypes[i].Kind() == DataTypeComposite {
+            calculateSize(d.table.DataTypes[i])
+            found = true
+        }
+    }
+    
+    return found
+}
+
+// Update the offset of all members in all composite data types that exists in the debug information.
+// Note: all composite data types must have their sizes set before calling this function.
+func (d *debugInformation) UpdateCompositeDataTypeOffsets() bool {
+	found := false
+
+	// iterate over all data types to find composite data types
+	for i := range d.table.DataTypes {
+		if d.table.DataTypes[i].Kind() == DataTypeComposite {
+			ctd := d.table.DataTypes[i].(*CompositeDataType)
+
+			// sort the composite members by their given order
+			slices.SortFunc(ctd.CompositeMembers, func(m1, m2 *CompositeMember) int {
+				return m1.Order - m2.Order
+			})
+
+			// update the offset by adding the byte size of the previous member
+			for i := 1; i < len(ctd.CompositeMembers); i++ {
+				ctd.CompositeMembers[i].Offset = ctd.CompositeMembers[i-1].Offset + ctd.CompositeMembers[i-1].Type.Size()
+			}
+
+			found = true
+		}
+	}
+
+	return found
+}
+
 // Update the offset of a variable in the debug information.
-func (d *debugInformation) UpdateVariable(name string, offset int32) bool {
+func (d *debugInformation) UpdateVariableOffset(name string, offset int32) bool {
 	if index := slices.IndexFunc(d.table.Variables, func(vd *VariableDescription) bool { return vd.VariableName == name }); index != -1 {
 		vd := d.table.Variables[index]
 		vd.Offset = offset
-		return true
-	}
-
-	return false
-}
-
-// Update the byte size and base type encoding of a data type in the debug information.
-func (d *debugInformation) UpdateDataType(name string, size int32, encoding int) bool {
-	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == name }); index != -1 {
-		switch dt := d.table.DataTypes[index].(type) {
-		case *SimpleDataType:
-			dt.ByteSize = size
-			dt.BaseTypeEncoding = encoding
-
-		case *CompositeDataType:
-			dt.ByteSize = size
-			dt.BaseTypeEncoding = encoding
-		}
-
-		return true
-	}
-
-	return false
-}
-
-// Update the offset of a member in a composite data type that exists in the debug information.
-func (d *debugInformation) UpdateMember(compositeName, name string, offset int32) bool {
-	// find the composite data type
-	index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool {
-		return dtd.Name() == compositeName && dtd.Kind() == DataTypeComposite
-	})
-
-	// composite not found
-	if index == -1 {
-		return false
-	}
-
-	// extract composite data type
-	cdt := d.table.DataTypes[index].(*CompositeDataType)
-
-	// update the offset if the member is found
-	if index := slices.IndexFunc(cdt.CompositeMembers, func(m *DataTypeMember) bool { return m.MemberName == name }); index != -1 {
-		cdt.CompositeMembers[index].Offset = offset
 		return true
 	}
 

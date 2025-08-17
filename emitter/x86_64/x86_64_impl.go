@@ -821,7 +821,8 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 		elf.DW_TAG_pointer_type,
 		false,
 		[]*elf.AttributeForm{
-			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4), // data type reference
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),       // data type reference
+			elf.NewAttributeForm(elf.DW_AT_byte_size, elf.DW_FORM_data1), // byte size
 		},
 	)
 
@@ -927,35 +928,52 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 
 	// create debugging information entries for each base data type
 	for _, dtd := range dstab.DataTypes {
-		// skip the string data type as it is handled separately
-		if dtd.Name() == dstab.String {
+		// skip the string data type or composite data types
+		if dtd.Name() == dstab.String || dtd.Kind() == cor.DataTypeComposite {
 			continue
 		}
 
-		baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
-			elf.ToDebuggingInformationEntryLabel(dtd.NameSource()),
-			elf.DW_CODE_base_type,
-			[]*elf.AttributeItem{
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dtd.NameSource())),
-				elf.NewAttributeItem(elf.Byte, uint8(dtd.Size())),
-				elf.NewAttributeItem(elf.Byte, uint8(dtd.Encoding())),
-			},
-		))
+		// handle different kinds of data types to create their debugging information entries
+		switch dt := dtd.(type) {
+		case *cor.SimpleDataType:
+			baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
+				elf.ToDebuggingInformationEntryLabel(dt.Name()),
+				elf.DW_CODE_base_type,
+				[]*elf.AttributeItem{
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dt.Name())),
+					elf.NewAttributeItem(elf.Byte, uint8(dt.Size())),
+					elf.NewAttributeItem(elf.Byte, uint8(dt.Encoding())),
+				},
+			))
+
+		case *cor.PointerDataType:
+			baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
+				elf.ToDebuggingInformationEntryLabel(dt.Name()),
+				elf.DW_CODE_pointer_type,
+				[]*elf.AttributeItem{
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dt.Name())),
+					elf.NewAttributeItem(elf.Byte, uint8(dt.Size())),
+				},
+			))
+
+		default:
+			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unexpectedDataTypeKind, dt, nil))
+		}
 	}
 
 	// the predefined string composite data type must exist
 	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != cor.DataTypeComposite {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, predefinedDataTypeRequired, dstab.String, nil))
 	}
-	
+
 	// find predefined string composite data type in the debug string table
 	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
 
 	// string member data types for length and data
 	lengthMember := stringCompositeType.CompositeMembers[0]
-	lengthMemberLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.NameSource())
+	lengthMemberLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.Name())
 	dataPointerMember := stringCompositeType.CompositeMembers[1]
-	dataPointerMemberLabel := elf.ToDebuggingInformationEntryLabel(dataPointerMember.Type.NameSource())
+	dataPointerMemberLabel := elf.ToDebuggingInformationEntryLabel(dataPointerMember.Type.Name())
 
 	// compilation unit label for relative references in the string type entry
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
@@ -966,15 +984,15 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		elf.DW_CODE_structure_type,
 		[]*elf.AttributeItem{
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dstab.String)),
-			elf.NewAttributeItem(elf.Byte, uint8(16)),
+			elf.NewAttributeItem(elf.Byte, uint8(stringCompositeType.Size())),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.Type.NameSource())),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.Type.Name())),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(lengthMemberLabel, compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Byte, uint8(lengthMember.Offset)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.Type.NameSource())),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.Type.Name())),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(dataPointerMemberLabel, compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Byte, uint8(dataPointerMember.Offset)),
 
@@ -1013,42 +1031,42 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// iterate over all unique function names
 	for _, fd := range dstab.Functions {
 		// ensure that the function name is a unique label name in the .debug_str section
-		if ok, exists := labels[fd.FunctionNameSource]; ok && exists {
+		if ok, exists := labels[fd.FunctionName]; ok && exists {
 			continue
 		}
 
 		// mark the function name as used
-		labels[fd.FunctionNameSource] = true
+		labels[fd.FunctionName] = true
 
 		// add the function name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
+		debugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionNameSource))
 	}
 
 	// iterate over all unique variable names
 	for _, vd := range dstab.Variables {
 		// ensure that the variable name is a unique label name in the .debug_str section
-		if ok, exists := labels[vd.VariableNameSource]; ok && exists {
+		if ok, exists := labels[vd.VariableName]; ok && exists {
 			continue
 		}
 
 		// mark the variable name as used
-		labels[vd.VariableNameSource] = true
+		labels[vd.VariableName] = true
 
 		// add the variable name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(vd.VariableNameSource, elf.String, vd.VariableNameSource))
+		debugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
 	}
 
 	// iterate over all unique data type names
 	for _, dtd := range dstab.DataTypes {
 		// ensure that the data type name is a unique label name in the .debug_str section
-		if ok, exists := labels[dtd.NameSource()]; ok && exists {
+		if ok, exists := labels[dtd.Name()]; ok && exists {
 			continue
 		}
 
 		// mark the data type name as used
-		labels[dtd.NameSource()] = true
+		labels[dtd.Name()] = true
 
 		// add the data type name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(dtd.NameSource(), elf.String, dtd.NameSource()))
+		debugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
 	}
 }

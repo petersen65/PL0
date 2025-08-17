@@ -7,6 +7,7 @@ package core
 const (
 	DataTypeSimple DataTypeKind = iota
 	DataTypeComposite
+	DataTypePointer
 )
 
 type (
@@ -54,12 +55,22 @@ type (
 
 	// CompositeDataType represents structured data types with members.
 	CompositeDataType struct {
-		SimpleDataType                     // embed SimpleDataType for common fields
-		CompositeMembers []*DataTypeMember `json:"members"` // list of members
+		TypeName         string             `json:"name"`        // name of the data type
+		TypeNameSource   string             `json:"name_source"` // name in the source code
+		ByteSize         int32              `json:"size"`        // size in bytes (will be set separately)
+		CompositeMembers []*CompositeMember `json:"members"`     // list of members
 	}
 
-	// DataTypeMember holds information about a member of a composite type.
-	DataTypeMember struct {
+	// PointerDataType is a derived type representing pointer types.
+	PointerDataType struct {
+		TypeName       string              `json:"name"`        // name of the pointer type
+		TypeNameSource string              `json:"name_source"` // name in the source code
+		ByteSize       int32               `json:"size"`        // size in bytes (will be set separately)
+		ElementType    DataTypeDescription `json:"element"`     // type of the element pointed to
+	}
+
+	// CompositeMember holds information about a member of a composite type.
+	CompositeMember struct {
 		MemberName       string              `json:"name"`        // name of the member
 		MemberNameSource string              `json:"name_source"` // name in the source code
 		Type             DataTypeDescription `json:"type"`        // data type of the member
@@ -73,7 +84,6 @@ type (
 		Name() string
 		NameSource() string
 		Size() int32
-		Encoding() int
 	}
 
 	// DebugInformation provides methods to collect and retrieve debug information.
@@ -82,9 +92,12 @@ type (
 		AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool
 		AppendDataType(dataType DataTypeDescription) bool
 		AppendMember(compositeName, name, nameSource string, dataType DataTypeDescription) bool
-		UpdateVariable(name string, offset int32) bool
-		UpdateDataType(name string, size int32, encoding int) bool
-		UpdateMember(compositeName, name string, offset int32) bool
+		UpdateSimpleDataTypeSize(name string, size int32) bool
+		UpdateSimpleDataTypeEncoding(name string, encoding int) bool
+		UpdatePointerDataTypeSizes(size int32) bool
+		UpdateCompositeDataTypeSizes() bool
+		UpdateCompositeDataTypeOffsets() bool
+		UpdateVariableOffset(name string, offset int32) bool
 		GetDebugStringTable() DebugStringTable
 		GetSourceCodeContext(tokenStreamIndex int) (int, int, string, bool)
 	}
@@ -95,22 +108,38 @@ func NewDebugInformation(compilationUnit, compilationDirectory, producer, string
 	return newDebugInformation(compilationUnit, compilationDirectory, producer, stringName, optimized, tokenHandler)
 }
 
-// Create a new data type of a specific kind.
-func NewDataType(name, nameSource string, kind DataTypeKind) DataTypeDescription {
-	return newDataType(name, nameSource, kind)
+// Create a new simple data type whose size and encoding will be set later.
+func NewSimpleDataType(name, nameSource string) *SimpleDataType {
+	return newSimpleDataType(name, nameSource)
 }
 
-// SimpleDataType methods
+// Create a new composite data type whose size and members will be set later.
+func NewCompositeDataType(name, nameSource string) *CompositeDataType {
+	return newCompositeDataType(name, nameSource)
+}
+
+// Create a new pointer data type whose size will be set later.
+func NewPointerDataType(name, nameSource string, elementType DataTypeDescription) *PointerDataType {
+	return newPointerDataType(name, nameSource, elementType)
+}
+
+// SimpleDataType functions
 func (s *SimpleDataType) Kind() DataTypeKind { return DataTypeSimple }
 func (s *SimpleDataType) Name() string       { return s.TypeName }
 func (s *SimpleDataType) NameSource() string { return s.TypeNameSource }
 func (s *SimpleDataType) Size() int32        { return s.ByteSize }
 func (s *SimpleDataType) Encoding() int      { return s.BaseTypeEncoding }
 
-// CompositeDataType methods
-func (c *CompositeDataType) Kind() DataTypeKind         { return DataTypeComposite }
-func (c *CompositeDataType) Name() string               { return c.TypeName }
-func (c *CompositeDataType) NameSource() string         { return c.TypeNameSource }
-func (c *CompositeDataType) Size() int32                { return c.ByteSize }
-func (c *CompositeDataType) Encoding() int              { return c.BaseTypeEncoding }
-func (c *CompositeDataType) Members() []*DataTypeMember { return c.CompositeMembers }
+// CompositeDataType functions
+func (c *CompositeDataType) Kind() DataTypeKind          { return DataTypeComposite }
+func (c *CompositeDataType) Name() string                { return c.TypeName }
+func (c *CompositeDataType) NameSource() string          { return c.TypeNameSource }
+func (c *CompositeDataType) Size() int32                 { return c.ByteSize }
+func (c *CompositeDataType) Members() []*CompositeMember { return c.CompositeMembers }
+
+// PointerDataType functions
+func (p *PointerDataType) Kind() DataTypeKind           { return DataTypePointer }
+func (p *PointerDataType) Name() string                 { return p.TypeName }
+func (p *PointerDataType) NameSource() string           { return p.TypeNameSource }
+func (p *PointerDataType) Size() int32                  { return p.ByteSize }
+func (p *PointerDataType) Element() DataTypeDescription { return p.ElementType }

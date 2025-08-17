@@ -138,12 +138,12 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 		if td.Line != previousLine {
 			if previousLine != 0 {
 				if _, err := fmt.Fprintln(print); err != nil {
-					return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+					return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 				}
 			}
 
 			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \t\n\r")); err != nil {
-				return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+				return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 			}
 
 			previousLine = td.Line
@@ -151,7 +151,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print token description below the line number and line content
 		if _, err := fmt.Fprintf(print, "%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue); err != nil {
-			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 	}
 
@@ -166,12 +166,12 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 		if raw, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
 		}{Stream: ts}, "", "  "); err != nil {
-			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+				err = NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 			}
 
 			return err
@@ -186,16 +186,16 @@ func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
 
 		// encode the raw bytes of the token stream into a binary buffer
 		if err := gob.NewEncoder(&buffer).Encode(ts); err != nil {
-			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 
 		// transfer the binary buffer to the print writer
 		if _, err := buffer.WriteTo(print); err != nil {
-			return newGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
 		}
 
 	default:
-		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
+		panic(NewGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
 	}
 
 	return nil
