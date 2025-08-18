@@ -1019,10 +1019,12 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
 				elf.NewAttributeItem(elf.Byte, uint8(id)),
 				elf.NewAttributeItem(elf.Short, uint16(line)),
-				elf.NewAttributeItem(elf.Quad, fd.FunctionNameSource),
-				elf.NewAttributeItem(elf.Long, ""),
-				elf.NewAttributeItem(elf.Byte, uint8(0)),
+				elf.NewAttributeItem(elf.Quad, fd.FunctionName),
+				elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(fd.FunctionName), fd.FunctionName)),
+				elf.NewAttributeItem(elf.Byte, elf.ToExpressionLocation(1, elf.DW_OP_call_frame_cfa)),
 				elf.NewAttributeItem(elf.Byte, uint8(1)),
+				elf.NewAttributeItem(elf.Byte, uint8(0)),
+
 				elf.NewAttributeItem(elf.Byte, uint8(0)),
 			},
 		))

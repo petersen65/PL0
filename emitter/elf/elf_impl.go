@@ -236,16 +236,21 @@ func (s *ElfSection[T]) String() string {
 
 // String representation of a directive.
 func (d *Directive) String() string {
-	var comments string
+	var comments, labels string
 
 	// optional comments to be emitted before the directive
 	for _, comment := range d.Comments {
 		comments += fmt.Sprintf(commentFormat, comment) + "\n"
 	}
 
+	// optional labels to be emitted before the directive
+	for _, label := range d.Labels {
+		labels += fmt.Sprintf(labelFormat, label) + "\n"
+	}
+
 	// join symbol and arguments with commas for multi-argument directives
 	parts := strings.Join(append(d.Symbols, d.Arguments...), ", ")
-	return strings.TrimSpace(fmt.Sprintf("%v%v %v", comments, d.Directive, parts))
+	return strings.TrimSpace(fmt.Sprintf("%v%v%v %v", comments, labels, d.Directive, parts))
 }
 
 // String representation of a read-only data item.

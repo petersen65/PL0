@@ -210,7 +210,7 @@ const (
 // DWARF form codes specify the on-disk encoding of a DWARF v5 attribute's value.
 const (
 	DW_FORM_addr      DwarfForm = 0x01 // absolute address
-	DW_FORM_block2    DwarfForm = 0x02 // block with 2-byte length (MISSING in your code)
+	DW_FORM_block2    DwarfForm = 0x02 // block with 2-byte length
 	DW_FORM_block4    DwarfForm = 0x03 // block with 4-byte length
 	DW_FORM_data2     DwarfForm = 0x05 // 2-byte constant data
 	DW_FORM_data4     DwarfForm = 0x06 // 4-byte constant data
@@ -344,6 +344,19 @@ const (
 	DW_ATE_composite_no_encoding DwarfAttributeEncoding = 0x80 // user extension for composite types that do not have an attribute encoding
 )
 
+// DwarfOpcode represents a single operation in a DWARF v5 expression (exprloc).
+const (
+	DW_OP_consts         DwarfOpcode = 0x11 // push a signed constant onto the stack
+	DW_OP_constu         DwarfOpcode = 0x10 // push an unsigned constant onto the stack
+	DW_OP_fbreg          DwarfOpcode = 0x91 // push the frame base + signed offset onto the stack (local variables, DW_AT_location)
+	DW_OP_breg0          DwarfOpcode = 0x70 // push value of register + signed offset (DW_OP_breg0 ... DW_OP_breg31, breg0 is base)
+	DW_OP_call_frame_cfa DwarfOpcode = 0x9c // push the current CFA (call frame address) as defined by CFI (DW_AT_frame_base)
+	DW_OP_plus           DwarfOpcode = 0x22 // pop two values, add them, push result
+	DW_OP_minus          DwarfOpcode = 0x1c // pop two values, subtract top from next-to-top, push result
+	DW_OP_deref          DwarfOpcode = 0x06 // pop an address, read a machine-sized value from that address, push value (indirect variables like pointers, references)
+	DW_OP_stack_value    DwarfOpcode = 0x9f // indicates that the value left on the stack is the actual variable value (constants or register-only values)
+)
+
 type (
 	// Represents a DWARF abbreviation entry code (ULEB128-encoded).
 	DwarfCode int
@@ -365,6 +378,9 @@ type (
 
 	// Represents a DWARF attribute base type encoding (byte-encoded).
 	DwarfAttributeEncoding int
+
+	// Represents a DWARF opcode (ULEB128-encoded).
+	DwarfOpcode int
 
 	// A DWARF string item represents a string literal stored in the .debug_str section.
 	StringItem struct {
@@ -461,6 +477,11 @@ func (e DwarfAttributeEncoding) String() string {
 	return dwarfAttributeEncodingNames[e]
 }
 
+// String representation of DWARF opcodes.
+func (o DwarfOpcode) String() string {
+	return dwarfOpcodeNames[o]
+}
+
 // Create a start label for a directive.
 func (d DirectiveKind) StartLabel() string {
 	return fmt.Sprintf(startLabelFormat, strings.TrimLeft(d.String(), labelPrefix))
@@ -484,6 +505,11 @@ func ToSectionLength(endLabel, startLabel string) string {
 // String representation of a relative reference between a target label and a source label.
 func ToRelativeReference(targetLabel, sourceLabel string) string {
 	return fmt.Sprintf("(%v - %v)", targetLabel, sourceLabel)
+}
+
+// String representation of a function length calculation based on its end and start labels.
+func ToFunctionLength(endLabel, startLabel string) string {
+	return fmt.Sprintf("%v - %v", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
 }
 
 // String representation of a DIE label.

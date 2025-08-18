@@ -212,6 +212,7 @@ type (
 		Directive DirectiveKind `json:"kind"`      // the directive kind (e.g., .type, .size, .global)
 		Symbols   []string      `json:"symbols"`   // the symbol names this directive applies to
 		Arguments []string      `json:"arguments"` // directive-specific arguments (e.g., "@function", ".-symbol")
+		Labels    []string      `json:"labels"`    // labels associated with this directive (e.g., for .size, .loc)
 		Comments  []string      `json:"comments"`  // comments associated with this directive
 	}
 
@@ -285,7 +286,9 @@ func NewSizeCurrent(symbol string) *Directive {
 
 // Create a .size directive using the end-label - symbol calculation.
 func NewSizeStartEndLabel(symbol string) *Directive {
-	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeStartEndLabel.String(), symbol, symbol))
+	sizeDirective := NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeStartEndLabel.String(), symbol, symbol))
+	sizeDirective.AppendLabel(symbol + labelEndPostfix)
+	return sizeDirective
 }
 
 // Create a .cfi_startproc directive to begin a CFI (call frame information).
@@ -358,4 +361,21 @@ func (d *Directive) AppendComment(comment string) {
 	if comment = strings.TrimSpace(comment); comment != "" {
 		d.Comments = append(d.Comments, comment)
 	}
+}
+
+// Append a label to a directive that will be emitted before the directive.
+func (d *Directive) AppendLabel(label string) {
+	if label = strings.TrimSpace(label); label != "" {
+		d.Labels = append(d.Labels, label)
+	}
+}
+
+// String representation of a label in the start label format.
+func ToStartLabel(label string) string {
+	return fmt.Sprintf(startLabelFormat, label)
+}
+
+// String representation of a label in the end label format.
+func ToEndLabel(label string) string {
+	return fmt.Sprintf(endLabelFormat, label)
 }

@@ -319,6 +319,19 @@ var (
 		DW_ATE_hi_user:               "DW_ATE_hi_user",
 		DW_ATE_composite_no_encoding: "DW_ATE_composite_no_encoding",
 	}
+
+	// Map DWARF opcodes to their string representation.
+	dwarfOpcodeNames = map[DwarfOpcode]string{
+		DW_OP_consts:         "DW_OP_consts",
+		DW_OP_constu:         "DW_OP_constu",
+		DW_OP_fbreg:          "DW_OP_fbreg",
+		DW_OP_breg0:          "DW_OP_bregN",
+		DW_OP_call_frame_cfa: "DW_OP_call_frame_cfa",
+		DW_OP_plus:           "DW_OP_plus",
+		DW_OP_minus:          "DW_OP_minus",
+		DW_OP_deref:          "DW_OP_deref",
+		DW_OP_stack_value:    "DW_OP_stack_value",
+	}
 )
 
 // String representation of a DWARF string item.
@@ -460,4 +473,15 @@ func (e *DebuggingInformationEntry) String() string {
 
 	// the debugging information entry string representation does not end with a newline
 	return builder.String()
+}
+
+// String representation of a DWARF expression location.
+func ToExpressionLocation(length int, opcode ...DwarfOpcode) string {
+	opcodes := make([]string, len(opcode))
+
+	for i, op := range opcode {
+		opcodes[i] = fmt.Sprintf("%#002x", uint8(op))
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%#002x %s", length, strings.Join(opcodes, " ")))
 }
