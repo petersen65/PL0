@@ -140,9 +140,8 @@ const (
 
 // Size calculation attributes for the .size directive.
 const (
-	SizeLabel      SizeAttribute = iota // calculate size from current location minus label (.-label)
-	SizeAbsolute                        // use absolute size value
-	SizeExpression                      // use arbitrary expression for size calculation
+	SizeCurrent       SizeAttribute = iota // calculate size from current location minus start-label (. - start)
+	SizeStartEndLabel                      // calculate size from end-label at current location minus start-label (end - start)
 )
 
 // Call frame information attributes for the .cfi directives.
@@ -167,7 +166,6 @@ const (
 	ReadOnlyInt64                           // 64-bit integer literals (signed and unsigned)
 	ReadOnlyStrDesc                         // string descriptor for UTF encoded strings (literal data label 64-bit pointer, 64-bit length)
 )
-
 
 type (
 	// Represents debugger flags (bit-mask).
@@ -280,14 +278,14 @@ func NewTypeObject(symbol string) *Directive {
 	return NewDirective(Type, []string{symbol}, TypeObject.String())
 }
 
-// Create a .size directive using the standard ".-symbol" calculation.
-func NewSizeLabel(symbol string) *Directive {
-	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeLabel.String(), symbol))
+// Create a .size directive using the current location - symbol calculation.
+func NewSizeCurrent(symbol string) *Directive {
+	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeCurrent.String(), symbol))
 }
 
-// Create a .size directive with an absolute size value.
-func NewSizeAbsolute(symbol string, size int) *Directive {
-	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeAbsolute.String(), size))
+// Create a .size directive using the end-label - symbol calculation.
+func NewSizeStartEndLabel(symbol string) *Directive {
+	return NewDirective(Size, []string{symbol}, fmt.Sprintf(SizeStartEndLabel.String(), symbol, symbol))
 }
 
 // Create a .cfi_startproc directive to begin a CFI (call frame information).

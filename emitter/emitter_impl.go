@@ -1007,7 +1007,7 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 	e.assemblyCode.AppendInstruction(x64.Ret, btLabels, index).
 		AppendDirective(e.assemblyCode.Location(index, debugger)).
 		AppendDirective(e.assemblyCode.Filter(elf.NewCfiEndProcedure())).
-		AppendDirective(elf.NewSizeLabel(endOfFunctionLabel))
+		AppendDirective(elf.NewSizeStartEndLabel(endOfFunctionLabel))
 }
 
 // The function entry sequence is called prologue and prepares the activation record for the function call.

@@ -124,9 +124,8 @@ var (
 
 	// Map size attributes to their string representation templates.
 	sizeAttributeNames = map[SizeAttribute]string{
-		SizeLabel:      ".-%s",
-		SizeAbsolute:   "%d",
-		SizeExpression: "%s",
+		SizeCurrent:       ". - %s",
+		SizeStartEndLabel: labelPrefix + localPrefix + "%s" + labelEndPostfix + " - %s",
 	}
 
 	// Map call frame information attributes to their string representation.

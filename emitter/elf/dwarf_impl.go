@@ -11,18 +11,17 @@ import (
 // Prefix and postfix for label names.
 const labelPrefix = "."
 const labelPostfix = ":"
+const labelStartPostfix = "_start"
+const labelEndPostfix = "_end"
 const localPrefix = "L"
 
 // Provide formats for labels that are used in ELF sections.
 const labelFormat = labelPrefix + localPrefix + "%v" + labelPostfix
-const startLabelFormat = labelPrefix + localPrefix + "%v_start" + labelPostfix
-const endLabelFormat = labelPrefix + localPrefix + "%v_end" + labelPostfix
+const startLabelFormat = labelPrefix + localPrefix + "%v" + labelStartPostfix + labelPostfix
+const endLabelFormat = labelPrefix + localPrefix + "%v" + labelEndPostfix + labelPostfix
 
 // Prefix for DWARF debugging information entries.
 const debugEntryPrefix = labelPrefix + localPrefix + "die_"
-
-// Prefix for DWARF debugging information entries that are pointers.
-const debugEntryPointerPrefix = debugEntryPrefix + "ptr_"
 
 // Prefix for DWARF string items.
 const debugStringPrefix = labelPrefix + "str_"

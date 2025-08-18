@@ -514,7 +514,7 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendInstruction(Call, nil, noIndex, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, nil, noIndex, NewMemoryOperand(Rbp, Bits64, -PointerSize), NewRegisterOperand(Rax))
 	ret := NewInstruction(Ret, nil, noIndex)
-	ret.AppendDirective(elf.NewSizeLabel(CreateStaticLinkLabel))
+	ret.AppendDirective(elf.NewSizeCurrent(CreateStaticLinkLabel))
 	u.AppendExistingInstruction(ret)
 
 	/*
@@ -577,7 +577,7 @@ func (u *assemblyCodeUnit) AppendRuntime() {
 	u.AppendInstruction(Jmp, nil, noIndex, NewLabelOperand(loopCondition))
 	u.AppendInstruction(Mov, []string{behindLoop}, noIndex, NewRegisterOperand(Rax), NewRegisterOperand(Rsi))
 	ret = NewInstruction(Ret, nil, noIndex)
-	ret.AppendDirective(elf.NewSizeLabel(FollowStaticLinkLabel))
+	ret.AppendDirective(elf.NewSizeCurrent(FollowStaticLinkLabel))
 	u.AppendExistingInstruction(ret)
 }
 
@@ -727,17 +727,17 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 
 		// update the .debug_abbrev section with abbreviation entry schemas required for the .debug_info section
 		if len(u.DebugAbbrevSection.Content) == 0 {
-			updateDebugAbbrevSection(u.DebugAbbrevSection)
+			u.updateDebugAbbrevSection()
 		}
 
 		// update the .debug_info section with debugging information entries (DIEs) that reference the .debug_str section
 		if len(u.DebugInfoSection.Content) == 0 {
-			updateDebugInfoSection(u.DebugInfoSection, &dstab, u.FileIdentifier[u.BuildConfiguration.SourcePath])
+			u.updateDebugInfoSection(&dstab)
 		}
 
 		// update the .debug_str section with string items referenced by DIEs in the .debug_info section
 		if len(u.DebugStrSection.Content) == 0 {
-			updateDebugStrSection(u.DebugStrSection, &dstab)
+			u.updateDebugStrSection(&dstab)
 		}
 
 		// write the DWARF debug abbreviation section to the print writer
@@ -789,7 +789,7 @@ func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 }
 
 // Update the .debug_abbrev section with abbreviation schema entries required by DIEs in the .debug_info section.
-func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.AbbreviationEntry]) {
+func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 	// compilation unit abbreviation entry
 	compilationUnit := elf.NewAbbreviationEntry(
 		elf.DW_CODE_compilation_unit,
@@ -885,18 +885,18 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 	termination := elf.NewAbbreviationEntry(elf.DW_CODE_termination, 0, false, nil)
 
 	// add all entries to the .debug_abbrev section
-	debugAbbrevSection.Append(compilationUnit)
-	debugAbbrevSection.Append(baseType)
-	debugAbbrevSection.Append(pointerType)
-	debugAbbrevSection.Append(structureType)
-	debugAbbrevSection.Append(structMember)
-	debugAbbrevSection.Append(subprogram)
-	debugAbbrevSection.Append(variable)
-	debugAbbrevSection.Append(termination)
+	u.DebugAbbrevSection.Append(compilationUnit)
+	u.DebugAbbrevSection.Append(baseType)
+	u.DebugAbbrevSection.Append(pointerType)
+	u.DebugAbbrevSection.Append(structureType)
+	u.DebugAbbrevSection.Append(structMember)
+	u.DebugAbbrevSection.Append(subprogram)
+	u.DebugAbbrevSection.Append(variable)
+	u.DebugAbbrevSection.Append(termination)
 }
 
 // Update the .debug_info section with debugging information entries (DIEs).
-func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable, fileIdentifier int) {
+func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 	// compilation unit header entry
 	compilationUnitHeader := elf.NewDebuggingInformationEntry(
 		"",
@@ -1003,49 +1003,60 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 	// subprogram entries
 	subPrograms := make([]*elf.DebuggingInformationEntry, 0)
 
+	// extract file identifier required for subprogram and variable entries
+	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
+
 	// create debugging information entries for each subprogram
 	for _, fd := range dstab.Functions {
+		// source code line of function declaration
+		line, _, _, _ := u.debugInformation.GetSourceCodeContext(fd.TokenStreamIndex)
+
 		subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
 			"",
 			elf.DW_CODE_subprogram,
 			[]*elf.AttributeItem{
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionNameSource)),
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
-				elf.NewAttributeItem(elf.Byte, uint8(fileIdentifier)),
-				elf.NewAttributeItem(elf.Short, uint16(fileIdentifier)),
+				elf.NewAttributeItem(elf.Byte, uint8(id)),
+				elf.NewAttributeItem(elf.Short, uint16(line)),
+				elf.NewAttributeItem(elf.Quad, fd.FunctionNameSource),
+				elf.NewAttributeItem(elf.Long, ""),
+				elf.NewAttributeItem(elf.Byte, uint8(0)),
+				elf.NewAttributeItem(elf.Byte, uint8(1)),
+				elf.NewAttributeItem(elf.Byte, uint8(0)),
 			},
 		))
 	}
 
 	// add compilation unit entries to the .debug_info section
-	debugInfoSection.Append(compilationUnitHeader)
-	debugInfoSection.Append(compilationUnit)
+	u.DebugInfoSection.Append(compilationUnitHeader)
+	u.DebugInfoSection.Append(compilationUnit)
 
 	// add all base type entries to the .debug_info section
 	for _, die := range baseTypes {
-		debugInfoSection.Append(die)
+		u.DebugInfoSection.Append(die)
 	}
 
 	// add string type entry to the .debug_info section
-	debugInfoSection.Append(stringType)
+	u.DebugInfoSection.Append(stringType)
 
 	// add all subprogram entries to the .debug_info section
 	for _, die := range subPrograms {
-		debugInfoSection.Append(die)
+		u.DebugInfoSection.Append(die)
 	}
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
-func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dstab *cor.DebugStringTable) {
+func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 	// compilation details and producer are required for the .debug_str section
 	if len(dstab.CompilationUnit) == 0 || len(dstab.CompilationDirectory) == 0 || len(dstab.Producer) == 0 {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationDetailsAndProducerRequired, nil, nil))
 	}
 
 	// add the compilation details and producer to the debug string section
-	debugStrSection.Append(elf.NewStringItem(elf.CompilationUnitLabel, elf.String, dstab.CompilationUnit))
-	debugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
-	debugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.CompilationUnitLabel, elf.String, dstab.CompilationUnit))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
 
 	// deduplicate function, variable, and data type names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)
@@ -1056,18 +1067,18 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 		if ok, exists := labels[fd.FunctionName]; !ok || !exists {
 			// mark the function name as used
 			labels[fd.FunctionName] = true
-	
+
 			// add the function name to the .debug_str section
-			debugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionName))
+			u.DebugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionName))
 		}
 
 		// ensure that the function name from source code is a unique label name in the .debug_str section
 		if ok, exists := labels[fd.FunctionNameSource]; !ok || !exists {
 			// mark the function name from source code as used
 			labels[fd.FunctionNameSource] = true
-	
+
 			// add the function name from source code to the .debug_str section
-			debugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
+			u.DebugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
 		}
 	}
 
@@ -1082,7 +1093,7 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 		labels[vd.VariableName] = true
 
 		// add the variable name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
+		u.DebugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
 	}
 
 	// iterate over all data types
@@ -1096,6 +1107,6 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 		labels[dtd.Name()] = true
 
 		// add the data type name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+		u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
 	}
 }
