@@ -603,7 +603,7 @@ func (u *assemblyCodeUnit) Lookup(label string) *Symbol {
 
 // Get the location directive for a specific token stream index of the source code file. Nil is returned if no directive is available.
 func (u *assemblyCodeUnit) Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive {
-	// extract file identifier and debug flag required for the location directive
+	// extract file identifier required for the location directive
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
 
 	// if source code files cannot be supported by the assembly code unit return nil
@@ -732,7 +732,7 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 
 		// update the .debug_info section with debugging information entries (DIEs) that reference the .debug_str section
 		if len(u.DebugInfoSection.Content) == 0 {
-			updateDebugInfoSection(u.DebugInfoSection, &dstab)
+			updateDebugInfoSection(u.DebugInfoSection, &dstab, u.FileIdentifier[u.BuildConfiguration.SourcePath])
 		}
 
 		// update the .debug_str section with string items referenced by DIEs in the .debug_info section
@@ -896,7 +896,7 @@ func updateDebugAbbrevSection(debugAbbrevSection *elf.ElfSection[*elf.Abbreviati
 }
 
 // Update the .debug_info section with debugging information entries (DIEs).
-func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable) {
+func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInformationEntry], dstab *cor.DebugStringTable, fileIdentifier int) {
 	// compilation unit header entry
 	compilationUnitHeader := elf.NewDebuggingInformationEntry(
 		"",
@@ -1000,6 +1000,23 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 		},
 	)
 
+	// subprogram entries
+	subPrograms := make([]*elf.DebuggingInformationEntry, 0)
+
+	// create debugging information entries for each subprogram
+	for _, fd := range dstab.Functions {
+		subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
+			"",
+			elf.DW_CODE_subprogram,
+			[]*elf.AttributeItem{
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionNameSource)),
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
+				elf.NewAttributeItem(elf.Byte, uint8(fileIdentifier)),
+				elf.NewAttributeItem(elf.Short, uint16(fileIdentifier)),
+			},
+		))
+	}
+
 	// add compilation unit entries to the .debug_info section
 	debugInfoSection.Append(compilationUnitHeader)
 	debugInfoSection.Append(compilationUnit)
@@ -1011,6 +1028,11 @@ func updateDebugInfoSection(debugInfoSection *elf.ElfSection[*elf.DebuggingInfor
 
 	// add string type entry to the .debug_info section
 	debugInfoSection.Append(stringType)
+
+	// add all subprogram entries to the .debug_info section
+	for _, die := range subPrograms {
+		debugInfoSection.Append(die)
+	}
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
@@ -1028,21 +1050,28 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 	// deduplicate function, variable, and data type names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)
 
-	// iterate over all unique function names
+	// iterate over all functions
 	for _, fd := range dstab.Functions {
 		// ensure that the function name is a unique label name in the .debug_str section
-		if ok, exists := labels[fd.FunctionName]; ok && exists {
-			continue
+		if ok, exists := labels[fd.FunctionName]; !ok || !exists {
+			// mark the function name as used
+			labels[fd.FunctionName] = true
+	
+			// add the function name to the .debug_str section
+			debugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionName))
 		}
 
-		// mark the function name as used
-		labels[fd.FunctionName] = true
-
-		// add the function name to the .debug_str section
-		debugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionNameSource))
+		// ensure that the function name from source code is a unique label name in the .debug_str section
+		if ok, exists := labels[fd.FunctionNameSource]; !ok || !exists {
+			// mark the function name from source code as used
+			labels[fd.FunctionNameSource] = true
+	
+			// add the function name from source code to the .debug_str section
+			debugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
+		}
 	}
 
-	// iterate over all unique variable names
+	// iterate over all variables
 	for _, vd := range dstab.Variables {
 		// ensure that the variable name is a unique label name in the .debug_str section
 		if ok, exists := labels[vd.VariableName]; ok && exists {
@@ -1056,7 +1085,7 @@ func updateDebugStrSection(debugStrSection *elf.ElfSection[*elf.StringItem], dst
 		debugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
 	}
 
-	// iterate over all unique data type names
+	// iterate over all data types
 	for _, dtd := range dstab.DataTypes {
 		// ensure that the data type name is a unique label name in the .debug_str section
 		if ok, exists := labels[dtd.Name()]; ok && exists {
