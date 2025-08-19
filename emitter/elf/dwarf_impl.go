@@ -488,10 +488,7 @@ func ToExpressionLocation(length int, opcode ...DwarfOpcode) string {
 	return strings.TrimSpace(fmt.Sprintf("%#002x %s", length, strings.Join(opcodes, " ")))
 }
 
-// EmitFbregExprloc returns the DWARF exprloc bytes for a variable located at [rbp + d],
-// assuming Option A (DW_AT_frame_base = { DW_OP_call_frame_cfa }) where CFA = rbp + 16.
-// The expression is: { DW_OP_fbreg (d - 16) }.
-// Result layout: <ULEB128 length> <0x91> <SLEB128(d-16)>.
+// Create the byte sequence for a DWARF frame base register expression location.
 func ToFrameBaseRegisterExpressionLocation(rbpVariableOffset, dwarfCfaOffset int64) []byte {
 	// convert RBP based variable offset to CFA based offset
 	fbregOffset := rbpVariableOffset - dwarfCfaOffset
@@ -512,7 +509,6 @@ func ToFrameBaseRegisterExpressionLocation(rbpVariableOffset, dwarfCfaOffset int
 	fbregExprLoc = append(fbregExprLoc, ulebFbregExprLocLength...)
 	fbregExprLoc = append(fbregExprLoc, byte(DW_OP_fbreg))
 	fbregExprLoc = append(fbregExprLoc, slebFbregOffset...)
-	
 	return fbregExprLoc
 }
 
