@@ -1000,13 +1000,13 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		},
 	)
 
-	// subprogram entries and variable entries
+	// subprogram entries and their child variable entries
 	subPrograms := make([]*elf.DebuggingInformationEntry, 0)
 
 	// extract file identifier required for subprogram and variable entries
 	id := u.FileIdentifier[u.BuildConfiguration.SourcePath]
 
-	// create debugging information entries for each subprogram
+	// create debugging information entries for each subprogram and its child variables
 	for _, fd := range dstab.Functions {
 		// source code line of function declaration
 		line, _, _, _ := u.debugInformation.GetSourceCodeContext(fd.TokenStreamIndex)
@@ -1021,13 +1021,13 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				elf.NewAttributeItem(elf.Short, uint16(line)),
 				elf.NewAttributeItem(elf.Quad, fd.FunctionName),
 				elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(fd.FunctionName), fd.FunctionName)),
-				elf.NewAttributeItem(elf.Byte, elf.ToExpressionLocation(1, elf.DW_OP_call_frame_cfa)),
+				elf.NewAttributeItem(elf.Byte, []byte{1, byte(elf.DW_OP_call_frame_cfa)}),
 				elf.NewAttributeItem(elf.Byte, uint8(1)),
 				elf.NewAttributeItem(elf.Byte, uint8(0)),
 			},
 		))
 
-		// create debugging information entries for all variables located in the subprogram
+		// create debugging information entries for all child variables located in the subprogram
 		for _, vd := range fd.Variables {
 			// source code line of variable declaration
 			line, _, _, _ := u.debugInformation.GetSourceCodeContext(vd.TokenStreamIndex)
@@ -1043,10 +1043,19 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 					elf.NewAttributeItem(elf.Byte, uint8(id)),
 					elf.NewAttributeItem(elf.Short, uint16(line)),
 					elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(variableTypeLabel, compilationUnitLabel)),
-					elf.NewAttributeItem(elf.Byte, 0),
+					elf.NewAttributeItem(elf.Byte, elf.ToFrameBaseRegisterExpressionLocation(int64(vd.Offset), elf.DwarfCfaOffset)),
 				},
 			))
 		}
+
+		// end of subprogram entry marks the end of all children
+		subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
+			"",
+			elf.DW_CODE_suppression,
+			[]*elf.AttributeItem{
+				elf.NewAttributeItem(elf.Byte, uint8(0)),
+			},
+		))
 	}
 
 	// add compilation unit entries to the .debug_info section

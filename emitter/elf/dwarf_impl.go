@@ -34,7 +34,6 @@ const descriptorLabel = "%v.desc"
 var (
 	// Map DWARF code names to their string representation.
 	dwarfCodeNames = map[DwarfCode]string{
-		DW_CODE_termination:      "DW_CODE_termination",
 		DW_CODE_compilation_unit: "DW_CODE_compilation_unit",
 		DW_CODE_base_type:        "DW_CODE_base_type",
 		DW_CODE_pointer_type:     "DW_CODE_pointer_type",
@@ -42,6 +41,8 @@ var (
 		DW_CODE_member:           "DW_CODE_member",
 		DW_CODE_subprogram:       "DW_CODE_subprogram",
 		DW_CODE_variable:         "DW_CODE_variable",
+		DW_CODE_suppression:      "DW_CODE_suppression",
+		DW_CODE_termination:      "DW_CODE_termination",
 	}
 
 	// Map DWARF tag names to their string representation.
@@ -387,6 +388,15 @@ func (a *AttributeItem) String() string {
 	case uint16:
 		return fmt.Sprintf("%-*v%#004x", directiveWidth, a.Directive, operand)
 
+	case []byte:
+		representation := make([]string, len(operand))
+
+		for i, raw := range operand {
+			representation[i] = fmt.Sprintf("%#002x", uint8(raw))
+		}
+
+		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, strings.Join(representation, " "))
+
 	default:
 		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, a.Operand)
 	}
@@ -477,27 +487,16 @@ func (e *DebuggingInformationEntry) String() string {
 	return builder.String()
 }
 
-// String representation of a DWARF expression location.
-func ToExpressionLocation(length int, opcode ...DwarfOpcode) string {
-	opcodes := make([]string, len(opcode))
-
-	for i, op := range opcode {
-		opcodes[i] = fmt.Sprintf("%#002x", uint8(op))
-	}
-
-	return strings.TrimSpace(fmt.Sprintf("%#002x %s", length, strings.Join(opcodes, " ")))
-}
-
 // Create the byte sequence for a DWARF frame base register expression location.
 func ToFrameBaseRegisterExpressionLocation(rbpVariableOffset, dwarfCfaOffset int64) []byte {
 	// convert RBP based variable offset to CFA based offset
-	fbregOffset := rbpVariableOffset - dwarfCfaOffset
+	cfaRelativeOffset := rbpVariableOffset - dwarfCfaOffset
 
 	// encode signed fbreg offset to SLEB128
-	slebFbregOffset := EncodeSleb128(fbregOffset)
+	slebCfaRelativeOffset := EncodeSleb128(cfaRelativeOffset)
 
 	// the frame base register expression location contains: <ULEB128 length> <DWARF fbreg opcode> <SLEB128(d-16)>
-	fbregExprLocLength := 2 + len(slebFbregOffset)
+	fbregExprLocLength := 1 + len(slebCfaRelativeOffset)
 
 	// allocate the expression location byte slice with length 0 and capacity "fbregExprLoc"
 	fbregExprLoc := make([]byte, 0, fbregExprLocLength)
@@ -508,7 +507,7 @@ func ToFrameBaseRegisterExpressionLocation(rbpVariableOffset, dwarfCfaOffset int
 	// append the ULEB encoded length, the DWARF fbreg opcode, and the SLEB encoded signed offset to the frame base register expression location
 	fbregExprLoc = append(fbregExprLoc, ulebFbregExprLocLength...)
 	fbregExprLoc = append(fbregExprLoc, byte(DW_OP_fbreg))
-	fbregExprLoc = append(fbregExprLoc, slebFbregOffset...)
+	fbregExprLoc = append(fbregExprLoc, slebCfaRelativeOffset...)
 	return fbregExprLoc
 }
 
