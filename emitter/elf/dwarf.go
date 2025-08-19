@@ -11,6 +11,9 @@ import (
 // DWARF version number used for debugging information in ELF files.
 const DwarfVersion = 5
 
+// DWARF canonical frame address offset (CFA offset) is the location of the saved frame pointer (RBP) in the current stack frame.
+const DwarfCfaOffset = 16
+
 // Standard DWARF label names for ELF sections.
 const (
 	CompilationUnitLabel      = "compilation_unit"      // label for the compilation unit in .debug_str section
@@ -216,20 +219,20 @@ const (
 	DW_FORM_data4     DwarfForm = 0x06 // 4-byte constant data
 	DW_FORM_data8     DwarfForm = 0x07 // 8-byte constant data
 	DW_FORM_string    DwarfForm = 0x08 // null-terminated string
-	DW_FORM_block     DwarfForm = 0x09 // block with ULEB128 length
+	DW_FORM_block     DwarfForm = 0x09 // block with uleb128 length
 	DW_FORM_block1    DwarfForm = 0x0a // block with 1-byte length
 	DW_FORM_data1     DwarfForm = 0x0b // 1-byte constant data
 	DW_FORM_flag      DwarfForm = 0x0c // 1-byte flag (boolean)
-	DW_FORM_sdata     DwarfForm = 0x0d // sLEB128 constant
+	DW_FORM_sdata     DwarfForm = 0x0d // sleb128 constant
 	DW_FORM_strp      DwarfForm = 0x0e // offset into .debug_str (string section)
-	DW_FORM_udata     DwarfForm = 0x0f // uLEB128 constant
+	DW_FORM_udata     DwarfForm = 0x0f // uleb128 constant
 	DW_FORM_ref_addr  DwarfForm = 0x10 // address-sized reference to another DIE
 	DW_FORM_ref1      DwarfForm = 0x11 // 1-byte reference to another DIE
 	DW_FORM_ref2      DwarfForm = 0x12 // 2-byte reference to another DIE
 	DW_FORM_ref4      DwarfForm = 0x13 // 4-byte reference to another DIE
 	DW_FORM_ref8      DwarfForm = 0x14 // 8-byte reference to another DIE
-	DW_FORM_ref_udata DwarfForm = 0x15 // uLEB128 reference to another DIE
-	DW_FORM_indirect  DwarfForm = 0x16 // indirect form; next ULEB128 is the real form
+	DW_FORM_ref_udata DwarfForm = 0x15 // uleb128 reference to another DIE
+	DW_FORM_indirect  DwarfForm = 0x16 // indirect form; next uleb128 is the real form
 
 	// DWARF v4/v5-specific
 	DW_FORM_sec_offset     DwarfForm = 0x17 // offset into section (e.g. for ranges)
@@ -350,7 +353,7 @@ const (
 	DW_OP_constu         DwarfOpcode = 0x10 // push an unsigned constant onto the stack
 	DW_OP_fbreg          DwarfOpcode = 0x91 // push the frame base + signed offset onto the stack (local variables, DW_AT_location)
 	DW_OP_breg0          DwarfOpcode = 0x70 // push value of register + signed offset (DW_OP_breg0 ... DW_OP_breg31, breg0 is base)
-	DW_OP_call_frame_cfa DwarfOpcode = 0x9c // push the current CFA (call frame address) as defined by CFI (DW_AT_frame_base)
+	DW_OP_call_frame_cfa DwarfOpcode = 0x9c // push the current CFA (canonical frame address) as defined by CFI (DW_AT_frame_base)
 	DW_OP_plus           DwarfOpcode = 0x22 // pop two values, add them, push result
 	DW_OP_minus          DwarfOpcode = 0x1c // pop two values, subtract top from next-to-top, push result
 	DW_OP_deref          DwarfOpcode = 0x06 // pop an address, read a machine-sized value from that address, push value (indirect variables like pointers, references)
@@ -502,9 +505,9 @@ func ToSectionLength(endLabel, startLabel string) string {
 	return fmt.Sprintf("%v - %v - 4", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
 }
 
-// String representation of a relative reference between a target label and a source label.
-func ToRelativeReference(targetLabel, sourceLabel string) string {
-	return fmt.Sprintf("(%v - %v)", targetLabel, sourceLabel)
+// String representation of a compilation unit relative reference between a target label and a CU-base label in the .debug_info section.
+func ToRelativeReference(targetLabel, cuBaseLabel string) string {
+	return fmt.Sprintf("(%v - %v)", targetLabel, cuBaseLabel)
 }
 
 // String representation of a function length calculation based on its end and start labels.

@@ -969,7 +969,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 	// find predefined string composite data type in the debug string table
 	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
 
-	// string member data types for length and data
+	// debugging information entries for string member data types "length" and "data"
 	lengthMember := stringCompositeType.CompositeMembers[0]
 	lengthMemberLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.Name())
 	dataPointerMember := stringCompositeType.CompositeMembers[1]
@@ -1000,7 +1000,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		},
 	)
 
-	// subprogram entries
+	// subprogram entries and variable entries
 	subPrograms := make([]*elf.DebuggingInformationEntry, 0)
 
 	// extract file identifier required for subprogram and variable entries
@@ -1024,10 +1024,29 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				elf.NewAttributeItem(elf.Byte, elf.ToExpressionLocation(1, elf.DW_OP_call_frame_cfa)),
 				elf.NewAttributeItem(elf.Byte, uint8(1)),
 				elf.NewAttributeItem(elf.Byte, uint8(0)),
-
-				elf.NewAttributeItem(elf.Byte, uint8(0)),
 			},
 		))
+
+		// create debugging information entries for all variables located in the subprogram
+		for _, vd := range fd.Variables {
+			// source code line of variable declaration
+			line, _, _, _ := u.debugInformation.GetSourceCodeContext(vd.TokenStreamIndex)
+
+			// debugging information entry for variable data type
+			variableTypeLabel := elf.ToDebuggingInformationEntryLabel(vd.Type.Name())
+
+			subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
+				"",
+				elf.DW_CODE_variable,
+				[]*elf.AttributeItem{
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(vd.VariableName)),
+					elf.NewAttributeItem(elf.Byte, uint8(id)),
+					elf.NewAttributeItem(elf.Short, uint16(line)),
+					elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(variableTypeLabel, compilationUnitLabel)),
+					elf.NewAttributeItem(elf.Byte, 0),
+				},
+			))
+		}
 	}
 
 	// add compilation unit entries to the .debug_info section

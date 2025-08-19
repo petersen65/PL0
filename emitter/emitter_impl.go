@@ -1024,8 +1024,8 @@ func (e *emitter) prologue(btLabels []string, beginOfFunctionLabel string, debug
 	e.assemblyCode.AppendInstruction(x64.Mov, nil, index,
 		x64.NewRegisterOperand(x64.Rbp),
 		x64.NewRegisterOperand(x64.Rsp)).
-		AppendDirective(e.assemblyCode.Filter(elf.NewCfiDefCfaOffset(2 * x64.PointerSize))).
-		AppendDirective(e.assemblyCode.Filter(elf.NewCfiOffset(x64.Rbp.String(), -2*x64.PointerSize))).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiDefCfaOffset(elf.DwarfCfaOffset))).
+		AppendDirective(e.assemblyCode.Filter(elf.NewCfiOffset(x64.Rbp.String(), -elf.DwarfCfaOffset))).
 		AppendDirective(e.assemblyCode.Filter(elf.NewCfiDefCfaRegister(x64.Rbp.String())))
 }
 

@@ -6,6 +6,8 @@ package elf
 import (
 	"fmt"
 	"strings"
+
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Prefix and postfix for label names.
@@ -484,4 +486,158 @@ func ToExpressionLocation(length int, opcode ...DwarfOpcode) string {
 	}
 
 	return strings.TrimSpace(fmt.Sprintf("%#002x %s", length, strings.Join(opcodes, " ")))
+}
+
+// EmitFbregExprloc returns the DWARF exprloc bytes for a variable located at [rbp + d],
+// assuming Option A (DW_AT_frame_base = { DW_OP_call_frame_cfa }) where CFA = rbp + 16.
+// The expression is: { DW_OP_fbreg (d - 16) }.
+// Result layout: <ULEB128 length> <0x91> <SLEB128(d-16)>.
+func ToFrameBaseRegisterExpressionLocation(rbpVariableOffset, dwarfCfaOffset int64) []byte {
+	// convert RBP based variable offset to CFA based offset
+	fbregOffset := rbpVariableOffset - dwarfCfaOffset
+
+	// encode signed fbreg offset to SLEB128
+	slebFbregOffset := EncodeSleb128(fbregOffset)
+
+	// the frame base register expression location contains: <ULEB128 length> <DWARF fbreg opcode> <SLEB128(d-16)>
+	fbregExprLocLength := 2 + len(slebFbregOffset)
+
+	// allocate the expression location byte slice with length 0 and capacity "fbregExprLoc"
+	fbregExprLoc := make([]byte, 0, fbregExprLocLength)
+
+	// encode unsigned fbreg expression location length to ULEB128
+	ulebFbregExprLocLength := EncodeUleb128(uint64(fbregExprLocLength))
+
+	// append the ULEB encoded length, the DWARF fbreg opcode, and the SLEB encoded signed offset to the frame base register expression location
+	fbregExprLoc = append(fbregExprLoc, ulebFbregExprLocLength...)
+	fbregExprLoc = append(fbregExprLoc, byte(DW_OP_fbreg))
+	fbregExprLoc = append(fbregExprLoc, slebFbregOffset...)
+	
+	return fbregExprLoc
+}
+
+// EncodeSleb128 encodes a signed integer using DWARF SLEB128.
+func EncodeSleb128(v int64) []byte {
+	var out []byte
+	more := true
+
+	for more {
+		// extract the low 7 bits of the current value
+		b := byte(v & 0x7f)
+
+		// check if the 6th bit (sign bit in this 7-bit chunk) is set
+		// this is used to determine if we've encoded enough bits to represent the sign
+		sign := (b & 0x40) != 0
+
+		// shift the value right by 7 bits to prepare the next chunk
+		v >>= 7
+
+		// determine if more bytes are needed:
+		//   - if v is 0 and the sign bit of the last chunk is clear (positive), encoding is complete
+		//   - if v is -1 and the sign bit of the last chunk is set (negative), encoding is complete
+
+		// this ensures proper sign extension when decoding
+		if (v == 0 && !sign) || (v == -1 && sign) {
+			more = false
+		} else {
+			// set the continuation bit (bit 7) to indicate more bytes follow
+			b |= 0x80
+		}
+
+		out = append(out, b)
+	}
+
+	return out
+}
+
+// EncodeUleb128 encodes an unsigned integer using DWARF ULEB128.
+func EncodeUleb128(u uint64) []byte {
+	var out []byte
+
+	for {
+		// extract the low 7 bits of the current value
+		b := byte(u & 0x7f)
+
+		// shift the value right by 7 bits to prepare the next chunk
+		u >>= 7
+
+		if u != 0 {
+			// more bytes are needed, set the continuation bit (bit 7)
+			b |= 0x80
+			out = append(out, b)
+		} else {
+			// this is the last byte, no continuation bit needed
+			out = append(out, b)
+			break
+		}
+	}
+
+	return out
+}
+
+// DecodeSleb128 decodes a signed LEB128 value from a given byte sequence.
+func DecodeSleb128(b []byte) (int64, int, error) {
+	var result int64
+	var shift uint
+	var size = 64
+
+	for i, v := range b {
+		// extract the low 7 bits (data bits) from the current byte
+		byteVal := int64(v & 0x7f)
+
+		// shift the extracted bits to their proper position and OR them into the result
+		result |= byteVal << shift
+
+		// prepare for the next byte (each byte contributes 7 bits)
+		shift += 7
+
+		// check if this is the last byte (continuation bit is 0)
+		if v&0x80 == 0 {
+			// check if sign extension is needed: if bit 6 of the last byte is set (0x40), the number is negative and all higher bits must be filled with 1
+			if (v&0x40) != 0 && shift < uint(size) {
+				// sign extend by setting all bits above the current shift position to 1
+				result |= -(1 << shift)
+			}
+
+			// return the decoded value and the number of bytes consumed
+			return result, i + 1, nil
+		}
+
+		// check for overflow: cannot shift more than 64 bits for int64
+		if shift >= uint(size) {
+			return 0, 0, cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Error, sleb128DecodingOverflow, len(b), nil)
+		}
+	}
+
+	// if all bytes were exhausted without finding a terminating byte (continuation bit = 0), the decoding is incomplete
+	return 0, 0, cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Error, sleb128DecodingIncomplete, len(b), nil)
+}
+
+// DecodeUleb128 decodes an unsigned LEB128 value from a given byte sequence.
+func DecodeUleb128(b []byte) (uint64, int, error) {
+	var result uint64
+	var shift uint
+	var size = uint(64)
+
+	for i, v := range b {
+		// extract the low 7 bits (data bits) from the current byte and shift them to their proper position, then OR into the result
+		result |= uint64(v&0x7f) << shift
+
+		// check if this is the last byte (continuation bit is 0)
+		if v&0x80 == 0 {
+			// return the decoded value and the number of bytes consumed
+			return result, i + 1, nil
+		}
+
+		// prepare for the next byte (each byte contributes 7 bits)
+		shift += 7
+
+		// check for overflow: cannot shift more than 64 bits for uint64
+		if shift >= size {
+			return 0, 0, cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Error, uleb128DecodingOverflow, len(b), nil)
+		}
+	}
+
+	// if all bytes were exhausted without finding a terminating byte (continuation bit = 0), the decoding is incomplete
+	return 0, 0, cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Error, uleb128DecodingIncomplete, len(b), nil)
 }

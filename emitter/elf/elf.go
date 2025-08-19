@@ -147,7 +147,7 @@ const (
 // Call frame information attributes for the .cfi directives.
 const (
 	CallFrameInformationOffset   CallFrameInformationAttribute = iota // sets the CFA to be at RSP + offset after a "push rbp" instruction
-	CallFrameInformationRegister                                      // canonical frame address is now based on register (e.g., RSP or RBP)
+	CallFrameInformationRegister                                      // canonical frame address CFA is now based on register (e.g., RSP or RBP)
 )
 
 // Power-of-2 alignment values for the .p2align directive.

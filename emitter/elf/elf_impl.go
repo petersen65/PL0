@@ -265,7 +265,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// check if the values are nil, which is not allowed for read-only data items
 	if rdi.Values == nil {
-		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, nil, nil))
+		panic(cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Fatal, invalidReadOnlyDataValue, nil, nil))
 	}
 
 	// encode different kinds of read-only data
@@ -282,7 +282,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 			utf32 = values
 
 		default:
-			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
+			panic(cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
 		}
 
 		// write all code points with a newline after each item (expect the last one)
@@ -321,7 +321,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
+			panic(cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
 		}
 
 	case ReadOnlyStrDesc:
@@ -343,7 +343,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 					builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, desc))
 
 				default:
-					panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, invalidReadOnlyDataValue, value, nil))
+					panic(cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Fatal, invalidReadOnlyDataValue, value, nil))
 				}
 
 				if i < len(values)-1 {
@@ -353,7 +353,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownKindOfReadOnlyData, rdi.Kind, nil))
+		panic(cor.NewGeneralError(cor.ExecutableLinkableFormat, failureMap, cor.Fatal, unknownKindOfReadOnlyData, rdi.Kind, nil))
 	}
 
 	// the read-only data item string representation does not end with a newline
