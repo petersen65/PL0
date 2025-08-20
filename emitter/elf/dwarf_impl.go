@@ -296,6 +296,7 @@ var (
 		DW_LANG_C_plus_plus_23: "DW_LANG_C_plus_plus_23",
 		DW_LANG_lo_user:        "DW_LANG_lo_user",
 		DW_LANG_hi_user:        "DW_LANG_hi_user",
+		DW_LANG_PL0_76:         "DW_LANG_PL0_76",
 	}
 
 	// Map DWARF attribute encodings to their string representation.

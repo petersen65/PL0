@@ -264,7 +264,7 @@ const (
 	DW_UT_split_compile DwarfUnitType = 0x05 // split full compilation unit (.dwo / supplementary object)
 	DW_UT_split_type    DwarfUnitType = 0x06 // split type unit (.dwo / supplementary object)
 
-	// vendor range
+	// reserved for user extensions
 	DW_UT_lo_user DwarfUnitType = 0x80 // start of user-defined unit-types
 	DW_UT_hi_user DwarfUnitType = 0xff // end of user-defined unit-types
 )
@@ -314,9 +314,12 @@ const (
 	DW_LANG_C23            DwarfLanguage = 0x0029 // c23
 	DW_LANG_C_plus_plus_23 DwarfLanguage = 0x002a // c++23
 
-	// Reserved vendor range
-	DW_LANG_lo_user DwarfLanguage = 0x8000 // lo user
+	// reserved for user extensions
+	DW_LANG_lo_user DwarfLanguage = 0x8001 // lo user
 	DW_LANG_hi_user DwarfLanguage = 0xffff // hi user
+
+	// user extension for the programming language PL/0 from 1976
+	DW_LANG_PL0_76 DwarfLanguage = 0x8000
 )
 
 // DwarfAttributeEncoding represents DWARF v5 attribute base types.
@@ -344,7 +347,8 @@ const (
 	DW_ATE_lo_user DwarfAttributeEncoding = 0x81 // lo user
 	DW_ATE_hi_user DwarfAttributeEncoding = 0xff // hi user
 
-	DW_ATE_composite_no_encoding DwarfAttributeEncoding = 0x80 // user extension for composite types that do not have an attribute encoding
+	// user extension for composite types that do not have an attribute encoding
+	DW_ATE_composite_no_encoding DwarfAttributeEncoding = 0x80
 )
 
 // DwarfOpcode represents a single operation in a DWARF v5 expression (exprloc).

@@ -290,6 +290,15 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, unknownOutputKind, buildConfiguration.OutputKind, nil))
 	}
 
+	// check for debugging information completeness by validating the total number of functions
+	if unit.HasDebugInformation() {
+		dstab := unit.debugInformation.GetDebugStringTable()
+
+		if len(dstab.Functions) == 0 {
+			panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, debuggingInformationIncomplete, len(dstab.Functions), nil))
+		}
+	}
+
 	return unit
 }
 
@@ -475,7 +484,7 @@ func (u *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 // Append a set of instructions to create all runtime functions.
 func (u *assemblyCodeUnit) AppendRuntime() {
 	if u.HasDebugInformation() {
-		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, optimizationDebugNotSupportedinRuntime, u.BuildConfiguration.Optimization, nil))
+		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, optimizationDebugNotSupportedInRuntime, u.BuildConfiguration.Optimization, nil))
 	}
 
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
@@ -812,6 +821,8 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 			elf.NewAttributeForm(elf.DW_AT_language, elf.DW_FORM_data2),       // source language
 			elf.NewAttributeForm(elf.DW_AT_stmt_list, elf.DW_FORM_sec_offset), // line table offset
 			elf.NewAttributeForm(elf.DW_AT_producer, elf.DW_FORM_strp),        // compiler name and version
+			elf.NewAttributeForm(elf.DW_AT_low_pc, elf.DW_FORM_addr),          // start address
+			elf.NewAttributeForm(elf.DW_AT_high_pc, elf.DW_FORM_data4),        // length as 4-byte offset
 		})
 
 	// base type abbreviation entry
@@ -870,10 +881,10 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 			elf.NewAttributeForm(elf.DW_AT_linkage_name, elf.DW_FORM_strp),  // linkage name (mangled)
 			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),    // source file index
 			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),    // line in source file
+			elf.NewAttributeForm(elf.DW_AT_decl_column, elf.DW_FORM_data1),  // column in source file
 			elf.NewAttributeForm(elf.DW_AT_low_pc, elf.DW_FORM_addr),        // start address
 			elf.NewAttributeForm(elf.DW_AT_high_pc, elf.DW_FORM_data4),      // length as 4-byte offset
 			elf.NewAttributeForm(elf.DW_AT_frame_base, elf.DW_FORM_exprloc), // typically DW_OP_call_frame_cfa
-			elf.NewAttributeForm(elf.DW_AT_prototyped, elf.DW_FORM_flag),    // prototype used (always true for C23)
 			elf.NewAttributeForm(elf.DW_AT_external, elf.DW_FORM_flag),      // externally visible (global or local)
 		},
 	)
@@ -884,11 +895,12 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 		elf.DW_TAG_variable,
 		false,
 		[]*elf.AttributeForm{
-			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),        // name of the variable
-			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),  // source file index
-			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),  // line in source file
-			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),        // data type reference
-			elf.NewAttributeForm(elf.DW_AT_location, elf.DW_FORM_exprloc), // expression that computes the variable’s address
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),         // name of the variable
+			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),   // source file index
+			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),   // line in source file
+			elf.NewAttributeForm(elf.DW_AT_decl_column, elf.DW_FORM_data1), // column in source file
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),         // data type reference
+			elf.NewAttributeForm(elf.DW_AT_location, elf.DW_FORM_exprloc),  // expression that computes the variable’s address
 		},
 	)
 
@@ -925,6 +937,11 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 	// compilation unit label for relative references in the string type entry and for pointer types
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
 
+	// determine names of the first and last function in the compilation unit
+	// note: the assembly code unit does not allow debugging information without functions and hence at least one function must be present
+	firstFunctionName := dstab.Functions[0].FunctionName
+	lastFunctionName := dstab.Functions[len(dstab.Functions)-1].FunctionName
+
 	// compilation unit header entry
 	compilationUnitHeader := elf.NewDebuggingInformationEntry(
 		"",
@@ -945,9 +962,11 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		[]*elf.AttributeItem{
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationUnitLabel)),
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationDirectoryLabel)),
-			elf.NewAttributeItem(elf.Short, uint16(elf.DW_LANG_Pascal83)),
+			elf.NewAttributeItem(elf.Short, uint16(elf.DW_LANG_PL0_76)),
 			elf.NewAttributeItem(elf.Long, uint32(debugLineSectionStartOffset)),
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.ProducerLabel)),
+			elf.NewAttributeItem(elf.Quad, firstFunctionName),
+			elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(lastFunctionName), firstFunctionName)),
 		},
 	)
 
@@ -1022,18 +1041,15 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 	// create debugging information entries for each subprogram and its child variables
 	for _, fd := range dstab.Functions {
 		// source code line of function declaration
-		line, _, _, _ := u.debugInformation.GetSourceCodeContext(fd.TokenStreamIndex)
+		line, column, _, _ := u.debugInformation.GetSourceCodeContext(fd.TokenStreamIndex)
 
 		// named flags for function attributes
-		var external, prototyped uint8
+		var external uint8
 
 		// flag whether the function is exposed as global symbol
 		if fd.GlobalSymbol {
 			external = 1
 		}
-
-		// mark all functions as prototyped so that they have a declaration signature with all parameters
-		prototyped = 1
 
 		// create debugging information entry for a subprogram
 		subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
@@ -1044,10 +1060,10 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
 				elf.NewAttributeItem(elf.Byte, uint8(id)),
 				elf.NewAttributeItem(elf.Short, uint16(line)),
+				elf.NewAttributeItem(elf.Byte, uint8(column)),
 				elf.NewAttributeItem(elf.Quad, fd.FunctionName),
 				elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(fd.FunctionName), fd.FunctionName)),
 				elf.NewAttributeItem(elf.Byte, []byte{1, byte(elf.DW_OP_call_frame_cfa)}),
-				elf.NewAttributeItem(elf.Byte, uint8(prototyped)),
 				elf.NewAttributeItem(elf.Byte, uint8(external)),
 			},
 		))
@@ -1055,7 +1071,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		// create debugging information entries for all child variables located in the subprogram
 		for _, vd := range fd.Variables {
 			// source code line of variable declaration
-			line, _, _, _ := u.debugInformation.GetSourceCodeContext(vd.TokenStreamIndex)
+			line, column, _, _ := u.debugInformation.GetSourceCodeContext(vd.TokenStreamIndex)
 
 			// debugging information entry for variable data type
 			variableTypeLabel := elf.ToDebuggingInformationEntryLabel(vd.Type.Name())
@@ -1067,6 +1083,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(vd.VariableName)),
 					elf.NewAttributeItem(elf.Byte, uint8(id)),
 					elf.NewAttributeItem(elf.Short, uint16(line)),
+					elf.NewAttributeItem(elf.Byte, uint8(column)),
 					elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(variableTypeLabel, compilationUnitLabel)),
 					elf.NewAttributeItem(elf.Byte, elf.ToFrameBaseRegisterExpressionLocation(int64(vd.Offset), elf.DwarfCfaOffset)),
 				},

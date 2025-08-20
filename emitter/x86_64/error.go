@@ -13,7 +13,8 @@ const (
 	unknownKindOfReadOnlyData
 	unknownOutputKind
 	invalidAttributeForDirective
-	optimizationDebugNotSupportedinRuntime
+	debuggingInformationIncomplete
+	optimizationDebugNotSupportedInRuntime
 	compilationDetailsAndProducerRequired
 	predefinedDataTypeRequired
 	unexpectedDataTypeKind
@@ -28,7 +29,8 @@ var failureMap = map[cor.Failure]string{
 	unknownKindOfReadOnlyData:              "unknown kind of read-only data: %v",
 	unknownOutputKind:                      "unknown output kind for assembly code: %v",
 	invalidAttributeForDirective:           "invalid attribute for directive: %v",
-	optimizationDebugNotSupportedinRuntime: "debug optimization is not supported for runtime functions: %v",
+	debuggingInformationIncomplete:         "debugging information is incomplete: %v",
+	optimizationDebugNotSupportedInRuntime: "debug optimization is not supported for runtime functions: %v",
 	compilationDetailsAndProducerRequired:  "compilation details and producer are required for debug information",
 	predefinedDataTypeRequired:             "predefined data type is required for debug information: %v",
 	unexpectedDataTypeKind:                 "unexpected kind of data type: %v",
