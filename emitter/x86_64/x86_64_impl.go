@@ -889,6 +889,21 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 		},
 	)
 
+	// constant abbreviation entry
+	constant := elf.NewAbbreviationEntry(
+		elf.DW_CODE_constant,
+		elf.DW_TAG_constant,
+		false,
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),         // name of the constant
+			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),   // source file index
+			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),   // line in source file
+			elf.NewAttributeForm(elf.DW_AT_decl_column, elf.DW_FORM_data1), // column in source file
+			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),         // data type reference
+			elf.NewAttributeForm(elf.DW_AT_const_value, elf.DW_FORM_sdata), // constant value as signed data
+		},
+	)
+
 	// variable abbreviation entry
 	variable := elf.NewAbbreviationEntry(
 		elf.DW_CODE_variable,
@@ -914,6 +929,7 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 	u.DebugAbbrevSection.Append(structureType)
 	u.DebugAbbrevSection.Append(structMember)
 	u.DebugAbbrevSection.Append(subprogram)
+	u.DebugAbbrevSection.Append(constant)
 	u.DebugAbbrevSection.Append(variable)
 	u.DebugAbbrevSection.Append(termination)
 }
@@ -1068,6 +1084,28 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			},
 		))
 
+		// create debugging information entries for all child constants located in the subprogram
+		for _, cd := range fd.Constants {
+			// source code line of constant declaration
+			line, column, _, _ := u.debugInformation.GetSourceCodeContext(cd.TokenStreamIndex)
+
+			// debugging information entry for constant data type
+			constantTypeLabel := elf.ToDebuggingInformationEntryLabel(cd.Type.Name())
+
+			subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
+				"",
+				elf.DW_CODE_constant,
+				[]*elf.AttributeItem{
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(cd.ConstantName)),
+					elf.NewAttributeItem(elf.Byte, uint8(id)),
+					elf.NewAttributeItem(elf.Short, uint16(line)),
+					elf.NewAttributeItem(elf.Byte, uint8(column)),
+					elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(constantTypeLabel, compilationUnitLabel)),
+					elf.NewAttributeItem(elf.Sleb128, cd.Value),
+				},
+			))
+		}
+
 		// create debugging information entries for all child variables located in the subprogram
 		for _, vd := range fd.Variables {
 			// source code line of variable declaration
@@ -1157,6 +1195,18 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 
 			// add the function name from source code to the .debug_str section
 			u.DebugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
+		}
+	}
+
+	// iterate over all constants
+	for _, cd := range dstab.Constants {
+		// ensure that the constant name is a unique label name in the .debug_str section
+		if ok, exists := labels[cd.ConstantName]; !ok || !exists {
+			// mark the constant name as used
+			labels[cd.ConstantName] = true
+
+			// add the constant name to the .debug_str section
+			u.DebugStrSection.Append(elf.NewStringItem(cd.ConstantName, elf.String, cd.ConstantNameSource))
 		}
 	}
 

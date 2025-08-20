@@ -22,6 +22,7 @@ type (
 		String               string                 `json:"string"`                // name of the string data type so that it can be specifically handled
 		Optimized            bool                   `json:"optimized"`             // whether the code is optimized
 		Functions            []*FunctionDescription `json:"functions"`             // list of all functions in the compilation unit
+		Constants            []*ConstantDescription `json:"constants"`             // list of all constants in the compilation unit
 		Variables            []*VariableDescription `json:"variables"`             // list of all variables in the compilation unit
 		DataTypes            []DataTypeDescription  `json:"data_types"`            // list of all data types in the compilation unit
 	}
@@ -32,7 +33,19 @@ type (
 		FunctionNameSource string                 `json:"name_source"`        // name of the function in the source code
 		GlobalSymbol       bool                   `json:"global_symbol"`      // whether the function is exposed as global symbol
 		TokenStreamIndex   int                    `json:"token_stream_index"` // index of the token stream for the function (e.g., line, column)
+		Constants          []*ConstantDescription `json:"constants"`          // list of constants in the function
 		Variables          []*VariableDescription `json:"variables"`          // list of variables in the function
+	}
+
+	// ConstantDescription holds information about a constant.
+	ConstantDescription struct {
+		ConstantName       string              `json:"name"`               // name of the constant
+		ConstantNameSource string              `json:"name_source"`        // name in the source code
+		FunctionName       string              `json:"function"`           // containing function
+		FunctionNameSource string              `json:"function_source"`    // function name in the source code
+		Type               DataTypeDescription `json:"type"`               // data type of the constant
+		Value              any                 `json:"value"`              // value of the constant
+		TokenStreamIndex   int                 `json:"token_stream_index"` // index of the token stream for the constant (e.g., line, column)
 	}
 
 	// VariableDescription holds information about a variable.
@@ -43,7 +56,7 @@ type (
 		FunctionNameSource string              `json:"function_source"`    // function name in the source code
 		Type               DataTypeDescription `json:"type"`               // data type of the variable
 		Offset             int32               `json:"offset"`             // offset in memory space (will be set separately)
-		TokenStreamIndex   int                 `json:"token_stream_index"` // token stream index
+		TokenStreamIndex   int                 `json:"token_stream_index"` // index of the token stream for the variable (e.g., line, column)
 	}
 
 	// SimpleDataType represents primitive/built-in data types.
@@ -90,6 +103,7 @@ type (
 	// DebugInformation provides methods to collect and retrieve debug information.
 	DebugInformation interface {
 		AppendFunction(name, nameSource string, globalSymbol bool, tokenStreamIndex int) bool
+		AppendConstant(function, functionSource, name, nameSource string, dataType DataTypeDescription, value any, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool
 		AppendDataType(dataType DataTypeDescription) bool
 		AppendMember(compositeName, name, nameSource string, dataType DataTypeDescription) bool

@@ -70,6 +70,19 @@ func newFunctionDescription(name, nameSource string, globalSymbol bool, tokenStr
 	}
 }
 
+// Create a new constant description for a constant in the compilation unit.
+func newConstantDescription(function, functionSource, name, nameSource string, dataType DataTypeDescription, value any, tokenStreamIndex int) *ConstantDescription {
+	return &ConstantDescription{
+		ConstantName:       name,
+		ConstantNameSource: nameSource,
+		FunctionName:       function,
+		FunctionNameSource: functionSource,
+		Type:               dataType,
+		Value:              value,
+		TokenStreamIndex:   tokenStreamIndex,
+	}
+}
+
 // Create a new variable description for a variable in the compilation unit.
 func newVariableDescription(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) *VariableDescription {
 	return &VariableDescription{
@@ -89,6 +102,41 @@ func (d *debugInformation) AppendFunction(name, nameSource string, globalSymbol 
 	}
 
 	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, globalSymbol, tokenStreamIndex))
+	return true
+}
+
+// Append a constant description to the debug information.
+func (d *debugInformation) AppendConstant(function, functionSource, name, nameSource string, dataType DataTypeDescription, value any, tokenStreamIndex int) bool {
+	// find the function
+	index := slices.IndexFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == function })
+
+	// function not found
+	if index == -1 {
+		return false
+	}
+
+	// extract function description
+	fd := d.table.Functions[index]
+
+	// check if the constant already exists in the function
+	if slices.ContainsFunc(fd.Constants, func(cd *ConstantDescription) bool { return cd.ConstantName == name }) {
+		return false
+	}
+
+	// check if the data type already exists and append it if not
+	if index := slices.IndexFunc(d.table.DataTypes, func(dtd DataTypeDescription) bool { return dtd.Name() == dataType.Name() }); index == -1 {
+		d.AppendDataType(dataType)
+	} else {
+		dataType = d.table.DataTypes[index]
+	}
+
+	// create the constant description
+	cd := newConstantDescription(function, functionSource, name, nameSource, dataType, value, tokenStreamIndex)
+
+	// add to both function's constant list and global constant list
+	fd.Constants = append(fd.Constants, cd)
+	d.table.Constants = append(d.table.Constants, cd)
+
 	return true
 }
 
@@ -349,6 +397,17 @@ func (dst *DebugStringTable) FindVariable(function, name string) *VariableDescri
 		return vd.FunctionName == function && vd.VariableName == name
 	}); index != -1 {
 		return dst.Variables[index]
+	}
+
+	return nil
+}
+
+// Find a constant by function name and constant name in the debug string table.
+func (dst *DebugStringTable) FindConstant(function, name string) *ConstantDescription {
+	if index := slices.IndexFunc(dst.Constants, func(cd *ConstantDescription) bool {
+		return cd.FunctionName == function && cd.ConstantName == name
+	}); index != -1 {
+		return dst.Constants[index]
 	}
 
 	return nil

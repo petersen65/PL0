@@ -30,6 +30,7 @@ const (
 	DW_CODE_structure_type             // structure type (e.g., struct {int a; float b;})
 	DW_CODE_member                     // field member of a structure type (e.g., a or b)
 	DW_CODE_subprogram                 // subprogram (e.g., function)
+	DW_CODE_constant                   // constant (e.g., literal value with a name in a function)
 	DW_CODE_variable                   // variable (e.g., local variable in a function)
 
 	// DWARF codes with special meaning

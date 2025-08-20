@@ -866,25 +866,38 @@ func collectDebugStringTable(node ast.Node, code any) {
 
 		// append the function to the debug information
 		if info.AppendFunction(function, functionSource, function == cor.EntryPointLabel, tokenStreamIndex) {
-			// append all variable declarations of the function to the debug information
+			// append all constant declarations and variable declarations of the function to the debug information
 			for _, declaration := range n.Declarations {
-				if declaration.Type() == ast.VariableDeclarationType {
-					// treat the declaration as a variable declaration
-					vd := declaration.(*ast.VariableDeclarationNode)
+				switch dn := declaration.(type) {
+				case *ast.ConstantDeclarationNode:
+					// determine the intermediate code name of the abstract syntax constant declaration
+					name := dn.Scope.LookupCurrent(dn.Name).Extension[symbolExtension].(*symbolMetaData).name
 
+					// take the abstract syntax constant declaration name as the constant source name
+					nameSource := dn.Name
+
+					// extract the data type name of the constant from intermediate code and abstract syntax
+					dataTypeName := dataTypeMap[dn.DataType].String()
+					dataTypeNameSource := dn.DataType.String()
+
+					// append the local constant of the function to the debug information
+					constantType := cor.NewSimpleDataType(dataTypeName, dataTypeNameSource)
+					info.AppendConstant(function, functionSource, name, nameSource, constantType, dn.Value, dn.TokenStreamIndex)
+
+				case *ast.VariableDeclarationNode:
 					// determine the intermediate code name of the abstract syntax variable declaration
-					name := vd.Scope.LookupCurrent(vd.Name).Extension[symbolExtension].(*symbolMetaData).name
+					name := dn.Scope.LookupCurrent(dn.Name).Extension[symbolExtension].(*symbolMetaData).name
 
 					// take the abstract syntax variable declaration name as the variable source name
-					nameSource := vd.Name
+					nameSource := dn.Name
 
 					// extract the data type name of the variable from intermediate code and abstract syntax
-					dataTypeName := dataTypeMap[vd.DataType].String()
-					dataTypeNameSource := vd.DataType.String()
+					dataTypeName := dataTypeMap[dn.DataType].String()
+					dataTypeNameSource := dn.DataType.String()
 
 					// append the local variable of the function to the debug information
 					variableType := cor.NewSimpleDataType(dataTypeName, dataTypeNameSource)
-					info.AppendVariable(function, functionSource, name, nameSource, variableType, vd.TokenStreamIndex)
+					info.AppendVariable(function, functionSource, name, nameSource, variableType, dn.TokenStreamIndex)
 				}
 			}
 		}
