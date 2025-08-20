@@ -34,7 +34,7 @@ const (
 
 	// DWARF codes with special meaning
 	DW_CODE_suppression DwarfCode = -1 // suppression code (code will not be emitted)
-	DW_CODE_termination DwarfCode = 0  // termination code (0 for ending a DWARF section)
+	DW_CODE_termination DwarfCode = 0  // termination code (0 for ending the DWARF abbreviation section)
 )
 
 // DwarfTag represents DWARF v5 tag values for debugging information entries.

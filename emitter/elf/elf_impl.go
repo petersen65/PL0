@@ -189,6 +189,10 @@ func (s *ElfSection[T]) String() string {
 				parts[i] = s.Attributes[i].String()
 			}
 
+			if s.EntitySize > 0 {
+				parts = append(parts, fmt.Sprintf("%v", s.EntitySize))
+			}
+
 			builder.WriteString("," + strings.Join(parts, ","))
 		}
 

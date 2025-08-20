@@ -865,7 +865,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 		}
 
 		// append the function to the debug information
-		if info.AppendFunction(function, functionSource, tokenStreamIndex) {
+		if info.AppendFunction(function, functionSource, function == cor.EntryPointLabel, tokenStreamIndex) {
 			// append all variable declarations of the function to the debug information
 			for _, declaration := range n.Declarations {
 				if declaration.Type() == ast.VariableDeclarationType {

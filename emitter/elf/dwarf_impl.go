@@ -388,6 +388,9 @@ func (a *AttributeItem) String() string {
 	case uint16:
 		return fmt.Sprintf("%-*v%#004x", directiveWidth, a.Directive, operand)
 
+	case uint32:
+		return fmt.Sprintf("%-*v%#008x", directiveWidth, a.Directive, operand)
+
 	case []byte:
 		representation := make([]string, len(operand))
 

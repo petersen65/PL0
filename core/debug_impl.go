@@ -60,10 +60,11 @@ func newDebugStringTable(compilationUnit, compilationDirectory, producer, string
 }
 
 // Create a new function description for a function in the compilation unit.
-func newFunctionDescription(name, nameSource string, tokenStreamIndex int) *FunctionDescription {
+func newFunctionDescription(name, nameSource string, globalSymbol bool, tokenStreamIndex int) *FunctionDescription {
 	return &FunctionDescription{
 		FunctionName:       name,
 		FunctionNameSource: nameSource,
+		GlobalSymbol:       globalSymbol,
 		TokenStreamIndex:   tokenStreamIndex,
 		Variables:          make([]*VariableDescription, 0),
 	}
@@ -82,12 +83,12 @@ func newVariableDescription(function, functionSource, name, nameSource string, d
 }
 
 // Append a function description to the debug information.
-func (d *debugInformation) AppendFunction(name, nameSource string, tokenStreamIndex int) bool {
+func (d *debugInformation) AppendFunction(name, nameSource string, globalSymbol bool, tokenStreamIndex int) bool {
 	if slices.ContainsFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == name }) {
 		return false
 	}
 
-	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, tokenStreamIndex))
+	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, globalSymbol, tokenStreamIndex))
 	return true
 }
 
@@ -212,69 +213,69 @@ func (d *debugInformation) UpdatePointerDataTypeSizes(size int32) bool {
 // Recursively update the sizes of all composite data types in the debug information.
 // Note: all simple and pointer data types must have their sizes set before calling this function.
 func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
-    found := false
-    
-    // track which types are being processed to detect circular references
-    processing := make(map[string]bool)
+	found := false
 
-    // cache calculated sizes of types to avoid recalculation
-    calculated := make(map[string]bool)
+	// track which types are being processed to detect circular references
+	processing := make(map[string]bool)
 
-    // declaration of internal recursive function to calculate size (required because of recursive calls)
-    var calculateSize func(dataType DataTypeDescription) int32
+	// cache calculated sizes of types to avoid recalculation
+	calculated := make(map[string]bool)
+
+	// declaration of internal recursive function to calculate size (required because of recursive calls)
+	var calculateSize func(dataType DataTypeDescription) int32
 
 	// definition of internal recursive function to calculate size (knows itself because of declaration)
 	calculateSize = func(dataType DataTypeDescription) int32 {
-        // if already calculated, just return the size
-        if calculated[dataType.Name()] {
-            return dataType.Size()
-        }
+		// if already calculated, just return the size
+		if calculated[dataType.Name()] {
+			return dataType.Size()
+		}
 
 		// handle different data type kinds
 		switch dt := dataType.(type) {
-        case *SimpleDataType, *PointerDataType:
-            // simple and pointer types must already have their sizes set
-            calculated[dt.Name()] = true
-            return dt.Size()
+		case *SimpleDataType, *PointerDataType:
+			// simple and pointer types must already have their sizes set
+			calculated[dt.Name()] = true
+			return dt.Size()
 
 		case *CompositeDataType:
-            // check for circular reference
-            if processing[dt.Name()] {
-                panic(NewGeneralError(Core, failureMap, Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
-            }
+			// check for circular reference
+			if processing[dt.Name()] {
+				panic(NewGeneralError(Core, failureMap, Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
+			}
 
-            // processing of this composite data type is running
-            processing[dt.Name()] = true
+			// processing of this composite data type is running
+			processing[dt.Name()] = true
 
-            // always reset the size before calculating
-            dt.ByteSize = 0
-            
-            // recursively calculate size of each member
-            for i := range dt.CompositeMembers {
-                dt.ByteSize += calculateSize(dt.CompositeMembers[i].Type)
-            }
+			// always reset the size before calculating
+			dt.ByteSize = 0
+
+			// recursively calculate size of each member
+			for i := range dt.CompositeMembers {
+				dt.ByteSize += calculateSize(dt.CompositeMembers[i].Type)
+			}
 
 			// processing of this composite data type is complete
-            delete(processing, dt.Name())
+			delete(processing, dt.Name())
 
-            // mark this composite data type as calculated
-            calculated[dt.Name()] = true
-            return dt.ByteSize
+			// mark this composite data type as calculated
+			calculated[dt.Name()] = true
+			return dt.ByteSize
 
 		default:
 			panic(NewGeneralError(Core, failureMap, Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
 		}
-    }
+	}
 
-    // process all composite data types by calling the internal calculation function
-    for i := range d.table.DataTypes {
-        if d.table.DataTypes[i].Kind() == DataTypeComposite {
-            calculateSize(d.table.DataTypes[i])
-            found = true
-        }
-    }
-    
-    return found
+	// process all composite data types by calling the internal calculation function
+	for i := range d.table.DataTypes {
+		if d.table.DataTypes[i].Kind() == DataTypeComposite {
+			calculateSize(d.table.DataTypes[i])
+			found = true
+		}
+	}
+
+	return found
 }
 
 // Update the offset of all members in all composite data types that exists in the debug information.
