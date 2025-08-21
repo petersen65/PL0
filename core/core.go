@@ -17,6 +17,9 @@ const EntryPointLabel = "main"
 // Separator for optimization algorithm names.
 const OptimizationSeparator = "|"
 
+// Number of Unicode code points per tabulator UTF-8 character.
+const TabulatorSize = 4
+
 // Operating systems for which the assembly code is generated.
 const (
 	MacOS   OperatingSystem = iota // macOS 2026 or later, supported on AArch64 (Apple Silicon)

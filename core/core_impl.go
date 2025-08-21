@@ -3,7 +3,13 @@
 
 package core
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
+
+// Maximum number of allowed UTF-8 decoding errors before source content decoding is aborted.
+const maxDecodingErrors = 5
 
 var (
 	// Map target operating systems to their names.
@@ -80,4 +86,40 @@ func (o Optimization) String() string {
 	}
 
 	return strings.Join(representation, OptimizationSeparator)
+}
+
+// Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code (Unicode code points).
+func CreateSourceCode(content []byte) []rune {
+	var decodingErrors int
+	sourceCode := make([]rune, 0, 4*len(content))
+	tabulator := []rune(strings.Repeat(" ", TabulatorSize))
+
+	// iterate over the binary content and decode each UTF-8 character
+	for i := 0; i < len(content); {
+		// decode the next UTF-8 character from the source content
+		codepoint, width := utf8.DecodeRune(content[i:])
+
+		// check for decoding errors, replace tabulators, and only append valid Unicode code points to the source code
+		switch codepoint {
+		case utf8.RuneError:
+			decodingErrors++
+			sourceCode = append(sourceCode, ' ')
+
+		case '\t':
+			sourceCode = append(sourceCode, tabulator...)
+
+		default:
+			sourceCode = append(sourceCode, codepoint)
+		}
+
+		// increment the index by the byte size of the decoded rune
+		i += width
+
+		// abort decoding with empty source code if too many errors occurred
+		if decodingErrors > maxDecodingErrors {
+			return make([]rune, 0)
+		}
+	}
+
+	return sourceCode
 }
