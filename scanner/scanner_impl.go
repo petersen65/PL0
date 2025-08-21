@@ -107,32 +107,33 @@ func (s *scanner) scan() (cor.TokenStream, error) {
 			return tokenStream, nil
 		}
 
-		token := s.getToken()
+		token, characters := s.getToken()
 
 		tokenStream = append(tokenStream, cor.TokenDescription{
 			Token:       token,
 			TokenName:   token.String(),
 			TokenValue:  s.lastValue,
 			Line:        s.line,
-			Column:      s.column,
+			Column:      s.column - characters,
 			CurrentLine: s.currentLine,
 		})
 	}
 }
 
-// Return identifier, reserved word, number, or operator token.
-func (s *scanner) getToken() cor.Token {
+// Return identifier, reserved word, number, operator token, and the number of consumed UTF-8 characters.
+func (s *scanner) getToken() (cor.Token, int) {
+	lastColumn := s.column
 	s.lastValue = ""
 
 	switch {
 	case s.isIdentifierOrWord():
-		return s.identifierOrWord()
+		return s.identifierOrWord(), s.column - lastColumn
 
 	case s.isNumber():
-		return s.number()
+		return s.number(), s.column - lastColumn
 
 	default:
-		return s.operatorOrStatement()
+		return s.operatorOrStatement(), s.column - lastColumn
 	}
 }
 
