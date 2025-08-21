@@ -40,7 +40,9 @@ var (
 		DW_CODE_structure_type:   "DW_CODE_structure_type",
 		DW_CODE_member:           "DW_CODE_member",
 		DW_CODE_subprogram:       "DW_CODE_subprogram",
+		DW_CODE_constant:         "DW_CODE_constant",
 		DW_CODE_variable:         "DW_CODE_variable",
+		DW_CODE_subprogram_main:  "DW_CODE_subprogram_main",
 		DW_CODE_suppression:      "DW_CODE_suppression",
 		DW_CODE_termination:      "DW_CODE_termination",
 	}
@@ -353,7 +355,7 @@ func (i *StringItem) String() string {
 
 // String representation of an DWARF attribute form.
 func (a *AttributeForm) String() string {
-	const commentWidth = 20
+	const commentWidth = 25
 	const encodingWidth = 10
 
 	comment := strings.TrimSpace(fmt.Sprintf(

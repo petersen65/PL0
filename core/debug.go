@@ -32,6 +32,7 @@ type (
 		FunctionName       string                 `json:"name"`               // name of the function in the compilation unit
 		FunctionNameSource string                 `json:"name_source"`        // name of the function in the source code
 		GlobalSymbol       bool                   `json:"global_symbol"`      // whether the function is exposed as global symbol
+		EntryPoint         bool                   `json:"entry_point"`        // whether the function is the entry point
 		TokenStreamIndex   int                    `json:"token_stream_index"` // index of the token stream for the function (e.g., line, column)
 		Constants          []*ConstantDescription `json:"constants"`          // list of constants in the function
 		Variables          []*VariableDescription `json:"variables"`          // list of variables in the function
@@ -102,7 +103,7 @@ type (
 
 	// DebugInformation provides methods to collect and retrieve debug information.
 	DebugInformation interface {
-		AppendFunction(name, nameSource string, globalSymbol bool, tokenStreamIndex int) bool
+		AppendFunction(name, nameSource string, globalSymbol, entryPoint bool, tokenStreamIndex int) bool
 		AppendConstant(function, functionSource, name, nameSource string, dataType DataTypeDescription, value any, tokenStreamIndex int) bool
 		AppendVariable(function, functionSource, name, nameSource string, dataType DataTypeDescription, tokenStreamIndex int) bool
 		AppendDataType(dataType DataTypeDescription) bool

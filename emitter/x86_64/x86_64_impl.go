@@ -867,7 +867,7 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 		[]*elf.AttributeForm{
 			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),                  // member name
 			elf.NewAttributeForm(elf.DW_AT_type, elf.DW_FORM_ref4),                  // data type reference
-			elf.NewAttributeForm(elf.DW_AT_data_member_location, elf.DW_FORM_data1), // byte offset from the start of the struct
+			elf.NewAttributeForm(elf.DW_AT_data_member_location, elf.DW_FORM_udata), // byte offset from the start of the struct
 		},
 	)
 
@@ -919,6 +919,25 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 		},
 	)
 
+	// subprogram abbreviation entry
+	subprogramMain := elf.NewAbbreviationEntry(
+		elf.DW_CODE_subprogram_main,
+		elf.DW_TAG_subprogram,
+		true,
+		[]*elf.AttributeForm{
+			elf.NewAttributeForm(elf.DW_AT_name, elf.DW_FORM_strp),                    // function name
+			elf.NewAttributeForm(elf.DW_AT_linkage_name, elf.DW_FORM_strp),            // linkage name (mangled)
+			elf.NewAttributeForm(elf.DW_AT_decl_file, elf.DW_FORM_data1),              // source file index
+			elf.NewAttributeForm(elf.DW_AT_decl_line, elf.DW_FORM_data2),              // line in source file
+			elf.NewAttributeForm(elf.DW_AT_decl_column, elf.DW_FORM_data1),            // column in source file
+			elf.NewAttributeForm(elf.DW_AT_low_pc, elf.DW_FORM_addr),                  // start address
+			elf.NewAttributeForm(elf.DW_AT_high_pc, elf.DW_FORM_data4),                // length as 4-byte offset
+			elf.NewAttributeForm(elf.DW_AT_frame_base, elf.DW_FORM_exprloc),           // typically DW_OP_call_frame_cfa
+			elf.NewAttributeForm(elf.DW_AT_external, elf.DW_FORM_flag),                // externally visible (global or local)
+			elf.NewAttributeForm(elf.DW_AT_main_subprogram, elf.DW_FORM_flag_present), // main subprogram (true/false)
+		},
+	)
+
 	// the termination abbreviation entry is used to mark the end of abbreviation entries in the .debug_abbrev section
 	termination := elf.NewAbbreviationEntry(elf.DW_CODE_termination, 0, false, nil)
 
@@ -931,6 +950,7 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 	u.DebugAbbrevSection.Append(subprogram)
 	u.DebugAbbrevSection.Append(constant)
 	u.DebugAbbrevSection.Append(variable)
+	u.DebugAbbrevSection.Append(subprogramMain)
 	u.DebugAbbrevSection.Append(termination)
 }
 
@@ -946,9 +966,9 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 
 	// debugging information entries for string member data types "length" and "data"
 	lengthMember := stringCompositeType.CompositeMembers[0]
-	lengthMemberLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.Name())
+	lengthMemberTypeLabel := elf.ToDebuggingInformationEntryLabel(lengthMember.Type.Name())
 	dataPointerMember := stringCompositeType.CompositeMembers[1]
-	dataPointerMemberLabel := elf.ToDebuggingInformationEntryLabel(dataPointerMember.Type.Name())
+	dataPointerMemberTypeLabel := elf.ToDebuggingInformationEntryLabel(dataPointerMember.Type.Name())
 
 	// compilation unit label for relative references in the string type entry and for pointer types
 	compilationUnitLabel := elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel)
@@ -1035,14 +1055,14 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			elf.NewAttributeItem(elf.Byte, uint8(stringCompositeType.Size())),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.Type.Name())),
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(lengthMemberLabel, compilationUnitLabel)),
-			elf.NewAttributeItem(elf.Byte, uint8(lengthMember.Offset)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.MemberName)),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(lengthMemberTypeLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Uleb128, uint32(lengthMember.Offset)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.Type.Name())),
-			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(dataPointerMemberLabel, compilationUnitLabel)),
-			elf.NewAttributeItem(elf.Byte, uint8(dataPointerMember.Offset)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.MemberName)),
+			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(dataPointerMemberTypeLabel, compilationUnitLabel)),
+			elf.NewAttributeItem(elf.Uleb128, uint32(dataPointerMember.Offset)),
 
 			elf.NewAttributeItem(elf.Byte, uint8(0)),
 		},
@@ -1062,15 +1082,23 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		// named flags for function attributes
 		var external uint8
 
+		// valid for all subprograms except the entry point
+		subProgramCode := elf.DW_CODE_subprogram
+
 		// flag whether the function is exposed as global symbol
 		if fd.GlobalSymbol {
 			external = 1
 		}
 
+		// if the function is the entry point, a specific DWARF code is used
+		if fd.EntryPoint {
+			subProgramCode = elf.DW_CODE_subprogram_main
+		}
+
 		// create debugging information entry for a subprogram
 		subPrograms = append(subPrograms, elf.NewDebuggingInformationEntry(
 			"",
-			elf.DW_CODE_subprogram,
+			subProgramCode,
 			[]*elf.AttributeItem{
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionNameSource)),
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
@@ -1174,7 +1202,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 	u.DebugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
 	u.DebugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
 
-	// deduplicate function, variable, and data type names ensuring unique label names in the .debug_str section
+	// deduplicate function, constant, variable, and data type names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)
 
 	// iterate over all functions
@@ -1213,28 +1241,66 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 	// iterate over all variables
 	for _, vd := range dstab.Variables {
 		// ensure that the variable name is a unique label name in the .debug_str section
-		if ok, exists := labels[vd.VariableName]; ok && exists {
-			continue
+		if ok, exists := labels[vd.VariableName]; !ok || !exists {
+			// mark the variable name as used
+			labels[vd.VariableName] = true
+
+			// add the variable name to the .debug_str section
+			u.DebugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
 		}
-
-		// mark the variable name as used
-		labels[vd.VariableName] = true
-
-		// add the variable name to the .debug_str section
-		u.DebugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
 	}
 
-	// iterate over all data types
-	for _, dtd := range dstab.DataTypes {
-		// ensure that the data type name is a unique label name in the .debug_str section
-		if ok, exists := labels[dtd.Name()]; ok && exists {
-			continue
+	// declaration of internal recursive function to iterate over all kinds of data types
+	var iterateDataTypes func(dataType cor.DataTypeDescription)
+
+	// internal recursive function to iterate over all kinds of data types
+	// note: due to label uniqueness, circular references will be handled correctly
+	iterateDataTypes = func(dataType cor.DataTypeDescription) {
+		switch dtd := dataType.(type) {
+		case *cor.SimpleDataType, *cor.PointerDataType:
+			// ensure that the data type name is a unique label name in the .debug_str section
+			if ok, exists := labels[dtd.Name()]; !ok || !exists {
+				// mark the data type name as used
+				labels[dtd.Name()] = true
+
+				// add the data type name to the .debug_str section
+				u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+			}
+
+			// if the data type is a pointer, recursively iterate over its element type
+			if dtd.Kind() == cor.DataTypePointer {
+				iterateDataTypes(dtd.(*cor.PointerDataType).ElementType)
+			}
+
+		case *cor.CompositeDataType:
+			// ensure that the composite data type name is a unique label name in the .debug_str section
+			if ok, exists := labels[dtd.Name()]; !ok || !exists {
+				// mark the data type name as used
+				labels[dtd.Name()] = true
+
+				// add the composite data type name to the .debug_str section
+				u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+			}
+
+			// iterate over all members of the composite data type
+			for _, member := range dtd.Members() {
+				// ensure that the member name is a unique label name in the .debug_str section
+				if ok, exists := labels[member.MemberName]; !ok || !exists {
+					// mark the member name as used
+					labels[member.MemberName] = true
+
+					// add the member name to the .debug_str section
+					u.DebugStrSection.Append(elf.NewStringItem(member.MemberName, elf.String, member.MemberNameSource))
+				}
+
+				// recursively iterate over the member's data type
+				iterateDataTypes(member.Type)
+			}
 		}
+	}
 
-		// mark the data type name as used
-		labels[dtd.Name()] = true
-
-		// add the data type name to the .debug_str section
-		u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+	// recursively iterate over all data types to add their type names, member names, and element type names to the .debug_str section
+	for _, dtd := range dstab.DataTypes {
+		iterateDataTypes(dtd)
 	}
 }

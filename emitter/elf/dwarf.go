@@ -32,6 +32,7 @@ const (
 	DW_CODE_subprogram                 // subprogram (e.g., function)
 	DW_CODE_constant                   // constant (e.g., literal value with a name in a function)
 	DW_CODE_variable                   // variable (e.g., local variable in a function)
+	DW_CODE_subprogram_main            // subprogram "main" of the program
 
 	// DWARF codes with special meaning
 	DW_CODE_suppression DwarfCode = -1 // suppression code (code will not be emitted)

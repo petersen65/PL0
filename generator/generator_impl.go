@@ -837,6 +837,7 @@ func configureSymbols(node ast.Node, code any) {
 // Collect the debug string table from the abstract syntax tree and store it as debug information.
 func collectDebugStringTable(node ast.Node, code any) {
 	var function, functionSource string
+	var global, entryPoint bool
 	var tokenStreamIndex int
 	info := code.(cor.DebugInformation)
 
@@ -847,6 +848,10 @@ func collectDebugStringTable(node ast.Node, code any) {
 			// take the entry point label as the function name and the function source name
 			function = cor.EntryPointLabel
 			functionSource = cor.EntryPointLabel
+
+			// only the entry point is marked as global
+			global = true
+			entryPoint = true
 
 			// token stream index of the main block
 			tokenStreamIndex = n.Index()
@@ -865,7 +870,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 		}
 
 		// append the function to the debug information
-		if info.AppendFunction(function, functionSource, function == cor.EntryPointLabel, tokenStreamIndex) {
+		if info.AppendFunction(function, functionSource, global, entryPoint, tokenStreamIndex) {
 			// append all constant declarations and variable declarations of the function to the debug information
 			for _, declaration := range n.Declarations {
 				switch dn := declaration.(type) {

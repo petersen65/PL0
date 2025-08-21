@@ -60,11 +60,12 @@ func newDebugStringTable(compilationUnit, compilationDirectory, producer, string
 }
 
 // Create a new function description for a function in the compilation unit.
-func newFunctionDescription(name, nameSource string, globalSymbol bool, tokenStreamIndex int) *FunctionDescription {
+func newFunctionDescription(name, nameSource string, globalSymbol, entryPoint bool, tokenStreamIndex int) *FunctionDescription {
 	return &FunctionDescription{
 		FunctionName:       name,
 		FunctionNameSource: nameSource,
 		GlobalSymbol:       globalSymbol,
+		EntryPoint:         entryPoint,
 		TokenStreamIndex:   tokenStreamIndex,
 		Variables:          make([]*VariableDescription, 0),
 	}
@@ -96,12 +97,12 @@ func newVariableDescription(function, functionSource, name, nameSource string, d
 }
 
 // Append a function description to the debug information.
-func (d *debugInformation) AppendFunction(name, nameSource string, globalSymbol bool, tokenStreamIndex int) bool {
+func (d *debugInformation) AppendFunction(name, nameSource string, globalSymbol, entryPoint bool, tokenStreamIndex int) bool {
 	if slices.ContainsFunc(d.table.Functions, func(fd *FunctionDescription) bool { return fd.FunctionName == name }) {
 		return false
 	}
 
-	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, globalSymbol, tokenStreamIndex))
+	d.table.Functions = append(d.table.Functions, newFunctionDescription(name, nameSource, globalSymbol, entryPoint, tokenStreamIndex))
 	return true
 }
 
