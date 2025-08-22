@@ -1100,7 +1100,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			"",
 			subProgramCode,
 			[]*elf.AttributeItem{
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(fd.FunctionNameSource)),
+				elf.NewAttributeItem(elf.Long, elf.ToNameSourceReference(fd.FunctionName)),
 				elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(fd.FunctionName)),
 				elf.NewAttributeItem(elf.Byte, uint8(id)),
 				elf.NewAttributeItem(elf.Short, uint16(line)),
@@ -1198,9 +1198,9 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 	}
 
 	// add the compilation details and producer to the debug string section
-	u.DebugStrSection.Append(elf.NewStringItem(elf.CompilationUnitLabel, elf.String, dstab.CompilationUnit))
-	u.DebugStrSection.Append(elf.NewStringItem(elf.CompilationDirectoryLabel, elf.String, dstab.CompilationDirectory))
-	u.DebugStrSection.Append(elf.NewStringItem(elf.ProducerLabel, elf.String, dstab.Producer))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(elf.CompilationUnitLabel), elf.String, dstab.CompilationUnit))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(elf.CompilationDirectoryLabel), elf.String, dstab.CompilationDirectory))
+	u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(elf.ProducerLabel), elf.String, dstab.Producer))
 
 	// deduplicate function, constant, variable, and data type names ensuring unique label names in the .debug_str section
 	labels := make(map[string]bool)
@@ -1213,16 +1213,16 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 			labels[fd.FunctionName] = true
 
 			// add the function name to the .debug_str section
-			u.DebugStrSection.Append(elf.NewStringItem(fd.FunctionName, elf.String, fd.FunctionName))
+			u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(fd.FunctionName), elf.String, fd.FunctionName))
 		}
 
 		// ensure that the function name from source code is a unique label name in the .debug_str section
-		if ok, exists := labels[fd.FunctionNameSource]; !ok || !exists {
+		if ok, exists := labels[elf.ToNameSourceLabel(fd.FunctionName)]; !ok || !exists {
 			// mark the function name from source code as used
-			labels[fd.FunctionNameSource] = true
+			labels[elf.ToNameSourceLabel(fd.FunctionName)] = true
 
 			// add the function name from source code to the .debug_str section
-			u.DebugStrSection.Append(elf.NewStringItem(fd.FunctionNameSource, elf.String, fd.FunctionNameSource))
+			u.DebugStrSection.Append(elf.NewStringItem(elf.ToNameSourceLabel(fd.FunctionName), elf.String, fd.FunctionNameSource))
 		}
 	}
 
@@ -1234,7 +1234,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 			labels[cd.ConstantName] = true
 
 			// add the constant name to the .debug_str section
-			u.DebugStrSection.Append(elf.NewStringItem(cd.ConstantName, elf.String, cd.ConstantNameSource))
+			u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(cd.ConstantName), elf.String, cd.ConstantNameSource))
 		}
 	}
 
@@ -1246,7 +1246,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 			labels[vd.VariableName] = true
 
 			// add the variable name to the .debug_str section
-			u.DebugStrSection.Append(elf.NewStringItem(vd.VariableName, elf.String, vd.VariableNameSource))
+			u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(vd.VariableName), elf.String, vd.VariableNameSource))
 		}
 	}
 
@@ -1264,7 +1264,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 				labels[dtd.Name()] = true
 
 				// add the data type name to the .debug_str section
-				u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+				u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(dtd.Name()), elf.String, dtd.NameSource()))
 			}
 
 			// if the data type is a pointer, recursively iterate over its element type
@@ -1279,7 +1279,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 				labels[dtd.Name()] = true
 
 				// add the composite data type name to the .debug_str section
-				u.DebugStrSection.Append(elf.NewStringItem(dtd.Name(), elf.String, dtd.NameSource()))
+				u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(dtd.Name()), elf.String, dtd.NameSource()))
 			}
 
 			// iterate over all members of the composite data type
@@ -1290,7 +1290,7 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 					labels[member.MemberName] = true
 
 					// add the member name to the .debug_str section
-					u.DebugStrSection.Append(elf.NewStringItem(member.MemberName, elf.String, member.MemberNameSource))
+					u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(member.MemberName), elf.String, member.MemberNameSource))
 				}
 
 				// recursively iterate over the member's data type

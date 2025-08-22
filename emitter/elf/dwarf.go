@@ -536,6 +536,16 @@ func ToStringItemReference(item string) string {
 	return fmt.Sprintf("%v%v", debugStringPrefix, item)
 }
 
+// String representation of an identifier name from source code label.
+func ToNameSourceLabel(name string) string {
+	return fmt.Sprintf("%v%v%v%v", debugStringPrefix, nameSourcePrefix, name, labelPostfix)
+}
+
+// String representation of a reference to an identifier name from source code.
+func ToNameSourceReference(name string) string {
+	return fmt.Sprintf("%v%v%v", debugStringPrefix, nameSourcePrefix, name)
+}
+
 // String representation of a descriptor label.
 func ToDescriptor(label string) string {
 	return fmt.Sprintf(descriptorLabel, label)

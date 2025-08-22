@@ -22,6 +22,9 @@ const labelFormat = labelPrefix + localPrefix + "%v" + labelPostfix
 const startLabelFormat = labelPrefix + localPrefix + "%v" + labelStartPostfix + labelPostfix
 const endLabelFormat = labelPrefix + localPrefix + "%v" + labelEndPostfix + labelPostfix
 
+// Prefix for identifier names from source code.
+const nameSourcePrefix = "src."
+
 // Prefix for DWARF debugging information entries.
 const debugEntryPrefix = labelPrefix + localPrefix + "die_"
 
@@ -347,7 +350,7 @@ func (i *StringItem) String() string {
 
 	return fmt.Sprintf(
 		"%-*v%-*v\"%v\"",
-		labelWidth, ToStringItemLabel(i.Label),
+		labelWidth, i.Label,
 		directiveWidth, i.Directive,
 		i.Operand,
 	)
