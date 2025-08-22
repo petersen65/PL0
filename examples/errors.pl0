@@ -1,5 +1,34 @@
 { errors in several compiler components }
 
+{
+    Error Report:
+    Errors:
+        53: scanner error 1001 [53,1]: end of file reached inside comment
+        32: const a = 99, b := t;
+                            ^ parser error 2009 [32,17]: expected equal, found becomes
+        32: const a = 99, b := t;
+                               ^ parser error 2011 [32,20]: expected number, found identifier
+        37: y = 5;
+              ^ parser error 2010 [37,7]: expected becomes, found equal
+        43: ! a;
+            ^ parser error 2012 [43,5]: expected semicolon, found write
+        48: ! 42;
+                 ^ parser error 2022 [48,14]: unexpected set of tokens, found identifier
+        48: ! 42;
+            ^ parser error 2013 [48,9]: expected then keyword, found write
+        52: 
+                 ^ parser error 2003 [52,6]: program does not comply with the syntax rules of the programming language
+        33: var x, y, z, a;
+                         ^ analyzer error 4007 [33,14]: identifier already declared: a
+        36: xx := 4;
+            ^ analyzer error 4006 [36,5]: identifier not found: xx
+        45: ? v;
+              ^ analyzer error 4006 [45,7]: identifier not found: v
+    Warnings:
+        33: var x, y, z, a;
+                         ^ analyzer warning 4012 [33,14]: variable declared but not used: a
+}
+
 const a = 99, b := t;
 var x, y, z, a;
 

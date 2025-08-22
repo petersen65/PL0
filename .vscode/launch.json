@@ -66,6 +66,111 @@
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch Comments",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/comments.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch Conditions",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/conditions.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch Errors",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/errors.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch Expressions",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/expressions.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch UTF8",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/utf8.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
         }
     ]
 }
