@@ -76,7 +76,7 @@ func newScanner() Scanner {
 // Run the scanner to map the source code to its corresponding token stream.
 func (s *scanner) Scan(content []byte) (cor.TokenStream, error) {
 	s.sourceIndex = 0
-	s.sourceCode = content
+	s.sourceCode = cor.CreateSourceCode(content)
 	s.line = 0
 	s.column = 0
 	s.lastValue = ""

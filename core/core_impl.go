@@ -88,11 +88,11 @@ func (o Optimization) String() string {
 	return strings.Join(representation, OptimizationSeparator)
 }
 
-// Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code (Unicode code points).
-func CreateSourceCode(content []byte) []rune {
+// Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code.
+func CreateSourceCode(content []byte) []byte {
 	var decodingErrors int
-	sourceCode := make([]rune, 0, 4*len(content))
-	tabulator := []rune(strings.Repeat(" ", TabulatorSize))
+	sourceCode := make([]byte, 0, len(content))
+	tabulator := []byte(strings.Repeat(" ", TabulatorSize))
 
 	// iterate over the binary content and decode each UTF-8 character
 	for i := 0; i < len(content); {
@@ -109,7 +109,8 @@ func CreateSourceCode(content []byte) []rune {
 			sourceCode = append(sourceCode, tabulator...)
 
 		default:
-			sourceCode = append(sourceCode, codepoint)
+			// append the original UTF-8 bytes for the decoded rune
+			sourceCode = append(sourceCode, content[i:i+width]...)
 		}
 
 		// increment the index by the byte size of the decoded rune
@@ -117,7 +118,7 @@ func CreateSourceCode(content []byte) []rune {
 
 		// abort decoding with empty source code if too many errors occurred
 		if decodingErrors > maxDecodingErrors {
-			return make([]rune, 0)
+			return make([]byte, 0)
 		}
 	}
 
