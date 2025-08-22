@@ -400,20 +400,20 @@ type (
 
 	// A DWARF attribute form defines a single attribute in the .debug_abbrev section.
 	AttributeForm struct {
-		Attribute DwarfAttribute `json:"attribute"` // DW_AT_* code defines what this attribute represents (ULEB128)
-		Form      DwarfForm      `json:"form"`      // DW_FORM_* code specifies how the attribute value is encoded (ULEB128)
+		Attribute DwarfAttribute `json:"attribute"` // DW_AT_* code defines what this attribute represents
+		Form      DwarfForm      `json:"form"`      // DW_FORM_* code specifies how the attribute value is encoded
 	}
 
 	// A DWARF attribute item defines a single attribute of a debugging information entry in the .debug_info section.
 	AttributeItem struct {
-		Directive DirectiveKind `json:"directive"` // directive to use for the attribute (e.g., .byte, .uleb128)
-		Operand   any           `json:"operand"`   // the value to be stored in the attribute item (e.g., 0x00, .str_producer)
+		Directive DirectiveKind  `json:"directive"` // directive to use for the attribute (e.g., .byte, .uleb128)
+		Operand   any            `json:"operand"`   // the value to be stored in the attribute item (e.g., 0x00, .str_producer)
 	}
 
 	// A DWARF abbreviation entry defines a structure for debugging information entries in the .debug_abbrev section.
 	AbbreviationEntry struct {
-		Code        DwarfCode        `json:"code"`         // abbreviation code to be referenced by a DIE (ULEB128)
-		Tag         DwarfTag         `json:"tag"`          // DW_TAG_* code for the entry used to identify the type of a DIE (ULEB128)
+		Code        DwarfCode        `json:"code"`         // abbreviation code to be referenced by a DIE
+		Tag         DwarfTag         `json:"tag"`          // DW_TAG_* code for the entry used to identify the type of a DIE
 		HasChildren bool             `json:"has_children"` // 1 byte indicating if a DIE can have children
 		Attributes  []*AttributeForm `json:"attributes"`   // list of attributes, implicitly ends before 0x00
 	}

@@ -34,6 +34,12 @@ const debugStringPrefix = labelPrefix + "str_"
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 
+// Manually provided comments for DWARF debugging information.
+const (
+	commentHasChildrenFlag = "DW_COMMENT_has_children_flag"
+	commentZeroTerminator   = "DW_COMMENT_zero_terminator"
+)
+
 var (
 	// Map DWARF code names to their string representation.
 	dwarfCodeNames = map[DwarfCode]string{
@@ -361,11 +367,15 @@ func (a *AttributeForm) String() string {
 	const encodingWidth = 10
 
 	return fmt.Sprintf(
-		"%-*v%#002x\n%-*v%#002x",
+		"%-*v%#002x%v%v\n%-*v%#002x%v%v",
 		encodingWidth, Uleb128,
 		uint8(a.Attribute),
+		DefaultIndentation,
+		fmt.Sprintf(commentFormat, a.Attribute),
 		encodingWidth, Uleb128,
 		uint8(a.Form),
+		DefaultIndentation,
+		fmt.Sprintf(commentFormat, a.Form),
 	)
 }
 
@@ -421,17 +431,19 @@ func (e *AbbreviationEntry) String() string {
 
 	// write the abbreviation tag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v%#002x%v"+commentFormat,
+		"\n%-*v%#002x%v%v",
 		EncodingWidth, Uleb128,
 		uint8(e.Tag),
 		DefaultIndentation,
-		e.Tag))
+		fmt.Sprintf(commentFormat, e.Tag)))
 
 	// has children flag
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v%#002x",
+		"\n%-*v%#002x%v%v",
 		EncodingWidth, Byte,
 		boolToIntMap[e.HasChildren],
+		DefaultIndentation,
+		fmt.Sprintf(commentFormat, commentHasChildrenFlag),
 	))
 
 	// write the attribute-list
@@ -444,8 +456,10 @@ func (e *AbbreviationEntry) String() string {
 
 	// zero terminator
 	builder.WriteString(fmt.Sprintf(
-		"\n%-*v%#002x",
+		"\n%-*v%#002x%v%v",
 		EncodingWidth, Uleb128, 0,
+		DefaultIndentation,
+		fmt.Sprintf(commentFormat, commentZeroTerminator),
 	))
 
 	// the abbreviation entry string representation does not end with a newline
@@ -465,9 +479,11 @@ func (e *DebuggingInformationEntry) String() string {
 	// write the abbreviation code only if it's not the suppression code
 	if e.Code != DW_CODE_suppression {
 		builder.WriteString(fmt.Sprintf(
-			"%-*v%#002x\n",
+			"%-*v%#002x%v%v\n",
 			EncodingWidth, Uleb128,
 			uint8(e.Code),
+			DefaultIndentation,
+			fmt.Sprintf(commentFormat, e.Code),
 		))
 	}
 
