@@ -996,11 +996,11 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		elf.ToDebuggingInformationEntryLabel(elf.CompilationUnitLabel),
 		elf.DW_CODE_compilation_unit,
 		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationUnitLabel)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.CompilationDirectoryLabel)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.CompilationUnitLabel)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.CompilationDirectoryLabel)),
 			elf.NewAttributeItem(elf.Short, uint16(elf.DW_LANG_PL0_76)),
 			elf.NewAttributeItem(elf.Long, uint32(debugLineSectionStartOffset)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(elf.ProducerLabel)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.ProducerLabel)),
 			elf.NewAttributeItem(elf.Quad, firstFunctionName),
 			elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(lastFunctionName), firstFunctionName)),
 		},
@@ -1023,7 +1023,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				elf.ToDebuggingInformationEntryLabel(dt.Name()),
 				elf.DW_CODE_base_type,
 				[]*elf.AttributeItem{
-					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dt.Name())),
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(dt.Name())),
 					elf.NewAttributeItem(elf.Byte, uint8(dt.Size())),
 					elf.NewAttributeItem(elf.Byte, uint8(dt.Encoding())),
 				},
@@ -1051,16 +1051,16 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 		elf.ToDebuggingInformationEntryLabel(dstab.String),
 		elf.DW_CODE_structure_type,
 		[]*elf.AttributeItem{
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dstab.String)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(dstab.String)),
 			elf.NewAttributeItem(elf.Byte, uint8(stringCompositeType.Size())),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(lengthMember.MemberName)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(lengthMember.MemberName)),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(lengthMemberTypeLabel, compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Uleb128, uint32(lengthMember.Offset)),
 
 			elf.NewAttributeItem(elf.Uleb128, uint8(elf.DW_CODE_member)),
-			elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(dataPointerMember.MemberName)),
+			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(dataPointerMember.MemberName)),
 			elf.NewAttributeItem(elf.Long, elf.ToRelativeReference(dataPointerMemberTypeLabel, compilationUnitLabel)),
 			elf.NewAttributeItem(elf.Uleb128, uint32(dataPointerMember.Offset)),
 
@@ -1100,8 +1100,8 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			"",
 			subProgramCode,
 			[]*elf.AttributeItem{
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionNameSource)),
-				elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(fd.FunctionName)),
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(fd.FunctionNameSource)),
+				elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(fd.FunctionName)),
 				elf.NewAttributeItem(elf.Byte, uint8(id)),
 				elf.NewAttributeItem(elf.Short, uint16(line)),
 				elf.NewAttributeItem(elf.Byte, uint8(column)),
@@ -1124,7 +1124,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				"",
 				elf.DW_CODE_constant,
 				[]*elf.AttributeItem{
-					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(cd.ConstantName)),
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(cd.ConstantName)),
 					elf.NewAttributeItem(elf.Byte, uint8(id)),
 					elf.NewAttributeItem(elf.Short, uint16(line)),
 					elf.NewAttributeItem(elf.Byte, uint8(column)),
@@ -1146,7 +1146,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				"",
 				elf.DW_CODE_variable,
 				[]*elf.AttributeItem{
-					elf.NewAttributeItem(elf.Long, elf.ToStringItemLabel(vd.VariableName)),
+					elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(vd.VariableName)),
 					elf.NewAttributeItem(elf.Byte, uint8(id)),
 					elf.NewAttributeItem(elf.Short, uint16(line)),
 					elf.NewAttributeItem(elf.Byte, uint8(column)),

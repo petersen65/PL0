@@ -346,7 +346,7 @@ func (i *StringItem) String() string {
 	const directiveWidth = 10
 
 	return fmt.Sprintf(
-		"%-*v: %-*v\"%v\"",
+		"%-*v%-*v\"%v\"",
 		labelWidth, ToStringItemLabel(i.Label),
 		directiveWidth, i.Directive,
 		i.Operand,
@@ -355,28 +355,14 @@ func (i *StringItem) String() string {
 
 // String representation of an DWARF attribute form.
 func (a *AttributeForm) String() string {
-	const commentWidth = 25
 	const encodingWidth = 10
 
-	comment := strings.TrimSpace(fmt.Sprintf(
-		commentFormat,
-		fmt.Sprintf(
-			"%-*v%v%-*v",
-			commentWidth,
-			a.Attribute,
-			DefaultIndentation,
-			commentWidth,
-			a.Form,
-		)))
-
 	return fmt.Sprintf(
-		"%-*v%#002x %-*v%#002x%v%v",
+		"%-*v%#002x\n%-*v%#002x",
 		encodingWidth, Uleb128,
 		uint8(a.Attribute),
 		encodingWidth, Uleb128,
 		uint8(a.Form),
-		DefaultIndentation,
-		comment,
 	)
 }
 
@@ -404,7 +390,7 @@ func (a *AttributeItem) String() string {
 			representation[i] = fmt.Sprintf("%#002x", uint8(raw))
 		}
 
-		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, strings.Join(representation, " "))
+		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, strings.Join(representation, ", "))
 
 	default:
 		return fmt.Sprintf("%-*v%v", directiveWidth, a.Directive, a.Operand)
@@ -448,8 +434,7 @@ func (e *AbbreviationEntry) String() string {
 	// write the attribute-list
 	for _, attribute := range e.Attributes {
 		builder.WriteString(fmt.Sprintf(
-			"\n%v%v",
-			DefaultIndentation,
+			"\n%v",
 			attribute,
 		))
 	}

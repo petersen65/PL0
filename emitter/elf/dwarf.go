@@ -513,7 +513,7 @@ func ToSectionLength(endLabel, startLabel string) string {
 
 // String representation of a compilation unit relative reference between a target label and a CU-base label in the .debug_info section.
 func ToRelativeReference(targetLabel, cuBaseLabel string) string {
-	return fmt.Sprintf("(%v - %v)", targetLabel, cuBaseLabel)
+	return fmt.Sprintf("(%v - %v)", strings.TrimRight(targetLabel, labelPostfix), strings.TrimRight(cuBaseLabel, labelPostfix))
 }
 
 // String representation of a function length calculation based on its end and start labels.
@@ -523,11 +523,16 @@ func ToFunctionLength(endLabel, startLabel string) string {
 
 // String representation of a DIE label.
 func ToDebuggingInformationEntryLabel(entry string) string {
-	return fmt.Sprintf("%v%v", debugEntryPrefix, entry)
+	return fmt.Sprintf("%v%v%v", debugEntryPrefix, entry, labelPostfix)
 }
 
 // String representation of a string item label.
 func ToStringItemLabel(item string) string {
+	return fmt.Sprintf("%v%v%v", debugStringPrefix, item, labelPostfix)
+}
+
+// String representation of a string item reference.
+func ToStringItemReference(item string) string {
 	return fmt.Sprintf("%v%v", debugStringPrefix, item)
 }
 
