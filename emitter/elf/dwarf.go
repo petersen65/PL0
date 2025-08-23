@@ -480,9 +480,9 @@ func ToSectionLength(endLabel, startLabel string) string {
 	return fmt.Sprintf("%v - %v - 4", strings.TrimRight(endLabel, labelPostfix), strings.TrimRight(startLabel, labelPostfix))
 }
 
-// String representation of a compilation unit relative reference between a target label and a CU-base label in the .debug_info section.
-func ToRelativeReference(targetLabel, cuBaseLabel string) string {
-	return fmt.Sprintf("(%v - %v)", strings.TrimRight(targetLabel, labelPostfix), strings.TrimRight(cuBaseLabel, labelPostfix))
+// String representation of a relative reference between a DIE label and the start label of the .debug_info section.
+func ToRelativeReference(dieLabel string) string {
+	return fmt.Sprintf("(%v - %v)", strings.TrimRight(dieLabel, labelPostfix), strings.TrimRight(DebugInfo.StartLabel(), labelPostfix))
 }
 
 // String representation of a function length calculation based on its end and start labels.
