@@ -143,7 +143,6 @@ var (
 		DW_AT_declaration:             "DW_AT_declaration",
 		DW_AT_discr_list:              "DW_AT_discr_list",
 		DW_AT_encoding:                "DW_AT_encoding",
-		DW_AT_decimal_sign:            "DW_AT_decimal_sign",
 		DW_AT_external:                "DW_AT_external",
 		DW_AT_frame_base:              "DW_AT_frame_base",
 		DW_AT_friend:                  "DW_AT_friend",
@@ -159,37 +158,7 @@ var (
 		DW_AT_variable_parameter:      "DW_AT_variable_parameter",
 		DW_AT_virtuality:              "DW_AT_virtuality",
 		DW_AT_vtable_elem_location:    "DW_AT_vtable_elem_location",
-		DW_AT_allocated:               "DW_AT_allocated",
-		DW_AT_associated:              "DW_AT_associated",
-		DW_AT_data_location:           "DW_AT_data_location",
-		DW_AT_byte_stride:             "DW_AT_byte_stride",
-		DW_AT_entry_pc:                "DW_AT_entry_pc",
-		DW_AT_use_UTF8:                "DW_AT_use_UTF8",
-		DW_AT_extension:               "DW_AT_extension",
-		DW_AT_ranges:                  "DW_AT_ranges",
-		DW_AT_trampoline:              "DW_AT_trampoline",
-		DW_AT_call_column:             "DW_AT_call_column",
-		DW_AT_call_file:               "DW_AT_call_file",
-		DW_AT_call_line:               "DW_AT_call_line",
-		DW_AT_description:             "DW_AT_description",
-		DW_AT_binary_scale:            "DW_AT_binary_scale",
-		DW_AT_decimal_scale:           "DW_AT_decimal_scale",
-		DW_AT_small:                   "DW_AT_small",
-		DW_AT_digit_count:             "DW_AT_digit_count",
-		DW_AT_picture_string:          "DW_AT_picture_string",
-		DW_AT_mutable:                 "DW_AT_mutable",
-		DW_AT_threads_scaled:          "DW_AT_threads_scaled",
-		DW_AT_explicit:                "DW_AT_explicit",
-		DW_AT_object_pointer:          "DW_AT_object_pointer",
-		DW_AT_endianity:               "DW_AT_endianity",
-		DW_AT_elemental:               "DW_AT_elemental",
-		DW_AT_pure:                    "DW_AT_pure",
-		DW_AT_recursive:               "DW_AT_recursive",
-		DW_AT_signature:               "DW_AT_signature",
 		DW_AT_main_subprogram:         "DW_AT_main_subprogram",
-		DW_AT_data_bit_offset:         "DW_AT_data_bit_offset",
-		DW_AT_const_expr:              "DW_AT_const_expr",
-		DW_AT_enum_class:              "DW_AT_enum_class",
 		DW_AT_linkage_name:            "DW_AT_linkage_name",
 		DW_AT_string_length_bit_size:  "DW_AT_string_length_bit_size",
 		DW_AT_string_length_byte_size: "DW_AT_string_length_byte_size",
@@ -453,6 +422,14 @@ func (e *AbbreviationEntry) String() string {
 			attribute,
 		))
 	}
+
+	// zero terminator
+	builder.WriteString(fmt.Sprintf(
+		"\n%-*v%#002x%v%v",
+		EncodingWidth, Uleb128, 0,
+		DefaultIndentation,
+		fmt.Sprintf(commentFormat, commentZeroTerminator),
+	))
 
 	// zero terminator
 	builder.WriteString(fmt.Sprintf(

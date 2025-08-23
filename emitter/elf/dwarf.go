@@ -158,39 +158,8 @@ const (
 	DW_AT_vtable_elem_location DwarfAttribute = 0x4d // offset in vtable
 
 	// DWARF v5-specific
-	DW_AT_allocated       DwarfAttribute = 0x4f // fortran: storage allocated indicator
-	DW_AT_associated      DwarfAttribute = 0x50 // fortran: pointer association status
-	DW_AT_data_location   DwarfAttribute = 0x51 // memory location
-	DW_AT_byte_stride     DwarfAttribute = 0x52 // distance between array elements
-	DW_AT_entry_pc        DwarfAttribute = 0x53 // entry address
-	DW_AT_use_UTF8        DwarfAttribute = 0x54 // strings are UTF-8
-	DW_AT_extension       DwarfAttribute = 0x55 // reference to DIE for extension
-	DW_AT_ranges          DwarfAttribute = 0x56 // offset into .debug_ranges
-	DW_AT_trampoline      DwarfAttribute = 0x57 // trampoline function reference
-	DW_AT_call_column     DwarfAttribute = 0x58 // call site column
-	DW_AT_call_file       DwarfAttribute = 0x59 // call site file
-	DW_AT_call_line       DwarfAttribute = 0x5a // call site line
-	DW_AT_description     DwarfAttribute = 0x5b // description of type or object
-	DW_AT_binary_scale    DwarfAttribute = 0x5c // scale for fixed-point type
-	DW_AT_decimal_scale   DwarfAttribute = 0x5d // decimal scale
-	DW_AT_small           DwarfAttribute = 0x5e // indicates use of small register class
-	DW_AT_decimal_sign    DwarfAttribute = 0x5f // decimal sign style (leading, trailing, overpunch)
-	DW_AT_digit_count     DwarfAttribute = 0x60 // number of decimal digits
-	DW_AT_picture_string  DwarfAttribute = 0x61 // picture formatting string
-	DW_AT_mutable         DwarfAttribute = 0x62 // c++ mutable keyword
-	DW_AT_threads_scaled  DwarfAttribute = 0x63 // indicates thread-scaling applied
-	DW_AT_explicit        DwarfAttribute = 0x64 // explicit instantiation
-	DW_AT_object_pointer  DwarfAttribute = 0x65 // `this` pointer or closure self
-	DW_AT_endianity       DwarfAttribute = 0x66 // endianess of the data
-	DW_AT_elemental       DwarfAttribute = 0x67 // fortran elemental procedure
-	DW_AT_pure            DwarfAttribute = 0x68 // fortran pure procedure
-	DW_AT_recursive       DwarfAttribute = 0x69 // fortran recursive procedure
-	DW_AT_signature       DwarfAttribute = 0x6a // signature reference (for type units)
 	DW_AT_main_subprogram DwarfAttribute = 0x6b // entry point of main subprogram
-	DW_AT_data_bit_offset DwarfAttribute = 0x6c // bit offset from storage unit
-	DW_AT_const_expr      DwarfAttribute = 0x6d // value is constant expression
-	DW_AT_enum_class      DwarfAttribute = 0x6e // strongly typed enum (C++11)
-	DW_AT_linkage_name    DwarfAttribute = 0x6f // linker-visible (mangled) name
+	DW_AT_linkage_name    DwarfAttribute = 0x6e // linker-visible (mangled) name
 
 	// split DWARF / debug fission
 	DW_AT_string_length_bit_size  DwarfAttribute = 0x70 // bit size of string length field

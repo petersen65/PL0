@@ -8,7 +8,7 @@ set -e
 MODE=${1:-debug}
 
 if [[ "$MODE" = "debug" ]]; then
-    CFLAGS="-std=c23 -m64 -ggdb -g3 -O0 -DDEBUG -fno-omit-frame-pointer"
+    CFLAGS="-std=c23 -m64 -ggdb -g3 -O0 -DDEBUG -fno-omit-frame-pointer -fverbose-asm -dA"
     ASFLAGS="-m64 -ggdb"
     LDFLAGS="-m64 -ggdb -fno-omit-frame-pointer"
     echo "Compiling in debug mode with DWARF symbols"
@@ -40,6 +40,7 @@ fi
 # file locations
 BUILD_DIR="build"
 STANDARD_SRC="standard/standard.c"
+STANDARD_ASM="$BUILD_DIR/standard.s"
 STANDARD_OBJ="$BUILD_DIR/standard.o"
 OUT_ASM="$BUILD_DIR/out.s"
 OUT_OBJ="$BUILD_DIR/out.o"
@@ -49,6 +50,7 @@ OUTPUT_BIN="$BUILD_DIR/out"
 
 # perform C and assembly compilation with a final linking step
 mkdir --parents $BUILD_DIR
+gcc-15 -no-pie $CFLAGS -S -o $STANDARD_ASM $STANDARD_SRC
 gcc-15 -no-pie $CFLAGS -c -o $STANDARD_OBJ $STANDARD_SRC
 gcc-15 -no-pie $ASFLAGS -c -o $OUT_OBJ $OUT_ASM
 gcc-15 -no-pie $ASFLAGS -c -o $OUT_RT_OBJ $OUT_RT_ASM

@@ -987,7 +987,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			elf.NewAttributeItem(elf.Short, uint16(elf.DwarfVersion)),
 			elf.NewAttributeItem(elf.Byte, uint8(elf.DW_UT_compile)),
 			elf.NewAttributeItem(elf.Byte, uint8(PointerSize)),
-			elf.NewAttributeItem(elf.Long, uint32(debugAbbrevSectionStartOffset)),
+			elf.NewAttributeItem(elf.Long, elf.DebugAbbrev.ToSectionLabel()),
 		},
 	)
 
@@ -999,7 +999,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.CompilationUnitLabel)),
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.CompilationDirectoryLabel)),
 			elf.NewAttributeItem(elf.Short, uint16(elf.DW_LANG_PL0_76)),
-			elf.NewAttributeItem(elf.Long, uint32(debugLineSectionStartOffset)),
+			elf.NewAttributeItem(elf.Long, elf.DebugLine.String()),
 			elf.NewAttributeItem(elf.Long, elf.ToStringItemReference(elf.ProducerLabel)),
 			elf.NewAttributeItem(elf.Quad, firstFunctionName),
 			elf.NewAttributeItem(elf.Long, elf.ToFunctionLength(elf.ToEndLabel(lastFunctionName), firstFunctionName)),
