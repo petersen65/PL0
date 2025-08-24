@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -64,11 +65,30 @@ const (
 	Generator
 	Control
 	Emitter
+	LanguageC
 	Assembly
+	Object
 	Runtime
 	Json
 	Text
 	Ensure
+)
+
+// Command lines and flags for the external C compiler, assembler and linker.
+const (
+	DebugFlagsC         = "-std=c23 -m64 -ggdb -g3 -O0 -DDEBUG -fno-omit-frame-pointer -fverbose-asm -dA"
+	DebugFlagsAssembler = "-m64 -ggdb"
+	DebugFlagsLinker    = "-m64 -ggdb -fno-omit-frame-pointer"
+
+	ReleaseFlagsC         = "-std=c23 -m64 -O2 -DNDEBUG"
+	ReleaseFlagsAssembler = "-m64"
+	ReleaseFlagsLinker    = "-m64 -s"
+
+	CommandAssembleStandardLibrary = "gcc-15 -no-pie %v -S -o %v %v"
+	CommandCompileStandardLibrary  = "gcc-15 -no-pie %v -c -o %v %v"
+	CommandAssembleApplication     = "gcc-15 -no-pie %v -c -o %v %v"
+	CommandAssembleRuntime         = "gcc-15 -no-pie %v -c -o %v %v"
+	CommandLinkApplication         = "gcc-15 -no-pie %v -o %v %v %v %v"
 )
 
 type (
@@ -100,16 +120,18 @@ var ExtensionMap = map[Extension]string{
 	Generator: ".icu",
 	Control:   ".cfg",
 	Emitter:   ".acu",
+	LanguageC: ".c",
 	Json:      ".json",
 	Text:      ".txt",
 	Assembly:  ".s",
+	Object:    ".o",
 	Runtime:   ".rt",
 	Ensure:    ".ensure",
 }
 
 // Driver for the compilation process with options, source path, target path, optimization algorithms, display name, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, displayName string, print io.Writer) {
-	var sourceAbsolutePath, targetDirectory, baseFileName, targetAbsolutePath, runtimePath string
+	var sourceAbsolutePath, targetDirectory, baseFileName, targetAbsolutePath, targetAbsoluteDirectory, runtimePath string
 	var compilationUnit CompilationUnit
 	var err error
 
@@ -120,13 +142,14 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	}
 
 	// ensure target path exists and print error message if an error occurred
-	if targetDirectory, baseFileName, targetAbsolutePath, err = EnsureTargetPath(targetPath); err != nil {
+	if targetDirectory, baseFileName, targetAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
 		fmt.Fprintf(print, textErrorWriting, targetPath, err)
 		return
 	}
 
 	// cleaned and validated target and runtime paths
 	targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
+	targetAbsolutePath = GetFullPath(targetAbsoluteDirectory, baseFileName, Assembly)
 	runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 
 	// clean target directory and assume that the first ensuring of the target path was successful
@@ -137,13 +160,14 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		// repeat ensuring existance of target path only if compile option is set
 		if options&Compile != 0 {
 			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
-			if targetDirectory, baseFileName, targetAbsolutePath, err = EnsureTargetPath(targetPath); err != nil {
+			if targetDirectory, baseFileName, targetAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
 				fmt.Fprintf(print, textErrorWriting, targetPath, err)
 				return
 			}
 
 			// cleaned and validated target and runtime paths after cleaning
 			targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
+			targetAbsolutePath = GetFullPath(targetAbsoluteDirectory, baseFileName, Assembly)
 			runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
 		}
 	}
@@ -218,6 +242,8 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 			fmt.Fprintf(print, textErrorWriting, runtimePath, err)
 			return
 		}
+
+		LinkCompilationUnits(optimization&cor.Debug != 0, targetDirectory, "standard", runtimePath, baseFileName)
 	}
 
 	// print driver completion message
@@ -337,6 +363,66 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 	return nil
 }
 
+// Perform C and assembly compilation with a final linking step.
+func LinkCompilationUnits(debug bool, targetDirectory, standard, _, baseFileName string) error {
+	var flagsC, flagsAssembler, flagsLinker string
+
+	if debug {
+		// assemble and link with debug information
+		flagsC = DebugFlagsC
+		flagsAssembler = DebugFlagsAssembler
+		flagsLinker = DebugFlagsLinker
+	} else {
+		// assemble and link with release optimizations
+		flagsC = ReleaseFlagsC
+		flagsAssembler = ReleaseFlagsAssembler
+		flagsLinker = ReleaseFlagsLinker
+	}
+
+	// Extract the embedded standard.c file to the target directory
+    standardSrc, err := ExtractStandardLibrary(targetDirectory)
+    if err != nil {
+        return fmt.Errorf("failed to extract standard library: %w", err)
+    }
+
+	standardAsm := GetFullPath(targetDirectory, standard, Assembly)
+	standardObj := GetFullPath(targetDirectory, standard, Object)
+
+	runtimeAsm := GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
+	runtimeObj := GetFullPath(targetDirectory, baseFileName, Runtime, Object)
+
+	outputObj := GetFullPath(targetDirectory, baseFileName, Object)
+	outputAsm := GetFullPath(targetDirectory, baseFileName, Assembly)
+	outputBin := GetFullPath(targetDirectory, baseFileName)
+
+	// commandAssembleStandardLibrary := fmt.Sprintf(CommandAssembleStandardLibrary, flagsC, standardAsm, standardSrc)
+	// commandCompileStandardLibrary  := fmt.Sprintf(CommandCompileStandardLibrary, flagsC, standardObj, standardSrc)
+	// commandAssembleRuntime         := fmt.Sprintf(CommandAssembleRuntime, flagsAssembler, runtimeObj, runtimeAsm)
+	// commandAssembleApplication     := fmt.Sprintf(CommandAssembleApplication, flagsAssembler, outputObj, outputAsm)
+	// commandLinkApplication         := fmt.Sprintf(CommandLinkApplication, flagsLinker, outputBin, outputObj, runtimeObj, standardObj)
+
+    commands := []struct {
+        name string
+        cmd  string
+    }{
+        {"Assemble Standard Library", fmt.Sprintf(CommandAssembleStandardLibrary, flagsC, standardAsm, standardSrc)},
+        {"Compile Standard Library", fmt.Sprintf(CommandCompileStandardLibrary, flagsC, standardObj, standardSrc)},
+        {"Assemble Runtime", fmt.Sprintf(CommandAssembleRuntime, flagsAssembler, runtimeObj, runtimeAsm)},
+        {"Assemble Application", fmt.Sprintf(CommandAssembleApplication, flagsAssembler, outputObj, outputAsm)},
+        {"Link Application", fmt.Sprintf(CommandLinkApplication, flagsLinker, outputBin, outputObj, runtimeObj, standardObj)},
+    }
+
+    for _, command := range commands {
+        fmt.Println(command.cmd)
+        parts := strings.Fields(command.cmd)
+        cmd := exec.Command(parts[0], parts[1:]...)
+        if err := cmd.Run(); err != nil {
+            return fmt.Errorf("%s failed: %w", command.name, err)
+        }
+    }
+	return nil
+}
+
 // Export all intermediate representations to the target directory.
 func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDirectory, baseFileName string) error {
 	var anyError error
@@ -450,9 +536,36 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 	return anyError
 }
 
+// Ensure source path exists and open it to proof read access.
+func EnsureSourcePath(source string) (string, string, error) {
+	var sourceAbsolutePath string
+	source = filepath.Clean(source)
+
+	// return if source path does not exist
+	if _, err := os.Stat(source); os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	// absolute full file path of source based on current working directory
+	if absolutePath, err := filepath.Abs(source); err != nil {
+		return "", "", err
+	} else {
+		sourceAbsolutePath = absolutePath
+	}
+
+	// open source file to proof read access
+	if sourceFile, err := os.Open(source); err != nil {
+		return "", "", err
+	} else {
+		defer sourceFile.Close()
+	}
+
+	return filepath.ToSlash(source), filepath.ToSlash(sourceAbsolutePath), nil
+}
+
 // Ensure target path exists and create and remove empty ensure-file to proof write access.
 func EnsureTargetPath(target string) (string, string, string, error) {
-	var targetDirectory, targetAbsolutePath string
+	var targetDirectory, targetAbsoluteDirectory string
 	target = filepath.Clean(target)
 
 	// enforce default build directory if target is empty, current directory, or root directory
@@ -490,54 +603,27 @@ func EnsureTargetPath(target string) (string, string, string, error) {
 		baseFileName = defaultTarget
 	}
 
-	// full file path of target with extension
-	targetFullPath := filepath.Join(targetDirectory, baseFileName) + ExtensionMap[Ensure]
+	// full file path of ensure file with extension
+	ensureFullPath := filepath.Join(targetDirectory, baseFileName) + ExtensionMap[Ensure]
 
-	// create and remove empty target file to proof write access
-	if targetFile, err := os.Create(targetFullPath); err != nil {
+	// create and remove empty ensure file to proof write access
+	if ensureFile, err := os.Create(ensureFullPath); err != nil {
 		return "", "", "", err
 	} else {
 		defer func() {
-			targetFile.Close()
-			os.Remove(targetFullPath)
+			ensureFile.Close()
+			os.Remove(ensureFullPath)
 		}()
 	}
 
-	// absolute full file path of target with extension based on current working directory
-	if absolutePath, err := filepath.Abs(targetFullPath); err != nil {
+	// absolute full directory path of target based on current working directory
+	if absolutePath, err := filepath.Abs(targetDirectory); err != nil {
 		return "", "", "", err
 	} else {
-		targetAbsolutePath = absolutePath
+		targetAbsoluteDirectory = absolutePath
 	}
 
-	return filepath.ToSlash(targetDirectory), baseFileName, filepath.ToSlash(targetAbsolutePath), nil
-}
-
-// Ensure source path exists and open it to proof read access.
-func EnsureSourcePath(source string) (string, string, error) {
-	var sourceAbsolutePath string
-	source = filepath.Clean(source)
-
-	// return if source path does not exist
-	if _, err := os.Stat(source); os.IsNotExist(err) {
-		return "", "", err
-	}
-
-	// absolute full file path of source based on current working directory
-	if absolutePath, err := filepath.Abs(source); err != nil {
-		return "", "", err
-	} else {
-		sourceAbsolutePath = absolutePath
-	}
-
-	// open source file to proof read access
-	if sourceFile, err := os.Open(source); err != nil {
-		return "", "", err
-	} else {
-		defer sourceFile.Close()
-	}
-
-	return filepath.ToSlash(source), filepath.ToSlash(sourceAbsolutePath), nil
+	return filepath.ToSlash(targetDirectory), baseFileName, filepath.ToSlash(targetAbsoluteDirectory), nil
 }
 
 // Return the full path of the target file with the given base file name and extensions.
