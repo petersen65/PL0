@@ -152,6 +152,27 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Launch Recursions",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "--purge",
+                "--compile",
+                "--optimize",
+                "debug",
+                "--export",
+                "--source",
+                "examples/recursions.pl0",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Launch UTF8",
             "type": "go",
             "request": "launch",
