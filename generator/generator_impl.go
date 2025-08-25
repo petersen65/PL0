@@ -25,7 +25,7 @@ const (
 	functionPrefix                    // the function prefix is used for flattened function names in the intermediate code
 )
 
-// Standard library and runtime library symbols used in the intermediate code generation.
+// Standard library and runtime symbols used in the intermediate code generation.
 const (
 	staticLinkSymbol     = "@staticlink" // static link symbol holds a pointer to the lexical parent block
 	readStatementSymbol  = "@read"       // read statement symbol is used to call the read function from the standard library

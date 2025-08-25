@@ -83,7 +83,7 @@ const (
 // Kind of output that is represented by the assembly code.
 const (
 	Application OutputKind = iota // an application consisting of business logic
-	Runtime                       // programming language runtime library
+	Runtime                       // runtime of programming language
 )
 
 // Optimization algorithms as bit-mask.
@@ -135,6 +135,18 @@ type (
 		DriverDisplayName  string         `json:"driver_display_name"`  // compiler driver display name
 		OutputKind         OutputKind     `json:"output_kind"`          // kind of output represented by the assembly code
 		Optimization       Optimization   `json:"optimization"`         // optimization algorithms to be applied during code emission
+	}
+
+	// Link configuration used during the linking process of the standard library, runtime, target, and output.
+	LinkConfiguration struct {
+		StandardSource   string `json:"standard_source"`   // name of the standard library source file
+		StandardAssembly string `json:"standard_assembly"` // name of the standard library assembly file
+		StandardObject   string `json:"standard_object"`   // name of the standard library object file
+		RuntimeAssembly  string `json:"runtime_assembly"`  // name of the runtime assembly file
+		RuntimeObject    string `json:"runtime_object"`    // name of the runtime object file
+		TargetAssembly   string `json:"target_assembly"`   // name of the target assembly file
+		TargetObject     string `json:"target_object"`     // name of the target object file
+		OutputExecutable string `json:"output_executable"` // name of the output executable file
 	}
 
 	// Exporter is an interface that provides methods for exporting intermediate results.

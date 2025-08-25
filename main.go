@@ -17,13 +17,14 @@ import (
 // Text messages for the compiler command line interface.
 const (
 	textTitle         = "PL/0 1976 Compiler"
-	textVersion       = "Version 2.4.0"
+	textVersion       = "Version 3.0.0"
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
-	textPurgeUsage    = "purge target directory before compiling"
+	textPurgeUsage    = "purge build directory before compiling"
 	textCompileUsage  = "compile source code file to target assembly file"
+	textLinkUsage     = "link object files to create the output executable"
 	textOptimizeUsage = "apply optimization algorithms during compilation"
-	textExportUsage   = "export intermediate representations to target files"
+	textExportUsage   = "export intermediate representations to build directory"
 	textSourceUsage   = "source code file"
 	textTargetUsage   = "target assembly file"
 	textHelpUsage     = "print help message"
@@ -36,7 +37,7 @@ var CommitHash string
 func main() {
 	const separator = ","
 	var options com.DriverOption
-	var help, compile, export, purge bool
+	var help, compile, link, export, purge bool
 	var source, target, optimize string
 	var optimization cor.Optimization
 
@@ -46,6 +47,8 @@ func main() {
 	flag.BoolVar(&compile, "c", false, textCompileUsage)
 	flag.BoolVar(&compile, "compile", false, textCompileUsage)
 	flag.StringVar(&optimize, "o", "", textOptimizeUsage)
+	flag.BoolVar(&link, "l", false, textLinkUsage)
+	flag.BoolVar(&link, "link", false, textLinkUsage)
 	flag.StringVar(&optimize, "optimize", "", textOptimizeUsage)
 	flag.BoolVar(&export, "e", false, textExportUsage)
 	flag.BoolVar(&export, "export", false, textExportUsage)
@@ -61,6 +64,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
 		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
 		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -l | --link:    %v\n", textLinkUsage)
 		fmt.Fprintf(os.Stderr, "  -o | --optimize:%v\n", textOptimizeUsage)
 		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
 		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
@@ -84,12 +88,23 @@ func main() {
 		os.Exit(0)
 	}
 
-	// compile source code to assembly target
+	// compile source code file to target assembly file
 	if compile {
 		options |= com.Compile
 
 		// compile requires source and target files
 		if source == "" || target == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	// link object files to create the output executable
+	if link {
+		options |= com.Link
+
+		// link requires compile option
+		if options&com.Compile == 0 {
 			flag.Usage()
 			os.Exit(1)
 		}
@@ -129,7 +144,7 @@ func main() {
 		optimization = cor.Debug
 	}
 
-	// export intermediate representations as target files
+	// export intermediate representations to build directory
 	if export {
 		options |= com.Export
 
@@ -140,11 +155,11 @@ func main() {
 		}
 	}
 
-	// purge target directory
+	// purge build directory
 	if purge {
 		options |= com.Clean
 
-		// purge requires target directory
+		// purge requires build directory from target assembly file
 		if target == "" {
 			flag.Usage()
 			os.Exit(1)
@@ -157,6 +172,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// call the compiler driver with the options and source and target files
+	// call the compiler driver to run the compilation and link process
 	com.Driver(options, source, target, optimization, display, os.Stdout)
 }

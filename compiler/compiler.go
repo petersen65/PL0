@@ -28,30 +28,37 @@ import (
 // Default target filename for the compilation driver.
 const defaultTarget = "out"
 
-// Default build directory for target files.
+// Default build directory for all generated files.
 const defaultBuildDirectory = "build"
 
 // Directory for exported intermediate representations.
-const intermediateDirectory = "obj"
+const intermediateDirectory = "tmp"
+
+// The standard library source file contains all standard library routines for PL/0.
+const standardFileName = "standard"
 
 // Text messages for the compilation driver.
 const (
-	textCleaning           = "Cleaning target directory '%v'\n"
-	textCompiling          = "Compiling source '%v' to target '%v' for platform '%v'\n"
-	textOptimizing         = "Applying optimization algorithms '%v'\n"
-	textErrorCompiling     = "Error compiling source '%v': %v"
-	textAbortCompilation   = "compilation aborted\n"
-	textErrorReading       = "Error reading source file '%v': %v"
-	textErrorWriting       = "Error writing target file '%v': %v"
-	textExporting          = "Exporting intermediate representations to '%v'\n"
-	textErrorExporting     = "Error exporting intermediate representations '%v': %v"
-	textDriverSourceTarget = "Compiler Driver with source '%v' and target '%v' completed\n"
+	textCleaning                 = "Cleaning build directory '%v'\n"
+	textCompiling                = "Compiling source '%v' to target '%v' for platform '%v'\n"
+	textOptimizing               = "Applying optimization algorithms '%v'\n"
+	textErrorCompiling           = "Error compiling source '%v': %v"
+	textAbortCompilation         = "compilation aborted\n"
+	textErrorReading             = "Error reading source file '%v': %v"
+	textErrorWriting             = "Error writing target file '%v': %v"
+	textExporting                = "Exporting intermediate representations to '%v'\n"
+	textErrorExporting           = "Error exporting intermediate representations '%v': %v"
+	textLinking                  = "Linking output '%v' from object files '%v'\n"
+	textErrorLinking             = "Error linking output '%v': %v"
+	textDriverSourceTarget       = "Compiler Driver with source '%v' and target '%v' completed\n"
+	textDriverSourceTargetOutput = "Compiler Driver with source '%v', target '%v', and output '%v' completed\n"
 )
 
 // Options for the compilation driver as bit-mask.
 const (
 	Clean DriverOption = 1 << iota
 	Compile
+	Link
 	Optimize
 	Export
 )
@@ -76,19 +83,22 @@ const (
 
 // Command lines and flags for the external C compiler, assembler and linker.
 const (
+	// Flags for assembling and linking the output executable with debugging information.
 	DebugFlagsC         = "-std=c23 -m64 -ggdb -g3 -O0 -DDEBUG -fno-omit-frame-pointer -fverbose-asm -dA"
 	DebugFlagsAssembler = "-m64 -ggdb"
 	DebugFlagsLinker    = "-m64 -ggdb -fno-omit-frame-pointer"
 
+	// Flags for assembling and linking the output executable with optimization algorithms.
 	ReleaseFlagsC         = "-std=c23 -m64 -O2 -DNDEBUG"
 	ReleaseFlagsAssembler = "-m64"
 	ReleaseFlagsLinker    = "-m64 -s"
 
+	// Compile, assemble, and link the standard library, runtime, target, and output executable.
 	CommandAssembleStandardLibrary = "gcc-15 -no-pie %v -S -o %v %v"
 	CommandCompileStandardLibrary  = "gcc-15 -no-pie %v -c -o %v %v"
-	CommandAssembleApplication     = "gcc-15 -no-pie %v -c -o %v %v"
 	CommandAssembleRuntime         = "gcc-15 -no-pie %v -c -o %v %v"
-	CommandLinkApplication         = "gcc-15 -no-pie %v -o %v %v %v %v"
+	CommandAssembleTarget          = "gcc-15 -no-pie %v -c -o %v %v"
+	CommandLinkOutputExecutable    = "gcc-15 -no-pie %v -o %v %v %v %v"
 )
 
 type (
@@ -131,7 +141,7 @@ var ExtensionMap = map[Extension]string{
 
 // Driver for the compilation process with options, source path, target path, optimization algorithms, display name, and print writer.
 func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, displayName string, print io.Writer) {
-	var sourceAbsolutePath, targetDirectory, baseFileName, targetAbsolutePath, targetAbsoluteDirectory, runtimePath string
+	var buildDirectory, buildAbsoluteDirectory, baseFileName, sourceAbsolutePath, targetAbsolutePath, runtimePath string
 	var compilationUnit CompilationUnit
 	var err error
 
@@ -142,37 +152,39 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	}
 
 	// ensure target path exists and print error message if an error occurred
-	if targetDirectory, baseFileName, targetAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
+	// note: the target path is used to derive the build directory from it
+	if baseFileName, buildDirectory, buildAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
 		fmt.Fprintf(print, textErrorWriting, targetPath, err)
 		return
 	}
 
 	// cleaned and validated target and runtime paths
-	targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
-	targetAbsolutePath = GetFullPath(targetAbsoluteDirectory, baseFileName, Assembly)
-	runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
+	targetPath = GetFullPath(buildDirectory, baseFileName, Assembly)
+	targetAbsolutePath = GetFullPath(buildAbsoluteDirectory, baseFileName, Assembly)
+	runtimePath = GetFullPath(buildDirectory, baseFileName, Runtime, Assembly)
 
-	// clean target directory and assume that the first ensuring of the target path was successful
+	// clean build directory and assume that the first ensuring of the target path was successful
 	if options&Clean != 0 {
-		fmt.Fprintf(print, textCleaning, targetDirectory)
-		os.RemoveAll(targetDirectory)
+		fmt.Fprintf(print, textCleaning, buildDirectory)
+		os.RemoveAll(buildDirectory)
 
 		// repeat ensuring existance of target path only if compile option is set
 		if options&Compile != 0 {
 			// repeat ensuring existance of target path after cleaning and print persistence error message if an error occurred this time
-			if targetDirectory, baseFileName, targetAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
+			// note: the target path is used to derive the build directory from it
+			if baseFileName, buildDirectory, buildAbsoluteDirectory, err = EnsureTargetPath(targetPath); err != nil {
 				fmt.Fprintf(print, textErrorWriting, targetPath, err)
 				return
 			}
 
 			// cleaned and validated target and runtime paths after cleaning
-			targetPath = GetFullPath(targetDirectory, baseFileName, Assembly)
-			targetAbsolutePath = GetFullPath(targetAbsoluteDirectory, baseFileName, Assembly)
-			runtimePath = GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
+			targetPath = GetFullPath(buildDirectory, baseFileName, Assembly)
+			targetAbsolutePath = GetFullPath(buildAbsoluteDirectory, baseFileName, Assembly)
+			runtimePath = GetFullPath(buildDirectory, baseFileName, Runtime, Assembly)
 		}
 	}
 
-	// define target platform for the application
+	// define target platform for the executable
 	// note: only Linux with x86_64 CPU, SSE2 instruction set, and UTF-32 string encoding is supported for now
 	targetPlatform := cor.TargetPlatform{
 		OperatingSystem:            cor.Linux,
@@ -181,7 +193,8 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		StringEncoding:             cor.UTF32,
 	}
 
-	// setup build configuration for the application
+	// setup build configuration for the executable
+	// note: paths include the source file name and the target file name
 	buildConfiguration := cor.BuildConfiguration{
 		SourcePath:         sourcePath,
 		TargetPath:         targetPath,
@@ -191,6 +204,18 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		DriverDisplayName:  displayName,
 		OutputKind:         cor.Application,
 		Optimization:       optimization,
+	}
+
+	// setup link configuration for the executable
+	linkConfiguration := cor.LinkConfiguration{
+		StandardSource:   GetFullPath(buildDirectory, standardFileName, LanguageC),
+		StandardAssembly: GetFullPath(buildDirectory, standardFileName, Assembly),
+		StandardObject:   GetFullPath(buildDirectory, standardFileName, Object),
+		RuntimeAssembly:  GetFullPath(buildDirectory, baseFileName, Runtime, Assembly),
+		RuntimeObject:    GetFullPath(buildDirectory, baseFileName, Runtime, Object),
+		TargetAssembly:   GetFullPath(buildDirectory, baseFileName, Assembly),
+		TargetObject:     GetFullPath(buildDirectory, baseFileName, Object),
+		OutputExecutable: GetFullPath(buildDirectory, baseFileName),
 	}
 
 	// compile source code to compilation unit and print an error report if errors occurred during compilation
@@ -220,13 +245,13 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		}
 	}
 
-	// export intermediate representations to the target directory even if errors occurred during compilation
+	// export intermediate representations to the build directory even if errors occurred during compilation
 	if options&Compile != 0 && options&Export != 0 {
-		fmt.Fprintf(print, textExporting, filepath.Join(targetDirectory, intermediateDirectory))
+		fmt.Fprintf(print, textExporting, filepath.Join(buildDirectory, intermediateDirectory))
 
 		// print error message if any error occurred during export
-		if err = ExportIntermediateRepresentations(compilationUnit, targetDirectory, baseFileName); err != nil {
-			fmt.Fprintf(print, textErrorExporting, filepath.Join(targetDirectory, intermediateDirectory), err)
+		if err = ExportIntermediateRepresentations(compilationUnit, buildDirectory, baseFileName); err != nil {
+			fmt.Fprintf(print, textErrorExporting, filepath.Join(buildDirectory, intermediateDirectory), err)
 			return
 		}
 	}
@@ -242,8 +267,20 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 			fmt.Fprintf(print, textErrorWriting, runtimePath, err)
 			return
 		}
+	}
 
-		LinkCompilationUnits(optimization&cor.Debug != 0, targetDirectory, "standard", runtimePath, baseFileName)
+	// link all compilation units and print linking error message if an error occurred
+	if options&Link != 0 {
+		fmt.Fprintf(print,
+			textLinking,
+			linkConfiguration.OutputExecutable,
+			strings.Join([]string{linkConfiguration.StandardObject, linkConfiguration.RuntimeObject, linkConfiguration.TargetObject}, ", "),
+		)
+
+		if err = LinkCompilationUnits(optimization&cor.Debug != 0, linkConfiguration); err != nil {
+			fmt.Fprintf(print, textErrorLinking, linkConfiguration.OutputExecutable, err)
+			return
+		}
 	}
 
 	// print driver completion message
@@ -363,8 +400,8 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 	return nil
 }
 
-// Perform C and assembly compilation with a final linking step.
-func LinkCompilationUnits(debug bool, targetDirectory, standard, _, baseFileName string) error {
+// Assemble and link the compilation units of the standard library, runtime, and target.
+func LinkCompilationUnits(debug bool, linkConfiguration cor.LinkConfiguration) error {
 	var flagsC, flagsAssembler, flagsLinker string
 
 	if debug {
@@ -379,51 +416,57 @@ func LinkCompilationUnits(debug bool, targetDirectory, standard, _, baseFileName
 		flagsLinker = ReleaseFlagsLinker
 	}
 
-	// Extract the embedded standard.c file to the target directory
-    standardSrc, err := ExtractStandardLibrary(targetDirectory)
-    if err != nil {
-        return fmt.Errorf("failed to extract standard library: %w", err)
-    }
+	// extract the embedded standard library source file
+	if err := ExtractStandardLibrary(linkConfiguration.StandardSource); err != nil {
+		return err
+	}
 
-	standardAsm := GetFullPath(targetDirectory, standard, Assembly)
-	standardObj := GetFullPath(targetDirectory, standard, Object)
+	// assemble and link the output executable based on its compilation units
+	// note: the standard library assembly file is only created for diagnostic purposes
+	assembleAndLink := []string{
+		fmt.Sprintf(
+			CommandAssembleStandardLibrary,     // compile standard library to assembly file
+			flagsC,                             // flags for C compiler
+			linkConfiguration.StandardAssembly, // output assembly file
+			linkConfiguration.StandardSource),  // input source file
+		fmt.Sprintf(
+			CommandCompileStandardLibrary,     // compile standard library to object file
+			flagsC,                            // flags for C compiler
+			linkConfiguration.StandardObject,  // output object file
+			linkConfiguration.StandardSource), // input source file
+		fmt.Sprintf(
+			CommandAssembleRuntime,             // assemble runtime to object file
+			flagsAssembler,                     // flags for assembler
+			linkConfiguration.RuntimeObject,    // output object file
+			linkConfiguration.RuntimeAssembly), // input assembly file
+		fmt.Sprintf(
+			CommandAssembleTarget,             // assemble target to object file
+			flagsAssembler,                    // flags for assembler
+			linkConfiguration.TargetObject,    // output object file
+			linkConfiguration.TargetAssembly), // input assembly file
+		fmt.Sprintf(
+			CommandLinkOutputExecutable,        // link output executable file
+			flagsLinker,                        // flags for linker
+			linkConfiguration.OutputExecutable, // output executable file
+			linkConfiguration.TargetObject,     // input object file of target
+			linkConfiguration.RuntimeObject,    // input object file of runtime
+			linkConfiguration.StandardObject),  // input object file of standard library
+	}
 
-	runtimeAsm := GetFullPath(targetDirectory, baseFileName, Runtime, Assembly)
-	runtimeObj := GetFullPath(targetDirectory, baseFileName, Runtime, Object)
+	// execute all assemble and link commands in sequence and return if an error occurred
+	for _, command := range assembleAndLink {
+		parts := strings.Fields(command)
+		cmd := exec.Command(parts[0], parts[1:]...)
 
-	outputObj := GetFullPath(targetDirectory, baseFileName, Object)
-	outputAsm := GetFullPath(targetDirectory, baseFileName, Assembly)
-	outputBin := GetFullPath(targetDirectory, baseFileName)
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
 
-	// commandAssembleStandardLibrary := fmt.Sprintf(CommandAssembleStandardLibrary, flagsC, standardAsm, standardSrc)
-	// commandCompileStandardLibrary  := fmt.Sprintf(CommandCompileStandardLibrary, flagsC, standardObj, standardSrc)
-	// commandAssembleRuntime         := fmt.Sprintf(CommandAssembleRuntime, flagsAssembler, runtimeObj, runtimeAsm)
-	// commandAssembleApplication     := fmt.Sprintf(CommandAssembleApplication, flagsAssembler, outputObj, outputAsm)
-	// commandLinkApplication         := fmt.Sprintf(CommandLinkApplication, flagsLinker, outputBin, outputObj, runtimeObj, standardObj)
-
-    commands := []struct {
-        name string
-        cmd  string
-    }{
-        {"Assemble Standard Library", fmt.Sprintf(CommandAssembleStandardLibrary, flagsC, standardAsm, standardSrc)},
-        {"Compile Standard Library", fmt.Sprintf(CommandCompileStandardLibrary, flagsC, standardObj, standardSrc)},
-        {"Assemble Runtime", fmt.Sprintf(CommandAssembleRuntime, flagsAssembler, runtimeObj, runtimeAsm)},
-        {"Assemble Application", fmt.Sprintf(CommandAssembleApplication, flagsAssembler, outputObj, outputAsm)},
-        {"Link Application", fmt.Sprintf(CommandLinkApplication, flagsLinker, outputBin, outputObj, runtimeObj, standardObj)},
-    }
-
-    for _, command := range commands {
-        fmt.Println(command.cmd)
-        parts := strings.Fields(command.cmd)
-        cmd := exec.Command(parts[0], parts[1:]...)
-        if err := cmd.Run(); err != nil {
-            return fmt.Errorf("%s failed: %w", command.name, err)
-        }
-    }
 	return nil
 }
 
-// Export all intermediate representations to the target directory.
+// Export all intermediate representations to the build directory.
 func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDirectory, baseFileName string) error {
 	var anyError error
 
@@ -455,7 +498,7 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 	anyError = errors.
 		Join(erjErr, tsjErr, asjErr, icjErr, cfjErr, acjErr, ertErr, tstErr, astErr, ictErr, cftErr, actErr)
 
-	// close all files and remove target directory if any error occurred during file creations
+	// close all files and remove build directory if any error occurred during file creations
 	defer func() {
 		// safely close file and remove it if it is empty
 		var closeFile = func(file *os.File) {
@@ -483,7 +526,7 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 		closeFile(cftFile)
 		closeFile(actFile)
 
-		// remove target directory if any error occurred during file creations
+		// remove build directory if any error occurred during file creations
 		if anyError != nil {
 			os.RemoveAll(targetDirectory)
 		}
@@ -623,7 +666,7 @@ func EnsureTargetPath(target string) (string, string, string, error) {
 		targetAbsoluteDirectory = absolutePath
 	}
 
-	return filepath.ToSlash(targetDirectory), baseFileName, filepath.ToSlash(targetAbsoluteDirectory), nil
+	return baseFileName, filepath.ToSlash(targetDirectory), filepath.ToSlash(targetAbsoluteDirectory), nil
 }
 
 // Return the full path of the target file with the given base file name and extensions.

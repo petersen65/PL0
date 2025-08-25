@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Playground",
+            "name": "Launch PL/0 Example",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -13,185 +13,47 @@
             "args": [
                 "--purge",
                 "--compile",
+                "--link",
                 "--optimize",
-                "debug",
+                "${input:optimizationLevel}",
                 "--export",
                 "--source",
+                "${input:exampleFile}",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "exampleFile",
+            "type": "pickString",
+            "description": "Select the PL/0 example file to run",
+            "default": "examples/playground.pl0",
+            "options": [
                 "examples/playground.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Nesting",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/nesting.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Procedures",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/procedures.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Comments",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/comments.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Conditions",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/conditions.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Errors",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/errors.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Expressions",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/expressions.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Recursions",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
-                "debug",
-                "--export",
-                "--source",
                 "examples/recursions.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
+                "examples/utf8.pl0"
+            ]
         },
         {
-            "name": "Launch UTF8",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--optimize",
+            "id": "optimizationLevel",
+            "type": "pickString",
+            "description": "Select optimization level",
+            "default": "debug",
+            "options": [
                 "debug",
-                "--export",
-                "--source",
-                "examples/utf8.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
+                "release"
+            ]
         }
     ]
 }
