@@ -39,19 +39,21 @@ const standardFileName = "standard"
 
 // Text messages for the compilation driver.
 const (
-	textCleaning                 = "Cleaning build directory '%v'\n"
-	textCompiling                = "Compiling source '%v' to target '%v' for platform '%v'\n"
-	textOptimizing               = "Applying optimization algorithms '%v'\n"
-	textErrorCompiling           = "Error compiling source '%v': %v"
-	textAbortCompilation         = "compilation aborted\n"
-	textErrorReading             = "Error reading source file '%v': %v"
-	textErrorWriting             = "Error writing target file '%v': %v"
-	textExporting                = "Exporting intermediate representations to '%v'\n"
-	textErrorExporting           = "Error exporting intermediate representations '%v': %v"
-	textLinking                  = "Linking output '%v' from object files '%v'\n"
-	textErrorLinking             = "Error linking output '%v': %v"
-	textDriverSourceTarget       = "Compiler Driver with source '%v' and target '%v' completed\n"
-	textDriverSourceTargetOutput = "Compiler Driver with source '%v', target '%v', and output '%v' completed\n"
+	textCleaning                   = "Cleaning build directory '%v'\n"
+	textCompiling                  = "Compiling source '%v' to target '%v' for platform '%v'\n"
+	textOptimizing                 = "Applying optimization algorithms '%v'\n"
+	textErrorCompiling             = "Error compiling source '%v': %v"
+	textAbortCompilation           = "compilation aborted\n"
+	textErrorReading               = "Error reading source file '%v': %v"
+	textErrorWriting               = "Error writing target file '%v': %v"
+	textExporting                  = "Exporting intermediate representations to '%v'\n"
+	textErrorExporting             = "Error exporting intermediate representations '%v': %v"
+	textLinking                    = "Linking output '%v' from object files '%v'\n"
+	textErrorLinking               = "Error linking output '%v': %v"
+	textDriverSourceTarget         = "Compiler Driver with source '%v' and target '%v' completed\n"
+	textDriverSourceTargetOutput   = "Compiler Driver with source '%v', target '%v', and output '%v' completed\n"
+	textErrorTargetPlatform        = "target platform '%v' not supported"
+	textErrorGnuCompilerCollection = "Error validating GNU Compiler Collection: %v\n"
 )
 
 // Options for the compilation driver as bit-mask.
@@ -92,6 +94,9 @@ const (
 	ReleaseFlagsC         = "-std=c23 -m64 -O2 -DNDEBUG"
 	ReleaseFlagsAssembler = "-m64"
 	ReleaseFlagsLinker    = "-m64 -s"
+
+	// Validate required GNU Compiler Collection.
+	CommandValidateGnuCompilerCollection = "gcc-15 -dumpmachine"
 
 	// Compile, assemble, and link the standard library, runtime, target, and output executable.
 	CommandAssembleStandardLibrary = "gcc-15 -no-pie %v -S -o %v %v"
@@ -218,6 +223,14 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		OutputExecutable: GetFullPath(buildDirectory, baseFileName),
 	}
 
+	// validate that the GNU Compiler Collection supports the target platform and print error message if an error occurred
+	if options&Link != 0 {
+		if err := ValidateGnuCompilerCollection(targetPlatform); err != nil {
+			fmt.Fprintf(print, textErrorGnuCompilerCollection, err)
+			return
+		}
+	}
+
 	// compile source code to compilation unit and print an error report if errors occurred during compilation
 	if options&Compile != 0 {
 		fmt.Fprintf(print, textCompiling, sourcePath, targetPath, targetPlatform)
@@ -270,7 +283,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 	}
 
 	// link all compilation units and print linking error message if an error occurred
-	if options&Link != 0 {
+	if options&Link != 0 && options&Compile != 0 && !compilationUnit.ErrorHandler.HasErrors() {
 		fmt.Fprintf(print,
 			textLinking,
 			linkConfiguration.OutputExecutable,
@@ -283,8 +296,12 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		}
 	}
 
-	// print driver completion message
-	fmt.Fprintf(print, textDriverSourceTarget, sourcePath, targetPath)
+	// print driver completion message for link and compilation cases
+	if options&Link != 0 {
+		fmt.Fprintf(print, textDriverSourceTargetOutput, sourcePath, targetPath, linkConfiguration.OutputExecutable)
+	} else if options&Compile != 0 {
+		fmt.Fprintf(print, textDriverSourceTarget, sourcePath, targetPath)
+	}
 }
 
 // Compile source code and return compilation unit with all intermediate results and error handler.
@@ -398,6 +415,25 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 	}
 
 	return nil
+}
+
+// Validate that the GNU Compiler Collection supports the target platform.
+func ValidateGnuCompilerCollection(targetPlatform cor.TargetPlatform) error {
+	parts := strings.Fields(CommandValidateGnuCompilerCollection)
+	cmd := exec.Command(parts[0], parts[1:]...)
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return err
+	} else {
+		result := strings.ToLower(string(output))
+
+		if !strings.Contains(result, strings.ToLower(targetPlatform.OperatingSystem.String())) ||
+			!strings.Contains(result, strings.ToLower(targetPlatform.InstructionSetArchitecture.String())) {
+			return fmt.Errorf(textErrorTargetPlatform, targetPlatform)
+		}
+
+		return nil
+	}
 }
 
 // Assemble and link the compilation units of the standard library, runtime, and target.
