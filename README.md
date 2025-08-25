@@ -352,17 +352,16 @@ The assembly code above omits static link creation and initialization for clarit
 	* removal of jit compiler from emulator and implementation of new emitter package that was refactored out of the jit compiler
 	* introduction of concepts "intermediate code unit" and "assembly code unit" defined as output from generator and emitter phases
 
-## Planning
-
-* 2025, enhance programming language and generate assembler
-	* support for Intel x86_64 assembler generation and removal of integrated emulator (nasm, clib-linkage)
-	* revisit and review current JSON marshalling and text output implementation, add Marshal/Unmarshal functions to interfaces
-	* check if panic calls in the 'code' module should include the tokenstream in its error messages
-	* implemention of control flow graph (CFG) with lifeness and use information for variables
-	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
-	* design or redesign of public APIs for all packages of the compiler (rethink public/private visibility)
-	* unit tests for all public APIs
-	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
-	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
-	* implement constant folding based on abstract syntax tree
-	* implement closure support for the compiler's intermediate language
+* August 25 2025 - [v3.0.0](https://github.com/petersen65/pl0/releases/tag/v3.0.0)
+  * support for Intel x86_64 assembler generation and removal of integrated emulator
+  * support for comments and assembler directives in assembly instructions
+  * x86_64 assembler generation for all integer types (8-bit to 64-bit) and floating point types (32-bit and 64-bit)
+  * emission of ELF sections for large integer types (64-bit) and UTF-32 encoded string literals
+	* implementation of read and write functions in a new PL/0 standard library which itself is written in C23
+  * compliance with the System V AMD64 ABI of the generated assembly code including C library linkage
+  * integration of the GNU Compiler Collection 15 into the compiler driver to enable the executable and linkable format (ELF) on 64-bit Linux
+  * emission of DWARF v5 debugging information to enable single step debugging und variable inspection in the GDB debugger
+  * introduction of debug and release build optimizations
+	* revisited JSON marshalling and text output implementation
+  * huge efforts to implement clear formal concepts for intermediate code generation and assembly code generation
+  * many internal compiler approvements like tab support in scanner, token stream support for blocks and statements, token stream from source code to assembly code
