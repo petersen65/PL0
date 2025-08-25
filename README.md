@@ -2,7 +2,7 @@
 
 This module provides a complete compiler for the programming language PL/0. It provides several packages that can be used independently of its command line interface.
 
-* core: core features, token type-system, and error-handling mechanism used by all compiler components
+* core: core features, debugging information, token type-system, and error-handling mechanism used by all compiler components
 * scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
@@ -10,15 +10,18 @@ This module provides a complete compiler for the programming language PL/0. It p
 * generator: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
 * emitter: assembly code generation compiler phase by iterating over the intermediate code
-* compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
+* emitter/x86_64: Intel x86_64 ISA_SSE2 assembly code generator that targets Linux ELF binaries with optional DWARF v5 debugging information
+* emitter/elf: constants and types for the executable and linkable format (ELF) on 64-bit Linux including DWARF v5 support for the "gdb" debugger
+* compiler: driver for all compiler components, from scanning PL/0 source code to linking x86_64 Linux output executables
+* compiler/standard: tiny standard library for the programming language PL/0 written in C23
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into Intel x86_64 assembly language. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1976 into Intel x86_64 assembly code. Why PL/0? The programming language is very simple and reduced, so that its compiler can be written and understood by one person.
 
-From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
+Interested students and developers are welcome to learn from the project how a compiler works and looks from the inside. The source code is well documented and structured. Variable names are also slightly longer than usual so that the source code can be better understood. The code base is prepared for extensibility and encapsulation by using packages and interface-based implementation atterns.
 
-For Visual Studio Code, you should be able to run the compiler with F5. Please install the lastest Go version before that. You will be guided to a playground.pl0 file where you can try out PL/0 programming. Support for dev-containers is also provided, if you cannot install Go on your operating system. The PL/0 compiler was tested under Windows 11, Linux Ubuntu 24.10, and macOS Sequoia M4.
+With Visual Studio Code, the compiler can be run and debugged using F5. Examples are provided where the PL/0 programming language can be tested. Support for dev-containers with all required software components is part of the project, if you cannot install Go on your operating system. The PL/0 compiler was tested under Linux Ubuntu 25.04 and GNU Compiler Collection 15. GCC-15 is only required for assembling and linking resultant PL/0 compiler generated target assembly code files and for the compilation of the tiny PL/0 standard library which is intentionally written in C23. The PL/0 compiler generated assembly code is compliant with the System V AMD64 ABI and requires the standard C library provided by GCC-15.
 
-I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
+Due to capacity limits, units test are not implemented yet.
 
 ## License
 
