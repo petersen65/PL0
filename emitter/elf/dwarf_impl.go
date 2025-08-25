@@ -31,6 +31,9 @@ const debugEntryPrefix = labelPrefix + localPrefix + "die_"
 // Prefix for DWARF string items.
 const debugStringPrefix = labelPrefix + "str_"
 
+// Provide a format for a function display name.
+const functionDisplayNameFormat = "%v [%v]"
+
 // Provide a format for a string representation of a descriptor label.
 const descriptorLabel = "%v.desc"
 

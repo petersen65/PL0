@@ -365,3 +365,5 @@ The assembly code above omits static link creation and initialization for clarit
 	* revisited JSON marshalling and text output implementation
   * huge efforts to implement clear formal concepts for intermediate code generation and assembly code generation
   * many internal compiler approvements like tab support in scanner, token stream support for blocks and statements, token stream from source code to assembly code
+  * launch configurations for Visual Studio Code allow example compilation and graphical single step debugging, breakpoints, and variable inspection
+  

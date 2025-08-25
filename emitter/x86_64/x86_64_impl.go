@@ -1205,8 +1205,11 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 			// mark the function name as used
 			labels[fd.FunctionName] = true
 
+			// create a human readable function display name from the linkage and source names
+			functionDisplayName := elf.ToFunctionDisplayName(fd.FunctionName, fd.FunctionNameSource)
+
 			// add the function name to the .debug_str section
-			u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(fd.FunctionName), elf.String, fd.FunctionName))
+			u.DebugStrSection.Append(elf.NewStringItem(elf.ToStringItemLabel(fd.FunctionName), elf.String, functionDisplayName))
 		}
 
 		// ensure that the function name from source code is a unique label name in the .debug_str section

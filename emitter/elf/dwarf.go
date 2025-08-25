@@ -515,6 +515,11 @@ func ToNameSourceReference(name string) string {
 	return fmt.Sprintf("%v%v%v", debugStringPrefix, nameSourcePrefix, name)
 }
 
+// String representation of a function display name combining source and linkage names.
+func ToFunctionDisplayName(nameLinkage, nameSource string) string {
+	return fmt.Sprintf(functionDisplayNameFormat, nameSource, nameLinkage)
+}
+
 // String representation of a descriptor label.
 func ToDescriptor(label string) string {
 	return fmt.Sprintf(descriptorLabel, label)
