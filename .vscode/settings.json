@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.pl0": "pl0"
+    },
+    "debug.allowBreakpointsEverywhere": true,
+    "workbench.iconTheme": "vscode-icons",
+    "C_Cpp.default.cppStandard": "c++26",
+    "C_Cpp.default.cStandard": "c23"
+}

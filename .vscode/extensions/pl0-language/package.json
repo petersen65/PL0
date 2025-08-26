@@ -1,0 +1,37 @@
+{
+    "name": "pl0-language",
+    "displayName": "PL/0 Language Support",
+    "description": "Syntax highlighting and language support for PL/0 1976",
+    "version": "1.0.0",
+    "publisher": "pl0-compiler-project",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "pl0",
+                "aliases": [
+                    "PL/0",
+                    "pl0",
+                    "PL0",
+                    "PL/0 1976"
+                ],
+                "extensions": [
+                    ".pl0"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "pl0",
+                "scopeName": "source.pl0",
+                "path": "./syntaxes/pl0.tmLanguage.json"
+            }
+        ]
+    }
+}
