@@ -8,9 +8,6 @@
             "include": "#keywords"
         },
         {
-            "include": "#constants"
-        },
-        {
             "include": "#numbers"
         },
         {
@@ -26,10 +23,6 @@
     "repository": {
         "comments": {
             "patterns": [
-                {
-                    "name": "comment.line.double-slash.pl0",
-                    "match": "//.*$"
-                },
                 {
                     "name": "comment.block.braces.pl0",
                     "begin": "\\{",
@@ -56,23 +49,19 @@
             "patterns": [
                 {
                     "name": "keyword.control.pl0",
-                    "match": "\\b(if|then|else|while|do|begin|end)\\b"
+                    "match": "\\b(if|then|while|do)\\b"
+                },
+                {
+                    "name": "keyword.declaration.pl0",
+                    "match": "\\b(const|var|procedure)\\b"
+                },
+                {
+                    "name": "keyword.operator.pl0",
+                    "match": "\\b(odd)\\b"
                 },
                 {
                     "name": "keyword.other.pl0",
-                    "match": "\\b(call|odd)\\b"
-                },
-                {
-                    "name": "storage.type.pl0",
-                    "match": "\\b(const|var|procedure)\\b"
-                }
-            ]
-        },
-        "constants": {
-            "patterns": [
-                {
-                    "name": "constant.language.pl0",
-                    "match": "\\b(true|false|nil|null)\\b"
+                    "match": "\\b(begin|end|call)\\b"
                 }
             ]
         },
