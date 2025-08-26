@@ -123,7 +123,7 @@ call Level1.
         -1
 
     Error Report:
-        Warnings:
-            3: const a = 1;
-                      ^ analyzer warning 4010 [3,8]: constant declared but not used: a
+    Warnings:
+        3: const a = 1;
+                 ^ analyzer warning 4011 [3,7]: constant declared but not used: a
 }

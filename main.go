@@ -8,22 +8,25 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	com "github.com/petersen65/PL0/v2/compiler"
+	cor "github.com/petersen65/PL0/v2/core"
 )
 
 // Text messages for the compiler command line interface.
 const (
-	textTitle         = "PL/0 Compiler"
-	textVersion       = "Version 2.3.0 2025"
+	textTitle         = "PL/0 1976 Compiler"
+	textVersion       = "Version 3.0.0"
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
-	textPurgeUsage    = "purge target directory before compiling"
-	textCompileUsage  = "compile source code file to binary target file"
-	textExportUsage   = "export intermediate representations to target files"
-	textRunUsage      = "run binary target file"
+	textPurgeUsage    = "purge build directory before compiling"
+	textCompileUsage  = "compile source code file to target assembly file"
+	textLinkUsage     = "link object files to create the output executable"
+	textOptimizeUsage = "apply optimization algorithms during compilation"
+	textExportUsage   = "export intermediate representations to build directory"
 	textSourceUsage   = "source code file"
-	textTargetUsage   = "binary target file"
+	textTargetUsage   = "target assembly file"
 	textHelpUsage     = "print help message"
 )
 
@@ -32,19 +35,23 @@ var CommitHash string
 
 // Function main is the entry point for the compiler command line interface. It parses the command line arguments and calls the appropriate functions.
 func main() {
+	const separator = ","
 	var options com.DriverOption
-	var help, compile, run, export, purge bool
-	var source, target string
+	var help, compile, link, export, purge bool
+	var source, target, optimize string
+	var optimization cor.Optimization
 
 	// define valid command line flags
 	flag.BoolVar(&purge, "p", false, textPurgeUsage)
 	flag.BoolVar(&purge, "purge", false, textPurgeUsage)
 	flag.BoolVar(&compile, "c", false, textCompileUsage)
 	flag.BoolVar(&compile, "compile", false, textCompileUsage)
+	flag.StringVar(&optimize, "o", "", textOptimizeUsage)
+	flag.BoolVar(&link, "l", false, textLinkUsage)
+	flag.BoolVar(&link, "link", false, textLinkUsage)
+	flag.StringVar(&optimize, "optimize", "", textOptimizeUsage)
 	flag.BoolVar(&export, "e", false, textExportUsage)
 	flag.BoolVar(&export, "export", false, textExportUsage)
-	flag.BoolVar(&run, "r", false, textRunUsage)
-	flag.BoolVar(&run, "run", false, textRunUsage)
 	flag.StringVar(&source, "s", "", textSourceUsage)
 	flag.StringVar(&source, "source", "", textSourceUsage)
 	flag.StringVar(&target, "t", "", textTargetUsage)
@@ -55,21 +62,25 @@ func main() {
 	// define usage function for command line flags
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
-		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
-		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
-		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
-		fmt.Fprintf(os.Stderr, "  -r | --run:     %v\n", textRunUsage)
-		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
-		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
-		fmt.Fprintf(os.Stderr, "  -h | --help:    %v\n", textHelpUsage)
+		fmt.Fprintf(os.Stderr, "  -p | --purge:    %v\n", textPurgeUsage)
+		fmt.Fprintf(os.Stderr, "  -c | --compile:  %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -l | --link:     %v\n", textLinkUsage)
+		fmt.Fprintf(os.Stderr, "  -o | --optimize: %v\n", textOptimizeUsage)
+		fmt.Fprintf(os.Stderr, "  -e | --export:   %v\n", textExportUsage)
+		fmt.Fprintf(os.Stderr, "  -s | --source:   %v\n", textSourceUsage)
+		fmt.Fprintf(os.Stderr, "  -t | --target:   %v\n", textTargetUsage)
+		fmt.Fprintf(os.Stderr, "  -h | --help:     %v\n", textHelpUsage)
 	}
 
 	// parse command line arguments into variables
 	flag.Parse()
 
+	// create driver display name used to identify the source of any generated code
+	display := strings.TrimSpace(fmt.Sprintf("%v %v %v", textTitle, textVersion, CommitHash))
+
 	// print title, version, and copyright
-	fmt.Fprintf(os.Stdout, "%v %v %v\n", textTitle, textVersion, CommitHash)
-	fmt.Fprintf(os.Stdout, "%v\n", textCopyright)
+	fmt.Fprintln(os.Stdout, display)
+	fmt.Fprintln(os.Stdout, textCopyright)
 
 	// print help message if requested
 	if help {
@@ -77,54 +88,90 @@ func main() {
 		os.Exit(0)
 	}
 
-	// compile source code to binary target
+	// compile source code file to target assembly file
 	if compile {
 		options |= com.Compile
 
+		// compile requires source and target files
 		if source == "" || target == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
 	}
 
-	// run binary target
-	if run {
-		options |= com.Emulate
+	// link object files to create the output executable
+	if link {
+		options |= com.Link
 
+		// link requires compile option
+		if options&com.Compile == 0 {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	// apply optimizations during compilation
+	if optimize != "" {
+		options |= com.Optimize
+
+		// validate optimization flag values
+		for value := range strings.SplitSeq(optimize, separator) {
+			switch value {
+			case cor.Debug.String():
+				optimization |= cor.Debug
+
+			case cor.Release.String():
+				optimization |= cor.Release
+
+			default:
+				flag.Usage()
+				os.Exit(1)
+			}
+		}
+
+		// the debug optimization turns off all optimization algorithms and always overrides any release optimizations
+		if optimization&cor.Debug != 0 {
+			optimization = cor.Debug
+		}
+
+		// optimize requires compile option
+		if options&com.Compile == 0 {
+			flag.Usage()
+			os.Exit(1)
+		}
+	} else {
+		// default optimization is debug
+		optimization = cor.Debug
+	}
+
+	// export intermediate representations to build directory
+	if export {
+		options |= com.Export
+
+		// export requires compile option
+		if options&com.Compile == 0 {
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	// purge build directory
+	if purge {
+		options |= com.Clean
+
+		// purge requires build directory from target assembly file
 		if target == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
 	}
 
-	// export intermediate representations as target files
-	if export {
-		options |= com.Export
-
-		// export requires compile option and source and target files
-		if options&com.Compile == 0 || source == "" || target == "" {
-			flag.Usage()
-			os.Exit(1)
-		}
-	}
-
-	// purge target directory
-	if purge {
-		options |= com.Clean
-
-		// purge and run options without compilation do not make sense
-		if (options&com.Compile == 0 && options&com.Emulate != 0) || target == "" {
-			flag.Usage()
-			os.Exit(1)
-		}
-	}
-
-	// check if at least the compile, run, or purge option is set
-	if options&com.Compile == 0 && options&com.Emulate == 0 && options&com.Clean == 0 {
+	// check if at least the compile or purge option is set
+	if options&com.Compile == 0 && options&com.Clean == 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// call the compiler driver with the options and source and target files
-	com.Driver(options, source, target, os.Stdout)
+	// call the compiler driver to run the compilation and link process
+	com.Driver(options, source, target, optimization, display, os.Stdout)
 }

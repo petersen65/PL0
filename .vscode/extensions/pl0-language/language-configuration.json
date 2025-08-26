@@ -1,0 +1,79 @@
+{
+    "comments": {
+        "blockComment": [
+            [
+                "{",
+                "}"
+            ],
+            [
+                "(*",
+                "*)"
+            ]
+        ]
+    },
+    "brackets": [
+        [
+            "(",
+            ")"
+        ],
+        [
+            "{",
+            "}"
+        ],
+        [
+            "(*",
+            "*)"
+        ]
+    ],
+    "autoClosingPairs": [
+        {
+            "open": "{",
+            "close": "}"
+        },
+        {
+            "open": "(*",
+            "close": "*)"
+        },
+        {
+            "open": "(",
+            "close": ")"
+        },
+        {
+            "open": "begin",
+            "close": "end",
+            "notIn": [
+                "string",
+                "comment"
+            ]
+        }
+    ],
+    "surroundingPairs": [
+        [
+            "begin",
+            "end"
+        ],
+        [
+            "(",
+            ")"
+        ],
+        [
+            "{",
+            "}"
+        ],
+        [
+            "(*",
+            "*)"
+        ]
+    ],
+    "folding": {
+        "markers": {
+            "start": "^\\s*(procedure|begin|const|var|{|\\(\\*)\\b",
+            "end": "^\\s*(end|\\}|\\*\\))\\b"
+        }
+    },
+    "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\>\\/\\?\\s]+)",
+    "indentationRules": {
+        "increaseIndentPattern": "^\\s*(procedure|begin|const|var|if.*then|while.*do)\\s*$",
+        "decreaseIndentPattern": "^\\s*(end)\\s*(;|\\.)?"
+    }
+}

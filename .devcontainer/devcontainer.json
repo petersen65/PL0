@@ -1,16 +1,19 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/go
 {
-    "name": "PL/0 Compiler",
+    "name": "Go and C/C++ Development",
     "dockerFile": "Dockerfile",
     "containerUser": "vscode",
     "context": ".",
     "build": {
         "args": {
             "ARCHITECTURE": "linux/amd64",
-            "BASE_IMG": "ubuntu:24.10",
+            "BASE_IMG": "ubuntu:25.04",
             "TARGET_USER": "vscode",
-            "GO_VERSION": "1.24.0"
+            "GO_VERSION": "1.25.0",
+            "GO_ARCHITECTURE": "linux-amd64",
+            "GCC_VERSION": "15",
+            "LLVM_VERSION": "20"
         }
     },
     "runArgs": [
@@ -21,15 +24,23 @@
         "vscode": {
             "extensions": [
                 "vscode-icons-team.vscode-icons",
-                "github.vscode-github-actions",
-                "github.codespaces",
                 "github.copilot",
                 "github.copilot-chat",
                 "github.vscode-pull-request-github",
+                "cheshirekow.cmake-format",
                 "golang.go",
-                "rogalmic.bash-debug",
-                "mads-hartmann.bash-ide-vscode"
+                "ms-vscode.cpptools-extension-pack"
             ]
         }
     }
+    // Features to add to the dev container. More info: https://containers.dev/features.
+    // "features": {},
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // "postCreateCommand": "gcc -v",
+    // Configure tool-specific properties.
+    // "customizations": {}
+    // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+    // "remoteUser": "root"
 }

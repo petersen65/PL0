@@ -1,0 +1,47 @@
+{
+    "name": "pl0-language",
+    "license": "Apache-2.0",
+    "displayName": "PL/0 Language Support",
+    "description": "Syntax highlighting and language support for PL/0 1976",
+    "version": "1.0.0",
+    "publisher": "petersen65",
+    "author": {
+        "name": "Michael Petersen"
+    },
+    "icon": "images/pl0.png",
+    "engines": {
+        "vscode": "^1.103.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "pl0",
+                "aliases": [
+                    "PL/0",
+                    "pl0",
+                    "PL0",
+                    "PL/0 1976"
+                ],
+                "extensions": [
+                    ".pl0"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "pl0",
+                "scopeName": "source.pl0",
+                "path": "./syntaxes/pl0.tmLanguage.json"
+            }
+        ],
+        "breakpoints": [
+            {
+                "language": "pl0"
+            }
+        ]   
+    }
+}

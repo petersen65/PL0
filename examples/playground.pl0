@@ -1,27 +1,47 @@
 { provide playground for trying out PL/0 }
 
 const a = 99;
-var x, y, z;
+var x, y, z, r;
+
+procedure P;
+var v, w;
+begin
+    v := 777;
+    ! v;
+end;
 
 begin
     x := 4;
     y := 5;
     z := -x - y;
 
+    ? r;
+
     ! x;
     ! y;
     ! z;
     ! a;
+    ! r;
 
     if odd z then
         ! 42;
 
+    call P;
+
     {
         Correct output is:
+            <number read from stdin>
             4
             5
             -9
             99
+            <number written to stdout>
             42
+            777
+
+        Error Report:
+        Warnings:
+            7: var v, w;
+                      ^ analyzer warning 4012 [7,8]: variable declared but not used: w
     }
 end.

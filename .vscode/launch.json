@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Playground",
+            "name": "Compile PL/0 Example",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -13,56 +13,90 @@
             "args": [
                 "--purge",
                 "--compile",
+                "--link",
+                "--optimize",
+                "${input:optimizationLevel}",
                 "--export",
-                "--run",
                 "--source",
+                "${input:exampleFile}",
+                "--target",
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug PL/0 Binary",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/out",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Set DWARF version awareness",
+                    "text": "set debug dwarf-read 1",
+                    "ignoreFailures": false
+                }
+            ],
+            "sourceFileMap": {
+                "/workspaces/PL0": "${workspaceFolder}"
+            },
+            "logging": {
+                "engineLogging": false,
+                "trace": false,
+                "traceResponse": false,
+                "moduleLoad": true,
+                "programOutput": true,
+                "exceptions": true
+            },
+            "avoidWindowsConsoleRedirection": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "exampleFile",
+            "type": "pickString",
+            "description": "Select the PL/0 example file to run",
+            "default": "examples/playground.pl0",
+            "options": [
                 "examples/playground.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Launch Nesting",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--export",
-                "--run",
-                "--source",
                 "examples/nesting.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
+                "examples/procedures.pl0",
+                "examples/comments.pl0",
+                "examples/conditions.pl0",
+                "examples/errors.pl0",
+                "examples/expressions.pl0",
+                "examples/recursions.pl0",
+                "examples/utf8.pl0"
+            ]
         },
         {
-            "name": "Launch Procedures",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "args": [
-                "--purge",
-                "--compile",
-                "--export",
-                "--run",
-                "--source",
-                "examples/procedures.pl0",
-                "--target",
-                "build"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "console": "integratedTerminal"
+            "id": "optimizationLevel",
+            "type": "pickString",
+            "description": "Select optimization level",
+            "default": "debug",
+            "options": [
+                "debug",
+                "release"
+            ]
         }
     ]
 }

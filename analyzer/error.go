@@ -5,9 +5,9 @@ package analyzer
 
 import cor "github.com/petersen65/PL0/v2/core"
 
-// Failure codes for the PL/0 semantic analyzer.
+// Failure codes for the analyzer.
 const (
-	_ = cor.Failure(iota + 4000)
+	_ cor.Failure = iota + 4000
 	invalidNameAnalysisState
 	declarationValidationFailed
 	usageValidationFailed

@@ -5,9 +5,9 @@ package scanner
 
 import cor "github.com/petersen65/PL0/v2/core"
 
-// Failure codes for the PL/0 scanner.
+// Failure codes for the scanner.
 const (
-	_ = cor.Failure(iota + 1000)
+	_ cor.Failure = iota + 1000
 	eofComment
 )
 

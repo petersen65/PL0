@@ -2,24 +2,26 @@
 
 This module provides a complete compiler for the programming language PL/0. It provides several packages that can be used independently of its command line interface.
 
-* core: core features, token type-system, and error-handling mechanism used by all compiler components
+* core: core features, debugging information, token type-system, and error-handling mechanism used by all compiler components
 * scanner: lexical analysis of PL/0 source code by converting input characters in UTF-8 encoding to a token stream table with token descriptions
 * parser: syntax analysis of PL/0 token stream ensuring it adheres to the rules defined in the extended Backus-Naur form for the PL/0 language
 * ast: abstract syntax composition for PL/0 token stream by creating a normalized representation of source code as in-memory abstract syntax tree (AST)
-* analyzer: semantic analysis on the in-memory abstract syntax tree to validate indentifier declarations and their usage
+* analyzer: semantic analysis on the in-memory abstract syntax tree to validate identifier declarations and their usage
 * generator: compiler phase for intermediate code generation by traversing the abstract syntax tree
 * cfg: control flow graph (CFG) representation of intermediate code to enable advanced compiler optimization techniques
 * emitter: assembly code generation compiler phase by iterating over the intermediate code
-* emulator: execution of assembly code instructions by running a process on a virtual cpu with stack and registers
-* compiler: driver for all compiler components, from scanning PL/0 source code to executing and printing resultant code
+* emitter/x86_64: Intel x86_64 ISA_SSE2 assembly code generator that targets Linux ELF binaries with optional DWARF v5 debugging information
+* emitter/elf: constants and types for the executable and linkable format (ELF) on 64-bit Linux including DWARF v5 support for the "gdb" debugger
+* compiler: driver for all compiler components, from scanning PL/0 source code to linking x86_64 Linux output executables
+* compiler/standard: tiny standard library for the programming language PL/0 written in C23
 
-The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1986 into an assembly language, for which an emulator is part of the project. Why PL/0? I start with PL/0 because this language is very simple and reduced, so that its compiler can be written and understood by one person.
+The reason for creating the compiler is that I have been interested in compiler construction since my computer science studies. Since I was already working with Niklaus Wirth's programming languages at the end of the 1990s, it made sense to build on what I had learned back then and start a compiler project with a modern programming language. I decided on the Go programming language because it is lean and available on all common operating systems. The compiler translates the programming language PL/0 from 1976 into Intel x86_64 assembly code. Why PL/0? The programming language is very simple and reduced, so that its compiler can be written and understood by one person.
 
-From now on, the PL/0 compiler is a personal hobby of mine, which I will continue to work on after its initial creation. My activities can be found below in the change log and in the planning sections. Interested students and developers are welcome to learn from my project how a compiler works and looks from the inside. I document the source code and structure the project for better traceability. Variable names are also slightly longer than usual so that the source code can be understood. The source code is also prepared for extensibility and encapsulation by using packages, public, and private implementation-patterns.
+Interested students and developers are welcome to learn from the project how a compiler works and looks from the inside. The source code is well documented and structured. Variable names are also slightly longer than usual so that the source code can be better understood. The code base is prepared for extensibility and encapsulation by using packages and interface-based implementation atterns.
 
-For Visual Studio Code, you should be able to run the compiler with F5. Please install the lastest Go version before that. You will be guided to a playground.pl0 file where you can try out PL/0 programming. Support for dev-containers is also provided, if you cannot install Go on your operating system. The PL/0 compiler was tested under Windows 11, Linux Ubuntu 24.10, and macOS Sequoia M4.
+With Visual Studio Code, the compiler can be run and debugged using F5. Examples are provided where the PL/0 programming language can be tested. Support for dev-containers with all required software components is part of the project, if you cannot install Go on your operating system. The PL/0 compiler was tested under Linux Ubuntu 25.04 and GNU Compiler Collection 15. GCC-15 is only required for assembling and linking resultant PL/0 compiler generated target assembly code files and for the compilation of the tiny PL/0 standard library which is intentionally written in C23. The PL/0 compiler generated assembly code is compliant with the System V AMD64 ABI and requires the standard C library provided by GCC-15.
 
-I test and check the source code for errors. You are welcome to tell me about errors and make suggestions. However, I can only do this in my private time.
+Due to capacity limits, units test are not implemented yet.
 
 ## License
 
@@ -48,8 +50,8 @@ Applied to the programming language PL/0, the grammar G is:
 
 The programming language PL/0 has the following productions (extended Backus-Naur form):
 
-| nonterminal symbol | terminal or nonterminal symbols
-|--------------------|------------------------------------------------------------------------------------------
+| Nonterminal symbol | Terminal or nonterminal symbols
+|:-------------------|:-----------------------------------------------------------------------------------------
 | program            | block "."
 |                    | &nbsp;
 | block              | ["const" identifier "=" ["+" \| "-"] number {"," identifier "=" ["+" \| "-"] number} ";"]
@@ -58,8 +60,8 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 |                    | statement
 |                    | &nbsp;
 | statement          | [identifier ":=" expression
-|				 	 | &nbsp;\| "call" identifier
-| 					 | &nbsp;\| "!" expression
+|				 	           | &nbsp;\| "call" identifier
+| 					         | &nbsp;\| "!" expression
 |                    | &nbsp;\| "?" identifier 
 |                    | &nbsp;\| "begin" statement {";" statement} "end"
 |                    | &nbsp;\| "if" condition "then" statement
@@ -71,7 +73,7 @@ The programming language PL/0 has the following productions (extended Backus-Nau
 | expression         | term {( "+" \| "-") term}
 | term               | factor {("*" \| "/") factor}
 | factor             | ["+" \| "-"] identifier \| number \| "(" expression ")"
-|                    | 
+|                    |
 
 For PL/0, tokens define the set of accepting states of a finite automaton. There are four classes: 
 * identifiers = identifier
@@ -84,31 +86,227 @@ For PL/0, tokens define the set of accepting states of a finite automaton. There
 The programming language PL/0 2025 supports the following features:
 
 | Feature                       | Value
-|-------------------------------|-------------------------------------------
+|:------------------------------|:------------------------------------------
 | Identifier Encoding           | UTF-8
 | Identifier Length             | unlimited
 | Case Sensitivity              | yes
 | Type System                   | no, only int64 numbers
 | Numerical Expressions         | yes
 | Statements                    | yes
-| Variable Definition	        | var
-| Constant Definition	        | const
-| Variable Assignment	        | :=
+| Variable Definition	          | var
+| Constant Definition	          | const
+| Variable Assignment	          | :=
 | Block	                        | begin … end;
 | Physical Equality             | =
 | Physical Inequality           | #
-| Comparison	                | <&nbsp;&nbsp;>&nbsp;&nbsp;<=&nbsp;&nbsp;>=
-| Function Definition	        | procedure \<name\>; \<body\>;
+| Comparison	                  | <&nbsp;&nbsp;>&nbsp;&nbsp;<=&nbsp;&nbsp;>=
+| Function Definition 	        | procedure \<name\>; \<body\>;
 | Function Call	                | call \<name\>;
 | Sequence	                    | ;
-| Read Number	                | ? \<stdin\>
+| Read Number	                  | ? \<stdin\>
 | Write Number	                | ! \<stdout\>
-| If Then	                    | if \<condition\> then \<true-block\>;
+| If Then	                      | if \<condition\> then \<true-block\>;
 | Loop Forever	                | while 1 = 1 do \<loop-body\>;
-| While Condition Do	        | while \<condition\> do \<loop-body\>;
+| While Condition Do	          | while \<condition\> do \<loop-body\>;
 | Program End                   | .
 | Multi-Line Comments           | { } or (* *)
 |                               | 
+
+## Dynamic Links and Static Links
+
+Every procedure or function call in PL/0 (or similar block-structured languages like Pascal or Modula) creates an activation record (also called a stack frame), which holds:
+
+- local variables
+- procedure or function parameters (if any)
+- return address
+- administrative data (links to other activation records)
+
+The activation record is pushed onto the call stack during a function call, and cleaned up upon return.
+
+### Dynamic Link: The Caller Chain
+
+The dynamic link is a stack pointer (usually stored at RBP in x86_64) that references the activation record of the calling procedure, regardless of the program’s lexical structure. It:
+
+- enables restoration of the previous base pointer RBP during a RET instruction
+- supports dynamic call chains at runtime
+- used to unwind the stack or print a backtrace
+
+Think of it as: who called me? Example: if M calls A, and A calls B, then the dynamic link of B points to the activation record of A. The dynamic link of A points to the activation record of M. This is named the "caller chain" from M to B (or dynamic link chain).
+
+### Static Link: The Lexical Scope Chain
+
+The static link is a pointer that refers to the activation record of the lexically enclosing procedure. It:
+
+- enables access to non-local variables from parent activation records
+- used to preserve lexical scoping rules at compilation time
+- required for closures and proper variable binding
+
+Think of it as: who is my lexical parent? Example: if M has 2 local procedures A and B, then the static link of B points to the activation record of M. The static link of A points to the activation record of M. If a procedure is the direct lexical parent of another procedure (like M and A) and the parent calls this other procedure, then the static link is equal to the dynamic link. If there is a chain of parent procedures for a given procedure, then this can be named "lexical scope chain" from M to B or M to A (or static link chain).
+
+The static link does not change based on who calls a procedure, but where the procedure is defined in the source code. 
+
+### Dynamic Link versus Static Link
+
+The following table provides a comparision of dynamic and static links:
+
+| Feature           | Dynamic Link                        | Static Link                                       |
+|:------------------|:------------------------------------|:--------------------------------------------------|
+| points to         | caller's activation record          | lexically enclosing procedure’s frame             |
+| used for          | stack unwinding, returns, backtrace | non-local variable access                         |
+| changes on call   | yes (based on runtime call chain)   | no (based on lexical nesting at compilation time) |
+| location (x86_64) | usually at RBP                      | in this project at RBP-8 (hidden local variable)  |
+|                   |                                     |                                                   |
+
+### Static Link Computation
+
+The compiler determines how many lexical levels separate the current procedure's block from the variable's block — this is called the depth difference between variable use (procedure's block depth) and variable declaration (variable's block depth).
+
+Example:
+
+```pascal
+procedure A;
+  var x;                (* block A: depth 1 *)
+  procedure B;
+    procedure D;
+    begin               (* block D: depth 3 *)
+      x := 42;          (* depth difference blocks D and A: 2 *)
+    end;
+  begin                 (* block B: depth 2 *)
+    call D;
+  end;
+  procedure C;
+  begin                 (* block C: depth 2 *)
+	  call B;
+  end;
+begin                   (* block A: depth 1 *)
+  call B;
+  call C;
+end;
+begin                   (* top level block MAIN: depth 0 *)
+  call A;
+end.
+```
+
+So, procedure D must walk 2 static links up to reach a variable in A. The depth difference between D and A is 2.
+
+### Mental Model: "Two Chains"
+
+When a procedure calls a nested procedure, it passes a pointer to the correct lexically enclosing procedure’s frame — the static link. Even though D is called by B, it belongs to A lexically — the static link of D must point to A, not B.
+
+```
+Runtime call tree (dynamic):
+  MAIN → A → B → D ⏎
+  	   → A → C → B → D ⏎
+	   → A ⏎ 
+  MAIN
+
+Lexical block tree (static):
+  MAIN                  depth 0
+    └── A               depth 1
+        └── B           depth 2
+            └── D       depth 3
+        └── C           depth 2
+```
+
+Summary:
+- dynamic link tracks call history
+- static link tracks lexical nesting
+- static links allow nested procedures to behave as if they were declared at top-level
+- essential for implementing lexically scoped languages (like PL/0, Pascal)
+
+## System V AMD64 ABI (target for PL/0 Compiler)
+
+The PL/0 compiler emits x86-64 assembly that conforms to the **System V AMD64 ABI** (the standard on Linux, BSD, and other Unix-like systems). This ensures that:
+* functions interoperate correctly with C libraries (e.g. GCC-15’s libc)  
+* arguments, return values, and register usage follow a well-defined convention  
+* the stack is properly aligned for calls and SIMD operations (single instruction multiple data)
+
+SIMD load and store instructions assume a 16-byte stack alignment.
+
+### 1. Argument Passing
+
+For a function call its arguments aren’t all pushed onto the stack.
+* integer and pointer arguments: the first six are placed in registers RDI, RSI, RDX, RCX, R8, and R9
+* floating-point and vector arguments: up to eight are passed in XMM0 through XMM7
+
+Any additional arguments (beyond the sixth integer or eighth floating-point) are passed on the stack in right-to-left order.
+
+### 2. Return Values
+
+Function return values are passed according to their type and size.
+* integers & pointers (≤ 64 bits): return in RAX  
+* integers/pointers (65–128 bits): return in RAX:RDX (low:high)  
+* float/double: return in XMM0  
+* small structs (≤ 16 bytes): returned in RAX/RDX or XMM0/XMM1 depending on field types  
+* larger structs/unions: returned via hidden pointer in RDI and the pointer itself in RAX
+
+### 3. Caller- vs. Callee-Saved Registers
+
+In the System V AMD64 ABI, registers are divided into two groups:
+
+* caller-saved (volatile): the caller must save these if it needs their values preserved across a function call
+* callee-saved (non-volatile): the called function must restore these before returning if it modifies them
+
+The table below summarizes which registers belong to each category.
+
+| Caller-Saved (volatile) | Callee-Saved (non-volatile) |
+|:-----------------------:|:---------------------------:|
+| RAX                     | RBX                         |
+| RCX                     | RBP (if used)               |
+| RDX                     | R12                         |
+| RSI                     | R13                         |
+| RDI                     | R14                         |
+| R8                      | R15                         |
+| R9                      |                             |
+| R10                     |                             |
+| R11                     |                             |
+|                         |                             |
+
+Caller-saved registers may be freely clobbered by a function; if the caller needs them afterward, it must save/restore them.
+Callee-saved registers must be preserved by your function (push on entry, pop before return) if you modify them.
+Register RSP must always be restored to its original value before returning.
+
+### 4. Stack Alignment
+
+Proper stack alignment is crucial under the System V AMD64 ABI, both to satisfy the calling convention and to enable efficient, aligned memory and SIMD operations. In particular, the stack pointer (RSP) must be a multiple of 16 bytes immediately before any call, and a standard function prologue arranges this as shown below.  
+
+```x86asm
+    # --- caller does a CALL to a function ---
+    call   pl0_function
+    
+	# while in CALL, within callee
+	# CPU pushed an 8-byte return address in its CALL instruction
+    #   RSP_before_call before CALL → 	   %16 == 0
+    #   RSP_within_call before prologue →  %16 == 8
+
+pl0_function:
+    # prologue
+    push   rbp            # RSP ← RSP - 8  → now %16 == 0
+    mov    rbp, rsp       # RBP = current RSP
+
+    # allocate FRAME bytes (FRAME %16 == 0) for locals + static link + padding
+    sub    rsp, FRAME     # RSP ← RSP - FRAME → still %16 == 0
+
+    # new stack layout (stack grows downwards)
+    #    [ RBP +16 ]   ← caller’s stack before CALL
+    #    [ RBP + 8 ]   ← return address of the caller
+    #    [ RBP + 0 ]   ← saved RBP of the caller (called dynamic link)
+    #    [ RBP - 8 ]   ← static link to lexical parent
+    #    [ RBP - 16 ]  ← first local variable aligned according its bit size
+    #    ...
+    #    [ RBP - FRAME + 8]  ← optional padding ensuring RSP - FRAME → %16 == 0
+    #    [ RBP - FRAME ]   	 ← last byte of FRAME
+
+    # ... the code, possibly making further CALLs ...
+    # since RSP %16 == 0 at each CALL, the ABI alignment rules hold
+
+    # epilogue
+    mov    rsp, rbp       # undo sub rsp, FRAME bytes allocation
+    pop    rbp            # restore caller´s RBP; RSP ← RSP + 8 → %16 == 8
+    ret                   # pop return address → RIP; back in caller
+```
+
+The assembly code above omits static link creation and initialization for clarity.
 
 ## Change Log
 
@@ -154,20 +352,22 @@ The programming language PL/0 2025 supports the following features:
 	* removal of jit compiler from emulator and implementation of new emitter package that was refactored out of the jit compiler
 	* introduction of concepts "intermediate code unit" and "assembly code unit" defined as output from generator and emitter phases
 
-## Planning
+* August 25 2025 - [v3.0.0](https://github.com/petersen65/pl0/releases/tag/v3.0.0)
+  * support for Intel x86_64 assembler generation and removal of integrated emulator
+  * support for comments and assembler directives in assembly instructions
+  * x86_64 assembler generation for all integer types (8-bit to 64-bit) and floating point types (32-bit and 64-bit)
+  * emission of ELF sections for large integer types (64-bit) and UTF-32 encoded string literals
+  * implementation of read and write functions in a new PL/0 standard library which itself is written in C23
+  * compliance with the System V AMD64 ABI of the generated assembly code including C library linkage
+  * integration of the GNU Compiler Collection 15 into the compiler driver to enable the executable and linkable format (ELF) on 64-bit Linux
+  * emission of DWARF v5 debugging information to enable single step debugging und variable inspection in the GDB debugger
+  * introduction of debug and release build optimizations
+  * revisited JSON marshalling and text output implementation
+  * huge efforts to implement clear formal concepts for intermediate code generation and assembly code generation
+  * many internal compiler approvements like tab support in scanner, token stream support for blocks and statements, token stream from source code to assembly code
+  * launch configurations for Visual Studio Code allow example compilation and graphical single step debugging, breakpoints, and variable inspection
+  
+## Acknowledgments
 
-* 2025, enhance programming language and generate assembler
-	* new memory addressing implementation for emulator based on byte boundaries, unsafe pointers and real storage sizes for variables
-	* revisit and review current JSON marshalling and text output implementation, add Marshal/Unmarshal functions to interfaces
-	* check if panic calls in the 'code' module should include the tokenstream in its error messages
-	* implemention of control flow graph (CFG) with lifeness and use information for variables
-	* implementation of readln and writeln functions in new PL/0 standard library which itself is written in C23
-	* integration of emulator with external c-libraries (reimplement stdcall in assembler by calling C23 functions)
-	* support for Intel x86_64 assembler generation (nasm, clib-linkage)
-	* design or redesign of public APIs for all packages of the compiler (rethink public/private visibility)
-	* unit tests for all public APIs
-	* additional support for Intel x86_64 assembler generation (e.g. gcc asm, bare metal target based on uefi, LLVM IR)
-	* integrate Pascal-like scanner and parser into the PL/0 scanner and parser (type system, procedure parameters)
-	* implement analyzers and optimizers documented in compiler construction literature (code flow and data flow analysis, context flow graph, DAG)
-	* implement constant folding based on abstract syntax tree
-	* implement closure support for the compiler's intermediate language
+This project was developed with assistance from ChatGPT (OpenAI) and Claude AI (Anthropic) for code generation, optimization, code reviews, and documentation.
+
