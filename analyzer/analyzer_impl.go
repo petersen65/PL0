@@ -6,8 +6,8 @@ package analyzer
 import (
 	"slices"
 
-	ast "github.com/petersen65/PL0/v3/ast"
-	cor "github.com/petersen65/PL0/v3/core"
+	ast "github.com/petersen65/pl0/v3/ast"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Implementation of the name analyzer.

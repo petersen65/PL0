@@ -13,16 +13,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	ana "github.com/petersen65/PL0/v3/analyzer"
-	ast "github.com/petersen65/PL0/v3/ast"
-	cfg "github.com/petersen65/PL0/v3/cfg"
-	cor "github.com/petersen65/PL0/v3/core"
-	emi "github.com/petersen65/PL0/v3/emitter"
-	x64 "github.com/petersen65/PL0/v3/emitter/x86_64"
-	gen "github.com/petersen65/PL0/v3/generator"
-	ic "github.com/petersen65/PL0/v3/generator/intermediate"
-	par "github.com/petersen65/PL0/v3/parser"
-	scn "github.com/petersen65/PL0/v3/scanner"
+	ana "github.com/petersen65/pl0/v3/analyzer"
+	ast "github.com/petersen65/pl0/v3/ast"
+	cfg "github.com/petersen65/pl0/v3/cfg"
+	cor "github.com/petersen65/pl0/v3/core"
+	emi "github.com/petersen65/pl0/v3/emitter"
+	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
+	gen "github.com/petersen65/pl0/v3/generator"
+	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	par "github.com/petersen65/pl0/v3/parser"
+	scn "github.com/petersen65/pl0/v3/scanner"
 )
 
 // Default target filename for the compilation driver.

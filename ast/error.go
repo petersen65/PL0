@@ -3,7 +3,7 @@
 
 package ast
 
-import cor "github.com/petersen65/PL0/v3/core"
+import cor "github.com/petersen65/pl0/v3/core"
 
 // Failure codes for the abstract syntax tree.
 const (

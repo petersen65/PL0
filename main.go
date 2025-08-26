@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	com "github.com/petersen65/PL0/v3/compiler"
-	cor "github.com/petersen65/PL0/v3/core"
+	com "github.com/petersen65/pl0/v3/compiler"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Text messages for the compiler command line interface.

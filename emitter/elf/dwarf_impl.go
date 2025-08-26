@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	cor "github.com/petersen65/PL0/v3/core"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Prefix and postfix for label names.

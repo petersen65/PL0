@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/PL0/v3/core"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Prefixes for pointer and reference modifier string representations.

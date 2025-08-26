@@ -3,7 +3,7 @@
 
 package cfg
 
-import cor "github.com/petersen65/PL0/v3/core"
+import cor "github.com/petersen65/pl0/v3/core"
 
 // Failure codes for the control flow graph.
 const (

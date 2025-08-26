@@ -1,3 +1,3 @@
-module github.com/petersen65/PL0/v3
+module github.com/petersen65/pl0/v3
 
 go 1.25.0

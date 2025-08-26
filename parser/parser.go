@@ -5,8 +5,8 @@
 package parser
 
 import (
-	ast "github.com/petersen65/PL0/v3/ast"
-	cor "github.com/petersen65/PL0/v3/core"
+	ast "github.com/petersen65/pl0/v3/ast"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // The parser processes a token stream, produces an abstract syntax tree (AST), and returns it along with an initial token handler.

@@ -5,9 +5,9 @@
 package generator
 
 import (
-	ast "github.com/petersen65/PL0/v3/ast"
-	cor "github.com/petersen65/PL0/v3/core"
-	ic "github.com/petersen65/PL0/v3/generator/intermediate"
+	ast "github.com/petersen65/pl0/v3/ast"
+	cor "github.com/petersen65/pl0/v3/core"
+	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
 // Translate an abstract syntax tree (AST) into intermediate code and map AST data types to intermediate code data types.

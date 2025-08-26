@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	cor "github.com/petersen65/PL0/v3/core"
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Provide a format for a comment.
