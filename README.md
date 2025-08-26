@@ -357,12 +357,12 @@ The assembly code above omits static link creation and initialization for clarit
   * support for comments and assembler directives in assembly instructions
   * x86_64 assembler generation for all integer types (8-bit to 64-bit) and floating point types (32-bit and 64-bit)
   * emission of ELF sections for large integer types (64-bit) and UTF-32 encoded string literals
-	* implementation of read and write functions in a new PL/0 standard library which itself is written in C23
+  * implementation of read and write functions in a new PL/0 standard library which itself is written in C23
   * compliance with the System V AMD64 ABI of the generated assembly code including C library linkage
   * integration of the GNU Compiler Collection 15 into the compiler driver to enable the executable and linkable format (ELF) on 64-bit Linux
   * emission of DWARF v5 debugging information to enable single step debugging und variable inspection in the GDB debugger
   * introduction of debug and release build optimizations
-	* revisited JSON marshalling and text output implementation
+  * revisited JSON marshalling and text output implementation
   * huge efforts to implement clear formal concepts for intermediate code generation and assembly code generation
   * many internal compiler approvements like tab support in scanner, token stream support for blocks and statements, token stream from source code to assembly code
   * launch configurations for Visual Studio Code allow example compilation and graphical single step debugging, breakpoints, and variable inspection
@@ -370,3 +370,4 @@ The assembly code above omits static link creation and initialization for clarit
 ## Acknowledgments
 
 This project was developed with assistance from ChatGPT (OpenAI) and Claude AI (Anthropic) for code generation, optimization, code reviews, and documentation.
+
