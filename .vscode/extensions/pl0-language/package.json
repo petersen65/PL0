@@ -3,7 +3,7 @@
     "displayName": "PL/0 Language Support",
     "description": "Syntax highlighting and language support for PL/0 1976",
     "version": "1.0.0",
-    "publisher": "pl0-compiler-project",
+    "publisher": "petersen65-pl0-compiler-project",
     "engines": {
         "vscode": "^1.74.0"
     },
