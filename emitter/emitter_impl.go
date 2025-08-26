@@ -8,10 +8,10 @@ import (
 	"math"
 	"unicode/utf8"
 
-	cor "github.com/petersen65/PL0/v2/core"
-	elf "github.com/petersen65/PL0/v2/emitter/elf"
-	x64 "github.com/petersen65/PL0/v2/emitter/x86_64"
-	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+	cor "github.com/petersen65/PL0/v3/core"
+	elf "github.com/petersen65/PL0/v3/emitter/elf"
+	x64 "github.com/petersen65/PL0/v3/emitter/x86_64"
+	ic "github.com/petersen65/PL0/v3/generator/intermediate"
 )
 
 // Callstack must be aligned to 16 bytes before each function call.

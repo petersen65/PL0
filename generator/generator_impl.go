@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	ast "github.com/petersen65/PL0/v2/ast"
-	cor "github.com/petersen65/PL0/v2/core"
-	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+	ast "github.com/petersen65/PL0/v3/ast"
+	cor "github.com/petersen65/PL0/v3/core"
+	ic "github.com/petersen65/PL0/v3/generator/intermediate"
 )
 
 // Abstract syntax extension for the symbol.

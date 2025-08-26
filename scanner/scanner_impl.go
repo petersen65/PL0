@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	cor "github.com/petersen65/PL0/v2/core"
+	cor "github.com/petersen65/PL0/v3/core"
 )
 
 // Last character of the source code that is read when the end of the file is reached.

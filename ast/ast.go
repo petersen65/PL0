@@ -7,7 +7,7 @@ package ast
 import (
 	"io"
 
-	cor "github.com/petersen65/PL0/v2/core"
+	cor "github.com/petersen65/PL0/v3/core"
 )
 
 // Empty scopes are required to use this number as their scope id

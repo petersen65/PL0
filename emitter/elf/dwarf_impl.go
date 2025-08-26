@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	cor "github.com/petersen65/PL0/v2/core"
+	cor "github.com/petersen65/PL0/v3/core"
 )
 
 // Prefix and postfix for label names.
@@ -40,7 +40,7 @@ const descriptorLabel = "%v.desc"
 // Manually provided comments for DWARF debugging information.
 const (
 	commentHasChildrenFlag = "DW_COMMENT_has_children_flag"
-	commentZeroTerminator   = "DW_COMMENT_zero_terminator"
+	commentZeroTerminator  = "DW_COMMENT_zero_terminator"
 )
 
 var (

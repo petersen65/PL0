@@ -7,8 +7,8 @@ package x86_64
 import (
 	"io"
 
-	cor "github.com/petersen65/PL0/v2/core"
-	elf "github.com/petersen65/PL0/v2/emitter/elf"
+	cor "github.com/petersen65/PL0/v3/core"
+	elf "github.com/petersen65/PL0/v3/emitter/elf"
 )
 
 const (

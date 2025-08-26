@@ -3,7 +3,7 @@
 
 package parser
 
-import cor "github.com/petersen65/PL0/v2/core"
+import cor "github.com/petersen65/PL0/v3/core"
 
 // Maximum depth of block nesting.
 const blockNestingMax = 8

@@ -5,9 +5,9 @@
 package emitter
 
 import (
-	cor "github.com/petersen65/PL0/v2/core"
-	x64 "github.com/petersen65/PL0/v2/emitter/x86_64"
-	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+	cor "github.com/petersen65/PL0/v3/core"
+	x64 "github.com/petersen65/PL0/v3/emitter/x86_64"
+	ic "github.com/petersen65/PL0/v3/generator/intermediate"
 )
 
 type (

@@ -8,8 +8,8 @@ import (
 	"io"
 	"strings"
 
-	cor "github.com/petersen65/PL0/v2/core"
-	ic "github.com/petersen65/PL0/v2/generator/intermediate"
+	cor "github.com/petersen65/PL0/v3/core"
+	ic "github.com/petersen65/PL0/v3/generator/intermediate"
 )
 
 type (

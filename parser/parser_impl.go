@@ -6,8 +6,8 @@ package parser
 import (
 	"strconv"
 
-	ast "github.com/petersen65/PL0/v2/ast"
-	cor "github.com/petersen65/PL0/v2/core"
+	ast "github.com/petersen65/PL0/v3/ast"
+	cor "github.com/petersen65/PL0/v3/core"
 )
 
 // Number of bits of a signed integer.

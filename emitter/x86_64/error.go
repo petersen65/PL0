@@ -3,7 +3,7 @@
 
 package x86_64
 
-import cor "github.com/petersen65/PL0/v2/core"
+import cor "github.com/petersen65/PL0/v3/core"
 
 // Failure codes for the assembly code.
 const (
