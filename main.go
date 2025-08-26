@@ -62,14 +62,14 @@ func main() {
 	// define usage function for command line flags
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%v:\n", textCompilerUsage)
-		fmt.Fprintf(os.Stderr, "  -p | --purge:   %v\n", textPurgeUsage)
-		fmt.Fprintf(os.Stderr, "  -c | --compile: %v\n", textCompileUsage)
-		fmt.Fprintf(os.Stderr, "  -l | --link:    %v\n", textLinkUsage)
-		fmt.Fprintf(os.Stderr, "  -o | --optimize:%v\n", textOptimizeUsage)
-		fmt.Fprintf(os.Stderr, "  -e | --export:  %v\n", textExportUsage)
-		fmt.Fprintf(os.Stderr, "  -s | --source:  %v\n", textSourceUsage)
-		fmt.Fprintf(os.Stderr, "  -t | --target:  %v\n", textTargetUsage)
-		fmt.Fprintf(os.Stderr, "  -h | --help:    %v\n", textHelpUsage)
+		fmt.Fprintf(os.Stderr, "  -p | --purge:    %v\n", textPurgeUsage)
+		fmt.Fprintf(os.Stderr, "  -c | --compile:  %v\n", textCompileUsage)
+		fmt.Fprintf(os.Stderr, "  -l | --link:     %v\n", textLinkUsage)
+		fmt.Fprintf(os.Stderr, "  -o | --optimize: %v\n", textOptimizeUsage)
+		fmt.Fprintf(os.Stderr, "  -e | --export:   %v\n", textExportUsage)
+		fmt.Fprintf(os.Stderr, "  -s | --source:   %v\n", textSourceUsage)
+		fmt.Fprintf(os.Stderr, "  -t | --target:   %v\n", textTargetUsage)
+		fmt.Fprintf(os.Stderr, "  -h | --help:     %v\n", textHelpUsage)
 	}
 
 	// parse command line arguments into variables

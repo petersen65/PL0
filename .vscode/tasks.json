@@ -2,36 +2,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Build PL/0 Compiler with PowerShell",
-			"type": "shell",
-			"command": "pwsh",
-			"args": [
-				"scripts/build.ps1"
-			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"windows": {
-				"options": {
-					"shell": {
-						"executable": "pwsh.exe",
-						"args": [
-							"-Command"
-						]
-					}
-				}
-			},
-		},
-		{
 			"label": "Build PL/0 Compiler with Bash",
 			"type": "shell",
 			"command": "bash",
 			"args": [
-				"scripts/build.sh"
+				"scripts/build-compiler.sh"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

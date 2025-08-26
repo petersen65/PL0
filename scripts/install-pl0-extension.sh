@@ -32,18 +32,18 @@ if [ -d "$EXTENSION_DIR" ]; then
 fi
 
 # create extension directory for the PL/0 language
-mkdir -p "$EXTENSION_DIR"
+mkdir --parents "$EXTENSION_DIR"
 
 # copy extension to VS Code extensions directory
 echo "Installing PL/0 extension"
-cp -r .vscode/extensions/pl0-language "$EXTENSION_DIR"
+cp --recursive .vscode/extensions/pl0-language/* "$EXTENSION_DIR"
 
 # verify installation
 if [ -d "$EXTENSION_DIR" ]; then
     echo "✓ PL/0 extension installed successfully to: $EXTENSION_DIR"
     echo ""
     echo "Files installed:"
-    find "$EXTENSION_DIR" -type f -name "*.json" | sort
+    find "$EXTENSION_DIR" -type f -name "*.*" | sort
     echo ""
     echo "Please reload VS Code window: press Ctrl+Shift+P (or Cmd+Shift+P) and run 'Developer: Reload Window'"
 else
