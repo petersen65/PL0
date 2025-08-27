@@ -17,7 +17,7 @@ import (
 // Text messages for the compiler command line interface.
 const (
 	textTitle         = "PL/0 1976 Compiler"
-	textVersion       = "Version 3.0.0"
+	textVersion       = "Version 3.0.1"
 	textCopyright     = "Copyright (c) 2024-2025, Michael Petersen. All rights reserved."
 	textCompilerUsage = "Usage of the compiler"
 	textPurgeUsage    = "purge build directory before compiling"

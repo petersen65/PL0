@@ -5,7 +5,7 @@ package core
 
 import "slices"
 
-// Private implementation of the DebugInformation interface.
+// Implementation of the DebugInformation interface.
 type debugInformation struct {
 	tokenHandler TokenHandler // token handler that manages the tokens of the token stream
 	table        *DebugStringTable
@@ -260,7 +260,7 @@ func (d *debugInformation) UpdatePointerDataTypeSizes(size int32) bool {
 }
 
 // Recursively update the sizes of all composite data types in the debug information.
-// Note: all simple and pointer data types must have their sizes set before calling this function.
+// All simple and pointer data types must have their sizes set before calling this function.
 func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 	found := false
 
@@ -328,7 +328,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 }
 
 // Update the offset of all members in all composite data types that exists in the debug information.
-// Note: all composite data types must have their sizes set before calling this function.
+// All composite data types must have their sizes set before calling this function.
 func (d *debugInformation) UpdateCompositeDataTypeOffsets() bool {
 	found := false
 

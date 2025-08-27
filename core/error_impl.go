@@ -65,7 +65,7 @@ type (
 		SourceCode     []byte `json:"-"`      // source code where the error occurred
 	}
 
-	// Private implementation of the error handler.
+	// Implementation of the error handler.
 	errorHandler struct {
 		errorReport errorReport // list of errors that occurred during the compilation process
 	}

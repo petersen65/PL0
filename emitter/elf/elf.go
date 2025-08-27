@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
 // Package elf defines constants and types for the executable and linkable format (ELF) used in assembly code generation.
-// Note: ELF is part the System V ABI for x86_64 architecture and is used for linking and loading executable files.
+// ELF is part the System V ABI for x86_64 architecture and is used for linking and loading executable files.
 package elf
 
 import (

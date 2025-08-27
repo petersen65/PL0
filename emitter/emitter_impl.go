@@ -95,8 +95,7 @@ var (
 		ic.String:     {x64.Rax, x64.Rdx},
 	}
 
-	// Map return registers to their zero masks required for zeroing out the upper bits of the register.
-	// Note: 0 means that the register is not zeroed out.
+	// Map return registers to their zero masks required for zeroing out the upper bits of the register. 0 means that the register is not zeroed out.
 	zeroMaskReturn = map[x64.Register]uint64{
 		x64.Rax:  0,
 		x64.Eax:  0,
@@ -110,7 +109,7 @@ var (
 	addressTypeReturn = x64.Rax
 
 	// Map intermediate code data types to their DWARF attribute encodings for base types.
-	// Note: the string data type is intentionally excluded from this mapping because it is a composite type without encoding.
+	// The string data type is intentionally excluded from this mapping because it is a composite type without encoding.
 	dataTypeEncoding = map[ic.DataType]elf.DwarfAttributeEncoding{
 		ic.Integer64:  elf.DW_ATE_signed,
 		ic.Integer32:  elf.DW_ATE_signed,

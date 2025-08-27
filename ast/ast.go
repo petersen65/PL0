@@ -10,9 +10,6 @@ import (
 	cor "github.com/petersen65/pl0/v3/core"
 )
 
-// Empty scopes are required to use this number as their scope id
-const EmptyScopeId = -1
-
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
 const EmptyConstantName = "@constant"
 
@@ -34,20 +31,6 @@ const (
 	IfStatementType
 	WhileStatementType
 	CompoundStatementType
-)
-
-// Traverse the abstract syntax tree in specific orders.
-const (
-	PreOrder TraversalOrder = iota
-	InOrder
-	PostOrder
-	LevelOrder
-)
-
-// Search parent block nodes in the abstract syntax tree.
-const (
-	CurrentBlock BlockSearchMode = iota
-	RootBlock
 )
 
 // Operators with one operand.
@@ -74,37 +57,6 @@ const (
 	GreaterEqual
 )
 
-// Data types of literals, constants, and variables.
-// The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
-const (
-	Integer64  DataType = iota // signed 64-bit integer
-	Integer32                  // signed 32-bit integer
-	Integer16                  // signed 16-bit integer
-	Integer8                   // signed 8-bit integer
-	Float64                    // IEEE 754 64-bit floating-point number
-	Float32                    // IEEE 754 32-bit floating-point number
-	Unsigned64                 // unsigned 64-bit integer
-	Unsigned32                 // unsigned 32-bit integer
-	Unsigned16                 // unsigned 16-bit integer
-	Unsigned8                  // unsigned 8-bit integer
-	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
-	Character                  // Unicode code point (signed 32-bit integer, U+0000 ... U+10FFFF)
-	String                     // Encoded string (sequence of UTF encoded characters)
-)
-
-// Data type bit flags for pointer and reference modifiers (bits 8+).
-const (
-	Pointer   DataType = 1 << 8 // bit 8: pointer type (^T)
-	Reference DataType = 1 << 9 // bit 9: reference type (var T)
-)
-
-// Kind of supported symbol entry as bit-mask.
-const (
-	ConstantEntry Entry = 1 << iota
-	VariableEntry
-	ProcedureEntry
-)
-
 // Usage mode of an identifier as bit-mask.
 const (
 	Read Usage = 1 << iota
@@ -112,15 +64,23 @@ const (
 	Execute
 )
 
+// Search parent block nodes in the abstract syntax tree.
+const (
+	CurrentBlock BlockSearchMode = iota
+	RootBlock
+)
+
+// Traverse the abstract syntax tree in specific orders.
+const (
+	PreOrder TraversalOrder = iota
+	InOrder
+	PostOrder
+	LevelOrder
+)
+
 type (
 	// Type of a node in the abstract syntax tree.
 	NodeType int
-
-	// Traversal order for the abstract syntax tree.
-	TraversalOrder int
-
-	// Search mode for block nodes in the abstract syntax tree.
-	BlockSearchMode int
 
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
@@ -131,48 +91,21 @@ type (
 	// Take two operands and perform a comparison on them.
 	ComparisonOperator int
 
-	// The datatype of a symbol.
-	DataType int
-
-	// String representation of a datatype.
-	DataTypeRepresentation string
-
-	// Kind of symbol entries (bit-mask).
-	Entry uint64
-
 	// Usage mode of an identifier (bit-mask).
 	Usage uint64
 
-	// Support for symbol table extensions of compiler phases
-	ExtensionType int
+	// Search mode for block nodes in the abstract syntax tree.
+	BlockSearchMode int
 
-	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
-	Symbol struct {
-		Name        string                `json:"name"`      // name of the symbol
-		Kind        Entry                 `json:"kind"`      // kind of the symbol
-		Declaration Declaration           `json:"-"`         // declaration node of the symbol
-		Extension   map[ExtensionType]any `json:"extension"` // extensions for compiler phases
-	}
-
-	// A symbol table is a data structure that stores a mapping from symbol name (string) to the symbol.
-	SymbolTable map[string]*Symbol
-
-	// A scope is a data structure that stores information about declared identifiers. Scopes are nested from the outermost scope to the innermost scope.
-	Scope struct {
-		Outer             *Scope                `json:"outer"`              // outer scope or nil if this is the outermost scope
-		Extension         map[ExtensionType]any `json:"extension"`          // extensions for compiler phases
-		Id                int                   `json:"id"`                 // each scope has a unique identifier
-		IdentifierCounter map[rune]uint64       `json:"identifier_counter"` // counter for compiler-generated unique identifier names
-		Names             []string              `json:"names"`              // enable deterministic iteration over the symbol table
-		SymbolTable       *SymbolTable          `json:"symbol_table"`       // symbol table of the scope
-	}
+	// Traversal order for the abstract syntax tree.
+	TraversalOrder int
 
 	// Block node represents a block in the AST.
 	BlockNode struct {
 		TypeName     string        `json:"type"`         // type name of the block node
 		ParentNode   Node          `json:"-"`            // parent node of the block
 		Depth        int32         `json:"depth"`        // block nesting depth
-		Scope        *Scope        `json:"scope"`        // scope with symbol table of the block that has its own outer scope chain
+		Scope        Scope         `json:"scope"`        // scope with the symbol table of the block
 		Declarations []Declaration `json:"declarations"` // all declarations of the block
 		Closure      []Declaration `json:"closure"`      // all captured variable declarations from lexical parents of the block
 		Statement    Statement     `json:"statement"`    // statement of the block
@@ -185,7 +118,7 @@ type (
 		Name             string       `json:"name"`               // name of the constant
 		Value            any          `json:"value"`              // value of constant
 		DataType         DataType     `json:"data_type"`          // datatype of the constant
-		Scope            *Scope       `json:"scope"`              // scope of the constant declaration
+		Scope            Scope        `json:"scope"`              // scope of the constant declaration
 		Usage            []Expression `json:"usage"`              // all usages of the constant
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -196,7 +129,7 @@ type (
 		ParentNode       Node         `json:"-"`                  // parent node of the variable declaration
 		Name             string       `json:"name"`               // name of the variable
 		DataType         DataType     `json:"data_type"`          // datatype of the variable
-		Scope            *Scope       `json:"scope"`              // scope of the variable declaration
+		Scope            Scope        `json:"scope"`              // scope of the variable declaration
 		Usage            []Expression `json:"usage"`              // all usages of the variable
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -207,7 +140,7 @@ type (
 		ParentNode       Node         `json:"-"`                  // parent node of the procedure declaration
 		Name             string       `json:"name"`               // name of the procedure
 		Block            Block        `json:"block"`              // block of the procedure
-		Scope            *Scope       `json:"scope"`              // scope of the procedure declaration
+		Scope            Scope        `json:"scope"`              // scope of the procedure declaration
 		Usage            []Expression `json:"usage"`              // all usages of the procedure
 		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -218,7 +151,7 @@ type (
 		ParentNode       Node     `json:"-"`                  // parent node of the literal
 		Value            any      `json:"value"`              // literal value
 		DataType         DataType `json:"data_type"`          // datatype of the literal
-		Scope            *Scope   `json:"scope"`              // scope of the literal usage
+		Scope            Scope    `json:"scope"`              // scope in which the literal is used
 		TokenStreamIndex int      `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -227,7 +160,7 @@ type (
 		TypeName         string `json:"type"`               // type name of the identifier usage node
 		ParentNode       Node   `json:"-"`                  // parent node of the identifier usage
 		Name             string `json:"name"`               // name of the identifier
-		Scope            *Scope `json:"scope"`              // scope of the identifier usage
+		Scope            Scope  `json:"scope"`              // scope in which the identifier is used
 		Context          Entry  `json:"context"`            // context of the identifier
 		Use              Usage  `json:"use"`                // usage mode of the identifier
 		TokenStreamIndex int    `json:"token_stream_index"` // index of the token in the token stream
@@ -390,19 +323,9 @@ type (
 	}
 )
 
-// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
-func NewScope(uniqueId int, outer *Scope) *Scope {
-	return newScope(uniqueId, outer)
-}
-
-// Create a new entry for the symbol table.
-func NewSymbol(name string, kind Entry, declaration Declaration) *Symbol {
-	return newSymbol(name, kind, declaration)
-}
-
-// An empty scope should only be used in the context of parser errors and is free from any side-effect.
-func NewEmptyScope() *Scope {
-	return newScope(EmptyScopeId, nil)
+// NewBlock creates a new block node in the abstract syntax tree.
+func NewBlock(depth int32, scope Scope, declarations []Declaration, statement Statement) Block {
+	return newBlock(depth, scope, declarations, statement)
 }
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
@@ -420,33 +343,28 @@ func NewEmptyStatement() Statement {
 	return newCompoundStatement(make([]Statement, 0), cor.NoTokenStreamIndex, cor.NoTokenStreamIndex)
 }
 
-// NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
-	return newBlock(depth, scope, declarations, statement)
-}
-
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
+func NewConstantDeclaration(name string, value any, dataType DataType, scope Scope, index int) Declaration {
 	return newConstantDeclaration(name, value, dataType, scope, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
+func NewVariableDeclaration(name string, dataType DataType, scope Scope, index int) Declaration {
 	return newVariableDeclaration(name, dataType, scope, index)
 }
 
 // NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
+func NewProcedureDeclaration(name string, block Block, scope Scope, index int) Declaration {
 	return newProcedureDeclaration(name, block, scope, index)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
+func NewLiteral(value any, dataType DataType, scope Scope, index int) Expression {
 	return newLiteral(value, dataType, scope, index)
 }
 
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
-func NewIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
+func NewIdentifierUse(name string, scope Scope, context Entry, index int) Expression {
 	return newIdentifierUse(name, scope, context, index)
 }
 
@@ -500,36 +418,6 @@ func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) Stat
 	return newCompoundStatement(statements, beginIndex, endIndex)
 }
 
-// Return the plain data type without modifiers.
-func (dt DataType) AsPlain() DataType {
-	return dt & 0xFF
-}
-
-// Return the plain data type with a pointer modifier.
-func (dt DataType) AsPointer() DataType {
-	return dt.AsPlain() | Pointer
-}
-
-// Check whether the data type is a pointer type.
-func (dt DataType) IsPointer() bool {
-	return dt&Pointer != 0
-}
-
-// Return the plain data type with a reference modifier.
-func (dt DataType) AsReference() DataType {
-	return dt.AsPlain() | Reference
-}
-
-// Check whether the data type is a reference type.
-func (dt DataType) IsReference() bool {
-	return dt&Reference != 0
-}
-
-// Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
-func Walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
-	return walk(parent, order, visitor, visit)
-}
-
 // SearchBlock searches for a parent block node in the abstract syntax tree based on the search mode.
 func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
 	for node != nil {
@@ -545,4 +433,9 @@ func SearchBlock(mode BlockSearchMode, node Node) *BlockNode {
 	}
 
 	return nil
+}
+
+// Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
+func Walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
+	return walk(parent, order, visitor, visit)
 }

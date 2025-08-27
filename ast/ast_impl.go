@@ -12,30 +12,7 @@ import (
 	cor "github.com/petersen65/pl0/v3/core"
 )
 
-// Prefixes for pointer and reference modifier string representations.
-const (
-	pointerPrefix   = "^"
-	referencePrefix = "var "
-)
-
 var (
-	// dataTypeNames maps a data type to its string representation.
-	dataTypeNames = map[DataType]string{
-		Integer64:  "int64",
-		Integer32:  "int32",
-		Integer16:  "int16",
-		Integer8:   "int8",
-		Float64:    "float64",
-		Float32:    "float32",
-		Unsigned64: "uint64",
-		Unsigned32: "uint32",
-		Unsigned16: "uint16",
-		Unsigned8:  "uint8",
-		Boolean:    "bool",
-		Character:  "char",
-		String:     "string",
-	}
-
 	// nodeTypeNames maps node types to their string representation.
 	nodeTypeNames = map[NodeType]string{
 		BlockType:                "block",
@@ -56,13 +33,6 @@ var (
 		CompoundStatementType:    "compound",
 	}
 
-	// kindNames maps symbol kinds to their string representation.
-	kindNames = map[Entry]string{
-		ConstantEntry:  "constant",
-		VariableEntry:  "variable",
-		ProcedureEntry: "procedure",
-	}
-
 	// usageNames maps usage modes to their string representation.
 	usageNames = map[Usage]string{
 		Read:    "read",
@@ -71,32 +41,8 @@ var (
 	}
 )
 
-// NewScope creates a new scope with an empty symbol table and requires a number that is unique accross all compilation phases.
-func newScope(uniqueId int, outer *Scope) *Scope {
-	symbolTable := make(SymbolTable)
-
-	return &Scope{
-		Outer:             outer,
-		Extension:         make(map[ExtensionType]any),
-		Id:                uniqueId,
-		IdentifierCounter: make(map[rune]uint64),
-		Names:             make([]string, 0),
-		SymbolTable:       &symbolTable,
-	}
-}
-
-// Create a new entry for the symbol table.
-func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
-	return &Symbol{
-		Name:        name,
-		Kind:        kind,
-		Declaration: declaration,
-		Extension:   make(map[ExtensionType]any),
-	}
-}
-
 // Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope *Scope, declarations []Declaration, statement Statement) Block {
+func newBlock(depth int32, scope Scope, declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     nodeTypeNames[BlockType],
 		Depth:        depth,
@@ -115,7 +61,7 @@ func newBlock(depth int32, scope *Scope, declarations []Declaration, statement S
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType, scope *Scope, index int) Declaration {
+func newConstantDeclaration(name string, value any, dataType DataType, scope Scope, index int) Declaration {
 	return &ConstantDeclarationNode{
 		TypeName:         nodeTypeNames[ConstantDeclarationType],
 		Name:             name,
@@ -128,7 +74,7 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope *Sc
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType, scope *Scope, index int) Declaration {
+func newVariableDeclaration(name string, dataType DataType, scope Scope, index int) Declaration {
 	return &VariableDeclarationNode{
 		TypeName:         nodeTypeNames[VariableDeclarationType],
 		Name:             name,
@@ -140,7 +86,7 @@ func newVariableDeclaration(name string, dataType DataType, scope *Scope, index 
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope *Scope, index int) Declaration {
+func newProcedureDeclaration(name string, block Block, scope Scope, index int) Declaration {
 	return &ProcedureDeclarationNode{
 		TypeName:         nodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
@@ -152,7 +98,7 @@ func newProcedureDeclaration(name string, block Block, scope *Scope, index int) 
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, scope *Scope, index int) Expression {
+func newLiteral(value any, dataType DataType, scope Scope, index int) Expression {
 	return &LiteralNode{
 		TypeName:         nodeTypeNames[LiteralType],
 		Value:            value,
@@ -163,7 +109,7 @@ func newLiteral(value any, dataType DataType, scope *Scope, index int) Expressio
 }
 
 // Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, scope *Scope, context Entry, index int) Expression {
+func newIdentifierUse(name string, scope Scope, context Entry, index int) Expression {
 	return &IdentifierUseNode{
 		TypeName:         nodeTypeNames[IdentifierUseType],
 		Name:             name,
@@ -316,24 +262,6 @@ func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Stat
 	return compound
 }
 
-// String representation of a data type.
-func (dt DataType) String() string {
-	var prefix string
-
-	if dt.IsPointer() {
-		prefix = pointerPrefix
-	} else if dt.IsReference() {
-		prefix = referencePrefix
-	}
-
-	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
-}
-
-// String representation of a symbol entry kind.
-func (e Entry) String() string {
-	return kindNames[e]
-}
-
 // String representation of a usage mode bit-mask.
 func (u Usage) String() string {
 	var parts []string
@@ -345,62 +273,6 @@ func (u Usage) String() string {
 	}
 
 	return strings.Join(parts, "|")
-}
-
-// Create a new compiler-generated unique identifier name for a scope.
-func (s *Scope) NewIdentifier(prefix rune) string {
-	if _, ok := s.IdentifierCounter[prefix]; !ok {
-		s.IdentifierCounter[prefix] = 0
-	}
-
-	s.IdentifierCounter[prefix]++
-	return fmt.Sprintf("%c%v.%v", prefix, s.Id, s.IdentifierCounter[prefix])
-}
-
-// Insert a symbol into the symbol table of the scope. If the symbol already exists, it will be overwritten.
-func (s *Scope) Insert(symbol *Symbol) {
-	if s.LookupCurrent(symbol.Name) == nil {
-		s.Names = append(s.Names, symbol.Name)
-	}
-
-	(*s.SymbolTable)[symbol.Name] = symbol
-}
-
-// Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
-func (s *Scope) Lookup(name string) *Symbol {
-	if symbol := s.LookupCurrent(name); symbol != nil {
-		return symbol
-	}
-
-	if s.Outer != nil {
-		return s.Outer.Lookup(name)
-	}
-
-	return nil
-}
-
-// Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
-func (s *Scope) LookupCurrent(name string) *Symbol {
-	if symbol, ok := (*s.SymbolTable)[name]; ok {
-		return symbol
-	}
-
-	return nil
-}
-
-// Deterministically iterate over all symbols in the symbol table of the current scope.
-func (s *Scope) IterateCurrent() <-chan *Symbol {
-	symbols := make(chan *Symbol)
-
-	go func() {
-		for _, name := range s.Names {
-			symbols <- (*s.SymbolTable)[name]
-		}
-
-		close(symbols)
-	}()
-
-	return symbols
 }
 
 // Get type of the block node.
@@ -667,7 +539,8 @@ func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
 		switch symbol.Kind {
 		case ConstantEntry:
-			return fmt.Sprintf("use(kind=%v,name=%v,value=%v,usage=%v)", symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
+			return fmt.Sprintf("use(kind=%v,name=%v,value=%v,usage=%v)",
+				symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
 		case VariableEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
