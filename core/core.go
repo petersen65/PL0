@@ -57,6 +57,20 @@ const (
 	UTF32                            // UTF-32 encoding, used for fixed-width character strings
 )
 
+// Application binary interfaces for which the assembly code is generated.
+const (
+	ABI_SystemV_AMD64 ApplicationBinaryInterface = iota // System V AMD64 ABI (Linux x86_64, macOS x86_64)
+	ABI_Microsoft_x64                                   // Microsoft x64 ABI (Windows x86_64)
+	ABI_AAPCS64                                         // ARM64 AAPCS64 (Linux ARM64, macOS ARM64)
+	ABI_Windows_ARM64                                   // Windows ARM64 ABI
+)
+
+// Packing rules define how structs are packed in memory.
+const (
+	NaturalPacking   PackingRule = iota // align each field to its natural alignment
+	MicrosoftPacking                    // Microsoft-specific packing rules
+)
+
 // Packages of the compiler which can generate errors as a bit-mask enumeration.
 const (
 	Core Component = 1 << iota
@@ -104,6 +118,15 @@ type (
 
 	// String encoding format constants represent the encoding and byte size in each single value.
 	StringEncoding int
+
+	// The application binary interface defines
+	//   - how data structures are laid out in memory,
+	//   - how functions receive parameters and return values,
+	//   - and how operating system calls are made.
+	ApplicationBinaryInterface int
+
+	// Packing rules define how structs are packed in memory.
+	PackingRule int
 
 	// Component describes packages of the compiler which can generate errors (bit-mask).
 	Component uint64

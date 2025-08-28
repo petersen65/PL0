@@ -63,7 +63,7 @@ func newBlock(depth int32, scope sym.Scope[Declaration], declarations []Declarat
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
+func newConstantDeclaration(name string, value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
 	return &ConstantDeclarationNode{
 		TypeName:         nodeTypeNames[ConstantDeclarationType],
 		Name:             name,
@@ -76,7 +76,7 @@ func newConstantDeclaration(name string, value any, dataType ts.DataType, scope 
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
+func newVariableDeclaration(name string, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
 	return &VariableDeclarationNode{
 		TypeName:         nodeTypeNames[VariableDeclarationType],
 		Name:             name,
@@ -100,7 +100,7 @@ func newProcedureDeclaration(name string, block Block, scope sym.Scope[Declarati
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Expression {
+func newLiteral(value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Expression {
 	return &LiteralNode{
 		TypeName:         nodeTypeNames[LiteralType],
 		Value:            value,

@@ -119,7 +119,7 @@ type (
 		ParentNode       Node                   `json:"-"`                  // parent node of the constant declaration
 		Name             string                 `json:"name"`               // name of the constant
 		Value            any                    `json:"value"`              // value of constant
-		DataType         ts.DataType               `json:"data_type"`          // datatype of the constant
+		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the constant
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the constant declaration
 		Usage            []Expression           `json:"usage"`              // all usages of the constant
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
@@ -130,7 +130,7 @@ type (
 		TypeName         string                 `json:"type"`               // type name of the variable declaration node
 		ParentNode       Node                   `json:"-"`                  // parent node of the variable declaration
 		Name             string                 `json:"name"`               // name of the variable
-		DataType         ts.DataType               `json:"data_type"`          // datatype of the variable
+		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the variable
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the variable declaration
 		Usage            []Expression           `json:"usage"`              // all usages of the variable
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
@@ -152,7 +152,7 @@ type (
 		TypeName         string                 `json:"type"`               // type name of the literal node
 		ParentNode       Node                   `json:"-"`                  // parent node of the literal
 		Value            any                    `json:"value"`              // literal value
-		DataType         ts.DataType               `json:"data_type"`          // datatype of the literal
+		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the literal
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope in which the literal is used
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
@@ -346,12 +346,12 @@ func NewEmptyStatement() Statement {
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
+func NewConstantDeclaration(name string, value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
 	return newConstantDeclaration(name, value, dataType, scope, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name string, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
+func NewVariableDeclaration(name string, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
 	return newVariableDeclaration(name, dataType, scope, index)
 }
 
@@ -361,7 +361,7 @@ func NewProcedureDeclaration(name string, block Block, scope sym.Scope[Declarati
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Expression {
+func NewLiteral(value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Expression {
 	return newLiteral(value, dataType, scope, index)
 }
 

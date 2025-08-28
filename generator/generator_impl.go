@@ -60,7 +60,7 @@ type (
 
 var (
 	// Map abstract syntax data types to intermediate code data types (intentially their type systems are kept separate).
-	dataTypeMap = map[ts.DataType]ic.DataType{
+	dataTypeMap = map[ts.PrimitiveDataType]ic.DataType{
 		ts.Integer64:  ic.Integer64,
 		ts.Integer32:  ic.Integer32,
 		ts.Integer16:  ic.Integer16,
@@ -77,7 +77,7 @@ var (
 	}
 
 	// Map UTF string encodings to their abstract syntax string base data type.
-	stringBaseTypeMap = map[cor.StringEncoding]ts.DataType{
+	stringBaseTypeMap = map[cor.StringEncoding]ts.PrimitiveDataType{
 		cor.UTF8:  ts.Unsigned8,
 		cor.UTF16: ts.Unsigned16,
 		cor.UTF32: ts.Character,

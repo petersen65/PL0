@@ -13,7 +13,7 @@ const (
 
 var (
 	// dataTypeNames maps a data type to its string representation.
-	dataTypeNames = map[DataType]string{
+	dataTypeNames = map[PrimitiveDataType]string{
 		Integer64:  "int64",
 		Integer32:  "int32",
 		Integer16:  "int16",
@@ -31,14 +31,14 @@ var (
 )
 
 // String representation of a data type.
-func (dt DataType) String() string {
+func (t PrimitiveDataType) String() string {
 	var prefix string
 
-	if dt.IsPointer() {
+	if t.IsPointer() {
 		prefix = pointerPrefix
-	} else if dt.IsReference() {
+	} else if t.IsReference() {
 		prefix = referencePrefix
 	}
 
-	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
+	return fmt.Sprintf("%v%v", prefix, dataTypeNames[t.AsPlain()])
 }
