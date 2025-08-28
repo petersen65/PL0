@@ -7,17 +7,17 @@ import "fmt"
 
 type (
 	// A symbol table is a data structure that stores a mapping of the symbol name to the symbol.
-	symbolTable struct {
-		Names   []string           `json:"names"`   // enable deterministic iteration over the symbol table
-		Symbols map[string]*Symbol `json:"symbols"` // mapping of symbol names to symbols
+	symbolTable[T any] struct {
+		Names   []string              `json:"names"`   // enable deterministic iteration over the symbol table
+		Symbols map[string]*Symbol[T] `json:"symbols"` // mapping of symbol names to symbols
 	}
 
 	// Implementation of the scope data structure.
-	scope struct {
-		Id                int           `json:"id"`                 // each scope has a unique identifier
-		Outer             *scope        `json:"outer"`              // outer scope or nil if this is the outermost scope
-		SymbolTable       *symbolTable  `json:"symbol_table"`       // symbol table of the scope
-		IdentifierCounter map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique identifier names
+	scope[T any] struct {
+		Id                int             `json:"id"`                 // each scope has a unique identifier
+		Outer             *scope[T]       `json:"outer"`              // outer scope or nil if this is the outermost scope
+		SymbolTable       *symbolTable[T] `json:"symbol_table"`       // symbol table of the scope
+		IdentifierCounter map[rune]uint   `json:"identifier_counter"` // counter for compiler-generated unique identifier names
 	}
 )
 
@@ -31,8 +31,8 @@ var (
 )
 
 // Create a new entry for the symbol table.
-func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
-	return &Symbol{
+func newSymbol[T any](name string, kind Entry, declaration T) *Symbol[T] {
+	return &Symbol[T]{
 		Name:        name,
 		Kind:        kind,
 		Declaration: declaration,
@@ -41,25 +41,25 @@ func newSymbol(name string, kind Entry, declaration Declaration) *Symbol {
 }
 
 // Create a new symbol table.
-func newSymbolTable() *symbolTable {
-	return &symbolTable{
+func newSymbolTable[T any]() *symbolTable[T] {
+	return &symbolTable[T]{
 		Names:   make([]string, 0),
-		Symbols: make(map[string]*Symbol),
+		Symbols: make(map[string]*Symbol[T]),
 	}
 }
 
 // Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
-func newScope(uniqueId int, outer Scope) Scope {
-	return &scope{
+func newScope[T any](uniqueId int, outer Scope[T]) Scope[T] {
+	return &scope[T]{
 		Id:                uniqueId,
-		Outer:             outer.(*scope),
-		SymbolTable:       newSymbolTable(),
+		Outer:             outer.(*scope[T]),
+		SymbolTable:       newSymbolTable[T](),
 		IdentifierCounter: make(map[rune]uint),
 	}
 }
 
 // Insert a symbol into the symbol table. If the symbol already exists, it will be overwritten.
-func (s *symbolTable) insert(name string, symbol *Symbol) {
+func (s *symbolTable[T]) insert(name string, symbol *Symbol[T]) {
 	if s.lookup(name) == nil {
 		s.Names = append(s.Names, name)
 	}
@@ -68,13 +68,13 @@ func (s *symbolTable) insert(name string, symbol *Symbol) {
 }
 
 // Lookup a symbol in the symbol table. If the symbol is not found, nil is returned.
-func (s *symbolTable) lookup(name string) *Symbol {
+func (s *symbolTable[T]) lookup(name string) *Symbol[T] {
 	return s.Symbols[name]
 }
 
 // Deterministically iterate over all symbols in the symbol table.
-func (s *symbolTable) iterate() <-chan *Symbol {
-	symbols := make(chan *Symbol)
+func (s *symbolTable[T]) iterate() <-chan *Symbol[T] {
+	symbols := make(chan *Symbol[T])
 
 	// launch a goroutine to iterate over the symbol table in the background
 	go func() {
@@ -89,7 +89,7 @@ func (s *symbolTable) iterate() <-chan *Symbol {
 }
 
 // Create a new compiler-generated unique identifier name for a scope.
-func (s *scope) NewIdentifier(prefix rune) string {
+func (s *scope[T]) NewIdentifier(prefix rune) string {
 	if _, ok := s.IdentifierCounter[prefix]; !ok {
 		s.IdentifierCounter[prefix] = 0
 	}
@@ -99,12 +99,12 @@ func (s *scope) NewIdentifier(prefix rune) string {
 }
 
 // Insert the given symbol into this scope's symbol table under the provided name. If a symbol with that name already exists, it will be replaced.
-func (s *scope) Insert(name string, symbol *Symbol) {
+func (s *scope[T]) Insert(name string, symbol *Symbol[T]) {
 	s.SymbolTable.insert(name, symbol)
 }
 
 // Lookup a symbol in the symbol table of the scope. If the symbol is not found, the outer scope is searched.
-func (s *scope) Lookup(name string) *Symbol {
+func (s *scope[T]) Lookup(name string) *Symbol[T] {
 	if symbol := s.LookupCurrent(name); symbol != nil {
 		return symbol
 	}
@@ -117,7 +117,7 @@ func (s *scope) Lookup(name string) *Symbol {
 }
 
 // Lookup a symbol in the symbol table of the current scope. If the symbol is not found, nil is returned.
-func (s *scope) LookupCurrent(name string) *Symbol {
+func (s *scope[T]) LookupCurrent(name string) *Symbol[T] {
 	if symbol := s.SymbolTable.lookup(name); symbol != nil {
 		return symbol
 	}
@@ -126,6 +126,6 @@ func (s *scope) LookupCurrent(name string) *Symbol {
 }
 
 // Deterministically iterate over all symbols in the symbol table of the current scope.
-func (s *scope) IterateCurrent() <-chan *Symbol {
+func (s *scope[T]) IterateCurrent() <-chan *Symbol[T] {
 	return s.SymbolTable.iterate()
 }

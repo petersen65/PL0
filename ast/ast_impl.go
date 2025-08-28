@@ -42,7 +42,7 @@ var (
 )
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope Scope, declarations []Declaration, statement Statement) Block {
+func newBlock(depth int32, scope Scope[Declaration], declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     nodeTypeNames[BlockType],
 		Depth:        depth,
@@ -61,7 +61,7 @@ func newBlock(depth int32, scope Scope, declarations []Declaration, statement St
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType, scope Scope, index int) Declaration {
+func newConstantDeclaration(name string, value any, dataType DataType, scope Scope[Declaration], index int) Declaration {
 	return &ConstantDeclarationNode{
 		TypeName:         nodeTypeNames[ConstantDeclarationType],
 		Name:             name,
@@ -74,7 +74,7 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope Sco
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType, scope Scope, index int) Declaration {
+func newVariableDeclaration(name string, dataType DataType, scope Scope[Declaration], index int) Declaration {
 	return &VariableDeclarationNode{
 		TypeName:         nodeTypeNames[VariableDeclarationType],
 		Name:             name,
@@ -86,7 +86,7 @@ func newVariableDeclaration(name string, dataType DataType, scope Scope, index i
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope Scope, index int) Declaration {
+func newProcedureDeclaration(name string, block Block, scope Scope[Declaration], index int) Declaration {
 	return &ProcedureDeclarationNode{
 		TypeName:         nodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
@@ -98,7 +98,7 @@ func newProcedureDeclaration(name string, block Block, scope Scope, index int) D
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, scope Scope, index int) Expression {
+func newLiteral(value any, dataType DataType, scope Scope[Declaration], index int) Expression {
 	return &LiteralNode{
 		TypeName:         nodeTypeNames[LiteralType],
 		Value:            value,
@@ -109,7 +109,7 @@ func newLiteral(value any, dataType DataType, scope Scope, index int) Expression
 }
 
 // Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, scope Scope, context Entry, index int) Expression {
+func newIdentifierUse(name string, scope Scope[Declaration], context Entry, index int) Expression {
 	return &IdentifierUseNode{
 		TypeName:         nodeTypeNames[IdentifierUseType],
 		Name:             name,

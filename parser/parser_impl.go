@@ -90,7 +90,7 @@ func (p *parser) Parse() (ast.Block, cor.TokenHandler) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(blockNestingDepth int32, outer ast.Scope, expected cor.Tokens) ast.Block {
+func (p *parser) block(blockNestingDepth int32, outer ast.Scope[ast.Declaration], expected cor.Tokens) ast.Block {
 	// generate a scope number that must be unique accross compilation
 	p.uniqueScopeId++
 
@@ -153,7 +153,7 @@ func (p *parser) block(blockNestingDepth int32, outer ast.Scope, expected cor.To
 }
 
 // Sequence of constants declarations.
-func (p *parser) constWord(scope ast.Scope) []ast.Declaration {
+func (p *parser) constWord(scope ast.Scope[ast.Declaration]) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
@@ -187,7 +187,7 @@ func (p *parser) constWord(scope ast.Scope) []ast.Declaration {
 }
 
 // Sequence of variable declarations.
-func (p *parser) varWord(scope ast.Scope) []ast.Declaration {
+func (p *parser) varWord(scope ast.Scope[ast.Declaration]) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
@@ -219,7 +219,7 @@ func (p *parser) varWord(scope ast.Scope) []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(blockNestingDepth int32, scope ast.Scope, anchors cor.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(blockNestingDepth int32, scope ast.Scope[ast.Declaration], anchors cor.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
 	// all procedures are declared in a sequence of procedure identifiers with each having a block
@@ -271,7 +271,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope ast.Scope, anchors
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(scope ast.Scope, anchors cor.Tokens) ast.Statement {
+func (p *parser) assignment(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Statement {
 	var becomesIndex int
 	name := p.lastTokenValue()
 	nameIndex := p.lastTokenIndex()
@@ -301,7 +301,7 @@ func (p *parser) assignment(scope ast.Scope, anchors cor.Tokens) ast.Statement {
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
-func (p *parser) read(scope ast.Scope) ast.Statement {
+func (p *parser) read(scope ast.Scope[ast.Declaration]) ast.Statement {
 	var name string
 	var nameIndex int
 
@@ -327,7 +327,7 @@ func (p *parser) read(scope ast.Scope) ast.Statement {
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(scope ast.Scope, anchors cor.Tokens) ast.Statement {
+func (p *parser) write(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Statement {
 	writeIndex := p.lastTokenIndex()
 	p.nextToken()
 	expression := p.expression(scope, anchors)
@@ -337,7 +337,7 @@ func (p *parser) write(scope ast.Scope, anchors cor.Tokens) ast.Statement {
 }
 
 // A call statement is the call word followed by a procedure identifier.
-func (p *parser) callWord(scope ast.Scope) ast.Statement {
+func (p *parser) callWord(scope ast.Scope[ast.Declaration]) ast.Statement {
 	var name string
 	var nameIndex int
 
@@ -362,7 +362,7 @@ func (p *parser) callWord(scope ast.Scope) ast.Statement {
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
+func (p *parser) ifWord(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Statement {
 	ifIndex := p.lastTokenIndex()
 	p.nextToken()
 
@@ -388,7 +388,7 @@ func (p *parser) ifWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
+func (p *parser) whileWord(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Statement {
 	whileIndex := p.lastTokenIndex()
 	p.nextToken()
 
@@ -414,7 +414,7 @@ func (p *parser) whileWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
+func (p *parser) beginWord(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Statement {
 	beginIndex := p.lastTokenIndex()
 	p.nextToken()
 
@@ -458,7 +458,7 @@ func (p *parser) beginWord(scope ast.Scope, anchors cor.Tokens) ast.Statement {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope ast.Scope, anchors cor.Tokens) (ast.Statement, bool) {
+func (p *parser) statement(scope ast.Scope[ast.Declaration], anchors cor.Tokens) (ast.Statement, bool) {
 	var statement ast.Statement
 
 	switch p.lastToken() {
@@ -506,7 +506,7 @@ func (p *parser) statement(scope ast.Scope, anchors cor.Tokens) (ast.Statement, 
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number and is stored in a constant declaration of the abstract syntax tree
-func (p *parser) constantIdentifier(scope ast.Scope) ast.Declaration {
+func (p *parser) constantIdentifier(scope ast.Scope[ast.Declaration]) ast.Declaration {
 	// in case of a parsing error, return an empty declaration
 	declaration := ast.NewEmptyDeclaration()
 
@@ -560,7 +560,7 @@ func (p *parser) constantIdentifier(scope ast.Scope) ast.Declaration {
 }
 
 // A variable identifier is stored in a variable declaration of the abstract syntax tree
-func (p *parser) variableIdentifier(scope ast.Scope) ast.Declaration {
+func (p *parser) variableIdentifier(scope ast.Scope[ast.Declaration]) ast.Declaration {
 	if p.lastToken() != cor.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
@@ -574,7 +574,7 @@ func (p *parser) variableIdentifier(scope ast.Scope) ast.Declaration {
 }
 
 // A procedure identifier is stored in a procedure declaration of the abstract syntax tree
-func (p *parser) procedureIdentifier(scope ast.Scope) ast.Declaration {
+func (p *parser) procedureIdentifier(scope ast.Scope[ast.Declaration]) ast.Declaration {
 	if p.lastToken() != cor.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
@@ -588,7 +588,7 @@ func (p *parser) procedureIdentifier(scope ast.Scope) ast.Declaration {
 }
 
 // A condition is either an odd expression or two expressions separated by a comparison operator.
-func (p *parser) condition(scope ast.Scope, anchors cor.Tokens) ast.Expression {
+func (p *parser) condition(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Expression {
 	// in case of a parsing error, return an empty declaration
 	operation := ast.NewEmptyExpression()
 
@@ -641,7 +641,7 @@ func (p *parser) condition(scope ast.Scope, anchors cor.Tokens) ast.Expression {
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(scope ast.Scope, anchors cor.Tokens) ast.Expression {
+func (p *parser) expression(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
@@ -673,7 +673,7 @@ func (p *parser) expression(scope ast.Scope, anchors cor.Tokens) ast.Expression 
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(scope ast.Scope, anchors cor.Tokens) ast.Expression {
+func (p *parser) term(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
@@ -706,7 +706,7 @@ func (p *parser) term(scope ast.Scope, anchors cor.Tokens) ast.Expression {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(scope ast.Scope, anchors cor.Tokens) ast.Expression {
+func (p *parser) factor(scope ast.Scope[ast.Declaration], anchors cor.Tokens) ast.Expression {
 	var sign cor.Token
 	var signIndex int
 

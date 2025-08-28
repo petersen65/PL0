@@ -21,39 +21,39 @@ type (
 	ExtensionType int
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
-	Symbol struct {
+	Symbol[T any] struct {
 		Name        string                `json:"name"`      // name of the symbol
 		Kind        Entry                 `json:"kind"`      // kind of the symbol
-		Declaration Declaration           `json:"-"`         // declaration node of the symbol
+		Declaration T                     `json:"-"`         // declaration information of the symbol
 		Extension   map[ExtensionType]any `json:"extension"` // symbol extensions for compiler phases
 	}
 
 	// A scope is a data structure that stores information about its declared identifiers.
 	// Scopes are nested from the outermost scope to the innermost scope. Each scope has exactly one outer scope.
-	// Each declared identifier is associated with one specific scope. It is visible in its scope and all inner scopes. 
+	// Each declared identifier is associated with one specific scope. It is visible in its scope and all inner scopes.
 	// An identifier can be redeclared in an inner scope, which will shadow the outer declaration.
-	Scope interface {
+	Scope[T any] interface {
 		NewIdentifier(prefix rune) string
-		Insert(name string, symbol *Symbol)
-		Lookup(name string) *Symbol
-		LookupCurrent(name string) *Symbol
-		IterateCurrent() <-chan *Symbol
+		Insert(name string, symbol *Symbol[T])
+		Lookup(name string) *Symbol[T]
+		LookupCurrent(name string) *Symbol[T]
+		IterateCurrent() <-chan *Symbol[T]
 	}
 )
 
 // Create a new entry for the symbol table.
-func NewSymbol(name string, kind Entry, declaration Declaration) *Symbol {
+func NewSymbol[T any](name string, kind Entry, declaration T) *Symbol[T] {
 	return newSymbol(name, kind, declaration)
 }
 
 // Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
-func NewScope(uniqueId int, outer Scope) Scope {
+func NewScope[T any](uniqueId int, outer Scope[T]) Scope[T] {
 	return newScope(uniqueId, outer)
 }
 
 // An empty scope should only be used in the context of parser errors and is free from any side-effect.
-func NewEmptyScope() Scope {
-	return newScope(EmptyScopeId, nil)
+func NewEmptyScope[T any]() Scope[T] {
+	return newScope[T](EmptyScopeId, nil)
 }
 
 // String representation of a symbol entry kind.
