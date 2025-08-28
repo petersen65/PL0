@@ -9,6 +9,8 @@ import (
 	"io"
 	"strings"
 
+	sym "github.com/petersen65/pl0/v3/ast/symbol"
+	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
 )
 
@@ -42,7 +44,7 @@ var (
 )
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope Scope[Declaration], declarations []Declaration, statement Statement) Block {
+func newBlock(depth int32, scope sym.Scope[Declaration], declarations []Declaration, statement Statement) Block {
 	block := &BlockNode{
 		TypeName:     nodeTypeNames[BlockType],
 		Depth:        depth,
@@ -61,7 +63,7 @@ func newBlock(depth int32, scope Scope[Declaration], declarations []Declaration,
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType DataType, scope Scope[Declaration], index int) Declaration {
+func newConstantDeclaration(name string, value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
 	return &ConstantDeclarationNode{
 		TypeName:         nodeTypeNames[ConstantDeclarationType],
 		Name:             name,
@@ -74,7 +76,7 @@ func newConstantDeclaration(name string, value any, dataType DataType, scope Sco
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType DataType, scope Scope[Declaration], index int) Declaration {
+func newVariableDeclaration(name string, dataType ts.DataType, scope sym.Scope[Declaration], index int) Declaration {
 	return &VariableDeclarationNode{
 		TypeName:         nodeTypeNames[VariableDeclarationType],
 		Name:             name,
@@ -86,7 +88,7 @@ func newVariableDeclaration(name string, dataType DataType, scope Scope[Declarat
 }
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope Scope[Declaration], index int) Declaration {
+func newProcedureDeclaration(name string, block Block, scope sym.Scope[Declaration], index int) Declaration {
 	return &ProcedureDeclarationNode{
 		TypeName:         nodeTypeNames[ProcedureDeclarationType],
 		Name:             name,
@@ -98,7 +100,7 @@ func newProcedureDeclaration(name string, block Block, scope Scope[Declaration],
 }
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, dataType DataType, scope Scope[Declaration], index int) Expression {
+func newLiteral(value any, dataType ts.DataType, scope sym.Scope[Declaration], index int) Expression {
 	return &LiteralNode{
 		TypeName:         nodeTypeNames[LiteralType],
 		Value:            value,
@@ -109,7 +111,7 @@ func newLiteral(value any, dataType DataType, scope Scope[Declaration], index in
 }
 
 // Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, scope Scope[Declaration], context Entry, index int) Expression {
+func newIdentifierUse(name string, scope sym.Scope[Declaration], context sym.Entry, index int) Expression {
 	return &IdentifierUseNode{
 		TypeName:         nodeTypeNames[IdentifierUseType],
 		Name:             name,
@@ -376,7 +378,7 @@ func (d *ConstantDeclarationNode) SetParent(parent Node) {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", kindNames[ConstantEntry], d.Name, d.Value, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", sym.ConstantEntry, d.Name, d.Value, d.DataType, len(d.Usage))
 }
 
 // Parent node of the constant declaration node.
@@ -416,7 +418,7 @@ func (d *VariableDeclarationNode) SetParent(parent Node) {
 
 // String of the variable declaration node.
 func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", kindNames[VariableEntry], d.Name, d.DataType, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", sym.VariableEntry, d.Name, d.DataType, len(d.Usage))
 }
 
 // Parent node of the variable declaration node.
@@ -456,7 +458,7 @@ func (d *ProcedureDeclarationNode) SetParent(parent Node) {
 
 // String of the procedure declaration node.
 func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", kindNames[ProcedureEntry], d.Name, len(d.Usage))
+	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", sym.ProcedureEntry, d.Name, len(d.Usage))
 }
 
 // Parent node of the procedure declaration node.
@@ -538,14 +540,14 @@ func (u *IdentifierUseNode) SetParent(parent Node) {
 func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
 		switch symbol.Kind {
-		case ConstantEntry:
+		case sym.ConstantEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,value=%v,usage=%v)",
 				symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
-		case VariableEntry:
+		case sym.VariableEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
-		case ProcedureEntry:
+		case sym.ProcedureEntry:
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
 		default:

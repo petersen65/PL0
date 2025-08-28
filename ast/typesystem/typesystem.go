@@ -1,7 +1,8 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package ast
+// Package typesystem provides a type system that is used for data type representation in the abstract syntax tree.
+package typesystem
 
 // Data types of literals, constants, and variables.
 // The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.

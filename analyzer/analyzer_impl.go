@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	ast "github.com/petersen65/pl0/v3/ast"
+	sym "github.com/petersen65/pl0/v3/ast/symbol"
 	cor "github.com/petersen65/pl0/v3/core"
 )
 
@@ -59,7 +60,7 @@ func (a *nameAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode)
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
 	} else {
-		cd.Scope.Insert(cd.Name, ast.NewSymbol(cd.Name, ast.ConstantEntry, ast.Declaration(cd)))
+		cd.Scope.Insert(cd.Name, sym.NewSymbol(cd.Name, sym.ConstantEntry, ast.Declaration(cd)))
 	}
 }
 
@@ -68,7 +69,7 @@ func (a *nameAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode)
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
 	} else {
-		vd.Scope.Insert(vd.Name, ast.NewSymbol(vd.Name, ast.VariableEntry, ast.Declaration(vd)))
+		vd.Scope.Insert(vd.Name, sym.NewSymbol(vd.Name, sym.VariableEntry, ast.Declaration(vd)))
 	}
 }
 
@@ -77,7 +78,7 @@ func (a *nameAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNod
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
-		pd.Scope.Insert(pd.Name, ast.NewSymbol(pd.Name, ast.ProcedureEntry, ast.Declaration(pd)))
+		pd.Scope.Insert(pd.Name, sym.NewSymbol(pd.Name, sym.ProcedureEntry, ast.Declaration(pd)))
 	}
 
 	pd.Block.Accept(a)
@@ -94,10 +95,10 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
 		switch symbol.Kind {
-		case ast.ConstantEntry:
+		case sym.ConstantEntry:
 			// make the identifier a constant because its symbol is a constant and it is used in a constant context
-			if iu.Context&ast.ConstantEntry != 0 {
-				iu.Context = ast.ConstantEntry
+			if iu.Context&sym.ConstantEntry != 0 {
+				iu.Context = sym.ConstantEntry
 
 				// add the constant usage to the constant declaration
 				symbol.Declaration.(*ast.ConstantDeclarationNode).Usage =
@@ -106,10 +107,10 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
-		case ast.VariableEntry:
+		case sym.VariableEntry:
 			// make the identifier a variable because its symbol is a variable and it is used in a variable context
-			if iu.Context&ast.VariableEntry != 0 {
-				iu.Context = ast.VariableEntry
+			if iu.Context&sym.VariableEntry != 0 {
+				iu.Context = sym.VariableEntry
 
 				// add the variable usage to the variable declaration
 				symbol.Declaration.(*ast.VariableDeclarationNode).Usage =
@@ -118,10 +119,10 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
-		case ast.ProcedureEntry:
+		case sym.ProcedureEntry:
 			// make the identifier a procedure because its symbol is a procedure and it is used in a procedure context
-			if iu.Context&ast.ProcedureEntry != 0 {
-				iu.Context = ast.ProcedureEntry
+			if iu.Context&sym.ProcedureEntry != 0 {
+				iu.Context = sym.ProcedureEntry
 
 				// add the procedure usage to the procedure declaration
 				symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage =
@@ -206,7 +207,7 @@ func (a *nameAnalyzer) appendError(code cor.Failure, value any, index int) {
 func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
-			if symbol.Kind == ast.ConstantEntry || symbol.Kind == ast.VariableEntry {
+			if symbol.Kind == sym.ConstantEntry || symbol.Kind == sym.VariableEntry {
 				iu.Use |= ast.Read
 			}
 		}
@@ -239,7 +240,7 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 func addVariableToBlockClosure(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
-			if symbol.Kind == ast.VariableEntry {
+			if symbol.Kind == sym.VariableEntry {
 				// determine the block where the variable is declared
 				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Declaration)
 

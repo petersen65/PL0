@@ -9,12 +9,14 @@ import (
 	"strings"
 
 	ast "github.com/petersen65/pl0/v3/ast"
+	sym "github.com/petersen65/pl0/v3/ast/symbol"
+	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
 // Abstract syntax extension for the symbol.
-const symbolExtension ast.ExtensionType = 16
+const symbolExtension sym.ExtensionType = 16
 
 // Prefixes for address names in the three-address code concept.
 const (
@@ -58,27 +60,27 @@ type (
 
 var (
 	// Map abstract syntax data types to intermediate code data types (intentially their type systems are kept separate).
-	dataTypeMap = map[ast.DataType]ic.DataType{
-		ast.Integer64:  ic.Integer64,
-		ast.Integer32:  ic.Integer32,
-		ast.Integer16:  ic.Integer16,
-		ast.Integer8:   ic.Integer8,
-		ast.Float64:    ic.Float64,
-		ast.Float32:    ic.Float32,
-		ast.Unsigned64: ic.Unsigned64,
-		ast.Unsigned32: ic.Unsigned32,
-		ast.Unsigned16: ic.Unsigned16,
-		ast.Unsigned8:  ic.Unsigned8,
-		ast.Boolean:    ic.Boolean,
-		ast.Character:  ic.Character,
-		ast.String:     ic.String,
+	dataTypeMap = map[ts.DataType]ic.DataType{
+		ts.Integer64:  ic.Integer64,
+		ts.Integer32:  ic.Integer32,
+		ts.Integer16:  ic.Integer16,
+		ts.Integer8:   ic.Integer8,
+		ts.Float64:    ic.Float64,
+		ts.Float32:    ic.Float32,
+		ts.Unsigned64: ic.Unsigned64,
+		ts.Unsigned32: ic.Unsigned32,
+		ts.Unsigned16: ic.Unsigned16,
+		ts.Unsigned8:  ic.Unsigned8,
+		ts.Boolean:    ic.Boolean,
+		ts.Character:  ic.Character,
+		ts.String:     ic.String,
 	}
 
 	// Map UTF string encodings to their abstract syntax string base data type.
-	stringBaseTypeMap = map[cor.StringEncoding]ast.DataType{
-		cor.UTF8:  ast.Unsigned8,
-		cor.UTF16: ast.Unsigned16,
-		cor.UTF32: ast.Character,
+	stringBaseTypeMap = map[cor.StringEncoding]ts.DataType{
+		cor.UTF8:  ts.Unsigned8,
+		cor.UTF16: ts.Unsigned16,
+		cor.UTF32: ts.Character,
 	}
 
 	// Prefixes used for names of addresses.
@@ -100,7 +102,7 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ast.String.String(), optimized, tokenHandler)
+	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ts.String.String(), optimized, tokenHandler)
 
 	// predefine the structure of the "string" composite data type and add it to debugging information
 	if !optimized {
@@ -315,7 +317,7 @@ func (g *generator) VisitLiteral(ln *ast.LiteralNode) {
 // Generate code for an identifier use.
 func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	switch iu.Context {
-	case ast.ConstantEntry:
+	case sym.ConstantEntry:
 		// get constant declaration of the constant to load
 		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
 
@@ -337,7 +339,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		g.pushResult(instruction.Quadruple.Result)
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
-	case ast.VariableEntry:
+	case sym.VariableEntry:
 		// get variable declaration of the variable to load
 		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
 
@@ -368,7 +370,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		g.pushResult(instruction.Quadruple.Result)
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
-	case ast.ProcedureEntry:
+	case sym.ProcedureEntry:
 		// not required for code generation
 
 	default:
@@ -918,7 +920,7 @@ func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation co
 	// create the string member data type for length
 	uint64Type := cor.NewSimpleDataType(
 		ic.Unsigned64.String(),
-		ast.Unsigned64.String(),
+		ts.Unsigned64.String(),
 	)
 
 	// create the string member data type for data
@@ -937,7 +939,7 @@ func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation co
 	// create the composite data type for the string that has to use the name provided by the debug information
 	stringType := cor.NewCompositeDataType(
 		debugInformation.GetDebugStringTable().String,
-		ast.String.String(),
+		ts.String.String(),
 	)
 
 	// append the string composite data type and its member data types to debugging information

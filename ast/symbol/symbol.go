@@ -1,7 +1,8 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package ast
+// Package symbol provides a generic symbol table implementation for managing declared identifiers and scopes.
+package symbol
 
 // Empty scopes are required to use this number as their scope id
 const EmptyScopeId = -1
