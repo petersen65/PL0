@@ -57,6 +57,12 @@ const (
 	DataTypePointer // complex pointer hierarchies
 )
 
+// Packing rules define how structure based data types are packed.
+const (
+	NaturalPacking   PackingRule = iota // align each field to its natural alignment
+	MicrosoftPacking                    // Microsoft-specific packing rules
+)
+
 // Parameter passing modes for procedures and functions.
 const (
 	CallByValue          ParameterMode = iota // call by value
@@ -71,6 +77,9 @@ type (
 
 	// Kind of data type (e.g., simple, composite, pointer).
 	DataTypeKind int
+
+	// A packing rule defines how structure based data types are packed.
+	PackingRule int
 
 	// Mode for parameter passing in procedures and functions.
 	ParameterMode int
@@ -125,9 +134,9 @@ type (
 	}
 
 	// Structure based data types that group multiple fields.
-	RecordTypeDescriptor struct {
-		TypeName string        `json:"name"`      // human-readable name of the record type
-		Fields   []RecordField `json:"fields"`    // ordered list of fields that comprise this record structure
+	StructureTypeDescriptor struct {
+		TypeName string        `json:"name"`      // human-readable name of the structure type
+		Fields   []RecordField `json:"fields"`    // ordered list of fields that comprise this structure
 		IsPacked bool          `json:"is_packed"` // memory layout optimized to minimize padding between fields
 	}
 
@@ -186,6 +195,17 @@ type (
 		TypeName    string         `json:"name"`         // human-readable name of the pointer type
 		ValueType   TypeDescriptor `json:"value_type"`   // type descriptor of the value that this pointer references
 		IsReference bool           `json:"is_reference"` // true if this is a reference rather than a raw pointer
+	}
+
+	// The application binary interface contains size, alignment, and packing rules.
+	ApplicationBinaryInterface struct {
+		Name              string
+		PointerSize       int64
+		PointerAlignment  int64
+		TypeSizes         map[PrimitiveDataType]int64
+		TypeAlignments    map[PrimitiveDataType]int64
+		StructPackingRule PackingRule
+		MaxAlignment      int64
 	}
 
 	// The type descriptor is the common interface for all specific type descriptions.

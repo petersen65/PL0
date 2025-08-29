@@ -134,7 +134,8 @@ func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration
 	if targetPlatform.OperatingSystem != cor.Linux ||
 		targetPlatform.InstructionSetArchitecture != cor.X86_64 ||
 		targetPlatform.InstructionSet != cor.ISA_SSE2 ||
-		targetPlatform.StringEncoding != cor.UTF32 {
+		targetPlatform.StringEncoding != cor.UTF32 ||
+		targetPlatform.ApplicationBinaryInterface != cor.ABI_SystemV_AMD64 {
 		panic(cor.NewGeneralError(cor.Emitter, failureMap, cor.Fatal, unsupportedTargetPlatform, targetPlatform, nil))
 	}
 

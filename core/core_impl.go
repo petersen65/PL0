@@ -46,6 +46,14 @@ var (
 		UTF32: "UTF-32",
 	}
 
+	// Map application binary interface names to their corresponding names.
+	applicationBinaryInterfaceNames = map[ApplicationBinaryInterface]string{
+		ABI_SystemV_AMD64: "SystemV_AMD64",
+		ABI_Microsoft_x64: "Microsoft_x64",
+		ABI_AAPCS64:       "AAPCS64",
+		ABI_Windows_ARM64: "Windows_ARM64",
+	}
+
 	// Map compiler components to their corresponding names.
 	componentMap = map[Component]string{
 		Core:                     "core",

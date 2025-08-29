@@ -146,6 +146,7 @@ type (
 		InstructionSetArchitecture InstructionSetArchitecture `json:"instruction_set_architecture"` // CPU family name
 		InstructionSet             InstructionSet             `json:"instruction_set"`              // instruction set of the CPU
 		StringEncoding             StringEncoding             `json:"string_encoding"`              // string encoding format
+		ApplicationBinaryInterface ApplicationBinaryInterface `json:"application_binary_interface"` // application binary interface
 	}
 
 	// Build configuration used during the compilation process.
@@ -204,9 +205,15 @@ func (se StringEncoding) String() string {
 	return stringEncodingNames[se]
 }
 
+// String representation of the application binary interface.
+func (abi ApplicationBinaryInterface) String() string {
+	return applicationBinaryInterfaceNames[abi]
+}
+
 // String representation of the target platform.
 func (t TargetPlatform) String() string {
-	return fmt.Sprintf("%v %v %v %v", t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet, t.StringEncoding)
+	return fmt.Sprintf("%v %v %v %v %v",
+		t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet, t.StringEncoding, t.ApplicationBinaryInterface)
 }
 
 // String representation of the output kind.
