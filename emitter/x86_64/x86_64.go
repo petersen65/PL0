@@ -8,6 +8,7 @@ import (
 	"io"
 
 	cor "github.com/petersen65/pl0/v3/core"
+	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 )
 
@@ -291,7 +292,7 @@ type (
 )
 
 // Return the interface of the assembly code unit implementation (with or without debug information support).
-func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation ...cor.DebugInformation) AssemblyCodeUnit {
+func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation ...dbg.DebugInformation) AssemblyCodeUnit {
 	// check if support for debug information shall be provided
 	if len(debugInformation) == 1 && debugInformation[0] != nil {
 		return newAssemblyCodeUnit(buildConfiguration, debugInformation[0])

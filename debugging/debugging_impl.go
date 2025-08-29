@@ -1,18 +1,22 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+package debugging
 
-import "slices"
+import (
+	"slices"
+
+	cor "github.com/petersen65/pl0/v3/core"
+)
 
 // Implementation of the DebugInformation interface.
 type debugInformation struct {
-	tokenHandler TokenHandler // token handler that manages the tokens of the token stream
+	tokenHandler cor.TokenHandler // token handler that manages the tokens of the token stream
 	table        *DebugStringTable
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler cor.TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
 		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, stringName, optimized),
@@ -290,7 +294,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 		case *CompositeDataType:
 			// check for circular reference
 			if processing[dt.Name()] {
-				panic(NewGeneralError(Core, failureMap, Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
+				panic(cor.NewGeneralError(cor.Core, failureMap, cor.Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
 			}
 
 			// processing of this composite data type is running
@@ -312,7 +316,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 			return dt.ByteSize
 
 		default:
-			panic(NewGeneralError(Core, failureMap, Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
+			panic(cor.NewGeneralError(cor.Core, failureMap, cor.Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
 		}
 	}
 

@@ -7,6 +7,7 @@ package generator
 import (
 	ast "github.com/petersen65/pl0/v3/ast"
 	cor "github.com/petersen65/pl0/v3/core"
+	dbg "github.com/petersen65/pl0/v3/debugging"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
@@ -14,7 +15,7 @@ import (
 type Generator interface {
 	Generate()
 	GetIntermediateCodeUnit() ic.IntermediateCodeUnit
-	GetDebugInformation() cor.DebugInformation
+	GetDebugInformation() dbg.DebugInformation
 }
 
 // Return the interface of the generator implementation.

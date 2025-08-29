@@ -12,6 +12,7 @@ import (
 	sym "github.com/petersen65/pl0/v3/ast/symbol"
 	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
+	dbg "github.com/petersen65/pl0/v3/debugging"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
@@ -48,7 +49,7 @@ type (
 	generator struct {
 		abstractSyntax   ast.Block               // abstract syntax tree to generate intermediate code for
 		intermediateCode ic.IntermediateCodeUnit // intermediate code unit to store the generated intermediate code
-		debugInformation cor.DebugInformation    // debug information collected during the code generation
+		debugInformation dbg.DebugInformation    // debug information collected during the code generation
 		results          *list.List              // last-in-first-out results-list holding results from expressions
 	}
 
@@ -102,7 +103,7 @@ func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfigur
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
 	optimized := buildConfiguration.Optimization&cor.Debug == 0
-	debugInformation := cor.NewDebugInformation(compilationUnit, compilationDirectory, producer, ts.String.String(), optimized, tokenHandler)
+	debugInformation := dbg.NewDebugInformation(compilationUnit, compilationDirectory, producer, ts.String.String(), optimized, tokenHandler)
 
 	// predefine the structure of the "string" composite data type and add it to debugging information
 	if !optimized {
@@ -145,7 +146,7 @@ func (g *generator) GetIntermediateCodeUnit() ic.IntermediateCodeUnit {
 }
 
 // Provide access to the collected debug information.
-func (g *generator) GetDebugInformation() cor.DebugInformation {
+func (g *generator) GetDebugInformation() dbg.DebugInformation {
 	return g.debugInformation
 }
 
@@ -841,7 +842,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 	var function, functionSource string
 	var global, entryPoint bool
 	var tokenStreamIndex int
-	info := code.(cor.DebugInformation)
+	info := code.(dbg.DebugInformation)
 
 	// only process block nodes from the abstract syntax tree
 	if n, ok := node.(*ast.BlockNode); ok {
@@ -888,7 +889,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 					dataTypeNameSource := dn.DataType.String()
 
 					// append the local constant of the function to the debug information
-					constantType := cor.NewSimpleDataType(dataTypeName, dataTypeNameSource)
+					constantType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
 					info.AppendConstant(function, functionSource, name, nameSource, constantType, dn.Value, dn.TokenStreamIndex)
 
 				case *ast.VariableDeclarationNode:
@@ -903,7 +904,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 					dataTypeNameSource := dn.DataType.String()
 
 					// append the local variable of the function to the debug information
-					variableType := cor.NewSimpleDataType(dataTypeName, dataTypeNameSource)
+					variableType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
 					info.AppendVariable(function, functionSource, name, nameSource, variableType, dn.TokenStreamIndex)
 				}
 			}
@@ -912,32 +913,32 @@ func collectDebugStringTable(node ast.Node, code any) {
 }
 
 // Define the string composite data type structure with length and data pointer members for debug information.
-func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation cor.DebugInformation) {
+func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation dbg.DebugInformation) {
 	// string target encoding data type names that depend on the target platform's string encoding
 	stringEncodingTypeNameSource := stringBaseTypeMap[stringEncoding]
 	stringEncodingTypeName := dataTypeMap[stringEncodingTypeNameSource]
 
 	// create the string member data type for length
-	uint64Type := cor.NewSimpleDataType(
+	uint64Type := dbg.NewSimpleDataType(
 		ic.Unsigned64.String(),
 		ts.Unsigned64.String(),
 	)
 
 	// create the string member data type for data
-	stringEncodingType := cor.NewSimpleDataType(
+	stringEncodingType := dbg.NewSimpleDataType(
 		stringEncodingTypeName.String(),
 		stringEncodingTypeNameSource.String(),
 	)
 
 	// create the string member data type for pointer to data
-	stringEncodingPointerType := cor.NewPointerDataType(
+	stringEncodingPointerType := dbg.NewPointerDataType(
 		stringEncodingTypeName.AsPointer().String(),
 		stringEncodingTypeNameSource.AsPointer().String(),
 		stringEncodingType,
 	)
 
 	// create the composite data type for the string that has to use the name provided by the debug information
-	stringType := cor.NewCompositeDataType(
+	stringType := dbg.NewCompositeDataType(
 		debugInformation.GetDebugStringTable().String,
 		ts.String.String(),
 	)

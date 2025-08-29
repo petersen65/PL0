@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	cor "github.com/petersen65/pl0/v3/core"
+	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
@@ -33,7 +34,7 @@ const (
 type emitter struct {
 	intermediateCode ic.IntermediateCodeUnit // intermediate code unit to generate assembly code for
 	assemblyCode     x64.AssemblyCodeUnit    // assembly code unit for the target platform
-	debugInformation cor.DebugInformation    // debug information collected during the code generation
+	debugInformation dbg.DebugInformation    // debug information collected during the code generation
 	variableOffsets  map[string]int32        // 32-bit offset of local variables in their activation record
 }
 
@@ -127,7 +128,7 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, debugInformation cor.DebugInformation) Emitter {
+func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, debugInformation dbg.DebugInformation) Emitter {
 	targetPlatform := buildConfiguration.TargetPlatform
 
 	// check if the target platform is supported by the emitter implementation

@@ -27,8 +27,6 @@ const (
 	unknownExportFormat
 	errorReportExportFailed
 	tokenStreamExportFailed
-	unexpectedDataTypeKind
-	circularDependencyInCompositeDataType
 )
 
 type (
@@ -86,8 +84,6 @@ var (
 		unknownExportFormat:     "unknown export format: %v",
 		errorReportExportFailed: "failed to export the error report",
 		tokenStreamExportFailed: "failed to export the token stream",
-		unexpectedDataTypeKind:  "unexpected kind of data type: %v",
-		circularDependencyInCompositeDataType: "circular dependency in composite data type: %v",
 	}
 )
 

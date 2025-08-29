@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	cor "github.com/petersen65/pl0/v3/core"
+	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 )
 
@@ -23,7 +24,7 @@ type (
 		SymbolTable        map[string]*Symbol                              `json:"symbol_table"`         // symbol table for assembly code label names
 		FileIdentifier     map[string]int                                  `json:"file_identifier"`      // file identifier for source code files
 		BuildConfiguration cor.BuildConfiguration                          `json:"build_configuration"`  // build configuration of the assembly code unit
-		debugInformation   cor.DebugInformation                            `json:"-"`                    // debug information collected from earlier compilation phases
+		debugInformation   dbg.DebugInformation                            `json:"-"`                    // debug information collected from earlier compilation phases
 		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"utf32_section"`        // read-only data section for static UTF-32 strings
 		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"int64_section"`        // read-only data section for static 64-bit integers
 		RoStrDescSection   *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"strdesc_section"`      // read-only data section for string descriptors
@@ -182,7 +183,7 @@ var (
 )
 
 // Create a new assembly code unit with its sections and provide build and debug information.
-func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation cor.DebugInformation) AssemblyCodeUnit {
+func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation dbg.DebugInformation) AssemblyCodeUnit {
 	unit := &assemblyCodeUnit{
 		Labels:             make([]string, 0),
 		SymbolTable:        make(map[string]*Symbol),
@@ -951,14 +952,14 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 }
 
 // Update the .debug_info section with debugging information entries (DIEs).
-func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
+func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *dbg.DebugStringTable) {
 	// the predefined string composite data type must exist
-	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != cor.DataTypeComposite {
+	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != dbg.DataTypeComposite {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, predefinedDataTypeRequired, dstab.String, nil))
 	}
 
 	// find predefined string composite data type in the debug string table
-	stringCompositeType := dstab.FindDataType(dstab.String).(*cor.CompositeDataType)
+	stringCompositeType := dstab.FindDataType(dstab.String).(*dbg.CompositeDataType)
 
 	// debugging information entries for string member data types "length" and "data"
 	lengthMember := stringCompositeType.CompositeMembers[0]
@@ -1005,13 +1006,13 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 	// create debugging information entries for each base data type
 	for _, dtd := range dstab.DataTypes {
 		// skip the string data type or composite data types
-		if dtd.Name() == dstab.String || dtd.Kind() == cor.DataTypeComposite {
+		if dtd.Name() == dstab.String || dtd.Kind() == dbg.DataTypeComposite {
 			continue
 		}
 
 		// handle different kinds of data types to create their debugging information entries
 		switch dt := dtd.(type) {
-		case *cor.SimpleDataType:
+		case *dbg.SimpleDataType:
 			baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
 				elf.ToDebuggingInformationEntryLabel(dt.Name()),
 				elf.DW_CODE_base_type,
@@ -1022,7 +1023,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 				},
 			))
 
-		case *cor.PointerDataType:
+		case *dbg.PointerDataType:
 			elementTypeLabel := elf.ToDebuggingInformationEntryLabel(dt.ElementType.Name())
 
 			baseTypes = append(baseTypes, elf.NewDebuggingInformationEntry(
@@ -1184,7 +1185,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *cor.DebugStringTable) {
 }
 
 // Update the .debug_str section with string items referenced by DIEs in the .debug_info section.
-func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
+func (u *assemblyCodeUnit) updateDebugStrSection(dstab *dbg.DebugStringTable) {
 	// compilation details and producer are required for the .debug_str section
 	if len(dstab.CompilationUnit) == 0 || len(dstab.CompilationDirectory) == 0 || len(dstab.Producer) == 0 {
 		panic(cor.NewGeneralError(cor.Intel, failureMap, cor.Fatal, compilationDetailsAndProducerRequired, nil, nil))
@@ -1247,13 +1248,13 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 	}
 
 	// declaration of internal recursive function to iterate over all kinds of data types
-	var iterateDataTypes func(dataType cor.DataTypeDescription)
+	var iterateDataTypes func(dataType dbg.DataTypeDescription)
 
 	// internal recursive function to iterate over all kinds of data types
 	// note: due to label uniqueness, circular references will be handled correctly
-	iterateDataTypes = func(dataType cor.DataTypeDescription) {
+	iterateDataTypes = func(dataType dbg.DataTypeDescription) {
 		switch dtd := dataType.(type) {
-		case *cor.SimpleDataType, *cor.PointerDataType:
+		case *dbg.SimpleDataType, *dbg.PointerDataType:
 			// ensure that the data type name is a unique label name in the .debug_str section
 			if ok, exists := labels[dtd.Name()]; !ok || !exists {
 				// mark the data type name as used
@@ -1264,11 +1265,11 @@ func (u *assemblyCodeUnit) updateDebugStrSection(dstab *cor.DebugStringTable) {
 			}
 
 			// if the data type is a pointer, recursively iterate over its element type
-			if dtd.Kind() == cor.DataTypePointer {
-				iterateDataTypes(dtd.(*cor.PointerDataType).ElementType)
+			if dtd.Kind() == dbg.DataTypePointer {
+				iterateDataTypes(dtd.(*dbg.PointerDataType).ElementType)
 			}
 
-		case *cor.CompositeDataType:
+		case *dbg.CompositeDataType:
 			// ensure that the composite data type name is a unique label name in the .debug_str section
 			if ok, exists := labels[dtd.Name()]; !ok || !exists {
 				// mark the data type name as used

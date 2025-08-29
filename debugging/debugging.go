@@ -1,7 +1,9 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+package debugging
+
+import cor "github.com/petersen65/pl0/v3/core"
 
 // Distinguishes between different kinds of data types.
 const (
@@ -120,7 +122,7 @@ type (
 )
 
 // Create a new debug information instance for a compilation unit.
-func NewDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler TokenHandler) DebugInformation {
+func NewDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler cor.TokenHandler) DebugInformation {
 	return newDebugInformation(compilationUnit, compilationDirectory, producer, stringName, optimized, tokenHandler)
 }
 
