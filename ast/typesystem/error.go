@@ -5,13 +5,11 @@ package typesystem
 
 import eh "github.com/petersen65/pl0/v3/errors"
 
-// Failure codes for the abstract syntax tree.
+// Failure codes for the type system.
 const (
 	_ eh.Failure = iota + 300
-	cannotInstantiateNonGenericType
 )
 
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
-	cannotInstantiateNonGenericType: "cannot instantiate non-generic type: %v",
 }
