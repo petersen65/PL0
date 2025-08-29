@@ -6,17 +6,18 @@ package debugging
 import (
 	"slices"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Implementation of the DebugInformation interface.
 type debugInformation struct {
-	tokenHandler cor.TokenHandler // token handler that manages the tokens of the token stream
+	tokenHandler tok.TokenHandler // token handler that manages the tokens of the token stream
 	table        *DebugStringTable
 }
 
 // Create a new debug information instance for a compilation unit.
-func newDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler cor.TokenHandler) DebugInformation {
+func newDebugInformation(compilationUnit, compilationDirectory, producer, stringName string, optimized bool, tokenHandler tok.TokenHandler) DebugInformation {
 	return &debugInformation{
 		tokenHandler: tokenHandler,
 		table:        newDebugStringTable(compilationUnit, compilationDirectory, producer, stringName, optimized),
@@ -294,7 +295,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 		case *CompositeDataType:
 			// check for circular reference
 			if processing[dt.Name()] {
-				panic(cor.NewGeneralError(cor.Core, failureMap, cor.Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
+				panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
 			}
 
 			// processing of this composite data type is running
@@ -316,7 +317,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 			return dt.ByteSize
 
 		default:
-			panic(cor.NewGeneralError(cor.Core, failureMap, cor.Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
+			panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
 		}
 	}
 

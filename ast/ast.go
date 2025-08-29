@@ -10,6 +10,7 @@ import (
 	sym "github.com/petersen65/pl0/v3/ast/symbol"
 	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
@@ -332,17 +333,17 @@ func NewBlock(depth int32, scope sym.Scope[Declaration], declarations []Declarat
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(EmptyConstantName, int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), cor.NoTokenStreamIndex)
+	return newConstantDeclaration(EmptyConstantName, int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
 }
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), cor.NoTokenStreamIndex)
+	return newLiteral(int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyStatement() Statement {
-	return newCompoundStatement(make([]Statement, 0), cor.NoTokenStreamIndex, cor.NoTokenStreamIndex)
+	return newCompoundStatement(make([]Statement, 0), tok.NoTokenStreamIndex, tok.NoTokenStreamIndex)
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.

@@ -3,14 +3,14 @@
 
 package parser
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Maximum depth of block nesting.
 const blockNestingMax = 8
 
 // Failure codes for the parser.
 const (
-	_ cor.Failure = iota + 2000
+	_ eh.Failure = iota + 2000
 	invalidParserState
 	eofReached
 	notFullyParsed
@@ -36,7 +36,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	invalidParserState:                      "parser is in an undefined state and cannot continue parsing",
 	eofReached:                              "unexpected end of file",
 	notFullyParsed:                          "program does not comply with the syntax rules of the programming language",

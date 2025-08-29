@@ -6,7 +6,8 @@ package analyzer
 
 import (
 	ast "github.com/petersen65/pl0/v3/ast"
-	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Name analysis validates the correctness of identifier declarations and creates a symbol table with type information provided by the abstract syntax tree (AST).
@@ -16,7 +17,7 @@ type Analyzer interface {
 }
 
 // Return the interface of the analyzer implementation.
-func NewAnalyzer(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) Analyzer {
-	tokenHandler.ReplaceComponent(cor.Analyzer, failureMap)
+func NewAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHandler tok.TokenHandler) Analyzer {
+	tokenHandler.ReplaceComponent(eh.Analyzer, failureMap)
 	return newAnalyzer(abstractSyntax, errorHandler, tokenHandler)
 }

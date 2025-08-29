@@ -9,6 +9,7 @@ import (
 	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Translate an abstract syntax tree (AST) into intermediate code and map AST data types to intermediate code data types.
@@ -19,6 +20,6 @@ type Generator interface {
 }
 
 // Return the interface of the generator implementation.
-func NewGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Generator {
+func NewGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
 	return newGenerator(abstractSyntax, buildConfiguration, tokenHandler)
 }

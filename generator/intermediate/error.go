@@ -3,11 +3,11 @@
 
 package intermediate
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the intermediate code.
 const (
-	_ cor.Failure = iota + 6000
+	_ eh.Failure = iota + 6000
 	invalidAddressesContract
 	invalidIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress
@@ -18,7 +18,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	invalidAddressesContract:                   "invalid addresses contract: %v",
 	invalidIntermediateCodeAddress:             "invalid intermediate code address: %v",
 	unexceptedVariantInIntermediateCodeAddress: "unexcepted variant in intermediate code address: %v",

@@ -4,11 +4,11 @@
 // Package scanner implements a tokenizer and lexical analyzer for the programming language PL/0.
 package scanner
 
-import cor "github.com/petersen65/pl0/v3/core"
+import tok "github.com/petersen65/pl0/v3/token"
 
 // The scanner provides features for scanning UTF-8 encoded source code and producing a stream of tokens.
 type Scanner interface {
-	Scan(content []byte) (cor.TokenStream, error)
+	Scan(content []byte) (tok.TokenStream, error)
 }
 
 // Return the interface of the scanner implementation.

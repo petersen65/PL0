@@ -3,11 +3,11 @@
 
 package analyzer
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the analyzer.
 const (
-	_ cor.Failure = iota + 4000
+	_ eh.Failure = iota + 4000
 	invalidNameAnalysisState
 	declarationValidationFailed
 	usageValidationFailed
@@ -24,7 +24,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
 	declarationValidationFailed: "identifier declaration validation failed",
 	usageValidationFailed:       "identifier usage validation failed",

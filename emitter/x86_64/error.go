@@ -3,11 +3,11 @@
 
 package x86_64
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the assembly code.
 const (
-	_ cor.Failure = iota + 9000
+	_ eh.Failure = iota + 9000
 	unknownKindOfOperandInCpuOperation
 	illegalDisplacementInMemoryOperand
 	unknownKindOfReadOnlyData
@@ -23,7 +23,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	unknownKindOfOperandInCpuOperation:     "unknown kind of operand in CPU operation: %v",
 	illegalDisplacementInMemoryOperand:     "illegal displacement in memory operand: %v",
 	unknownKindOfReadOnlyData:              "unknown kind of read-only data: %v",

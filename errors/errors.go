@@ -1,11 +1,16 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+// Package errors provides the error handling mechanism for the compiler.
+package errors
 
-import "io"
+import (
+	"io"
 
-// Severity is a bit-mask enumeration of different error levels.
+	cor "github.com/petersen65/pl0/v3/core"
+)
+
+// Severity is a bit-mask of different error levels.
 const (
 	Remark Severity = 1 << iota
 	Warning
@@ -14,12 +19,33 @@ const (
 	AllSeverities = Severity(^uint64(0))
 )
 
+// Components of the compiler that can generate errors.
+const (
+	Errors Component = 1 << iota
+	Debugging
+	Token
+	Scanner
+	Parser
+	AbstractSyntaxTree
+	Analyzer
+	Generator
+	Intermediate
+	ControlFlowGraph
+	Emitter
+	Intel
+	ExecutableLinkableFormat
+	AllComponents = Component(^uint64(0))
+)
+
 type (
 	// Failure is a type for codes that can be mapped to messages.
 	Failure int
 
 	// Error levels that are used to categorize errors (bit-mask).
 	Severity uint64
+
+	// Component describes packages of the compiler which can generate errors (bit-mask).
+	Component uint64
 
 	// A component error is an error that provides additional context about the error, such as its severity and the component it originated from.
 	ComponentError interface {
@@ -35,7 +61,7 @@ type (
 		HasWarnings() bool
 		HasRemarks() bool
 		Print(print io.Writer, args ...any) error
-		Export(format ExportFormat, print io.Writer) error
+		Export(format cor.ExportFormat, print io.Writer) error
 	}
 )
 

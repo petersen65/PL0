@@ -3,11 +3,11 @@
 
 package emitter
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the emitter.
 const (
-	_ cor.Failure = iota + 8000
+	_ eh.Failure = iota + 8000
 	unsupportedTargetPlatform
 	unknownIntermediateCodeOperation
 	unsupportedDataTypeForIntermediateCodeOperation
@@ -17,7 +17,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	unsupportedTargetPlatform:                       "unsupported target platform: %v",
 	unknownIntermediateCodeOperation:                "unknown intermediate code operation: %v",
 	unsupportedDataTypeForIntermediateCodeOperation: "unsupported data type for intermediate code operation: %v",

@@ -19,10 +19,12 @@ import (
 	cor "github.com/petersen65/pl0/v3/core"
 	emi "github.com/petersen65/pl0/v3/emitter"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
+	eh "github.com/petersen65/pl0/v3/errors"
 	gen "github.com/petersen65/pl0/v3/generator"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 	par "github.com/petersen65/pl0/v3/parser"
 	scn "github.com/petersen65/pl0/v3/scanner"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Default target filename for the compilation driver.
@@ -117,9 +119,9 @@ type (
 	CompilationUnit struct {
 		Name             string                  // unique name of the compilation unit
 		SourceContent    []byte                  // UTF-8 source content
-		ErrorHandler     cor.ErrorHandler        // error handler of the compilation process
-		TokenHandler     cor.TokenHandler        // token handler for the source content
-		TokenStream      cor.TokenStream         // token stream of the source content
+		ErrorHandler     eh.ErrorHandler         // error handler of the compilation process
+		TokenHandler     tok.TokenHandler        // token handler for the source content
+		TokenStream      tok.TokenStream         // token stream of the source content
 		AbstractSyntax   ast.Block               // abstract syntax tree of the token stream
 		IntermediateCode ic.IntermediateCodeUnit // intermediate code unit of the abstract syntax tree
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
@@ -318,7 +320,7 @@ func CompileSourceToCompilationUnit(buildConfiguration cor.BuildConfiguration) (
 func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) CompilationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	errorHandler := cor.NewErrorHandler()
+	errorHandler := eh.NewErrorHandler()
 	errorHandler.AppendError(scannerError) // nil errors are ignored
 
 	// syntax analysis and semantic analysis of token stream
@@ -326,7 +328,7 @@ func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) C
 	ana.NewAnalyzer(abstractSyntax, errorHandler, tokenHandler).Analyze()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
-	if errorHandler.Count(cor.Fatal|cor.Error, cor.AllComponents) > 0 {
+	if errorHandler.Count(eh.Fatal|eh.Error, eh.AllComponents) > 0 {
 		return CompilationUnit{
 			Name:             buildConfiguration.SourcePath,
 			SourceContent:    content,

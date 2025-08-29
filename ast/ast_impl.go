@@ -12,6 +12,7 @@ import (
 	sym "github.com/petersen65/pl0/v3/ast/symbol"
 	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
 )
 
 var (
@@ -331,7 +332,7 @@ func (b *BlockNode) Accept(visitor Visitor) {
 func (b *BlockNode) Print(print io.Writer, args ...any) error {
 	// traverse the abstract syntax tree and print each node
 	if err := printAbstractSyntaxTree(b, "", true, print); err != nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
 	}
 
 	return nil
@@ -346,12 +347,12 @@ func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 	case cor.Json:
 		// export the abstract syntax tree as a JSON object
 		if raw, err := json.MarshalIndent(b, prefix, indent); err != nil {
-			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, abstractSyntaxExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
 			}
 
 			return err
@@ -362,7 +363,7 @@ func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 		return b.Print(print)
 
 	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -551,7 +552,7 @@ func (u *IdentifierUseNode) String() string {
 			return fmt.Sprintf("use(kind=%v,name=%v,usage=%v)", symbol.Kind, symbol.Name, u.Use)
 
 		default:
-			panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))
+			panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownSymbolKind, nil, nil))
 		}
 	}
 
@@ -604,7 +605,7 @@ func (e *UnaryOperationNode) String() string {
 		return "negate"
 
 	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
 	}
 }
 
@@ -659,7 +660,7 @@ func (e *BinaryOperationNode) String() string {
 		return "division"
 
 	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
@@ -720,7 +721,7 @@ func (e *ComparisonOperationNode) String() string {
 		return "greater equal"
 
 	default:
-		panic(cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
 
 	}
 }
@@ -1082,11 +1083,11 @@ func (s *CompoundStatementNode) Accept(visitor Visitor) {
 func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
 	// check preconditions for walking the tree and return an error if any are violated
 	if parent == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, cannotWalkOnNilNode, nil, nil)
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, cannotWalkOnNilNode, nil, nil)
 	} else if visitor == nil && visit == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresVisitorOrFunction, nil, nil)
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, walkRequiresVisitorOrFunction, nil, nil)
 	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
-		return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, walkRequiresInterfaceOrFunction, nil, nil)
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, walkRequiresInterfaceOrFunction, nil, nil)
 	}
 
 	// filter out empty constants
@@ -1127,7 +1128,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	// An in-order traversal would visit the nodes in the following order: D, B, E, A, C, F.
 	case InOrder:
 		if len(parent.Children()) != 2 {
-			return cor.NewGeneralError(cor.AbstractSyntaxTree, failureMap, cor.Error, inOrderRequiresTwoChildren, nil, nil)
+			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, inOrderRequiresTwoChildren, nil, nil)
 		}
 
 		// traverse the left subtree in in-order

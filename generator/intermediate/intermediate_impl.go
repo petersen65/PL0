@@ -10,6 +10,7 @@ import (
 	"io"
 
 	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
 )
 
 // Prefixes for pointer and reference modifier string representations.
@@ -307,7 +308,7 @@ func (u *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the unit and print them to the writer
 	for e := u.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
-			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
 		}
 	}
 
@@ -323,12 +324,12 @@ func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 	case cor.Json:
 		// export the intermediate code unit as a JSON object
 		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
-			return cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.Intermediate, failureMap, cor.Error, intermediateCodeExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
 			}
 
 			return err
@@ -339,7 +340,7 @@ func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 		return u.Print(print)
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -347,7 +348,7 @@ func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	// validate each address in the quadruple
 	if !q.Arg1.Validate() || !q.Arg2.Validate() || !q.Result.Validate() {
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidIntermediateCodeAddress, q, nil))
+		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidIntermediateCodeAddress, q, nil))
 	}
 
 	// determine the contract for the operation
@@ -360,7 +361,7 @@ func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 		}
 	}
 
-	panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, invalidAddressesContract, q, nil))
+	panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidAddressesContract, q, nil))
 }
 
 // Validate variants and data types for a three-address code address and return a boolean indicating whether the address is valid.
@@ -373,7 +374,7 @@ func (a *Address) Validate() bool {
 		return a.DataType.IsSupported()
 
 	default:
-		panic(cor.NewGeneralError(cor.Intermediate, failureMap, cor.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
+		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
 	}
 }
 

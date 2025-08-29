@@ -1,9 +1,14 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+// Package token provides the token handling mechanism for the compiler.
+package token
 
-import "slices"
+import (
+	"slices"
+
+	eh "github.com/petersen65/pl0/v3/errors"
+)
 
 // If no token stream index can be set, it is set to this value.
 const NoTokenStreamIndex = -1
@@ -40,19 +45,19 @@ type (
 		LastTokenName() string
 		LastTokenValue() string
 		LastTokenIndex() int
-		Recover(code Failure, expected, fallback Tokens) bool
+		Recover(code eh.Failure, expected, fallback Tokens) bool
 		IsFullyParsed() bool
 		SetFullyParsed()
 		GetTokenDescription(tokenStreamIndex int) (TokenDescription, bool)
-		NewError(severity Severity, code Failure, value any) error
-		NewErrorOnIndex(severity Severity, code Failure, value any, index int) error
+		NewError(severity eh.Severity, code eh.Failure, value any) error
+		NewErrorOnIndex(severity eh.Severity, code eh.Failure, value any, index int) error
 		AppendError(err error) error
-		ReplaceComponent(component Component, failureMap map[Failure]string)
+		ReplaceComponent(component eh.Component, failureMap map[eh.Failure]string)
 	}
 )
 
 // Return the interface to a new token handler.
-func NewTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
+func NewTokenHandler(tokenStream TokenStream, errorHandler eh.ErrorHandler, component eh.Component, failureMap map[eh.Failure]string) TokenHandler {
 	return newTokenHandler(tokenStream, errorHandler, component, failureMap)
 }
 

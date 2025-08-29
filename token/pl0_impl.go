@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+package token
 
 // Map PL/0 tokens to their string representation.
 var tokenNames = map[Token]string{

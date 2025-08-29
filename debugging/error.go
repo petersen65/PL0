@@ -3,17 +3,17 @@
 
 package debugging
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for debugging support.
 const (
-	_ cor.Failure = iota + 200
+	_ eh.Failure = iota + 200
 	unexpectedDataTypeKind
 	circularDependencyInCompositeDataType
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	unexpectedDataTypeKind:                "unexpected kind of data type: %v",
 	circularDependencyInCompositeDataType: "circular dependency in composite data type: %v",
 }

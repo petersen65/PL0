@@ -3,11 +3,11 @@
 
 package ast
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the abstract syntax tree.
 const (
-	_ cor.Failure = iota + 3000
+	_ eh.Failure = iota + 3000
 	unknownSymbolKind
 	unknownUnaryOperation
 	unknownBinaryOperation
@@ -21,7 +21,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	unknownSymbolKind:               "unknown symbol kind",
 	unknownUnaryOperation:           "unknown unary operation",
 	unknownBinaryOperation:          "unknown binary operation",

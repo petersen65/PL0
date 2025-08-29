@@ -3,11 +3,11 @@
 
 package generator
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the intermediate code generator.
 const (
-	_ cor.Failure = iota + 5000
+	_ eh.Failure = iota + 5000
 	intermediateCodeGenerationFailed
 	unsupportedDataTypeInConstantDeclaration
 	unsupportedDataTypeInVariableDeclaration
@@ -19,7 +19,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	intermediateCodeGenerationFailed:         "intermediate code generation failed",
 	unsupportedDataTypeInConstantDeclaration: "unsupported datatype in constant declaration: %v",
 	unsupportedDataTypeInVariableDeclaration: "unsupported datatype in variable declaration: %v",

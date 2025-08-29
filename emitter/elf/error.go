@@ -3,11 +3,11 @@
 
 package elf
 
-import cor "github.com/petersen65/pl0/v3/core"
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for ELF.
 const (
-	_ cor.Failure = iota + 10000
+	_ eh.Failure = iota + 10000
 	invalidReadOnlyDataValue
 	unknownKindOfReadOnlyData
 	sleb128DecodingOverflow
@@ -17,7 +17,7 @@ const (
 )
 
 // Map failure codes to error messages.
-var failureMap = map[cor.Failure]string{
+var failureMap = map[eh.Failure]string{
 	invalidReadOnlyDataValue:  "invalid read-only data value: %v",
 	unknownKindOfReadOnlyData: "unknown kind of read-only data: %v",
 	sleb128DecodingOverflow:   "signed leb128 decoding overflow: %v",

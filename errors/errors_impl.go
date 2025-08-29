@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+package errors
 
 import (
 	"encoding/json"
@@ -10,6 +10,8 @@ import (
 	"io"
 	"reflect"
 	"strings"
+
+	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Text messages for printing an error report.
@@ -18,15 +20,6 @@ const (
 	textErrors      = "Errors:"
 	textWarnings    = "Warnings:"
 	textRemarks     = "Remarks:"
-)
-
-// Failure codes for core components of the compiler.
-const (
-	_ Failure = iota + 100
-	errorKindNotSupported
-	unknownExportFormat
-	errorReportExportFailed
-	tokenStreamExportFailed
 )
 
 type (
@@ -78,12 +71,21 @@ var (
 		Fatal:   "fatal",
 	}
 
-	// Map failure codes to error messages.
-	failureMap = map[Failure]string{
-		errorKindNotSupported:   "error kind not supported: %v",
-		unknownExportFormat:     "unknown export format: %v",
-		errorReportExportFailed: "failed to export the error report",
-		tokenStreamExportFailed: "failed to export the token stream",
+	// Map compiler components to their corresponding names.
+	componentMap = map[Component]string{
+		Errors:                   "errors",
+		Debugging:                "debugging",
+		Token:                    "token",
+		Scanner:                  "scanner",
+		Parser:                   "parser",
+		AbstractSyntaxTree:       "ast",
+		Analyzer:                 "analyzer",
+		Generator:                "generator",
+		Intermediate:             "intermediate",
+		ControlFlowGraph:         "cfg",
+		Emitter:                  "emitter",
+		Intel:                    "x86_64",
+		ExecutableLinkableFormat: "elf",
 	}
 )
 
@@ -383,39 +385,39 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 
 	// print the title text message for the error report
 	if _, err := fmt.Fprintln(print, textErrorReport); err != nil {
-		return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+		return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 	}
 
 	// print errors in the error report
 	if e.Count(Fatal|Error, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textErrors); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
 		if err := printErrors(e.iterate(Fatal|Error, AllComponents), print); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 	}
 
 	// print warnings in the error report
 	if e.Count(Warning, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textWarnings); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
 		if err := printErrors(e.iterate(Warning, AllComponents), print); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 	}
 
 	// print remarks in the error report
 	if e.Count(Remark, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textRemarks); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 
 		if err := printErrors(e.iterate(Remark, AllComponents), print); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		}
 	}
 
@@ -423,9 +425,9 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 }
 
 // Export the error report of the error handler (only Json and Text formats are supported).
-func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
+func (e *errorHandler) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
-	case Json:
+	case cor.Json:
 		if len(e.errorReport) == 0 {
 			return nil
 		}
@@ -434,23 +436,23 @@ func (e *errorHandler) Export(format ExportFormat, print io.Writer) error {
 		if raw, err := json.MarshalIndent(struct {
 			Report errorReport `json:"error_report"`
 		}{Report: e.errorReport}, "", "  "); err != nil {
-			return newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = newGeneralError(Core, failureMap, Error, errorReportExportFailed, nil, err)
+				err = newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
 			}
 
 			return err
 		}
 
-	case Text:
+	case cor.Text:
 		// print is a convenience function to export the error report as a string to the print writer
 		return e.Print(print)
 
 	default:
-		panic(newGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
+		panic(newGeneralError(Errors, failureMap, Fatal, unknownExportFormat, format, nil))
 	}
 }
 
@@ -463,9 +465,9 @@ func (e *errorHandler) iterate(severity Severity, component Component) <-chan er
 		for _, err := range e.errorReport {
 			// only send errors that match the severity and component
 			if err == nil {
-				panic(newGeneralError(Core, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
+				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
 			} else if ce, ok := err.(ComponentError); !ok {
-				panic(newGeneralError(Core, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
+				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
 			} else if ce.HasSeverity(severity) && ce.FromComponent(component) {
 				errors <- err
 			}

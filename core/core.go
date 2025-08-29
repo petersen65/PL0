@@ -1,9 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package core provides foundation features, the token type-system, and the error handling mechanism for the compiler.
-// This combination enables an error handler to connect an error to a location in the token stream.
-// Package core is required to depend on Go standard library packages only.
+// Package core provides foundation features and the error handling mechanism for the compiler.
 package core
 
 import (
@@ -71,22 +69,6 @@ const (
 	MicrosoftPacking                    // Microsoft-specific packing rules
 )
 
-// Packages of the compiler which can generate errors as a bit-mask enumeration.
-const (
-	Core Component = 1 << iota
-	Scanner
-	Parser
-	AbstractSyntaxTree
-	Analyzer
-	Generator
-	Intermediate
-	ControlFlowGraph
-	Emitter
-	Intel
-	ExecutableLinkableFormat
-	AllComponents = Component(^uint64(0))
-)
-
 // Export formats for the compiler which can be used to export intermediate results.
 const (
 	Json ExportFormat = iota
@@ -127,9 +109,6 @@ type (
 
 	// Packing rules define how structs are packed in memory.
 	PackingRule int
-
-	// Component describes packages of the compiler which can generate errors (bit-mask).
-	Component uint64
 
 	// Export formats for the compiler.
 	ExportFormat int

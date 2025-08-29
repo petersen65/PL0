@@ -13,7 +13,9 @@ import (
 	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
+	eh "github.com/petersen65/pl0/v3/errors"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Abstract syntax extension for the symbol.
@@ -98,7 +100,7 @@ var (
 )
 
 // Create a new intermediate code generator.
-func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler cor.TokenHandler) Generator {
+func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
 	compilationUnit := buildConfiguration.SourcePath
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
@@ -128,12 +130,12 @@ func newSymbolMetaData(name string) *symbolMetaData {
 func (g *generator) Generate() {
 	// pre-create symbol table for intermediate code by providing a visit function that is called for each node
 	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.intermediateCode, configureSymbols); err != nil {
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
 	// collect the debug string table by providing a visit function that is called for each node
 	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.debugInformation, collectDebugStringTable); err != nil {
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, intermediateCodeGenerationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, nil, err))
 	}
 
 	// generate intermediate code for the abstract syntax tree by using the visitor pattern of the abstract syntax tree
@@ -375,7 +377,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 		// not required for code generation
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, invalidContextInIdentifierUse, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, invalidContextInIdentifierUse, nil, nil))
 	}
 }
 
@@ -410,7 +412,7 @@ func (g *generator) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
 	}
 }
 
@@ -458,7 +460,7 @@ func (g *generator) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownBinaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownBinaryOperation, nil, nil))
 	}
 }
 
@@ -505,7 +507,7 @@ func (g *generator) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
 			co.TokenStreamIndex) // comparison operation in the token stream
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
 	}
 }
 
@@ -727,7 +729,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpEqual, noAddress, noAddress, address, condition.TokenStreamIndex)
 			}
 		} else {
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownUnaryOperation, nil, nil))
+			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
 		}
 
 	// comparison operation node with the equal, not equal, less, less equal, greater, or greater equal operation
@@ -754,7 +756,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpGreaterEqual, noAddress, noAddress, address, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
+				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
 			}
 		} else {
 			// jump if the condition is false
@@ -778,12 +780,12 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpLess, noAddress, noAddress, address, condition.TokenStreamIndex)
 
 			default:
-				panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
+				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
 			}
 		}
 
 	default:
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
 	}
 
 	// append the conditional jump instruction to the intermediate code unit
@@ -800,7 +802,7 @@ func (g *generator) popResult() *ic.Address {
 	result := g.results.Back()
 
 	if result == nil {
-		panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unexpectedIntermediateCodeResult, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unexpectedIntermediateCodeResult, nil, nil))
 	}
 
 	g.results.Remove(result)
@@ -818,7 +820,7 @@ func configureSymbols(node ast.Node, code any) {
 		unit.Insert(ic.NewSymbol(name, ic.ConstantEntry, dataTypeMap[n.DataType]))
 
 		if !dataTypeMap[n.DataType].IsSupported() {
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInConstantDeclaration, n, nil))
+			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unsupportedDataTypeInConstantDeclaration, n, nil))
 		}
 
 	case *ast.VariableDeclarationNode:
@@ -827,7 +829,7 @@ func configureSymbols(node ast.Node, code any) {
 		unit.Insert(ic.NewSymbol(name, ic.VariableEntry, dataTypeMap[n.DataType]))
 
 		if !dataTypeMap[n.DataType].IsSupported() {
-			panic(cor.NewGeneralError(cor.Generator, failureMap, cor.Fatal, unsupportedDataTypeInVariableDeclaration, n, nil))
+			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unsupportedDataTypeInVariableDeclaration, n, nil))
 		}
 
 	case *ast.ProcedureDeclarationNode:

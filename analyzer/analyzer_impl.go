@@ -8,18 +8,19 @@ import (
 
 	ast "github.com/petersen65/pl0/v3/ast"
 	sym "github.com/petersen65/pl0/v3/ast/symbol"
-	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
+	tok "github.com/petersen65/pl0/v3/token"
 )
 
 // Implementation of the name analyzer.
 type nameAnalyzer struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run name analysis on
-	errorHandler   cor.ErrorHandler // error handler that is used to handle errors that occurred during semantic analysis
-	tokenHandler   cor.TokenHandler // token handler that manages the tokens of the token stream
+	errorHandler   eh.ErrorHandler  // error handler that is used to handle errors that occurred during semantic analysis
+	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
 // Return the interface of the name analyzer implementation.
-func newAnalyzer(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenHandler cor.TokenHandler) Analyzer {
+func newAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHandler tok.TokenHandler) Analyzer {
 	return &nameAnalyzer{
 		abstractSyntax: abstractSyntax,
 		errorHandler:   errorHandler,
@@ -31,22 +32,22 @@ func newAnalyzer(abstractSyntax ast.Block, errorHandler cor.ErrorHandler, tokenH
 // Name analyzer itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (a *nameAnalyzer) Analyze() {
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
-		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, invalidNameAnalysisState, nil, nil))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
 	}
 
 	// validate the declaration of all identifiers
 	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a, nil); err != nil {
-		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, declarationValidationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, declarationValidationFailed, nil, err))
 	}
 
 	// validate the usage of all identifiers
 	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, validateIdentifierUsage); err != nil {
-		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, usageValidationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, usageValidationFailed, nil, err))
 	}
 
 	// determine the closure of all blocks
 	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
-		panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, closureDeterminationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, closureDeterminationFailed, nil, err))
 	}
 }
 
@@ -132,7 +133,7 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 			}
 
 		default:
-			panic(cor.NewGeneralError(cor.Analyzer, failureMap, cor.Fatal, unknownSymbolKind, nil, nil))
+			panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownSymbolKind, nil, nil))
 		}
 	}
 }
@@ -199,8 +200,8 @@ func (a *nameAnalyzer) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 }
 
 // Append analyzer error to the token handler.
-func (a *nameAnalyzer) appendError(code cor.Failure, value any, index int) {
-	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(cor.Error, code, value, index))
+func (a *nameAnalyzer) appendError(code eh.Failure, value any, index int) {
+	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(eh.Error, code, value, index))
 }
 
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
@@ -216,22 +217,22 @@ func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 
 // Visit identifier declarations and check if they are used. If not, append a warning to the token handler.
 func validateIdentifierUsage(node ast.Node, tokenHandler any) {
-	th := tokenHandler.(cor.TokenHandler)
+	th := tokenHandler.(tok.TokenHandler)
 
 	switch d := node.(type) {
 	case *ast.ConstantDeclarationNode:
 		if len(d.Usage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(cor.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.VariableDeclarationNode:
 		if len(d.Usage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(cor.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.ProcedureDeclarationNode:
 		if len(d.Usage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(cor.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
 		}
 	}
 }

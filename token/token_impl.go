@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package core
+package token
 
 import (
 	"bytes"
@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	cor "github.com/petersen65/pl0/v3/core"
+	eh "github.com/petersen65/pl0/v3/errors"
 )
 
 // The eof token is used to indicate the end of the token stream.
@@ -26,27 +29,27 @@ var eofTokenDescription = TokenDescription{
 type (
 	// Token handler manages the current and next token in the token stream.
 	tokenHandler struct {
-		tokenStreamIndex     int                // index of the current token in the token stream table
-		tokenStream          TokenStream        // token stream to parse
-		lastTokenDescription TokenDescription   // description of the last token that was read
-		component            Component          // component of the compiler that is using the token handler
-		failureMap           map[Failure]string // map failure codes to error messages
-		errorHandler         ErrorHandler       // error handler that is used to handle errors that occured during parsing
+		tokenStreamIndex     int                   // index of the current token in the token stream table
+		tokenStream          TokenStream           // token stream to parse
+		lastTokenDescription TokenDescription      // description of the last token that was read
+		component            eh.Component          // component of the compiler that is using the token handler
+		failureMap           map[eh.Failure]string // map failure codes to error messages
+		errorHandler         eh.ErrorHandler       // error handler that is used to handle errors that occured during parsing
 	}
 
 	// An self-contained error that can stringify itself to a fully formatted multi-line text pointing to the source code where the error occurred.
 	tokenError struct {
-		Err              error       `json:"-"`                  // error message
-		Code             Failure     `json:"code"`               // failure code of the error
-		Component        Component   `json:"component"`          // component that generated the error
-		Severity         Severity    `json:"severity"`           // severity of the error
-		TokenStreamIndex int64       `json:"token_stream_index"` // index of the token in the token stream where the error occurred
-		TokenStream      TokenStream `json:"-"`                  // token stream that is used to connect errors to a location in the source code
+		Err              error        `json:"-"`                  // error message
+		Code             eh.Failure   `json:"code"`               // failure code of the error
+		Component        eh.Component `json:"component"`          // component that generated the error
+		Severity         eh.Severity  `json:"severity"`           // severity of the error
+		TokenStreamIndex int64        `json:"token_stream_index"` // index of the token in the token stream where the error occurred
+		TokenStream      TokenStream  `json:"-"`                  // token stream that is used to connect errors to a location in the source code
 	}
 )
 
 // Create a new token handler for the compiler.
-func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, component Component, failureMap map[Failure]string) TokenHandler {
+func newTokenHandler(tokenStream TokenStream, errorHandler eh.ErrorHandler, component eh.Component, failureMap map[eh.Failure]string) TokenHandler {
 	return &tokenHandler{
 		tokenStream:  tokenStream,
 		component:    component,
@@ -56,8 +59,8 @@ func newTokenHandler(tokenStream TokenStream, errorHandler ErrorHandler, compone
 }
 
 // Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
-func newTokenError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, tokenStream TokenStream, index int) error {
-	err := NewGoError(failureMap, code, value)
+func newTokenError(component eh.Component, failureMap map[eh.Failure]string, severity eh.Severity, code eh.Failure, value any, tokenStream TokenStream, index int) error {
+	err := eh.NewGoError(failureMap, code, value)
 	return &tokenError{Err: err, Code: code, Component: component, Severity: severity, TokenStreamIndex: int64(index), TokenStream: tokenStream}
 }
 
@@ -138,12 +141,12 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 		if td.Line != previousLine {
 			if previousLine != 0 {
 				if _, err := fmt.Fprintln(print); err != nil {
-					return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+					return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 				}
 			}
 
 			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \n\r")); err != nil {
-				return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+				return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 			}
 
 			previousLine = td.Line
@@ -151,7 +154,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print token description below the line number and line content
 		if _, err := fmt.Fprintf(print, "%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue); err != nil {
-			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 		}
 	}
 
@@ -159,43 +162,43 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 }
 
 // Export the token stream to a writer in the specified format.
-func (ts TokenStream) Export(format ExportFormat, print io.Writer) error {
+func (ts TokenStream) Export(format cor.ExportFormat, print io.Writer) error {
 	switch format {
-	case Json:
+	case cor.Json:
 		// export the token stream as a JSON object and wrap it in a struct to provide a field name for the token stream
 		if raw, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
 		}{Stream: ts}, "", "  "); err != nil {
-			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 			}
 
 			return err
 		}
 
-	case Text:
+	case cor.Text:
 		// print is a convenience function to export the token stream as a string to the print writer
 		return ts.Print(print)
 
-	case Binary:
+	case cor.Binary:
 		var buffer bytes.Buffer
 
 		// encode the raw bytes of the token stream into a binary buffer
 		if err := gob.NewEncoder(&buffer).Encode(ts); err != nil {
-			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 		}
 
 		// transfer the binary buffer to the print writer
 		if _, err := buffer.WriteTo(print); err != nil {
-			return NewGeneralError(Core, failureMap, Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 		}
 
 	default:
-		panic(NewGeneralError(Core, failureMap, Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.Token, failureMap, eh.Fatal, unknownExportFormat, format, nil))
 	}
 
 	return nil
@@ -243,12 +246,12 @@ func (t *tokenHandler) LastTokenIndex() int {
 }
 
 // Check if the last token is an expected token and forward to an fallback set of tokens in the case of a syntax error.
-func (t *tokenHandler) Recover(code Failure, expected, fallback Tokens) bool {
+func (t *tokenHandler) Recover(code eh.Failure, expected, fallback Tokens) bool {
 	var hasError bool
 
 	if !t.LastToken().In(expected) {
 		hasError = true
-		t.AppendError(t.NewError(Error, code, t.LastTokenName()))
+		t.AppendError(t.NewError(eh.Error, code, t.LastTokenName()))
 
 		for next := Set(expected, fallback, eof); !t.LastToken().In(next); {
 			t.NextTokenDescription()
@@ -281,12 +284,12 @@ func (t *tokenHandler) GetTokenDescription(tokenStreamIndex int) (TokenDescripti
 }
 
 // Create a new error by mapping the error code to its corresponding error message.
-func (t *tokenHandler) NewError(severity Severity, code Failure, value any) error {
+func (t *tokenHandler) NewError(severity eh.Severity, code eh.Failure, value any) error {
 	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, t.tokenStreamIndex-1)
 }
 
 // Create a new error by mapping the error code to its corresponding error message and provide a token stream index for the error location.
-func (t *tokenHandler) NewErrorOnIndex(severity Severity, code Failure, value any, index int) error {
+func (t *tokenHandler) NewErrorOnIndex(severity eh.Severity, code eh.Failure, value any, index int) error {
 	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
 }
 
@@ -297,7 +300,7 @@ func (t *tokenHandler) AppendError(err error) error {
 }
 
 // Replace the component and the failure map with new values to enable a chain of components that can append errors.
-func (t *tokenHandler) ReplaceComponent(component Component, failureMap map[Failure]string) {
+func (t *tokenHandler) ReplaceComponent(component eh.Component, failureMap map[eh.Failure]string) {
 	t.component = component
 	t.failureMap = failureMap
 }
@@ -306,7 +309,7 @@ func (t *tokenHandler) ReplaceComponent(component Component, failureMap map[Fail
 func (e *tokenError) Error() string {
 	td := e.TokenStream[e.TokenStreamIndex]
 	message := e.Err.Error()
-	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, td.Line, td.Column, message)
+	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", e.Component, e.Severity, e.Code, td.Line, td.Column, message)
 
 	linePrefix := fmt.Sprintf("%5v: ", td.Line)
 	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \n\r")
@@ -370,11 +373,11 @@ func (e *tokenError) UnmarshalJSON(raw []byte) error {
 }
 
 // Check if the token error has a specific severity level.
-func (e *tokenError) HasSeverity(severity Severity) bool {
+func (e *tokenError) HasSeverity(severity eh.Severity) bool {
 	return e.Severity&severity != 0
 }
 
 // Check if the token error comes from a specific component.
-func (e *tokenError) FromComponent(component Component) bool {
+func (e *tokenError) FromComponent(component eh.Component) bool {
 	return e.Component&component != 0
 }

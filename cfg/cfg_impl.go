@@ -10,6 +10,7 @@ import (
 
 	cor "github.com/petersen65/pl0/v3/core"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	eh "github.com/petersen65/pl0/v3/errors"
 )
 
 type (
@@ -123,13 +124,13 @@ func (cfg *controlFlowGraph) Print(print io.Writer, args ...any) error {
 	for i, block := range cfg.Blocks {
 		// print the basic block to the writer
 		if _, err := print.Write([]byte(block.String())); err != nil {
-			return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
 		}
 
 		// print a newline character between basic blocks
 		if i < len(cfg.Blocks)-1 {
 			if _, err := print.Write([]byte("\n")); err != nil {
-				return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+				return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
 			}
 		}
 	}
@@ -143,12 +144,12 @@ func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) er
 	case cor.Json:
 		// export the control flow graph as a JSON object
 		if raw, err := json.MarshalIndent(cfg, "", "  "); err != nil {
-			return cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Error, controlFlowGraphExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
 			}
 
 			return err
@@ -159,7 +160,7 @@ func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) er
 		return cfg.Print(print)
 
 	default:
-		panic(cor.NewGeneralError(cor.ControlFlowGraph, failureMap, cor.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Fatal, unknownExportFormat, format, nil))
 	}
 }
 
