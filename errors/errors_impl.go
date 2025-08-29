@@ -75,6 +75,7 @@ var (
 	componentMap = map[Component]string{
 		Errors:                   "errors",
 		Debugging:                "debugging",
+		TypeSystem:               "typesystem",
 		Token:                    "token",
 		Scanner:                  "scanner",
 		Parser:                   "parser",

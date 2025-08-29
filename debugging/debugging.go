@@ -142,21 +142,21 @@ func NewPointerDataType(name, nameSource string, elementType DataTypeDescription
 	return newPointerDataType(name, nameSource, elementType)
 }
 
-// SimpleDataType functions
+// Simple data type methods.
 func (s *SimpleDataType) Kind() DataTypeKind { return DataTypeSimple }
 func (s *SimpleDataType) Name() string       { return s.TypeName }
 func (s *SimpleDataType) NameSource() string { return s.TypeNameSource }
 func (s *SimpleDataType) Size() int32        { return s.ByteSize }
 func (s *SimpleDataType) Encoding() int      { return s.BaseTypeEncoding }
 
-// CompositeDataType functions
+// Composite data type methods.
 func (c *CompositeDataType) Kind() DataTypeKind          { return DataTypeComposite }
 func (c *CompositeDataType) Name() string                { return c.TypeName }
 func (c *CompositeDataType) NameSource() string          { return c.TypeNameSource }
 func (c *CompositeDataType) Size() int32                 { return c.ByteSize }
 func (c *CompositeDataType) Members() []*CompositeMember { return c.CompositeMembers }
 
-// PointerDataType functions
+// Pointer data type methods.
 func (p *PointerDataType) Kind() DataTypeKind           { return DataTypePointer }
 func (p *PointerDataType) Name() string                 { return p.TypeName }
 func (p *PointerDataType) NameSource() string           { return p.TypeNameSource }

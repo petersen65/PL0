@@ -23,6 +23,7 @@ const (
 const (
 	Errors Component = 1 << iota
 	Debugging
+	TypeSystem
 	Token
 	Scanner
 	Parser
