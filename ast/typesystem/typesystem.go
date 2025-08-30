@@ -52,21 +52,22 @@ type (
 
 	// The type descriptor is the common interface for all specific type descriptions.
 	TypeDescriptor interface {
-		Kind() DataTypeKind
+		Name() string
 		String() string
+		Kind() DataTypeKind
 		Size() int
 		Alignment() int
 	}
 )
 
 // Create a new simple type descriptor with an underlying primitive type and a governing ABI.
-func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &simpleTypeDescriptor{PrimitiveType: primitiveType, Abi: abi}
+func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+	return &simpleTypeDescriptor{TypeName: name, PrimitiveType: primitiveType, Abi: abi}
 }
 
 // Create a new pointer type descriptor with a value type and a governing ABI.
-func NewPointerTypeDescriptor(valueType TypeDescriptor, isReference bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &pointerTypeDescriptor{ValueType: valueType, IsReference: isReference, Abi: abi}
+func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+	return &pointerTypeDescriptor{TypeName: name, ValueType: valueType, IsReference: isReference, Abi: abi}
 }
 
 // Return the string representation of a data type kind.
