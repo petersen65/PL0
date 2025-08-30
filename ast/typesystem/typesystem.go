@@ -71,8 +71,8 @@ func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference
 }
 
 // Create a new structure type descriptor with fields and a governing ABI.
-func NewStructureTypeDescriptor(name string, fields []structureField, isPacked bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &structureTypeDescriptor{TypeName: name, Fields: fields, IsPacked: isPacked, Abi: abi}
+func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+	return &structureTypeDescriptor{TypeName: name, Fields: fields, IsPacked: isPacked, ByteSize: byteSizeNotCalculated, ByteAlignment: byteAlignmentNotCalculated, Abi: abi}
 }
 
 // Return the string representation of a data type kind.

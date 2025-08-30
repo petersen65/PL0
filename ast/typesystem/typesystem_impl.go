@@ -10,6 +10,10 @@ import (
 	cor "github.com/petersen65/pl0/v3/core"
 )
 
+// The sentinel values indicate that the byte size or byte alignment has not been calculated yet for a type descriptor.
+const byteSizeNotCalculated = -1
+const byteAlignmentNotCalculated = -1
+
 // Prefixes for pointer and reference modifier string representations.
 const (
 	pointerPrefix   = "^"
@@ -18,8 +22,8 @@ const (
 
 // Packing rules define how structure based data types are packed.
 const (
-	naturalPacking   packingRule = iota // align each field to its natural alignment
-	microsoftPacking                    // Microsoft-specific packing rules
+    naturalPacking   packingRule = iota // align each field to its natural alignment, max struct alignment 16
+    microsoftPacking                    // like natural packing, but max struct alignment 8, nested structs capped at 8
 )
 
 type (
@@ -50,10 +54,12 @@ type (
 
 	// Structure based data types that group multiple fields.
 	structureTypeDescriptor struct {
-		TypeName string                         `json:"type_name"` // name identifier for this structure type
-		Fields   []structureField               `json:"fields"`    // ordered list of fields that comprise this structure
-		IsPacked bool                           `json:"is_packed"` // memory layout optimized to minimize padding between fields
-		Abi      cor.ApplicationBinaryInterface `json:"abi"`       // ABI governing size and alignment calculations
+		TypeName      string                         `json:"type_name"` // name identifier for this structure type
+		Fields        []*structureField              `json:"fields"`    // ordered list of fields that comprise this structure
+		IsPacked      bool                           `json:"is_packed"` // memory layout optimized to minimize padding between fields
+		ByteSize      int                            `json:"size"`      // cache the total size of the structure in bytes
+		ByteAlignment int                            `json:"alignment"` // cache the alignment of the structure in bytes
+		Abi           cor.ApplicationBinaryInterface `json:"abi"`       // ABI governing size and alignment calculations
 	}
 
 	// The application binary interface specification contains size, alignment, and packing rules.
@@ -344,6 +350,11 @@ func (d *structureTypeDescriptor) Kind() DataTypeKind {
 
 // Depending on the ABI, calculate the memory size in bytes for the structure type descriptor.
 func (d *structureTypeDescriptor) Size() int {
+	// use the cached byte size if available
+	if d.ByteSize != byteSizeNotCalculated {
+		return d.ByteSize
+	}
+
 	// use cycle detection to prevent infinite recursion
 	seen := make(map[string]bool)
 
@@ -353,6 +364,11 @@ func (d *structureTypeDescriptor) Size() int {
 
 // Depending on the ABI, determine the memory alignment requirement for the structure type descriptor.
 func (d *structureTypeDescriptor) Alignment() int {
+	// use the cached byte alignment if available
+	if d.ByteAlignment != byteAlignmentNotCalculated {
+		return d.ByteAlignment
+	}
+
 	// use cycle detection to prevent infinite recursion
 	seen := make(map[string]bool)
 
@@ -360,103 +376,122 @@ func (d *structureTypeDescriptor) Alignment() int {
 	return d.calculateAlignment(seen)
 }
 
-// Calculate size with circular reference detection
+// Calculate the memory size in bytes of a structure using a recursive approach.
 func (d *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
-	// Check for circular reference
+	// check for a circular reference
 	if seen[d.TypeName] {
-		// Circular reference detected - return pointer size as fallback
-		// This allows forward declarations and self-referential structs via pointers
-		return 8 // Pointer size on 64-bit systems
+		// return pointer size as fallback to allow forward declarations and self-referential structs via pointers
+		return applicationBinaryInterfaceSpecifications[d.Abi].PointerSize
 	}
 
-	// Mark this type as being processed
+	// mark this type as being processed and clean up when done
 	seen[d.TypeName] = true
-	defer delete(seen, d.TypeName) // Clean up when done
+	defer delete(seen, d.TypeName)
 
-	var totalSize int = 0
-	var maxAlignment int = 1
+	// track total size
+	var totalSize int
 
-	// Calculate field offsets and total size
-	for i := range d.Fields {
-		field := &d.Fields[i] // Get pointer to modify offset
+	// track maximum alignment requirement
+	maxAlignment := 1
 
+	// calculate field offsets and total size of the structure
+	for _, field := range d.Fields {
+		// get field alignment for the current field in the structure
 		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
+
+		// track maximum alignment requirement
 		if fieldAlign > maxAlignment {
 			maxAlignment = fieldAlign
 		}
 
-		// Apply padding for alignment (unless packed)
+		// adjust the total size so that the current field starts at the correct aligned offset (unless packed)
 		if !d.IsPacked && totalSize%fieldAlign != 0 {
 			totalSize += fieldAlign - (totalSize % fieldAlign)
 		}
 
-		// Set field offset
+		// the offset of the current field is correctly aligned
 		field.ByteOffset = totalSize
 
-		fieldSize := d.getFieldSize(field.FieldType, seen)
-		if fieldSize == -1 {
-			return -1 // Unknown field size
-		}
-		totalSize += fieldSize
+		// the new total size starts one byte after the current field
+		totalSize += d.getFieldSize(field.FieldType, seen)
 	}
 
-	// Add final padding for struct alignment (unless packed)
+	// limit the tracked maximum alignment to the maximum allowed by the application binary interface
+	if maxAlignment > applicationBinaryInterfaceSpecifications[d.Abi].MaxAlignment {
+		maxAlignment = applicationBinaryInterfaceSpecifications[d.Abi].MaxAlignment
+	}
+
+	// the total size of the structure must be a multiple of the maximum alignment (unless packed)
+	//   - each power of two alignment is valid for all smaller powers of two
+	//   - this guarantees that arrays of these structs will have properly aligned elements
 	if !d.IsPacked && totalSize%maxAlignment != 0 {
 		totalSize += maxAlignment - (totalSize % maxAlignment)
 	}
 
+	// the total size calculation requires all calculated field sizes and field alignments
+	d.ByteSize = totalSize
 	return totalSize
 }
 
-// Calculate alignment with circular reference detection
+// Calculate the memory alignment in bytes of a structure using a recursive approach.
 func (d *structureTypeDescriptor) calculateAlignment(seen map[string]bool) int {
-	// Check for circular reference
+	// check for a circular reference
 	if seen[d.TypeName] {
-		return 8 // Pointer alignment as fallback
+		// return pointer alignment as fallback to allow forward declarations and self-referential structs via pointers
+		return applicationBinaryInterfaceSpecifications[d.Abi].PointerAlignment
 	}
 
+	// mark this type as being processed and clean up when done
 	seen[d.TypeName] = true
 	defer delete(seen, d.TypeName)
 
+	// packed structure types have one byte alignment
 	if d.IsPacked {
-		return 1 // Packed structs have byte alignment
+		return 1
 	}
 
+	// track maximum alignment requirement
 	var maxAlignment int = 1
+
+	// determine the maximum alignment requirement of all fields
 	for _, field := range d.Fields {
+		// get field alignment for the current field in the structure
 		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
+
+		// track maximum alignment requirement
 		if fieldAlign > maxAlignment {
 			maxAlignment = fieldAlign
 		}
 	}
 
-	// Clamp to ABI maximum alignment
-	spec := applicationBinaryInterfaceSpecifications[d.Abi]
-	if maxAlignment > spec.MaxAlignment {
-		maxAlignment = spec.MaxAlignment
+	// limit the tracked maximum alignment to the maximum allowed by the application binary interface
+	if maxAlignment > applicationBinaryInterfaceSpecifications[d.Abi].MaxAlignment {
+		maxAlignment = applicationBinaryInterfaceSpecifications[d.Abi].MaxAlignment
 	}
 
+	// the alignment calculation requires all calculated field alignments
+	d.ByteAlignment = maxAlignment
 	return maxAlignment
 }
 
-// Helper to get field size with cycle detection.
+// Calculate the memory size in bytes of a field using a recursive approach.
 func (d *structureTypeDescriptor) getFieldSize(fieldType TypeDescriptor, seen map[string]bool) int {
 	// for record types, use the cycle-aware calculation
 	if fieldRecord, ok := fieldType.(*structureTypeDescriptor); ok {
 		return fieldRecord.calculateSize(seen)
 	}
 
-	// for other types, use their standard Size() method
+	// for other types, use their standard size calculation
 	return fieldType.Size()
 }
 
-// Helper to get field alignment with cycle detection.
+// Calculate the memory alignment in bytes of a field using a recursive approach.
 func (d *structureTypeDescriptor) getFieldAlignment(fieldType TypeDescriptor, seen map[string]bool) int {
 	// for record types, use the cycle-aware calculation
 	if fieldRecord, ok := fieldType.(*structureTypeDescriptor); ok {
 		return fieldRecord.calculateAlignment(seen)
 	}
 
-	// for other types, use their standard Alignment() method
+	// for other types, use their standard alignment calculation
 	return fieldType.Alignment()
 }
