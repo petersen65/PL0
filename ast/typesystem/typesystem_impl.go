@@ -361,39 +361,39 @@ func (d *structureTypeDescriptor) Alignment() int {
 }
 
 // Calculate size with circular reference detection
-func (rtd *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
+func (d *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 	// Check for circular reference
-	if seen[rtd.TypeName] {
+	if seen[d.TypeName] {
 		// Circular reference detected - return pointer size as fallback
 		// This allows forward declarations and self-referential structs via pointers
 		return 8 // Pointer size on 64-bit systems
 	}
 
 	// Mark this type as being processed
-	seen[rtd.TypeName] = true
-	defer delete(seen, rtd.TypeName) // Clean up when done
+	seen[d.TypeName] = true
+	defer delete(seen, d.TypeName) // Clean up when done
 
 	var totalSize int = 0
 	var maxAlignment int = 1
 
 	// Calculate field offsets and total size
-	for i := range rtd.Fields {
-		field := &rtd.Fields[i] // Get pointer to modify offset
+	for i := range d.Fields {
+		field := &d.Fields[i] // Get pointer to modify offset
 
-		fieldAlign := rtd.getFieldAlignment(field.FieldType, seen)
+		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
 		if fieldAlign > maxAlignment {
 			maxAlignment = fieldAlign
 		}
 
 		// Apply padding for alignment (unless packed)
-		if !rtd.IsPacked && totalSize%fieldAlign != 0 {
+		if !d.IsPacked && totalSize%fieldAlign != 0 {
 			totalSize += fieldAlign - (totalSize % fieldAlign)
 		}
 
 		// Set field offset
 		field.ByteOffset = totalSize
 
-		fieldSize := rtd.getFieldSize(field.FieldType, seen)
+		fieldSize := d.getFieldSize(field.FieldType, seen)
 		if fieldSize == -1 {
 			return -1 // Unknown field size
 		}
@@ -401,7 +401,7 @@ func (rtd *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 	}
 
 	// Add final padding for struct alignment (unless packed)
-	if !rtd.IsPacked && totalSize%maxAlignment != 0 {
+	if !d.IsPacked && totalSize%maxAlignment != 0 {
 		totalSize += maxAlignment - (totalSize % maxAlignment)
 	}
 
@@ -409,29 +409,29 @@ func (rtd *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 }
 
 // Calculate alignment with circular reference detection
-func (rtd *structureTypeDescriptor) calculateAlignment(seen map[string]bool) int {
+func (d *structureTypeDescriptor) calculateAlignment(seen map[string]bool) int {
 	// Check for circular reference
-	if seen[rtd.TypeName] {
+	if seen[d.TypeName] {
 		return 8 // Pointer alignment as fallback
 	}
 
-	seen[rtd.TypeName] = true
-	defer delete(seen, rtd.TypeName)
+	seen[d.TypeName] = true
+	defer delete(seen, d.TypeName)
 
-	if rtd.IsPacked {
+	if d.IsPacked {
 		return 1 // Packed structs have byte alignment
 	}
 
 	var maxAlignment int = 1
-	for _, field := range rtd.Fields {
-		fieldAlign := rtd.getFieldAlignment(field.FieldType, seen)
+	for _, field := range d.Fields {
+		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
 		if fieldAlign > maxAlignment {
 			maxAlignment = fieldAlign
 		}
 	}
 
 	// Clamp to ABI maximum alignment
-	spec := applicationBinaryInterfaceSpecifications[rtd.Abi]
+	spec := applicationBinaryInterfaceSpecifications[d.Abi]
 	if maxAlignment > spec.MaxAlignment {
 		maxAlignment = spec.MaxAlignment
 	}
@@ -439,24 +439,24 @@ func (rtd *structureTypeDescriptor) calculateAlignment(seen map[string]bool) int
 	return maxAlignment
 }
 
-// Helper to get field size with cycle detection
-func (rtd *structureTypeDescriptor) getFieldSize(fieldType TypeDescriptor, visited map[string]bool) int {
-	// For record types, use the cycle-aware calculation
+// Helper to get field size with cycle detection.
+func (d *structureTypeDescriptor) getFieldSize(fieldType TypeDescriptor, seen map[string]bool) int {
+	// for record types, use the cycle-aware calculation
 	if fieldRecord, ok := fieldType.(*structureTypeDescriptor); ok {
-		return fieldRecord.calculateSize(visited)
+		return fieldRecord.calculateSize(seen)
 	}
 
-	// For other types, use their standard Size() method
+	// for other types, use their standard Size() method
 	return fieldType.Size()
 }
 
-// Helper to get field alignment with cycle detection
-func (rtd *structureTypeDescriptor) getFieldAlignment(fieldType TypeDescriptor, visited map[string]bool) int {
-	// For record types, use the cycle-aware calculation
+// Helper to get field alignment with cycle detection.
+func (d *structureTypeDescriptor) getFieldAlignment(fieldType TypeDescriptor, seen map[string]bool) int {
+	// for record types, use the cycle-aware calculation
 	if fieldRecord, ok := fieldType.(*structureTypeDescriptor); ok {
-		return fieldRecord.calculateAlignment(visited)
+		return fieldRecord.calculateAlignment(seen)
 	}
 
-	// For other types, use their standard Alignment() method
+	// for other types, use their standard Alignment() method
 	return fieldType.Alignment()
 }
