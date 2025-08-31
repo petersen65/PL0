@@ -22,44 +22,61 @@ const (
 
 // Packing rules define how structure based data types are packed.
 const (
-    naturalPacking   packingRule = iota // align each field to its natural alignment, max struct alignment 16
-    microsoftPacking                    // like natural packing, but max struct alignment 8, nested structs capped at 8
+	naturalPacking   packingRule = iota // align each field to its natural alignment, max struct alignment 16
+	microsoftPacking                    // like natural packing, but max struct alignment 8, nested structs capped at 8
 )
 
 type (
 	// A packing rule defines how structure based data types are packed.
 	packingRule int
 
+	// Common fields shared by all type descriptors.
+	commonTypeDescriptor struct {
+		TypeName string                         `json:"type_name"` // name identifier for all data type kinds
+		Abi      cor.ApplicationBinaryInterface `json:"abi"`       // ABI governing size and alignment calculations
+	}
+
 	// Primitive data types that cannot be further refined.
 	simpleTypeDescriptor struct {
-		TypeName      string                         `json:"type_name"`      // name identifier for this simple type
-		PrimitiveType PrimitiveDataType              `json:"primitive_type"` // underlying primitive data type
-		Abi           cor.ApplicationBinaryInterface `json:"abi"`            // ABI governing size and alignment calculations
+		commonTypeDescriptor
+		PrimitiveType PrimitiveDataType `json:"primitive_type"` // underlying primitive data type
 	}
 
 	// Pointer type that represents a memory address pointing to a value with a specific data type.
 	pointerTypeDescriptor struct {
-		TypeName    string                         `json:"type_name"`    // name identifier for this pointer type
-		ValueType   TypeDescriptor                 `json:"value_type"`   // type descriptor of the value that this pointer references
-		IsReference bool                           `json:"is_reference"` // true if this is a reference rather than a raw pointer
-		Abi         cor.ApplicationBinaryInterface `json:"abi"`          // ABI governing size and alignment calculations
+		commonTypeDescriptor
+		ValueType   TypeDescriptor `json:"value_type"`   // type descriptor of the value that this pointer references
+		IsReference bool           `json:"is_reference"` // true if this is a reference rather than a raw pointer
 	}
 
 	// Structure field describes a field in a structure.
 	structureField struct {
 		Name       string         `json:"name"`   // name identifier used to access this field within the structure
-		FieldType  TypeDescriptor `json:"type"`   // type descriptor defining the data type of this field
+		Type       TypeDescriptor `json:"type"`   // type descriptor defining the data type of this field
 		ByteOffset int            `json:"offset"` // byte offset from the beginning of the structure
 	}
 
 	// Structure based data types that group multiple fields.
 	structureTypeDescriptor struct {
-		TypeName      string                         `json:"type_name"` // name identifier for this structure type
-		Fields        []*structureField              `json:"fields"`    // ordered list of fields that comprise this structure
-		IsPacked      bool                           `json:"is_packed"` // memory layout optimized to minimize padding between fields
-		ByteSize      int                            `json:"size"`      // cache the total size of the structure in bytes
-		ByteAlignment int                            `json:"alignment"` // cache the alignment of the structure in bytes
-		Abi           cor.ApplicationBinaryInterface `json:"abi"`       // ABI governing size and alignment calculations
+		commonTypeDescriptor
+		Fields        []*structureField `json:"fields"`    // ordered list of fields that comprise this structure
+		IsPacked      bool              `json:"is_packed"` // memory layout optimized to minimize padding between fields
+		ByteSize      int               `json:"size"`      // cache the total size of the structure in bytes
+		ByteAlignment int               `json:"alignment"` // cache the alignment of the structure in bytes
+	}
+
+	// Parameter and its passing mode for a function or procedure call.
+	functionParameter struct {
+		Name string               `json:"name"` // identifier name used to reference this parameter within the function
+		Type TypeDescriptor       `json:"type"` // type descriptor defining the data type of this parameter
+		Mode ParameterPassingMode `json:"mode"` // determines how the parameter is passed (e.g., by value, by reference)
+	}
+
+	// Data type of a function or procedure that defines its signature.
+	functionTypeDescriptor struct {
+		commonTypeDescriptor
+		Parameters []*functionParameter `json:"parameters"`  // ordered list of parameters that the function accepts
+		ReturnType TypeDescriptor       `json:"return_type"` // type descriptor of the value returned by the function (nil for procedures)
 	}
 
 	// The application binary interface specification contains size, alignment, and packing rules.
@@ -236,7 +253,7 @@ var (
 	}
 
 	// Map a primitive data type to its string representation.
-	dataTypeNames = map[PrimitiveDataType]string{
+	primitiveDataTypeNames = map[PrimitiveDataType]string{
 		Integer64:  "int64",
 		Integer32:  "int32",
 		Integer16:  "int16",
@@ -258,6 +275,14 @@ var (
 		DataTypePointer:   "pointer",
 		DataTypeStructure: "structure",
 	}
+
+	// Map a parameter passing mode to its string representation.
+	parameterModeNames = map[ParameterPassingMode]string{
+		CallByValue:          "",
+		CallByReference:      "var",
+		CallByConstReference: "const",
+		OutputParameter:      "out",
+	}
 )
 
 // String representation of a primitive data type.
@@ -270,11 +295,11 @@ func (t PrimitiveDataType) String() string {
 		prefix = referencePrefix
 	}
 
-	return fmt.Sprintf("%v%v", prefix, dataTypeNames[t.AsPlain()])
+	return fmt.Sprintf("%v%v", prefix, primitiveDataTypeNames[t.AsPlain()])
 }
 
-// Name of the simple type.
-func (d *simpleTypeDescriptor) Name() string {
+// Name for any data type.
+func (d *commonTypeDescriptor) Name() string {
 	return d.TypeName
 }
 
@@ -298,11 +323,6 @@ func (d *simpleTypeDescriptor) Alignment() int {
 	return applicationBinaryInterfaceSpecifications[d.Abi].TypeAlignments[d.PrimitiveType]
 }
 
-// Name of the pointer type.
-func (d *pointerTypeDescriptor) Name() string {
-	return d.TypeName
-}
-
 // String representation of the pointer type.
 func (d *pointerTypeDescriptor) String() string {
 	if d.IsReference {
@@ -314,6 +334,10 @@ func (d *pointerTypeDescriptor) String() string {
 
 // Data type classification for pointer type descriptors.
 func (d *pointerTypeDescriptor) Kind() DataTypeKind {
+	if d.IsReference {
+		return DataTypeReference
+	}
+
 	return DataTypePointer
 }
 
@@ -327,17 +351,12 @@ func (d *pointerTypeDescriptor) Alignment() int {
 	return applicationBinaryInterfaceSpecifications[d.Abi].PointerAlignment
 }
 
-// Name of the structure type.
-func (d *structureTypeDescriptor) Name() string {
-	return d.TypeName
-}
-
 // String representation of the structure type.
 func (d *structureTypeDescriptor) String() string {
 	var fields []string
 
 	for _, field := range d.Fields {
-		fields = append(fields, fmt.Sprintf("%v %v", field.Name, field.FieldType.String()))
+		fields = append(fields, fmt.Sprintf("%v %v", field.Name, field.Type.String()))
 	}
 
 	return fmt.Sprintf("struct {%v}", strings.Join(fields, ", "))
@@ -397,7 +416,7 @@ func (d *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 	// calculate field offsets and total size of the structure
 	for _, field := range d.Fields {
 		// get field alignment for the current field in the structure
-		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
+		fieldAlign := d.getFieldAlignment(field.Type, seen)
 
 		// track maximum alignment requirement
 		if fieldAlign > maxAlignment {
@@ -413,7 +432,7 @@ func (d *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 		field.ByteOffset = totalSize
 
 		// the new total size starts one byte after the current field
-		totalSize += d.getFieldSize(field.FieldType, seen)
+		totalSize += d.getFieldSize(field.Type, seen)
 	}
 
 	// limit the tracked maximum alignment to the maximum allowed by the application binary interface
@@ -456,7 +475,7 @@ func (d *structureTypeDescriptor) calculateAlignment(seen map[string]bool) int {
 	// determine the maximum alignment requirement of all fields
 	for _, field := range d.Fields {
 		// get field alignment for the current field in the structure
-		fieldAlign := d.getFieldAlignment(field.FieldType, seen)
+		fieldAlign := d.getFieldAlignment(field.Type, seen)
 
 		// track maximum alignment requirement
 		if fieldAlign > maxAlignment {
@@ -494,4 +513,38 @@ func (d *structureTypeDescriptor) getFieldAlignment(fieldType TypeDescriptor, se
 
 	// for other types, use their standard alignment calculation
 	return fieldType.Alignment()
+}
+
+// String representation of the function or procedure type.
+func (d *functionTypeDescriptor) String() string {
+	var parameters []string
+
+	for _, parameter := range d.Parameters {
+		parameters = append(parameters, strings.TrimSpace(fmt.Sprintf("%v %v %v", parameter.Mode, parameter.Name, parameter.Type.String())))
+	}
+
+	if d.ReturnType != nil {
+		return fmt.Sprintf("function(%v): %v", strings.Join(parameters, ", "), d.ReturnType.Name())
+	}
+
+	return fmt.Sprintf("procedure(%v)", strings.Join(parameters, ", "))
+}
+
+// Data type classification for function or procedure type descriptors.
+func (d *functionTypeDescriptor) Kind() DataTypeKind {
+	if d.ReturnType != nil {
+		return DataTypeFunction
+	}
+
+	return DataTypeProcedure
+}
+
+// Depending on the ABI, calculate the memory size in bytes for the function type descriptor.
+func (d *functionTypeDescriptor) Size() int {
+	return applicationBinaryInterfaceSpecifications[d.Abi].PointerSize
+}
+
+// Depending on the ABI, calculate the memory alignment in bytes for the function type descriptor.
+func (d *functionTypeDescriptor) Alignment() int {
+	return applicationBinaryInterfaceSpecifications[d.Abi].PointerAlignment
 }

@@ -34,13 +34,26 @@ const (
 // All supported kinds of data types provided by the type system.
 const (
 	// simple types
-	DataTypeSimple DataTypeKind = iota
+	DataTypeSimple DataTypeKind = iota // simple types with an underlying primitive type
 
 	// pointer types
-	DataTypePointer // complex pointer hierarchies
+	DataTypePointer   // a pointer type holds the memory address of another value
+	DataTypeReference // the reference type is an alias for a pointer type
 
 	// composite types
-	DataTypeStructure // structures with named fields
+	DataTypeStructure // a structure type is a composite type with named fields
+
+	// function or procedure types
+	DataTypeFunction  // the function type describes a function with parameters and a return type
+	DataTypeProcedure // the procedure type describes a function with parameters but no return value
+)
+
+// Parameter passing modes for procedures and functions.
+const (
+	CallByValue          ParameterPassingMode = iota // call by value
+	CallByReference                                  // call by reference
+	CallByConstReference                             // call by const reference
+	OutputParameter                                  // output parameter
 )
 
 type (
@@ -50,9 +63,17 @@ type (
 	// Kind of data type (e.g., simple, composite, pointer).
 	DataTypeKind int
 
-	// The type descriptor is the common interface for all specific type descriptions.
-	TypeDescriptor interface {
+	// Mode for parameter passing in procedures and functions.
+	ParameterPassingMode int
+
+	// The common type descriptor is the shared interface for all type descriptors.
+	CommonTypeDescriptor interface {
 		Name() string
+	}
+
+	// The type descriptor is the interface for all specific type descriptions.
+	TypeDescriptor interface {
+		CommonTypeDescriptor
 		String() string
 		Kind() DataTypeKind
 		Size() int
@@ -62,22 +83,32 @@ type (
 
 // Create a new simple type descriptor with an underlying primitive type and a governing ABI.
 func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &simpleTypeDescriptor{TypeName: name, PrimitiveType: primitiveType, Abi: abi}
+	return &simpleTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, PrimitiveType: primitiveType}
 }
 
 // Create a new pointer type descriptor with a value type and a governing ABI.
 func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &pointerTypeDescriptor{TypeName: name, ValueType: valueType, IsReference: isReference, Abi: abi}
+	return &pointerTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, ValueType: valueType, IsReference: isReference}
 }
 
 // Create a new structure type descriptor with fields and a governing ABI.
 func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
-	return &structureTypeDescriptor{TypeName: name, Fields: fields, IsPacked: isPacked, ByteSize: byteSizeNotCalculated, ByteAlignment: byteAlignmentNotCalculated, Abi: abi}
+	return &structureTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Fields: fields, IsPacked: isPacked, ByteSize: byteSizeNotCalculated, ByteAlignment: byteAlignmentNotCalculated}
+}
+
+// Create a new function type descriptor with parameters, a return type, and a governing ABI. The return type may be nil for procedures.
+func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+	return &functionTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Parameters: parameters, ReturnType: returnType}
 }
 
 // Return the string representation of a data type kind.
 func (k DataTypeKind) String() string {
 	return dataTypeKindNames[k]
+}
+
+// Return the string representation of a parameter passing mode.
+func (m ParameterPassingMode) String() string {
+	return parameterModeNames[m]
 }
 
 // Return the plain data type without modifiers.

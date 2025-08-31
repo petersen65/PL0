@@ -114,10 +114,10 @@ The programming language PL/0 2025 supports the following features:
 
 ## Dynamic Links and Static Links
 
-Every procedure or function call in PL/0 (or similar block-structured languages like Pascal or Modula) creates an activation record (also called a stack frame), which holds:
+Every function or procedure call in PL/0 (or similar block-structured languages like Pascal or Modula) creates an activation record (also called a stack frame), which holds:
 
 - local variables
-- procedure or function parameters (if any)
+- function or procedure parameters (if any)
 - return address
 - administrative data (links to other activation records)
 
