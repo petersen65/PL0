@@ -7,10 +7,10 @@ package ast
 import (
 	"io"
 
-	sym "github.com/petersen65/pl0/v3/ast/symbol"
-	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
+	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.

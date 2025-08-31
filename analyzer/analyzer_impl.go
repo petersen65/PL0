@@ -7,8 +7,8 @@ import (
 	"slices"
 
 	ast "github.com/petersen65/pl0/v3/ast"
-	sym "github.com/petersen65/pl0/v3/ast/symbol"
 	eh "github.com/petersen65/pl0/v3/errors"
+	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 )
 

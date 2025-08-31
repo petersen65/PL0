@@ -63,12 +63,6 @@ const (
 	ABI_Windows_ARM64                                   // Windows ARM64 ABI
 )
 
-// Packing rules define how structs are packed in memory.
-const (
-	NaturalPacking   PackingRule = iota // align each field to its natural alignment
-	MicrosoftPacking                    // Microsoft-specific packing rules
-)
-
 // Export formats for the compiler which can be used to export intermediate results.
 const (
 	Json ExportFormat = iota
@@ -106,9 +100,6 @@ type (
 	//   - how functions receive parameters and return values,
 	//   - and how operating system calls are made.
 	ApplicationBinaryInterface int
-
-	// Packing rules define how structs are packed in memory.
-	PackingRule int
 
 	// Export formats for the compiler.
 	ExportFormat int

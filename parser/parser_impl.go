@@ -7,10 +7,10 @@ import (
 	"strconv"
 
 	ast "github.com/petersen65/pl0/v3/ast"
-	sym "github.com/petersen65/pl0/v3/ast/symbol"
-	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	eh "github.com/petersen65/pl0/v3/errors"
+	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Number of bits of a signed integer.

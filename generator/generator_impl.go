@@ -9,13 +9,13 @@ import (
 	"strings"
 
 	ast "github.com/petersen65/pl0/v3/ast"
-	sym "github.com/petersen65/pl0/v3/ast/symbol"
-	ts "github.com/petersen65/pl0/v3/ast/typesystem"
 	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	eh "github.com/petersen65/pl0/v3/errors"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Abstract syntax extension for the symbol.
