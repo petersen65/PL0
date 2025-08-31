@@ -4,39 +4,43 @@
 package ast
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
-	exp "github.com/petersen65/pl0/v3/export"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
+// Allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
+const emptyConstantName = "@constant"
+
+// Separator for the string representation of a bit-mask.
+const bitMaskSeparator = "|"
+
 var (
-	// nodeTypeNames maps node types to their string representation.
-	nodeTypeNames = map[NodeType]string{
-		BlockType:                "block",
-		ConstantDeclarationType:  "constant",
-		VariableDeclarationType:  "variable",
-		ProcedureDeclarationType: "procedure",
-		LiteralType:              "literal",
-		IdentifierUseType:        "use",
-		UnaryOperationType:       "unary",
-		BinaryOperationType:      "binary",
-		ComparisonOperationType:  "comparison",
-		AssignmentStatementType:  "assignment",
-		ReadStatementType:        "read",
-		WriteStatementType:       "write",
-		CallStatementType:        "call",
-		IfStatementType:          "if",
-		WhileStatementType:       "while",
-		CompoundStatementType:    "compound",
+	// Map kind of nodes to their string representation.
+	nodeKindNames = map[NodeKind]string{
+		KindBlock:                "block",
+		KindConstantDeclaration:  "constant",
+		KindVariableDeclaration:  "variable",
+		KindProcedureDeclaration: "procedure",
+		KindLiteral:              "literal",
+		KindIdentifierUse:        "use",
+		KindUnaryOperation:       "unary",
+		KindBinaryOperation:      "binary",
+		KindComparisonOperation:  "comparison",
+		KindAssignmentStatement:  "assignment",
+		KindReadStatement:        "read",
+		KindWriteStatement:       "write",
+		KindCallStatement:        "call",
+		KindIfStatement:          "if",
+		KindWhileStatement:       "while",
+		KindCompoundStatement:    "compound",
 	}
 
-	// usageNames maps usage modes to their string representation.
+	// Map usage modes to their string representation.
 	usageNames = map[Usage]string{
 		Read:    "read",
 		Write:   "write",
@@ -44,66 +48,10 @@ var (
 	}
 )
 
-// Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope sym.Scope[Declaration], declarations []Declaration, statement Statement) Block {
-	block := &BlockNode{
-		TypeName:     nodeTypeNames[BlockType],
-		Depth:        depth,
-		Scope:        scope,
-		Declarations: declarations,
-		Closure:      make([]Declaration, 0),
-		Statement:    statement,
-	}
-
-	for _, declaration := range block.Declarations {
-		declaration.SetParent(block)
-	}
-
-	statement.SetParent(block)
-	return block
-}
-
-// Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
-	return &ConstantDeclarationNode{
-		TypeName:         nodeTypeNames[ConstantDeclarationType],
-		Name:             name,
-		Value:            value,
-		DataType:         dataType,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
-}
-
-// Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name string, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
-	return &VariableDeclarationNode{
-		TypeName:         nodeTypeNames[VariableDeclarationType],
-		Name:             name,
-		DataType:         dataType,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
-}
-
-// Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope sym.Scope[Declaration], index int) Declaration {
-	return &ProcedureDeclarationNode{
-		TypeName:         nodeTypeNames[ProcedureDeclarationType],
-		Name:             name,
-		Block:            block,
-		Scope:            scope,
-		Usage:            make([]Expression, 0),
-		TokenStreamIndex: index,
-	}
-}
-
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Expression {
 	return &LiteralNode{
-		TypeName:         nodeTypeNames[LiteralType],
+		TypeName:         nodeKindNames[KindLiteral],
 		Value:            value,
 		DataType:         dataType,
 		Scope:            scope,
@@ -114,7 +62,7 @@ func newLiteral(value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declar
 // Create a new identifier-use node in the abstract syntax tree.
 func newIdentifierUse(name string, scope sym.Scope[Declaration], context sym.Entry, index int) Expression {
 	return &IdentifierUseNode{
-		TypeName:         nodeTypeNames[IdentifierUseType],
+		TypeName:         nodeKindNames[KindIdentifierUse],
 		Name:             name,
 		Scope:            scope,
 		Context:          context,
@@ -125,7 +73,7 @@ func newIdentifierUse(name string, scope sym.Scope[Declaration], context sym.Ent
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
 	unary := &UnaryOperationNode{
-		TypeName:         nodeTypeNames[UnaryOperationType],
+		TypeName:         nodeKindNames[KindUnaryOperation],
 		Operation:        operation,
 		Operand:          operand,
 		TokenStreamIndex: index,
@@ -138,7 +86,7 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) E
 // Create a new binary operation node in the abstract syntax tree.
 func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
 	binary := &BinaryOperationNode{
-		TypeName:         nodeTypeNames[BinaryOperationType],
+		TypeName:         nodeKindNames[KindBinaryOperation],
 		Operation:        operation,
 		Left:             left,
 		Right:            right,
@@ -153,7 +101,7 @@ func newBinaryOperation(operation BinaryOperator, left, right Expression, index 
 // Create a new comparison operation node in the abstract syntax tree.
 func newComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
 	comparison := &ComparisonOperationNode{
-		TypeName:         nodeTypeNames[ComparisonOperationType],
+		TypeName:         nodeKindNames[KindComparisonOperation],
 		Operation:        operation,
 		Left:             left,
 		Right:            right,
@@ -168,7 +116,7 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 // Create a new assignment statement node in the abstract syntax tree.
 func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) Statement {
 	assignment := &AssignmentStatementNode{
-		TypeName:              nodeTypeNames[AssignmentStatementType],
+		TypeName:              nodeKindNames[KindAssignmentStatement],
 		Variable:              variable,
 		Expression:            expression,
 		TokenStreamIndexBegin: beginIndex,
@@ -183,7 +131,7 @@ func newAssignmentStatement(variable, expression Expression, beginIndex, endInde
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 	read := &ReadStatementNode{
-		TypeName:              nodeTypeNames[ReadStatementType],
+		TypeName:              nodeKindNames[KindReadStatement],
 		Variable:              variable,
 		TokenStreamIndexBegin: beginIndex,
 		TokenStreamIndexEnd:   endIndex,
@@ -196,7 +144,7 @@ func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 // Create a new write statement node in the abstract syntax tree.
 func newWriteStatement(expression Expression, beginIndex, endIndex int) Statement {
 	write := &WriteStatementNode{
-		TypeName:              nodeTypeNames[WriteStatementType],
+		TypeName:              nodeKindNames[KindWriteStatement],
 		Expression:            expression,
 		TokenStreamIndexBegin: beginIndex,
 		TokenStreamIndexEnd:   endIndex,
@@ -209,7 +157,7 @@ func newWriteStatement(expression Expression, beginIndex, endIndex int) Statemen
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement {
 	call := &CallStatementNode{
-		TypeName:              nodeTypeNames[CallStatementType],
+		TypeName:              nodeKindNames[KindCallStatement],
 		Procedure:             procedure,
 		TokenStreamIndexBegin: beginIndex,
 		TokenStreamIndexEnd:   endIndex,
@@ -222,7 +170,7 @@ func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement 
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	ifStmt := &IfStatementNode{
-		TypeName:              nodeTypeNames[IfStatementType],
+		TypeName:              nodeKindNames[KindIfStatement],
 		Condition:             condition,
 		Statement:             statement,
 		TokenStreamIndexBegin: beginIndex,
@@ -237,7 +185,7 @@ func newIfStatement(condition Expression, statement Statement, beginIndex, endIn
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	whileStmt := &WhileStatementNode{
-		TypeName:              nodeTypeNames[WhileStatementType],
+		TypeName:              nodeKindNames[KindWhileStatement],
 		Condition:             condition,
 		Statement:             statement,
 		TokenStreamIndexBegin: beginIndex,
@@ -252,7 +200,7 @@ func newWhileStatement(condition Expression, statement Statement, beginIndex, en
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	compound := &CompoundStatementNode{
-		TypeName:              nodeTypeNames[CompoundStatementType],
+		TypeName:              nodeKindNames[KindCompoundStatement],
 		Statements:            statements,
 		TokenStreamIndexBegin: beginIndex,
 		TokenStreamIndexEnd:   endIndex,
@@ -275,221 +223,37 @@ func (u Usage) String() string {
 		}
 	}
 
-	return strings.Join(parts, "|")
+	return strings.Join(parts, bitMaskSeparator)
 }
 
-// Get type of the block node.
-func (b *BlockNode) Type() NodeType {
-	return BlockType
+// Kind of node for each node in the AST.
+func (n *CommonNode) Kind() NodeKind {
+	return n.NodeKind
 }
 
-// Set the parent Node of the block node.
-func (b *BlockNode) SetParent(parent Node) {
-	b.ParentNode = parent
+// Parent node for each node in the AST.
+func (n *CommonNode) Parent() Node {
+	return n.ParentNode
 }
 
-// String of the block node.
-func (b *BlockNode) String() string {
-	return fmt.Sprintf("block depth=%v", b.Depth)
+// Set the parent node for each node in the AST.
+func (n *CommonNode) SetParent(parent Node) {
+	n.ParentNode = parent
 }
 
-// Parent node of the block node.
-func (b *BlockNode) Parent() Node {
-	return b.ParentNode
+// All usages of the declared identifier in expressions.
+func (n *DeclarationNode) Usage() []Expression {
+	return n.IdentifierUsage
 }
 
-// Children nodes of the block node.
-func (b *BlockNode) Children() []Node {
-	children := make([]Node, 0, len(b.Declarations)+1)
-
-	for _, declaration := range b.Declarations {
-		children = append(children, declaration)
-	}
-
-	return append(children, b.Statement)
+// Token stream index of the identifier declaration node.
+func (n *DeclarationNode) Index() int {
+	return n.TokenStreamIndex
 }
 
-// Index returns the token stream index of the block node.
-func (b *BlockNode) Index() int {
-	if len(b.Declarations) > 0 {
-		return b.Declarations[0].Index()
-	}
-
-	return b.Statement.Index()
-}
-
-// BlockString returns the string representation of the block.
-func (b *BlockNode) BlockString() string {
-	return b.String()
-}
-
-// Accept the visitor for the block node.
-func (b *BlockNode) Accept(visitor Visitor) {
-	visitor.VisitBlock(b)
-}
-
-// Print the abstract syntax tree to the specified writer.
-func (b *BlockNode) Print(print io.Writer, args ...any) error {
-	// traverse the abstract syntax tree and print each node
-	if err := printAbstractSyntaxTree(b, "", true, print); err != nil {
-		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
-	}
-
-	return nil
-}
-
-// Export the abstract syntax tree of the block node to the specified writer in the specified format.
-func (b *BlockNode) Export(format exp.ExportFormat, print io.Writer) error {
-	// JSON formatting requires a prefix and indent for pretty printing
-	const prefix, indent = "", "  "
-
-	switch format {
-	case exp.Json:
-		// export the abstract syntax tree as a JSON object
-		if raw, err := json.MarshalIndent(b, prefix, indent); err != nil {
-			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
-		} else {
-			_, err = print.Write(raw)
-
-			if err != nil {
-				err = eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
-			}
-
-			return err
-		}
-
-	case exp.Text:
-		// print is a convenience function to export the abstract syntax tree as a string to the print writer
-		return b.Print(print)
-
-	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownExportFormat, format, nil))
-	}
-}
-
-// Type of the constant declaration node.
-func (d *ConstantDeclarationNode) Type() NodeType {
-	return ConstantDeclarationType
-}
-
-// Set the parent Node of the constant declaration node.
-func (d *ConstantDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the constant declaration node.
-func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,value=%v,type=%v,used=%v)", sym.ConstantEntry, d.Name, d.Value, d.DataType, len(d.Usage))
-}
-
-// Parent node of the constant declaration node.
-func (d *ConstantDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the constant declaration node.
-func (d *ConstantDeclarationNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// Index returns the token stream index of the constant declaration node.
-func (d *ConstantDeclarationNode) Index() int {
-	return d.TokenStreamIndex
-}
-
-// DeclarationString returns the string representation of the constant declaration.
-func (d *ConstantDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the constant declaration node.
-func (d *ConstantDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitConstantDeclaration(d)
-}
-
-// Type of the variable declaration node.
-func (d *VariableDeclarationNode) Type() NodeType {
-	return VariableDeclarationType
-}
-
-// Set the parent Node of the variable declaration node.
-func (d *VariableDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the variable declaration node.
-func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,type=%v,used=%v)", sym.VariableEntry, d.Name, d.DataType, len(d.Usage))
-}
-
-// Parent node of the variable declaration node.
-func (d *VariableDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the variable declaration node.
-func (d *VariableDeclarationNode) Children() []Node {
-	return make([]Node, 0)
-}
-
-// Index returns the token stream index of the variable declaration node.
-func (d *VariableDeclarationNode) Index() int {
-	return d.TokenStreamIndex
-}
-
-// DeclarationString returns the string representation of the variable declaration.
-func (d *VariableDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the variable declaration node.
-func (d *VariableDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitVariableDeclaration(d)
-}
-
-// Type of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Type() NodeType {
-	return ProcedureDeclarationType
-}
-
-// Set the parent Node of the procedure declaration node.
-func (d *ProcedureDeclarationNode) SetParent(parent Node) {
-	d.ParentNode = parent
-}
-
-// String of the procedure declaration node.
-func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf("declaration(%v,name=%v,used=%v)", sym.ProcedureEntry, d.Name, len(d.Usage))
-}
-
-// Parent node of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Parent() Node {
-	return d.ParentNode
-}
-
-// Children nodes of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Children() []Node {
-	return []Node{d.Block}
-}
-
-// Index returns the token stream index of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Index() int {
-	return d.TokenStreamIndex
-}
-
-// DeclarationString returns the string representation of the procedure declaration.
-func (d *ProcedureDeclarationNode) DeclarationString() string {
-	return d.String()
-}
-
-// Accept the visitor for the procedure declaration node.
-func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitProcedureDeclaration(d)
-}
-
-// Type of the literal node.
-func (e *LiteralNode) Type() NodeType {
-	return LiteralType
+// Kind of the literal node.
+func (e *LiteralNode) Kind() NodeKind {
+	return KindLiteral
 }
 
 // Set the parent Node of the literal node.
@@ -527,9 +291,9 @@ func (e *LiteralNode) Accept(visitor Visitor) {
 	visitor.VisitLiteral(e)
 }
 
-// Type of the identifier-use node.
-func (u *IdentifierUseNode) Type() NodeType {
-	return IdentifierUseType
+// Kind of the identifier-use node.
+func (u *IdentifierUseNode) Kind() NodeKind {
+	return KindIdentifierUse
 }
 
 // Set the parent Node of the identifier-use node.
@@ -585,9 +349,9 @@ func (u *IdentifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(u)
 }
 
-// Type of the unary operation node.
-func (e *UnaryOperationNode) Type() NodeType {
-	return UnaryOperationType
+// Kind of the unary operation node.
+func (e *UnaryOperationNode) Kind() NodeKind {
+	return KindUnaryOperation
 }
 
 // Set the parent Node of the unary operation node.
@@ -634,9 +398,9 @@ func (e *UnaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitUnaryOperation(e)
 }
 
-// Type of the binary operation node.
-func (e *BinaryOperationNode) Type() NodeType {
-	return BinaryOperationType
+// Kind of the binary operation node.
+func (e *BinaryOperationNode) Kind() NodeKind {
+	return KindBinaryOperation
 }
 
 // Set the parent Node of the binary operation node.
@@ -689,9 +453,9 @@ func (e *BinaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitBinaryOperation(e)
 }
 
-// Type of the comparison operation node.
-func (e *ComparisonOperationNode) Type() NodeType {
-	return ComparisonOperationType
+// Kind of the comparison operation node.
+func (e *ComparisonOperationNode) Kind() NodeKind {
+	return KindComparisonOperation
 }
 
 // Set the parent Node of the comparison operation node.
@@ -751,9 +515,9 @@ func (e *ComparisonOperationNode) Accept(visitor Visitor) {
 	visitor.VisitComparisonOperation(e)
 }
 
-// Type of the assignment statement node.
-func (s *AssignmentStatementNode) Type() NodeType {
-	return AssignmentStatementType
+// Kind of the assignment statement node.
+func (s *AssignmentStatementNode) Kind() NodeKind {
+	return KindAssignmentStatement
 }
 
 // Set the parent Node of the assignment statement node.
@@ -796,9 +560,9 @@ func (s *AssignmentStatementNode) Accept(visitor Visitor) {
 	visitor.VisitAssignmentStatement(s)
 }
 
-// Type of the read statement node.
-func (s *ReadStatementNode) Type() NodeType {
-	return ReadStatementType
+// Kind of the read statement node.
+func (s *ReadStatementNode) Kind() NodeKind {
+	return KindReadStatement
 }
 
 // Set the parent Node of the read statement node.
@@ -841,9 +605,9 @@ func (s *ReadStatementNode) Accept(visitor Visitor) {
 	visitor.VisitReadStatement(s)
 }
 
-// Type of the write statement node.
-func (s *WriteStatementNode) Type() NodeType {
-	return WriteStatementType
+// Kind of the write statement node.
+func (s *WriteStatementNode) Kind() NodeKind {
+	return KindWriteStatement
 }
 
 // Set the parent Node of the write statement node.
@@ -886,9 +650,9 @@ func (s *WriteStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWriteStatement(s)
 }
 
-// Type of the call statement node.
-func (s *CallStatementNode) Type() NodeType {
-	return CallStatementType
+// Kind of the call statement node.
+func (s *CallStatementNode) Kind() NodeKind {
+	return KindCallStatement
 }
 
 // Set the parent Node of the call statement node.
@@ -931,9 +695,9 @@ func (s *CallStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCallStatement(s)
 }
 
-// Type of the if-then statement node.
-func (s *IfStatementNode) Type() NodeType {
-	return IfStatementType
+// Kind of the if-then statement node.
+func (s *IfStatementNode) Kind() NodeKind {
+	return KindIfStatement
 }
 
 // Set the parent Node of the if-then statement node.
@@ -976,9 +740,9 @@ func (s *IfStatementNode) Accept(visitor Visitor) {
 	visitor.VisitIfStatement(s)
 }
 
-// Type of the while-do statement node.
-func (s *WhileStatementNode) Type() NodeType {
-	return WhileStatementType
+// Kind of the while-do statement node.
+func (s *WhileStatementNode) Kind() NodeKind {
+	return KindWhileStatement
 }
 
 // Set the parent Node of the while-do statement node.
@@ -1021,9 +785,9 @@ func (s *WhileStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWhileStatement(s)
 }
 
-// Type of the compound statement node.
-func (s *CompoundStatementNode) Type() NodeType {
-	return CompoundStatementType
+// Kind of the compound statement node.
+func (s *CompoundStatementNode) Kind() NodeKind {
+	return KindCompoundStatement
 }
 
 // Set the parent Node of the compound statement node.
@@ -1091,7 +855,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	}
 
 	// filter out empty constants
-	if constant, ok := parent.(*ConstantDeclarationNode); ok && constant.Name == EmptyConstantName {
+	if constant, ok := parent.(*ConstantDeclarationNode); ok && constant.Name == emptyConstantName {
 		return nil
 	}
 

@@ -13,27 +13,24 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// EmptyConstantName allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
-const EmptyConstantName = "@constant"
-
-// Types of nodes in the abstract syntax tree.
+// Kind of nodes in the abstract syntax tree.
 const (
-	BlockType NodeType = iota
-	ConstantDeclarationType
-	VariableDeclarationType
-	ProcedureDeclarationType
-	LiteralType
-	IdentifierUseType
-	UnaryOperationType
-	BinaryOperationType
-	ComparisonOperationType
-	AssignmentStatementType
-	ReadStatementType
-	WriteStatementType
-	CallStatementType
-	IfStatementType
-	WhileStatementType
-	CompoundStatementType
+	KindBlock NodeKind = iota
+	KindConstantDeclaration
+	KindVariableDeclaration
+	KindProcedureDeclaration
+	KindLiteral
+	KindIdentifierUse
+	KindUnaryOperation
+	KindBinaryOperation
+	KindComparisonOperation
+	KindAssignmentStatement
+	KindReadStatement
+	KindWriteStatement
+	KindCallStatement
+	KindIfStatement
+	KindWhileStatement
+	KindCompoundStatement
 )
 
 // Operators with one operand.
@@ -82,8 +79,8 @@ const (
 )
 
 type (
-	// Type of a node in the abstract syntax tree.
-	NodeType int
+	// Kind of node in the abstract syntax tree.
+	NodeKind int
 
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
@@ -103,10 +100,24 @@ type (
 	// Traversal order for the abstract syntax tree.
 	TraversalOrder int
 
+	// Base structure for all nodes in the AST.
+	CommonNode struct {
+		NodeKind   NodeKind `json:"kind"` // kind of node for each node
+		ParentNode Node     `json:"-"`    // parent node for each node
+	}
+
+	// Base structure for all declaration nodes in the AST.
+	DeclarationNode struct {
+		Name             string                 `json:"name"`               // name of the declared identifier
+		DataType         ts.TypeDescriptor      `json:"type_descriptor"`    // datatype of the identifier
+		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the identifier declaration
+		IdentifierUsage  []Expression           `json:"usage"`              // all usages of the identifier
+		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+	}
+
 	// Block node represents a block in the AST.
 	BlockNode struct {
-		TypeName     string                 `json:"type"`         // type name of the block node
-		ParentNode   Node                   `json:"-"`            // parent node of the block
+		CommonNode                          // embedded common node
 		Depth        int32                  `json:"depth"`        // block nesting depth
 		Scope        sym.Scope[Declaration] `json:"scope"`        // scope with the symbol table of the block
 		Declarations []Declaration          `json:"declarations"` // all declarations of the block
@@ -116,35 +127,28 @@ type (
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
 	ConstantDeclarationNode struct {
-		TypeName         string                 `json:"type"`               // type name of the constant declaration node
-		ParentNode       Node                   `json:"-"`                  // parent node of the constant declaration
-		Name             string                 `json:"name"`               // name of the constant
-		Value            any                    `json:"value"`              // value of constant
-		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the constant
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the constant declaration
-		Usage            []Expression           `json:"usage"`              // all usages of the constant
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode          // embedded common node
+		DeclarationNode     // embedded declaration node
+		Value           any `json:"value"` // value of the constant
 	}
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
-		TypeName         string                 `json:"type"`               // type name of the variable declaration node
-		ParentNode       Node                   `json:"-"`                  // parent node of the variable declaration
+		CommonNode                              // embedded common node
 		Name             string                 `json:"name"`               // name of the variable
 		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the variable
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the variable declaration
-		Usage            []Expression           `json:"usage"`              // all usages of the variable
+		VariableUsage    []Expression           `json:"usage"`              // all usages of the variable
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
-		TypeName         string                 `json:"type"`               // type name of the procedure declaration node
-		ParentNode       Node                   `json:"-"`                  // parent node of the procedure declaration
+		CommonNode                              // embedded common node
 		Name             string                 `json:"name"`               // name of the procedure
 		Block            Block                  `json:"block"`              // block of the procedure
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the procedure declaration
-		Usage            []Expression           `json:"usage"`              // all usages of the procedure
+		ProcedureUsage   []Expression           `json:"usage"`              // all usages of the procedure
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -266,19 +270,18 @@ type (
 
 	// A node in the abstract syntax tree.
 	Node interface {
-		Type() NodeType
-		SetParent(node Node)
+		Kind() NodeKind
 		Parent() Node
+		SetParent(node Node)
 		Children() []Node
-		Index() int
 		String() string
+		Index() int
 		Accept(visitor Visitor)
 	}
 
 	// A block represented as an abstract syntax tree.
 	Block interface {
 		Node
-		BlockString() string
 		Print(print io.Writer, args ...any) error
 		Export(format exp.ExportFormat, print io.Writer) error
 	}
@@ -286,7 +289,7 @@ type (
 	// A declaration represented as an abstract syntax tree.
 	Declaration interface {
 		Node
-		DeclarationString() string
+		Usage() []Expression
 	}
 
 	// An expression represented as an abstract syntax tree.
@@ -333,7 +336,7 @@ func NewBlock(depth int32, scope sym.Scope[Declaration], declarations []Declarat
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(EmptyConstantName, int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
+	return newConstantDeclaration(emptyConstantName, int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
 }
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
@@ -347,7 +350,7 @@ func NewEmptyStatement() Statement {
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
+func NewConstantDeclaration(name string, value any, dataType ts.TypeDescriptor, scope sym.Scope[Declaration], index int) Declaration {
 	return newConstantDeclaration(name, value, dataType, scope, index)
 }
 

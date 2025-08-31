@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	eh "github.com/petersen65/pl0/v3/errors"
 	plt "github.com/petersen65/pl0/v3/platform"
 )
 
@@ -38,15 +39,15 @@ type (
 
 	// Primitive data types that cannot be further refined.
 	simpleTypeDescriptor struct {
-		commonTypeDescriptor
-		PrimitiveType PrimitiveDataType `json:"primitive_type"` // underlying primitive data type
+		commonTypeDescriptor                   // embedded common type descriptor
+		PrimitiveType        PrimitiveDataType `json:"primitive_type"` // underlying primitive data type
 	}
 
 	// Pointer type that represents a memory address pointing to a value with a specific data type.
 	pointerTypeDescriptor struct {
-		commonTypeDescriptor
-		ValueType   TypeDescriptor `json:"value_type"`   // type descriptor of the value that this pointer references
-		IsReference bool           `json:"is_reference"` // true if this is a reference rather than a raw pointer
+		commonTypeDescriptor                // embedded common type descriptor
+		ValueType            TypeDescriptor `json:"value_type"`   // type descriptor of the value that this pointer references
+		IsReference          bool           `json:"is_reference"` // true if this is a reference rather than a raw pointer
 	}
 
 	// Structure field describes a field in a structure.
@@ -58,11 +59,11 @@ type (
 
 	// Structure based data types that group multiple fields.
 	structureTypeDescriptor struct {
-		commonTypeDescriptor
-		Fields        []*structureField `json:"fields"`    // ordered list of fields that comprise this structure
-		IsPacked      bool              `json:"is_packed"` // memory layout optimized to minimize padding between fields
-		ByteSize      int               `json:"size"`      // cache the total size of the structure in bytes
-		ByteAlignment int               `json:"alignment"` // cache the alignment of the structure in bytes
+		commonTypeDescriptor                   // embedded common type descriptor
+		Fields               []*structureField `json:"fields"`    // ordered list of fields that comprise this structure
+		IsPacked             bool              `json:"is_packed"` // memory layout optimized to minimize padding between fields
+		ByteSize             int               `json:"size"`      // cache the total size of the structure in bytes
+		ByteAlignment        int               `json:"alignment"` // cache the alignment of the structure in bytes
 	}
 
 	// Parameter and its passing mode for a function or procedure call.
@@ -74,9 +75,9 @@ type (
 
 	// Data type of a function or procedure that defines its signature.
 	functionTypeDescriptor struct {
-		commonTypeDescriptor
-		Parameters []*functionParameter `json:"parameters"`  // ordered list of parameters that the function accepts
-		ReturnType TypeDescriptor       `json:"return_type"` // type descriptor of the value returned by the function (nil for procedures)
+		commonTypeDescriptor                      // embedded common type descriptor
+		Parameters           []*functionParameter `json:"parameters"`  // ordered list of parameters that the function accepts
+		ReturnType           TypeDescriptor       `json:"return_type"` // type descriptor of the value returned by the function (nil for procedures)
 	}
 
 	// The application binary interface specification contains size, alignment, and packing rules.
@@ -92,6 +93,9 @@ type (
 )
 
 var (
+	// Current application binary interface specification.
+	currentABI plt.ApplicationBinaryInterface = plt.ABI_NotSpecified
+
 	// Application binary interface specifications for modern 64-bit platforms.
 	applicationBinaryInterfaceSpecifications = map[plt.ApplicationBinaryInterface]*applicationBinaryInterfaceSpecification{
 		plt.ABI_SystemV_AMD64: {
@@ -547,4 +551,11 @@ func (d *functionTypeDescriptor) Size() int {
 // Depending on the ABI, calculate the memory alignment in bytes for the function type descriptor.
 func (d *functionTypeDescriptor) Alignment() int {
 	return applicationBinaryInterfaceSpecifications[d.Abi].PointerAlignment
+}
+
+// Enforce that the current application binary interface has been specified and panic if not.
+func enforceSpecifiedApplicationBinaryInterface() {
+	if currentABI == plt.ABI_NotSpecified {
+		panic(eh.NewGeneralError(eh.TypeSystem, failureMap, eh.Fatal, applicationBinaryInterfaceNotSpecified, nil, nil))
+	}
 }

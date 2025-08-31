@@ -205,7 +205,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// all declarations except blocks of nested procedures
 	for _, declaration := range bn.Declarations {
-		if declaration.Type() != ast.ProcedureDeclarationType {
+		if declaration.Kind() != ast.KindProcedureDeclaration {
 			declaration.Accept(g)
 		}
 	}
@@ -268,7 +268,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 
 	// all blocks of nested procedure declarations (makes a procedure declaration a top-level construct in intermediate code)
 	for _, declaration := range bn.Declarations {
-		if declaration.Type() == ast.ProcedureDeclarationType {
+		if declaration.Kind() == ast.KindProcedureDeclaration {
 			declaration.Accept(g)
 		}
 	}

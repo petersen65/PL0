@@ -549,7 +549,7 @@ func (p *parser) constantIdentifier(scope sym.Scope[ast.Declaration]) ast.Declar
 			declaration = ast.NewConstantDeclaration(
 				constantName,
 				p.numberValue(sign, p.lastTokenValue()),
-				ts.Integer64,
+				ts.NewSimpleTypeDescriptor(ts.Integer64.String(), ts.Integer64),
 				scope,
 				constantNameIndex)
 

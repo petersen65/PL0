@@ -82,23 +82,59 @@ type (
 )
 
 // Create a new simple type descriptor with an underlying primitive type and a governing ABI.
-func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType, abi plt.ApplicationBinaryInterface) TypeDescriptor {
-	return &simpleTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, PrimitiveType: primitiveType}
+func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	return &simpleTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		PrimitiveType:        primitiveType,
+	}
 }
 
 // Create a new pointer type descriptor with a value type and a governing ABI.
-func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool, abi plt.ApplicationBinaryInterface) TypeDescriptor {
-	return &pointerTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, ValueType: valueType, IsReference: isReference}
+func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	return &pointerTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		ValueType:            valueType,
+		IsReference:          isReference,
+	}
 }
 
 // Create a new structure type descriptor with fields and a governing ABI.
-func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool, abi plt.ApplicationBinaryInterface) TypeDescriptor {
-	return &structureTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Fields: fields, IsPacked: isPacked, ByteSize: byteSizeNotCalculated, ByteAlignment: byteAlignmentNotCalculated}
+func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	return &structureTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		Fields:               fields,
+		IsPacked:             isPacked,
+		ByteSize:             byteSizeNotCalculated,
+		ByteAlignment:        byteAlignmentNotCalculated,
+	}
 }
 
 // Create a new function type descriptor with parameters, a return type, and a governing ABI. The return type may be nil for procedures.
-func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor, abi plt.ApplicationBinaryInterface) TypeDescriptor {
-	return &functionTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Parameters: parameters, ReturnType: returnType}
+func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	return &functionTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		Parameters:           parameters,
+		ReturnType:           returnType,
+	}
+}
+
+// The type system requires a current application binary interface to be set.
+func SetCurrentApplicationBinaryInterface(abi plt.ApplicationBinaryInterface) {
+	currentABI = abi
+	enforceSpecifiedApplicationBinaryInterface()
+}
+
+// Get the current application binary interface used by the type system.
+func GetCurrentApplicationBinaryInterface() plt.ApplicationBinaryInterface {
+	return currentABI
 }
 
 // Return the string representation of a data type kind.

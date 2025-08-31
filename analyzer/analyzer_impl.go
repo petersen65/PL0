@@ -102,8 +102,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.ConstantEntry
 
 				// add the constant usage to the constant declaration
-				symbol.Declaration.(*ast.ConstantDeclarationNode).Usage =
-					append(symbol.Declaration.(*ast.ConstantDeclarationNode).Usage, iu)
+				symbol.Declaration.(*ast.ConstantDeclarationNode).ConstantUsage =
+					append(symbol.Declaration.(*ast.ConstantDeclarationNode).ConstantUsage, iu)
 			} else {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -114,8 +114,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.VariableEntry
 
 				// add the variable usage to the variable declaration
-				symbol.Declaration.(*ast.VariableDeclarationNode).Usage =
-					append(symbol.Declaration.(*ast.VariableDeclarationNode).Usage, iu)
+				symbol.Declaration.(*ast.VariableDeclarationNode).VariableUsage =
+					append(symbol.Declaration.(*ast.VariableDeclarationNode).VariableUsage, iu)
 			} else {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -126,8 +126,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.ProcedureEntry
 
 				// add the procedure usage to the procedure declaration
-				symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage =
-					append(symbol.Declaration.(*ast.ProcedureDeclarationNode).Usage, iu)
+				symbol.Declaration.(*ast.ProcedureDeclarationNode).ProcedureUsage =
+					append(symbol.Declaration.(*ast.ProcedureDeclarationNode).ProcedureUsage, iu)
 			} else {
 				a.appendError(expectedProcedureIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -221,17 +221,17 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 
 	switch d := node.(type) {
 	case *ast.ConstantDeclarationNode:
-		if len(d.Usage) == 0 {
+		if len(d.ConstantUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.VariableDeclarationNode:
-		if len(d.Usage) == 0 {
+		if len(d.VariableUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.ProcedureDeclarationNode:
-		if len(d.Usage) == 0 {
+		if len(d.ProcedureUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
 		}
 	}

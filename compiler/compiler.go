@@ -26,6 +26,7 @@ import (
 	plt "github.com/petersen65/pl0/v3/platform"
 	scn "github.com/petersen65/pl0/v3/scanner"
 	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Default target filename for the compilation driver.
@@ -330,6 +331,9 @@ func CompileSourceToCompilationUnit(buildConfiguration plt.BuildConfiguration) (
 
 // Compile UTF-8 encoded content and return a compilation unit with all intermediate results and error handler.
 func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) CompilationUnit {
+	// set the current application binary interface required for the type system to be functional
+	ts.SetCurrentApplicationBinaryInterface(buildConfiguration.TargetPlatform.ApplicationBinaryInterface)
+
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := eh.NewErrorHandler()

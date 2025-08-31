@@ -48,7 +48,8 @@ const (
 
 // Application binary interfaces for which assembly code is generated.
 const (
-	ABI_SystemV_AMD64 ApplicationBinaryInterface = iota // System V AMD64 ABI (Linux x86_64, macOS x86_64)
+	ABI_NotSpecified  ApplicationBinaryInterface = iota // ABI is not specified and hence unknown
+	ABI_SystemV_AMD64                                   // System V AMD64 ABI (Linux x86_64, macOS x86_64)
 	ABI_Microsoft_x64                                   // Microsoft x64 ABI (Windows x86_64)
 	ABI_AAPCS64                                         // ARM64 AAPCS64 (Linux ARM64, macOS ARM64)
 	ABI_Windows_ARM64                                   // Windows ARM64 ABI
