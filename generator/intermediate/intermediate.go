@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/build"
+	exp "github.com/petersen65/pl0/v3/export"
 )
 
 // Three-address code operations of the intermediate code.
@@ -167,7 +167,7 @@ type (
 		AppendExistingInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
 		Print(print io.Writer, args ...any) error
-		Export(format cor.ExportFormat, print io.Writer) error
+		Export(format exp.ExportFormat, print io.Writer) error
 	}
 
 	// The iterator interface provides navigation methods for the units's intermediate code instructions.

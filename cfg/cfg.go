@@ -7,7 +7,7 @@ package cfg
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/build"
+	exp "github.com/petersen65/pl0/v3/export"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
@@ -17,7 +17,7 @@ type (
 		Build()
 		AppendBasicBlock(basicBlock *basicBlock)
 		Print(print io.Writer, args ...any) error
-		Export(format cor.ExportFormat, print io.Writer) error
+		Export(format exp.ExportFormat, print io.Writer) error
 	}
 
 	// Basic blocks are maximal sequences of consecutive instructions that execute without branching.

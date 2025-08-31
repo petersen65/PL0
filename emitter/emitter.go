@@ -5,10 +5,10 @@
 package emitter
 
 import (
-	cor "github.com/petersen65/pl0/v3/build"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	plt "github.com/petersen65/pl0/v3/platform"
 )
 
 type (
@@ -20,6 +20,6 @@ type (
 )
 
 // Return the interface of the emitter implementation.
-func NewEmitter(intermediateCode ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, debugInformation dbg.DebugInformation) Emitter {
+func NewEmitter(intermediateCode ic.IntermediateCodeUnit, buildConfiguration plt.BuildConfiguration, debugInformation dbg.DebugInformation) Emitter {
 	return newEmitter(intermediateCode, buildConfiguration, debugInformation)
 }

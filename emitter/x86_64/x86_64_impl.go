@@ -12,6 +12,8 @@ import (
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
+	plt "github.com/petersen65/pl0/v3/platform"
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
@@ -24,7 +26,7 @@ type (
 		Labels             []string                                        `json:"labels"`               // enable deterministic iteration over the symbol table in the order of past inserts
 		SymbolTable        map[string]*Symbol                              `json:"symbol_table"`         // symbol table for assembly code label names
 		FileIdentifier     map[string]int                                  `json:"file_identifier"`      // file identifier for source code files
-		BuildConfiguration cor.BuildConfiguration                          `json:"build_configuration"`  // build configuration of the assembly code unit
+		BuildConfiguration plt.BuildConfiguration                          `json:"build_configuration"`  // build configuration of the assembly code unit
 		debugInformation   dbg.DebugInformation                            `json:"-"`                    // debug information collected from earlier compilation phases
 		RoUtf32Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"utf32_section"`        // read-only data section for static UTF-32 strings
 		RoInt64Section     *elf.ElfSection[*elf.ReadOnlyDataItem]          `json:"int64_section"`        // read-only data section for static 64-bit integers
@@ -184,7 +186,7 @@ var (
 )
 
 // Create a new assembly code unit with its sections and provide build and debug information.
-func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation dbg.DebugInformation) AssemblyCodeUnit {
+func newAssemblyCodeUnit(buildConfiguration plt.BuildConfiguration, debugInformation dbg.DebugInformation) AssemblyCodeUnit {
 	unit := &assemblyCodeUnit{
 		Labels:             make([]string, 0),
 		SymbolTable:        make(map[string]*Symbol),
@@ -253,11 +255,11 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 
 	// define default global and external symbols based on the output kind
 	switch buildConfiguration.OutputKind {
-	case cor.Application:
+	case plt.Application:
 		// global symbol for the entry point of the application
 		unit.Insert(NewSymbol(
 			[]string{
-				cor.EntryPointLabel,
+				plt.EntryPointLabel,
 			},
 			FunctionEntry,
 			Global,
@@ -273,7 +275,7 @@ func newAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInforma
 			External,
 		))
 
-	case cor.Runtime:
+	case plt.Runtime:
 		// global symbols for runtime functions
 		unit.Insert(NewSymbol(
 			[]string{
@@ -651,7 +653,7 @@ func (u *assemblyCodeUnit) Filter(directive *elf.Directive) *elf.Directive {
 
 // Check whether the assembly code unit is configured with debug information.
 func (u *assemblyCodeUnit) HasDebugInformation() bool {
-	return u.BuildConfiguration.Optimization&cor.Debug != 0 && u.debugInformation != nil
+	return u.BuildConfiguration.Optimization&plt.Debug != 0 && u.debugInformation != nil
 }
 
 // Print the assembly code to the specified writer and optionally accept global symbols as arguments.
@@ -778,12 +780,12 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 }
 
 // Export the assembly code unit to the specified writer in the specified format.
-func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
+func (u *assemblyCodeUnit) Export(format exp.ExportFormat, print io.Writer) error {
 	// JSON formatting requires a prefix and indent for pretty printing
 	const prefix, indent = "", "  "
 
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		// export the assembly code unit as a JSON object
 		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
 			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
@@ -797,7 +799,7 @@ func (u *assemblyCodeUnit) Export(format cor.ExportFormat, print io.Writer) erro
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the assembly code unit as a string to the print writer
 		return u.Print(print)
 

@@ -7,9 +7,10 @@ package x86_64
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/build"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
+	exp "github.com/petersen65/pl0/v3/export"
+	plt "github.com/petersen65/pl0/v3/platform"
 )
 
 const (
@@ -287,12 +288,12 @@ type (
 		Filter(directive *elf.Directive) *elf.Directive
 		HasDebugInformation() bool
 		Print(print io.Writer, args ...any) error
-		Export(format cor.ExportFormat, print io.Writer) error
+		Export(format exp.ExportFormat, print io.Writer) error
 	}
 )
 
 // Return the interface of the assembly code unit implementation (with or without debug information support).
-func NewAssemblyCodeUnit(buildConfiguration cor.BuildConfiguration, debugInformation ...dbg.DebugInformation) AssemblyCodeUnit {
+func NewAssemblyCodeUnit(buildConfiguration plt.BuildConfiguration, debugInformation ...dbg.DebugInformation) AssemblyCodeUnit {
 	// check if support for debug information shall be provided
 	if len(debugInformation) == 1 && debugInformation[0] != nil {
 		return newAssemblyCodeUnit(buildConfiguration, debugInformation[0])

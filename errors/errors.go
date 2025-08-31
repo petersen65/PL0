@@ -7,7 +7,7 @@ package errors
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/build"
+	exp "github.com/petersen65/pl0/v3/export"
 )
 
 // Severity is a bit-mask of different error levels.
@@ -62,7 +62,7 @@ type (
 		HasWarnings() bool
 		HasRemarks() bool
 		Print(print io.Writer, args ...any) error
-		Export(format cor.ExportFormat, print io.Writer) error
+		Export(format exp.ExportFormat, print io.Writer) error
 	}
 )
 

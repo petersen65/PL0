@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
@@ -338,12 +339,12 @@ func (b *BlockNode) Print(print io.Writer, args ...any) error {
 }
 
 // Export the abstract syntax tree of the block node to the specified writer in the specified format.
-func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
+func (b *BlockNode) Export(format exp.ExportFormat, print io.Writer) error {
 	// JSON formatting requires a prefix and indent for pretty printing
 	const prefix, indent = "", "  "
 
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		// export the abstract syntax tree as a JSON object
 		if raw, err := json.MarshalIndent(b, prefix, indent); err != nil {
 			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
@@ -357,7 +358,7 @@ func (b *BlockNode) Export(format cor.ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the abstract syntax tree as a string to the print writer
 		return b.Print(print)
 

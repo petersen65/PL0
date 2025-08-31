@@ -9,20 +9,20 @@ import "fmt"
 // Label for the entry point of an application.
 const EntryPointLabel = "main"
 
-// Operating systems for which the assembly code is built.
+// Operating systems for which the assembly code is generated.
 const (
 	MacOS   OperatingSystem = iota // macOS 2026 or later, supported on AArch64 (Apple Silicon)
 	Linux                          // Linux builds from 2025 onward, supported on x86_64 and AArch64
 	Windows                        // Windows 11 or later, supported on x86_64
 )
 
-// CPU instruction set architectures (ISA) for which the assembly code is built.
+// CPU instruction set architectures (ISA) for which the assembly code is generated.
 const (
 	X86_64  InstructionSetArchitecture = iota // x86-64 processors from AMD and Intel supporting the 64-bit instruction set
 	AArch64                                   // ARM 64-bit architecture family, found in Apple Silicon and other ARM-based systems
 )
 
-// CPU instruction sets for which the assembly code is built.
+// CPU instruction sets for which the assembly code is generated.
 const (
 	// x86_64 instruction sets
 	ISA_Base   = iota // baseline for all x86_64 CPUs
@@ -39,7 +39,7 @@ const (
 	ISA_ARMv9_2 // later refinements: extended SVE, more cryptographic and ML instructions
 )
 
-// String encodings for which the assembly code is built.
+// String encodings for which the assembly code is generated.
 const (
 	UTF8  StringEncoding = 1 << iota // UTF-8 encoding, used for text in source code and string literals
 	UTF16                            // UTF-16 encoding, used for wide character strings

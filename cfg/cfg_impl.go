@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 
@@ -138,9 +139,9 @@ func (cfg *controlFlowGraph) Print(print io.Writer, args ...any) error {
 }
 
 // Export the control flow graph to the specified writer in the specified format.
-func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) error {
+func (cfg *controlFlowGraph) Export(format exp.ExportFormat, print io.Writer) error {
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		// export the control flow graph as a JSON object
 		if raw, err := json.MarshalIndent(cfg, "", "  "); err != nil {
 			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
@@ -154,7 +155,7 @@ func (cfg *controlFlowGraph) Export(format cor.ExportFormat, print io.Writer) er
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the control flow grpah as a string to the print writer
 		return cfg.Print(print)
 

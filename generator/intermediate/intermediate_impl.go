@@ -10,6 +10,7 @@ import (
 	"io"
 
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
 )
 
 // Prefixes for pointer and reference modifier string representations.
@@ -315,12 +316,12 @@ func (u *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 }
 
 // Export the intermediate code unit to the specified writer in the specified format.
-func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) error {
+func (u *intermediateCodeUnit) Export(format exp.ExportFormat, print io.Writer) error {
 	// JSON formatting requires a prefix and indent for pretty printing
 	const prefix, indent = "", "  "
 
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		// export the intermediate code unit as a JSON object
 		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
 			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
@@ -334,7 +335,7 @@ func (u *intermediateCodeUnit) Export(format cor.ExportFormat, print io.Writer) 
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the intermediate code unit as a string to the print writer
 		return u.Print(print)
 

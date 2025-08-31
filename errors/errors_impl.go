@@ -10,6 +10,8 @@ import (
 	"io"
 	"reflect"
 	"strings"
+
+	exp "github.com/petersen65/pl0/v3/export"
 )
 
 // Text messages for printing an error report.
@@ -424,9 +426,9 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 }
 
 // Export the error report of the error handler (only Json and Text formats are supported).
-func (e *errorHandler) Export(format cor.ExportFormat, print io.Writer) error {
+func (e *errorHandler) Export(format exp.ExportFormat, print io.Writer) error {
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		if len(e.errorReport) == 0 {
 			return nil
 		}
@@ -446,7 +448,7 @@ func (e *errorHandler) Export(format cor.ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the error report as a string to the print writer
 		return e.Print(print)
 
