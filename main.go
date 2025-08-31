@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
+	plt "github.com/petersen65/pl0/v3/platform"
 	com "github.com/petersen65/pl0/v3/compiler"
-	cor "github.com/petersen65/pl0/v3/core"
 )
 
 // Text messages for the compiler command line interface.
@@ -39,7 +39,7 @@ func main() {
 	var options com.DriverOption
 	var help, compile, link, export, purge bool
 	var source, target, optimize string
-	var optimization cor.Optimization
+	var optimization plt.Optimization
 
 	// define valid command line flags
 	flag.BoolVar(&purge, "p", false, textPurgeUsage)
@@ -117,11 +117,11 @@ func main() {
 		// validate optimization flag values
 		for value := range strings.SplitSeq(optimize, separator) {
 			switch value {
-			case cor.Debug.String():
-				optimization |= cor.Debug
+			case plt.Debug.String():
+				optimization |= plt.Debug
 
-			case cor.Release.String():
-				optimization |= cor.Release
+			case plt.Release.String():
+				optimization |= plt.Release
 
 			default:
 				flag.Usage()
@@ -130,8 +130,8 @@ func main() {
 		}
 
 		// the debug optimization turns off all optimization algorithms and always overrides any release optimizations
-		if optimization&cor.Debug != 0 {
-			optimization = cor.Debug
+		if optimization&plt.Debug != 0 {
+			optimization = plt.Debug
 		}
 
 		// optimize requires compile option
@@ -141,7 +141,7 @@ func main() {
 		}
 	} else {
 		// default optimization is debug
-		optimization = cor.Debug
+		optimization = plt.Debug
 	}
 
 	// export intermediate representations to build directory

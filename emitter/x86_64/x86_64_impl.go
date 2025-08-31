@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 	eh "github.com/petersen65/pl0/v3/errors"

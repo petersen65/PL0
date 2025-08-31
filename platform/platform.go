@@ -1,37 +1,28 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package core provides foundation features and the error handling mechanism for the compiler.
-package core
+// Package platform provides abstractions for different target platforms.
+package platform
 
-import (
-	"fmt"
-	"io"
-)
+import "fmt"
 
 // Label for the entry point of an application.
 const EntryPointLabel = "main"
 
-// Separator for optimization algorithm names.
-const OptimizationSeparator = "|"
-
-// Number of Unicode code points per tabulator UTF-8 character.
-const TabulatorSize = 4
-
-// Operating systems for which the assembly code is generated.
+// Operating systems for which the assembly code is built.
 const (
 	MacOS   OperatingSystem = iota // macOS 2026 or later, supported on AArch64 (Apple Silicon)
 	Linux                          // Linux builds from 2025 onward, supported on x86_64 and AArch64
 	Windows                        // Windows 11 or later, supported on x86_64
 )
 
-// CPU instruction set architectures (ISA) for which the assembly code is generated.
+// CPU instruction set architectures (ISA) for which the assembly code is built.
 const (
 	X86_64  InstructionSetArchitecture = iota // x86-64 processors from AMD and Intel supporting the 64-bit instruction set
 	AArch64                                   // ARM 64-bit architecture family, found in Apple Silicon and other ARM-based systems
 )
 
-// CPU instruction sets for which the assembly code is generated.
+// CPU instruction sets for which the assembly code is built.
 const (
 	// x86_64 instruction sets
 	ISA_Base   = iota // baseline for all x86_64 CPUs
@@ -48,26 +39,19 @@ const (
 	ISA_ARMv9_2 // later refinements: extended SVE, more cryptographic and ML instructions
 )
 
-// String encodings for which the assembly code is generated.
+// String encodings for which the assembly code is built.
 const (
 	UTF8  StringEncoding = 1 << iota // UTF-8 encoding, used for text in source code and string literals
 	UTF16                            // UTF-16 encoding, used for wide character strings
 	UTF32                            // UTF-32 encoding, used for fixed-width character strings
 )
 
-// Application binary interfaces for which the assembly code is generated.
+// Application binary interfaces for which assembly code is generated.
 const (
 	ABI_SystemV_AMD64 ApplicationBinaryInterface = iota // System V AMD64 ABI (Linux x86_64, macOS x86_64)
 	ABI_Microsoft_x64                                   // Microsoft x64 ABI (Windows x86_64)
 	ABI_AAPCS64                                         // ARM64 AAPCS64 (Linux ARM64, macOS ARM64)
 	ABI_Windows_ARM64                                   // Windows ARM64 ABI
-)
-
-// Export formats for the compiler which can be used to export intermediate results.
-const (
-	Json ExportFormat = iota
-	Text
-	Binary
 )
 
 // Kind of output that is represented by the assembly code.
@@ -101,9 +85,6 @@ type (
 	//   - and how operating system calls are made.
 	ApplicationBinaryInterface int
 
-	// Export formats for the compiler.
-	ExportFormat int
-
 	// Output kind of the assembly code.
 	OutputKind int
 
@@ -129,29 +110,6 @@ type (
 		DriverDisplayName  string         `json:"driver_display_name"`  // compiler driver display name
 		OutputKind         OutputKind     `json:"output_kind"`          // kind of output represented by the assembly code
 		Optimization       Optimization   `json:"optimization"`         // optimization algorithms to be applied during code emission
-	}
-
-	// Link configuration used during the linking process of the standard library, runtime, target, and output.
-	LinkConfiguration struct {
-		StandardSource   string `json:"standard_source"`   // name of the standard library source file
-		StandardAssembly string `json:"standard_assembly"` // name of the standard library assembly file
-		StandardObject   string `json:"standard_object"`   // name of the standard library object file
-		RuntimeAssembly  string `json:"runtime_assembly"`  // name of the runtime assembly file
-		RuntimeObject    string `json:"runtime_object"`    // name of the runtime object file
-		TargetAssembly   string `json:"target_assembly"`   // name of the target assembly file
-		TargetObject     string `json:"target_object"`     // name of the target object file
-		OutputExecutable string `json:"output_executable"` // name of the output executable file
-	}
-
-	// Exporter is an interface that provides methods for exporting intermediate results.
-	Exporter interface {
-		Print(print io.Writer, args ...any) error
-		Export(format ExportFormat, print io.Writer) error
-	}
-
-	// Importer is an interface that provides methods for importing intermediate results.
-	Importer interface {
-		Import(format ExportFormat, scan io.Reader) error
 	}
 )
 
@@ -182,8 +140,7 @@ func (abi ApplicationBinaryInterface) String() string {
 
 // String representation of the target platform.
 func (t TargetPlatform) String() string {
-	return fmt.Sprintf("%v %v %v %v %v",
-		t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet, t.StringEncoding, t.ApplicationBinaryInterface)
+	return fmt.Sprintf("%v %v %v %v %v", t.OperatingSystem, t.InstructionSetArchitecture, t.InstructionSet, t.StringEncoding, t.ApplicationBinaryInterface)
 }
 
 // String representation of the output kind.

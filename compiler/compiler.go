@@ -16,13 +16,14 @@ import (
 	ana "github.com/petersen65/pl0/v3/analyzer"
 	ast "github.com/petersen65/pl0/v3/ast"
 	cfg "github.com/petersen65/pl0/v3/cfg"
-	cor "github.com/petersen65/pl0/v3/core"
 	emi "github.com/petersen65/pl0/v3/emitter"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
 	gen "github.com/petersen65/pl0/v3/generator"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 	par "github.com/petersen65/pl0/v3/parser"
+	plt "github.com/petersen65/pl0/v3/platform"
 	scn "github.com/petersen65/pl0/v3/scanner"
 	tok "github.com/petersen65/pl0/v3/token"
 )
@@ -127,6 +128,18 @@ type (
 		ControlFlow      cfg.ControlFlowGraph    // control flow graph of the intermediate code unit
 		AssemblyCode     x64.AssemblyCodeUnit    // assembly code of the intermediate code unit
 	}
+
+	// Link configuration used during the linking process of the standard library, runtime, target, and output.
+	LinkConfiguration struct {
+		StandardSource   string `json:"standard_source"`   // name of the standard library source file
+		StandardAssembly string `json:"standard_assembly"` // name of the standard library assembly file
+		StandardObject   string `json:"standard_object"`   // name of the standard library object file
+		RuntimeAssembly  string `json:"runtime_assembly"`  // name of the runtime assembly file
+		RuntimeObject    string `json:"runtime_object"`    // name of the runtime object file
+		TargetAssembly   string `json:"target_assembly"`   // name of the target assembly file
+		TargetObject     string `json:"target_object"`     // name of the target object file
+		OutputExecutable string `json:"output_executable"` // name of the output executable file
+	}
 )
 
 // ExtensionMap maps file extensions to their string representation.
@@ -147,7 +160,7 @@ var ExtensionMap = map[Extension]string{
 }
 
 // Driver for the compilation process with options, source path, target path, optimization algorithms, display name, and print writer.
-func Driver(options DriverOption, sourcePath, targetPath string, optimization cor.Optimization, displayName string, print io.Writer) {
+func Driver(options DriverOption, sourcePath, targetPath string, optimization plt.Optimization, displayName string, print io.Writer) {
 	var buildDirectory, buildAbsoluteDirectory, baseFileName, sourceAbsolutePath, targetAbsolutePath, runtimePath string
 	var compilationUnit CompilationUnit
 	var err error
@@ -191,31 +204,30 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 		}
 	}
 
-	// define target platform for the executable
-	// note: only Linux with x86_64 CPU, SSE2 instruction set, UTF-32 string encoding, and SystemV_AMD64 application binary interface is supported for now
-	targetPlatform := cor.TargetPlatform{
-		OperatingSystem:            cor.Linux,
-		InstructionSetArchitecture: cor.X86_64,
-		InstructionSet:             cor.ISA_SSE2,
-		StringEncoding:             cor.UTF32,
-		ApplicationBinaryInterface: cor.ABI_SystemV_AMD64,
+	// only Linux with x86_64 CPU, SSE2 instruction set, UTF-32 string encoding, and SystemV_AMD64 application binary interface is supported for now
+	targetPlatform := plt.TargetPlatform{
+		OperatingSystem:            plt.Linux,
+		InstructionSetArchitecture: plt.X86_64,
+		InstructionSet:             plt.ISA_SSE2,
+		StringEncoding:             plt.UTF32,
+		ApplicationBinaryInterface: plt.ABI_SystemV_AMD64,
 	}
 
 	// setup build configuration for the executable
 	// note: paths include the source file name and the target file name
-	buildConfiguration := cor.BuildConfiguration{
+	buildConfiguration := plt.BuildConfiguration{
 		SourcePath:         sourcePath,
 		TargetPath:         targetPath,
 		SourceAbsolutePath: sourceAbsolutePath,
 		TargetAbsolutePath: targetAbsolutePath,
 		TargetPlatform:     targetPlatform,
 		DriverDisplayName:  displayName,
-		OutputKind:         cor.Application,
+		OutputKind:         plt.Application,
 		Optimization:       optimization,
 	}
 
 	// setup link configuration for the executable
-	linkConfiguration := cor.LinkConfiguration{
+	linkConfiguration := LinkConfiguration{
 		StandardSource:   GetFullPath(buildDirectory, standardFileName, LanguageC),
 		StandardAssembly: GetFullPath(buildDirectory, standardFileName, Assembly),
 		StandardObject:   GetFullPath(buildDirectory, standardFileName, Object),
@@ -293,7 +305,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 			strings.Join([]string{linkConfiguration.StandardObject, linkConfiguration.RuntimeObject, linkConfiguration.TargetObject}, ", "),
 		)
 
-		if err = LinkCompilationUnits(optimization&cor.Debug != 0, linkConfiguration); err != nil {
+		if err = LinkCompilationUnits(optimization&plt.Debug != 0, linkConfiguration); err != nil {
 			fmt.Fprintf(print, textErrorLinking, linkConfiguration.OutputExecutable, err)
 			return
 		}
@@ -308,7 +320,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization co
 }
 
 // Compile source code and return compilation unit with all intermediate results and error handler.
-func CompileSourceToCompilationUnit(buildConfiguration cor.BuildConfiguration) (CompilationUnit, error) {
+func CompileSourceToCompilationUnit(buildConfiguration plt.BuildConfiguration) (CompilationUnit, error) {
 	if content, err := os.ReadFile(buildConfiguration.SourcePath); err != nil {
 		return CompilationUnit{}, err
 	} else {
@@ -317,7 +329,7 @@ func CompileSourceToCompilationUnit(buildConfiguration cor.BuildConfiguration) (
 }
 
 // Compile UTF-8 encoded content and return a compilation unit with all intermediate results and error handler.
-func CompileContent(content []byte, buildConfiguration cor.BuildConfiguration) CompilationUnit {
+func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) CompilationUnit {
 	// lexical analysis of content
 	tokenStream, scannerError := scn.NewScanner().Scan(content)
 	errorHandler := eh.NewErrorHandler()
@@ -377,15 +389,15 @@ func PersistApplication(unit x64.AssemblyCodeUnit, targetPath string) error {
 }
 
 // Persist the assembly code unit of the runtime.
-func PersistRuntime(targetPlatform cor.TargetPlatform, optimization cor.Optimization, runtimePath string, displayName string) error {
+func PersistRuntime(targetPlatform plt.TargetPlatform, optimization plt.Optimization, runtimePath string, displayName string) error {
 	// setup build configuration for the runtime which does not support debug information
-	buildConfiguration := cor.BuildConfiguration{
+	buildConfiguration := plt.BuildConfiguration{
 		SourcePath:        runtimePath,
 		TargetPath:        runtimePath,
 		TargetPlatform:    targetPlatform,
 		DriverDisplayName: displayName,
-		OutputKind:        cor.Runtime,
-		Optimization:      optimization &^ cor.Debug,
+		OutputKind:        plt.Runtime,
+		Optimization:      optimization &^ plt.Debug,
 	}
 
 	// create a new assembly code unit for the runtime without support for source code file to assembly code mapping
@@ -412,7 +424,7 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 		}()
 
 		// export the assembly code unit to the assembly target
-		if err = unit.Export(cor.Text, output); err != nil {
+		if err = unit.Export(exp.Text, output); err != nil {
 			return err
 		}
 	}
@@ -421,7 +433,7 @@ func PersistAssemblyCodeUnit(unit x64.AssemblyCodeUnit, targetPath string) error
 }
 
 // Validate that the GNU Compiler Collection supports the target platform.
-func ValidateGnuCompilerCollection(targetPlatform cor.TargetPlatform) error {
+func ValidateGnuCompilerCollection(targetPlatform plt.TargetPlatform) error {
 	parts := strings.Fields(CommandValidateGnuCompilerCollection)
 	cmd := exec.Command(parts[0], parts[1:]...)
 
@@ -440,7 +452,7 @@ func ValidateGnuCompilerCollection(targetPlatform cor.TargetPlatform) error {
 }
 
 // Assemble and link the compilation units of the standard library, runtime, and target.
-func LinkCompilationUnits(debug bool, linkConfiguration cor.LinkConfiguration) error {
+func LinkCompilationUnits(debug bool, linkConfiguration LinkConfiguration) error {
 	var flagsC, flagsAssembler, flagsLinker string
 
 	if debug {
@@ -577,38 +589,38 @@ func ExportIntermediateRepresentations(compilationUnit CompilationUnit, targetDi
 
 	// export all error handler representations to the target files
 	if compilationUnit.ErrorHandler != nil {
-		erjErr = compilationUnit.ErrorHandler.Export(cor.Json, erjFile)
-		ertErr = compilationUnit.ErrorHandler.Export(cor.Text, ertFile)
+		erjErr = compilationUnit.ErrorHandler.Export(exp.Json, erjFile)
+		ertErr = compilationUnit.ErrorHandler.Export(exp.Text, ertFile)
 	}
 
 	// export all token stream representations to the target files
 	if compilationUnit.TokenStream != nil {
-		tsjErr = compilationUnit.TokenStream.Export(cor.Json, tsjFile)
-		tstErr = compilationUnit.TokenStream.Export(cor.Text, tstFile)
+		tsjErr = compilationUnit.TokenStream.Export(exp.Json, tsjFile)
+		tstErr = compilationUnit.TokenStream.Export(exp.Text, tstFile)
 	}
 
 	// export all abstract syntax tree representations to the target files
 	if compilationUnit.AbstractSyntax != nil {
-		asjErr = compilationUnit.AbstractSyntax.Export(cor.Json, asjFile)
-		astErr = compilationUnit.AbstractSyntax.Export(cor.Text, astFile)
+		asjErr = compilationUnit.AbstractSyntax.Export(exp.Json, asjFile)
+		astErr = compilationUnit.AbstractSyntax.Export(exp.Text, astFile)
 	}
 
 	// export all intermediate code representations to the target files
 	if compilationUnit.IntermediateCode != nil {
-		icjErr = compilationUnit.IntermediateCode.Export(cor.Json, icjFile)
-		ictErr = compilationUnit.IntermediateCode.Export(cor.Text, ictFile)
+		icjErr = compilationUnit.IntermediateCode.Export(exp.Json, icjFile)
+		ictErr = compilationUnit.IntermediateCode.Export(exp.Text, ictFile)
 	}
 
 	// export all control flow graph representations to the target files
 	if compilationUnit.ControlFlow != nil {
-		cfjErr = compilationUnit.ControlFlow.Export(cor.Json, cfjFile)
-		cftErr = compilationUnit.ControlFlow.Export(cor.Text, cftFile)
+		cfjErr = compilationUnit.ControlFlow.Export(exp.Json, cfjFile)
+		cftErr = compilationUnit.ControlFlow.Export(exp.Text, cftFile)
 	}
 
 	// export all assembly code representations to the target files
 	if compilationUnit.AssemblyCode != nil {
-		acjErr = compilationUnit.AssemblyCode.Export(cor.Json, acjFile)
-		actErr = compilationUnit.AssemblyCode.Export(cor.Text, actFile)
+		acjErr = compilationUnit.AssemblyCode.Export(exp.Json, acjFile)
+		actErr = compilationUnit.AssemblyCode.Export(exp.Text, actFile)
 	}
 
 	// check if any error occurred during export of intermediate representations

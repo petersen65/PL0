@@ -1,10 +1,10 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package typesystem provides a type system that is used for data type representation in the abstract syntax tree.
+// Package typesystem provides a type system that is used for all data type representations in the compiler.
 package typesystem
 
-import cor "github.com/petersen65/pl0/v3/core"
+import plt "github.com/petersen65/pl0/v3/platform"
 
 // Primitive data types that are built-in and cannot be further refined.
 // The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
@@ -82,22 +82,22 @@ type (
 )
 
 // Create a new simple type descriptor with an underlying primitive type and a governing ABI.
-func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType, abi plt.ApplicationBinaryInterface) TypeDescriptor {
 	return &simpleTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, PrimitiveType: primitiveType}
 }
 
 // Create a new pointer type descriptor with a value type and a governing ABI.
-func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool, abi plt.ApplicationBinaryInterface) TypeDescriptor {
 	return &pointerTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, ValueType: valueType, IsReference: isReference}
 }
 
 // Create a new structure type descriptor with fields and a governing ABI.
-func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool, abi plt.ApplicationBinaryInterface) TypeDescriptor {
 	return &structureTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Fields: fields, IsPacked: isPacked, ByteSize: byteSizeNotCalculated, ByteAlignment: byteAlignmentNotCalculated}
 }
 
 // Create a new function type descriptor with parameters, a return type, and a governing ABI. The return type may be nil for procedures.
-func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor, abi cor.ApplicationBinaryInterface) TypeDescriptor {
+func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor, abi plt.ApplicationBinaryInterface) TypeDescriptor {
 	return &functionTypeDescriptor{commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: abi}, Parameters: parameters, ReturnType: returnType}
 }
 

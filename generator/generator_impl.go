@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	ast "github.com/petersen65/pl0/v3/ast"
-	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	eh "github.com/petersen65/pl0/v3/errors"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	plt "github.com/petersen65/pl0/v3/platform"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"
@@ -80,10 +80,10 @@ var (
 	}
 
 	// Map UTF string encodings to their abstract syntax string base data type.
-	stringBaseTypeMap = map[cor.StringEncoding]ts.PrimitiveDataType{
-		cor.UTF8:  ts.Unsigned8,
-		cor.UTF16: ts.Unsigned16,
-		cor.UTF32: ts.Character,
+	stringBaseTypeMap = map[plt.StringEncoding]ts.PrimitiveDataType{
+		plt.UTF8:  ts.Unsigned8,
+		plt.UTF16: ts.Unsigned16,
+		plt.UTF32: ts.Character,
 	}
 
 	// Prefixes used for names of addresses.
@@ -100,11 +100,11 @@ var (
 )
 
 // Create a new intermediate code generator.
-func newGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
+func newGenerator(abstractSyntax ast.Block, buildConfiguration plt.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
 	compilationUnit := buildConfiguration.SourcePath
 	compilationDirectory := filepath.ToSlash(filepath.Clean(strings.TrimSuffix(buildConfiguration.SourceAbsolutePath, compilationUnit)))
 	producer := buildConfiguration.DriverDisplayName
-	optimized := buildConfiguration.Optimization&cor.Debug == 0
+	optimized := buildConfiguration.Optimization&plt.Debug == 0
 	debugInformation := dbg.NewDebugInformation(compilationUnit, compilationDirectory, producer, ts.String.String(), optimized, tokenHandler)
 
 	// predefine the structure of the "string" composite data type and add it to debugging information
@@ -160,7 +160,7 @@ func (g *generator) VisitBlock(bn *ast.BlockNode) {
 	// only the main block has no parent procedure declaration
 	if bn.ParentNode == nil {
 		// take the entry point label as the branch target label
-		blockBegin = cor.EntryPointLabel
+		blockBegin = plt.EntryPointLabel
 
 		// append a branch-target instruction with a branch-label to mark the beginning of the block
 		g.intermediateCode.AppendInstruction(
@@ -851,8 +851,8 @@ func collectDebugStringTable(node ast.Node, code any) {
 		// only the main block has no parent procedure declaration
 		if n.ParentNode == nil {
 			// take the entry point label as the function name and the function source name
-			function = cor.EntryPointLabel
-			functionSource = cor.EntryPointLabel
+			function = plt.EntryPointLabel
+			functionSource = plt.EntryPointLabel
 
 			// only the entry point is marked as global
 			global = true
@@ -915,7 +915,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 }
 
 // Define the string composite data type structure with length and data pointer members for debug information.
-func appendStringDataType(stringEncoding cor.StringEncoding, debugInformation dbg.DebugInformation) {
+func appendStringDataType(stringEncoding plt.StringEncoding, debugInformation dbg.DebugInformation) {
 	// string target encoding data type names that depend on the target platform's string encoding
 	stringEncodingTypeNameSource := stringBaseTypeMap[stringEncoding]
 	stringEncodingTypeName := dataTypeMap[stringEncodingTypeNameSource]

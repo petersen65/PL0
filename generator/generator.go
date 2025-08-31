@@ -6,9 +6,9 @@ package generator
 
 import (
 	ast "github.com/petersen65/pl0/v3/ast"
-	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	plt "github.com/petersen65/pl0/v3/platform"
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
@@ -20,6 +20,6 @@ type Generator interface {
 }
 
 // Return the interface of the generator implementation.
-func NewGenerator(abstractSyntax ast.Block, buildConfiguration cor.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
+func NewGenerator(abstractSyntax ast.Block, buildConfiguration plt.BuildConfiguration, tokenHandler tok.TokenHandler) Generator {
 	return newGenerator(abstractSyntax, buildConfiguration, tokenHandler)
 }

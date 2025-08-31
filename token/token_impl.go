@@ -12,8 +12,8 @@ import (
 	"io"
 	"strings"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	eh "github.com/petersen65/pl0/v3/errors"
+	exp "github.com/petersen65/pl0/v3/export"
 )
 
 // The eof token is used to indicate the end of the token stream.
@@ -162,9 +162,9 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 }
 
 // Export the token stream to a writer in the specified format.
-func (ts TokenStream) Export(format cor.ExportFormat, print io.Writer) error {
+func (ts TokenStream) Export(format exp.ExportFormat, print io.Writer) error {
 	switch format {
-	case cor.Json:
+	case exp.Json:
 		// export the token stream as a JSON object and wrap it in a struct to provide a field name for the token stream
 		if raw, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
@@ -180,11 +180,11 @@ func (ts TokenStream) Export(format cor.ExportFormat, print io.Writer) error {
 			return err
 		}
 
-	case cor.Text:
+	case exp.Text:
 		// print is a convenience function to export the token stream as a string to the print writer
 		return ts.Print(print)
 
-	case cor.Binary:
+	case exp.Binary:
 		var buffer bytes.Buffer
 
 		// encode the raw bytes of the token stream into a binary buffer

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	eh "github.com/petersen65/pl0/v3/errors"
 )
 

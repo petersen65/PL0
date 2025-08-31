@@ -5,7 +5,7 @@
 package emitter
 
 import (
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"

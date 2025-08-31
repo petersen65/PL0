@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 )
 
 // Three-address code operations of the intermediate code.

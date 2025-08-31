@@ -7,7 +7,7 @@ package cfg
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
 

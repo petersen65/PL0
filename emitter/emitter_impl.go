@@ -8,12 +8,12 @@ import (
 	"math"
 	"unicode/utf8"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	eh "github.com/petersen65/pl0/v3/errors"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
+	plt "github.com/petersen65/pl0/v3/platform"
 )
 
 // Callstack must be aligned to 16 bytes before each function call.
@@ -129,15 +129,15 @@ var (
 )
 
 // Return the interface of the emitter implementation.
-func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration cor.BuildConfiguration, debugInformation dbg.DebugInformation) Emitter {
+func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration plt.BuildConfiguration, debugInformation dbg.DebugInformation) Emitter {
 	targetPlatform := buildConfiguration.TargetPlatform
 
 	// check if the target platform is supported by the emitter implementation
-	if targetPlatform.OperatingSystem != cor.Linux ||
-		targetPlatform.InstructionSetArchitecture != cor.X86_64 ||
-		targetPlatform.InstructionSet != cor.ISA_SSE2 ||
-		targetPlatform.StringEncoding != cor.UTF32 ||
-		targetPlatform.ApplicationBinaryInterface != cor.ABI_SystemV_AMD64 {
+	if targetPlatform.OperatingSystem != plt.Linux ||
+		targetPlatform.InstructionSetArchitecture != plt.X86_64 ||
+		targetPlatform.InstructionSet != plt.ISA_SSE2 ||
+		targetPlatform.StringEncoding != plt.UTF32 ||
+		targetPlatform.ApplicationBinaryInterface != plt.ABI_SystemV_AMD64 {
 		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedTargetPlatform, targetPlatform, nil))
 	}
 

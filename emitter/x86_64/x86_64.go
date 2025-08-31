@@ -7,7 +7,7 @@ package x86_64
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 )

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	plt "github.com/petersen65/pl0/v3/platform"
 )
 
 // The sentinel values indicate that the byte size or byte alignment has not been calculated yet for a type descriptor.
@@ -32,8 +32,8 @@ type (
 
 	// Common fields shared by all type descriptors.
 	commonTypeDescriptor struct {
-		TypeName string                         `json:"type_name"` // name identifier for all data type kinds
-		Abi      cor.ApplicationBinaryInterface `json:"abi"`       // ABI governing size and alignment calculations
+		TypeName string                         `json:"type_name"`                    // name identifier for all data type kinds
+		Abi      plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
 	}
 
 	// Primitive data types that cannot be further refined.
@@ -93,9 +93,9 @@ type (
 
 var (
 	// Application binary interface specifications for modern 64-bit platforms.
-	applicationBinaryInterfaceSpecifications = map[cor.ApplicationBinaryInterface]*applicationBinaryInterfaceSpecification{
-		cor.ABI_SystemV_AMD64: {
-			Name:             cor.ABI_SystemV_AMD64.String(),
+	applicationBinaryInterfaceSpecifications = map[plt.ApplicationBinaryInterface]*applicationBinaryInterfaceSpecification{
+		plt.ABI_SystemV_AMD64: {
+			Name:             plt.ABI_SystemV_AMD64.String(),
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
@@ -133,8 +133,8 @@ var (
 			StructPackingRule: naturalPacking,
 			MaxAlignment:      16,
 		},
-		cor.ABI_Microsoft_x64: {
-			Name:             cor.ABI_Microsoft_x64.String(),
+		plt.ABI_Microsoft_x64: {
+			Name:             plt.ABI_Microsoft_x64.String(),
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
@@ -172,8 +172,8 @@ var (
 			StructPackingRule: microsoftPacking,
 			MaxAlignment:      8,
 		},
-		cor.ABI_AAPCS64: {
-			Name:             cor.ABI_AAPCS64.String(),
+		plt.ABI_AAPCS64: {
+			Name:             plt.ABI_AAPCS64.String(),
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
@@ -211,8 +211,8 @@ var (
 			StructPackingRule: naturalPacking,
 			MaxAlignment:      16,
 		},
-		cor.ABI_Windows_ARM64: {
-			Name:             cor.ABI_Windows_ARM64.String(),
+		plt.ABI_Windows_ARM64: {
+			Name:             plt.ABI_Windows_ARM64.String(),
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{

@@ -7,7 +7,7 @@ package ast
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"

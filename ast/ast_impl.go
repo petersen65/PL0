@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	ts "github.com/petersen65/pl0/v3/typesystem"

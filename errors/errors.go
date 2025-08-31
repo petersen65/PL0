@@ -7,7 +7,7 @@ package errors
 import (
 	"io"
 
-	cor "github.com/petersen65/pl0/v3/core"
+	cor "github.com/petersen65/pl0/v3/build"
 )
 
 // Severity is a bit-mask of different error levels.

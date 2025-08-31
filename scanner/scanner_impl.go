@@ -8,10 +8,15 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	cor "github.com/petersen65/pl0/v3/core"
 	eh "github.com/petersen65/pl0/v3/errors"
 	tok "github.com/petersen65/pl0/v3/token"
 )
+
+// Number of Unicode code points per tabulator UTF-8 character.
+const tabulatorSize = 4
+
+// Maximum number of allowed UTF-8 decoding errors before source content decoding is aborted.
+const maxDecodingErrors = 5
 
 // Last character of the source code that is read when the end of the file is reached.
 const endOfFileCharacter = 0
@@ -78,7 +83,7 @@ func newScanner() Scanner {
 // Run the scanner to map the source code to its corresponding token stream.
 func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
 	s.sourceIndex = 0
-	s.sourceCode = cor.CreateSourceCode(content)
+	s.sourceCode = createSourceCode(content)
 	s.line = 0
 	s.column = 0
 	s.lastValue = ""
@@ -329,4 +334,41 @@ func (s *scanner) operatorOrStatement() tok.Token {
 
 	s.nextCharacter()
 	return tok.Unknown
+}
+
+// Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code.
+func createSourceCode(content []byte) []byte {
+	var decodingErrors int
+	sourceCode := make([]byte, 0, len(content))
+	tabulator := []byte(strings.Repeat(" ", tabulatorSize))
+
+	// iterate over the binary content and decode each UTF-8 character
+	for i := 0; i < len(content); {
+		// decode the next UTF-8 character from the source content
+		codepoint, width := utf8.DecodeRune(content[i:])
+
+		// check for decoding errors, replace tabulators, and only append valid Unicode code points to the source code
+		switch codepoint {
+		case utf8.RuneError:
+			decodingErrors++
+			sourceCode = append(sourceCode, ' ')
+
+		case '\t':
+			sourceCode = append(sourceCode, tabulator...)
+
+		default:
+			// append the original UTF-8 bytes for the decoded rune
+			sourceCode = append(sourceCode, content[i:i+width]...)
+		}
+
+		// increment the index by the byte size of the decoded rune
+		i += width
+
+		// abort decoding with empty source code if too many errors occurred
+		if decodingErrors > maxDecodingErrors {
+			return make([]byte, 0)
+		}
+	}
+
+	return sourceCode
 }
