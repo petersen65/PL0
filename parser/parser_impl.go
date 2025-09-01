@@ -545,11 +545,11 @@ func (p *parser) constantIdentifier(scope sym.Scope[ast.Declaration]) ast.Declar
 				p.nextToken()
 			}
 		} else {
-			// create a new constant declaration with the identifier name, the number value, and the scope of the block
+			// create a new constant declaration with the identifier name, data type name, the number value, and the scope of the block
 			declaration = ast.NewConstantDeclaration(
 				constantName,
+				ts.Integer64.String(),
 				p.numberValue(sign, p.lastTokenValue()),
-				ts.NewSimpleTypeDescriptor(ts.Integer64.String(), ts.Integer64),
 				scope,
 				constantNameIndex)
 
@@ -570,7 +570,7 @@ func (p *parser) variableIdentifier(scope sym.Scope[ast.Declaration]) ast.Declar
 	}
 
 	// create a new variable declaration with the identifier name and the scope of the block
-	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ts.Integer64, scope, p.lastTokenIndex())
+	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ts.Integer64.String(), scope, p.lastTokenIndex())
 
 	p.nextToken()
 	return declaration

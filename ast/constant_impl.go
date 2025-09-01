@@ -7,17 +7,16 @@ import (
 	"fmt"
 
 	sym "github.com/petersen65/pl0/v3/symbol"
-	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Format for the string representation of a constant declaration node.
 const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name string, value any, dataType ts.TypeDescriptor, scope sym.Scope[Declaration], index int) Declaration {
+func newConstantDeclaration(name, dataTypeName string, value any, scope sym.Scope[Declaration], index int) Declaration {
 	return &ConstantDeclarationNode{
 		CommonNode:      CommonNode{NodeKind: KindConstantDeclaration},
-		DeclarationNode: DeclarationNode{Name: name, DataType: dataType, Scope: scope, TokenStreamIndex: index},
+		DeclarationNode: DeclarationNode{Name: name, DataTypeName: dataTypeName, Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
 		Value:           value,
 	}
 }
@@ -29,7 +28,7 @@ func (d *ConstantDeclarationNode) Children() []Node {
 
 // String of the constant declaration node.
 func (d *ConstantDeclarationNode) String() string {
-	return fmt.Sprintf(constantFormat, sym.ConstantEntry, d.Name, d.Value, d.DataType, len(d.IdentifierUsage))
+	return fmt.Sprintf(constantFormat, sym.ConstantEntry, d.Name, d.Value, d.DataTypeName, len(d.IdentifierUsage))
 }
 
 // Accept the visitor for the constant declaration node.

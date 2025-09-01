@@ -109,9 +109,15 @@ type (
 	// Base structure for all declaration nodes in the AST.
 	DeclarationNode struct {
 		Name             string                 `json:"name"`               // name of the declared identifier
-		DataType         ts.TypeDescriptor      `json:"type_descriptor"`    // datatype of the identifier
+		DataTypeName     string                 `json:"data_type_name"`     // datatype name of the identifier
 		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the identifier declaration
 		IdentifierUsage  []Expression           `json:"usage"`              // all usages of the identifier
+		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// Base structure for all expression nodes in the AST.
+	ExpressionNode struct {
+		Scope            sym.Scope[Declaration] `json:"scope"`              // scope in which the expression is located
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
@@ -134,72 +140,57 @@ type (
 
 	// VariableDeclaration node represents a variable declaration in the AST.
 	VariableDeclarationNode struct {
-		CommonNode                              // embedded common node
-		Name             string                 `json:"name"`               // name of the variable
-		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the variable
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the variable declaration
-		VariableUsage    []Expression           `json:"usage"`              // all usages of the variable
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode      // embedded common node
+		DeclarationNode // embedded declaration node
 	}
 
 	// ProcedureDeclaration node represents a procedure declaration in the AST.
 	ProcedureDeclarationNode struct {
-		CommonNode                              // embedded common node
-		Name             string                 `json:"name"`               // name of the procedure
-		Block            Block                  `json:"block"`              // block of the procedure
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the procedure declaration
-		ProcedureUsage   []Expression           `json:"usage"`              // all usages of the procedure
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode            // embedded common node
+		DeclarationNode       // embedded declaration node
+		Block           Block `json:"block"` // block of the procedure
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
 	LiteralNode struct {
-		TypeName         string                 `json:"type"`               // type name of the literal node
-		ParentNode       Node                   `json:"-"`                  // parent node of the literal
-		Value            any                    `json:"value"`              // literal value
-		DataType         ts.PrimitiveDataType   `json:"data_type"`          // datatype of the literal
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope in which the literal is used
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode         // embedded common node
+		ExpressionNode     // embedded expression node
+		Value          any `json:"value"` // literal value
 	}
 
 	// IdentifierUseNode represents the usage of an identifier in the AST.
 	IdentifierUseNode struct {
-		TypeName         string                 `json:"type"`               // type name of the identifier usage node
-		ParentNode       Node                   `json:"-"`                  // parent node of the identifier usage
-		Name             string                 `json:"name"`               // name of the identifier
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope in which the identifier is used
-		Context          sym.Entry              `json:"context"`            // context of the identifier
-		Use              Usage                  `json:"use"`                // usage mode of the identifier
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode               // embedded common node
+		ExpressionNode           // embedded expression node
+		Name           string    `json:"name"`    // name of the identifier
+		Context        sym.Entry `json:"context"` // context of the identifier
+		Use            Usage     `json:"use"`     // usage mode of the identifier
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
-		TypeName         string        `json:"type"`               // type name of the unary operation node
-		ParentNode       Node          `json:"-"`                  // parent node of the unary operation
-		Operation        UnaryOperator `json:"operation"`          // unary operation
-		Operand          Expression    `json:"operand"`            // operand of the unary operation
-		TokenStreamIndex int           `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode                   // embedded common node
+		ExpressionNode               // embedded expression node
+		Operation      UnaryOperator `json:"operation"` // unary operation
+		Operand        Expression    `json:"operand"`   // operand of the unary operation
 	}
 
 	// BinaryOperation node represents a binary operation in the AST.
 	BinaryOperationNode struct {
-		TypeName         string         `json:"type"`               // type name of the binary operation node
-		ParentNode       Node           `json:"-"`                  // parent node of the binary operation
-		Operation        BinaryOperator `json:"operation"`          // binary operation
-		Left             Expression     `json:"left"`               // left operand of the binary operation
-		Right            Expression     `json:"right"`              // right operand of the binary operation
-		TokenStreamIndex int            `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode                    // embedded common node
+		ExpressionNode                // embedded expression node
+		Operation      BinaryOperator `json:"operation"` // binary operation
+		Left           Expression     `json:"left"`      // left operand of the binary operation
+		Right          Expression     `json:"right"`     // right operand of the binary operation
 	}
 
 	// ComparisonOperationNode node represents a comparison operation in the AST.
 	ComparisonOperationNode struct {
-		TypeName         string             `json:"type"`               // type name of the comparison operation node
-		ParentNode       Node               `json:"-"`                  // parent node of the comparison operation
-		Operation        ComparisonOperator `json:"operation"`          // comparison operation
-		Left             Expression         `json:"left"`               // left operand of the comparison operation
-		Right            Expression         `json:"right"`              // right operand of the comparison operation
-		TokenStreamIndex int                `json:"token_stream_index"` // index of the token in the token stream
+		CommonNode                        // embedded common node
+		ExpressionNode                    // embedded expression node
+		Operation      ComparisonOperator `json:"operation"` // comparison operation
+		Left           Expression         `json:"left"`      // left operand of the comparison operation
+		Right          Expression         `json:"right"`     // right operand of the comparison operation
 	}
 
 	// AssignmentStatement node represents an assignment statement in the AST.
@@ -295,14 +286,13 @@ type (
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		Node
-		ExpressionString() string
+		Location() sym.Scope[Declaration]
 	}
 
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
 		Node
 		IndexPair() (int, int)
-		StatementString() string
 	}
 
 	// A visitor is an interface for visiting nodes in the abstract syntax tree. It allows all the methods for a parser phase to be grouped in a single visitor struct.
@@ -336,12 +326,12 @@ func NewBlock(depth int32, scope sym.Scope[Declaration], declarations []Declarat
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(emptyConstantName, int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
+	return newConstantDeclaration(emptyConstantName, ts.Integer64.String(), int64(0), sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
 }
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), ts.Integer64, sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
+	return newLiteral(int64(0), sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
@@ -350,13 +340,13 @@ func NewEmptyStatement() Statement {
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name string, value any, dataType ts.TypeDescriptor, scope sym.Scope[Declaration], index int) Declaration {
-	return newConstantDeclaration(name, value, dataType, scope, index)
+func NewConstantDeclaration(name, dataTypeName string, value any, scope sym.Scope[Declaration], index int) Declaration {
+	return newConstantDeclaration(name, dataTypeName, value, scope, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name string, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Declaration {
-	return newVariableDeclaration(name, dataType, scope, index)
+func NewVariableDeclaration(name, dataTypeName string, scope sym.Scope[Declaration], index int) Declaration {
+	return newVariableDeclaration(name, dataTypeName, scope, index)
 }
 
 // NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
@@ -365,8 +355,8 @@ func NewProcedureDeclaration(name string, block Block, scope sym.Scope[Declarati
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, dataType ts.PrimitiveDataType, scope sym.Scope[Declaration], index int) Expression {
-	return newLiteral(value, dataType, scope, index)
+func NewLiteral(value any, scope sym.Scope[Declaration], index int) Expression {
+	return newLiteral(value, scope, index)
 }
 
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
@@ -375,18 +365,18 @@ func NewIdentifierUse(name string, scope sym.Scope[Declaration], context sym.Ent
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
-func NewUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
-	return newUnaryOperation(operation, operand, index)
+func NewUnaryOperation(scope sym.Scope[Declaration], operation UnaryOperator, operand Expression, index int) Expression {
+	return newUnaryOperation(scope, operation, operand, index)
 }
 
 // NewBinaryOperation creates a new binary operation node in the abstract syntax tree.
-func NewBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
-	return newBinaryOperation(operation, left, right, index)
+func NewBinaryOperation(scope sym.Scope[Declaration], operation BinaryOperator, left, right Expression, index int) Expression {
+	return newBinaryOperation(scope, operation, left, right, index)
 }
 
 // NewComparisonOperation creates a new comparison operation node in the abstract syntax tree.
-func NewComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
-	return newComparisonOperation(operation, left, right, index)
+func NewComparisonOperation(scope sym.Scope[Declaration], operation ComparisonOperator, left, right Expression, index int) Expression {
+	return newComparisonOperation(scope, operation, left, right, index)
 }
 
 // NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
