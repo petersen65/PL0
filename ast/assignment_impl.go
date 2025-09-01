@@ -25,7 +25,7 @@ func (s *AssignmentStatementNode) Children() []Node {
 	return []Node{s.Variable, s.Expression}
 }
 
-// String of the assignment statement node.
+// String representation of the assignment statement node.
 func (s *AssignmentStatementNode) String() string {
 	return assignmentStatementFormat
 }

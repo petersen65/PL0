@@ -4,6 +4,8 @@
 // Package symbol provides a generic symbol table implementation for managing declared identifiers and scopes.
 package symbol
 
+import ts "github.com/petersen65/pl0/v3/typesystem"
+
 // Empty scopes are required to use this number as their scope id
 const EmptyScopeId = -1
 
@@ -12,6 +14,7 @@ const (
 	ConstantEntry Entry = 1 << iota
 	VariableEntry
 	ProcedureEntry
+	DataTypeEntry
 )
 
 type (
@@ -22,39 +25,40 @@ type (
 	ExtensionType int
 
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
-	Symbol[T any] struct {
-		Name        string                `json:"name"`      // name of the symbol
-		Kind        Entry                 `json:"kind"`      // kind of the symbol
-		Declaration T                     `json:"-"`         // declaration information of the symbol
-		Extension   map[ExtensionType]any `json:"extension"` // symbol extensions for compiler phases
+	Symbol struct {
+		Name      string                `json:"name"`      // name of the symbol
+		Kind      Entry                 `json:"kind"`      // kind of the symbol
+		DataType  ts.TypeDescriptor     `json:"data_type"` // data type information of the symbol
+		Value     any                   `json:"value"`     // value information of a constant entry
+		Extension map[ExtensionType]any `json:"extension"` // symbol extensions for compiler phases
 	}
 
 	// A scope is a data structure that stores information about its declared identifiers.
 	// Scopes are nested from the outermost scope to the innermost scope. Each scope has exactly one outer scope.
 	// Each declared identifier is associated with one specific scope. It is visible in its scope and all inner scopes.
 	// An identifier can be redeclared in an inner scope, which will shadow the outer declaration.
-	Scope[T any] interface {
+	Scope interface {
 		NewIdentifier(prefix rune) string
-		Insert(name string, symbol *Symbol[T])
-		Lookup(name string) *Symbol[T]
-		LookupCurrent(name string) *Symbol[T]
-		IterateCurrent() <-chan *Symbol[T]
+		Insert(name string, symbol *Symbol)
+		Lookup(name string) *Symbol
+		LookupCurrent(name string) *Symbol
+		IterateCurrent() <-chan *Symbol
 	}
 )
 
 // Create a new entry for the symbol table.
-func NewSymbol[T any](name string, kind Entry, declaration T) *Symbol[T] {
-	return newSymbol(name, kind, declaration)
+func NewSymbol(name string, kind Entry, dataType ts.TypeDescriptor, value any) *Symbol {
+	return newSymbol(name, kind, dataType, value)
 }
 
 // Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
-func NewScope[T any](uniqueId int, outer Scope[T]) Scope[T] {
+func NewScope(uniqueId int, outer Scope) Scope {
 	return newScope(uniqueId, outer)
 }
 
 // An empty scope should only be used in the context of parser errors and is free from any side-effect.
-func NewEmptyScope[T any]() Scope[T] {
-	return newScope[T](EmptyScopeId, nil)
+func NewEmptyScope() Scope {
+	return newScope(EmptyScopeId, nil)
 }
 
 // String representation of a symbol entry kind.

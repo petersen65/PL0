@@ -17,7 +17,7 @@ var binaryOperationFormats = map[BinaryOperator]string{
 }
 
 // Create a new binary operation node in the abstract syntax tree.
-func newBinaryOperation(scope sym.Scope[Declaration], operation BinaryOperator, left, right Expression, index int) Expression {
+func newBinaryOperation(scope sym.Scope, operation BinaryOperator, left, right Expression, index int) Expression {
 	binaryNode := &BinaryOperationNode{
 		CommonNode:     CommonNode{NodeKind: KindBinaryOperation},
 		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
@@ -36,7 +36,7 @@ func (e *BinaryOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
 }
 
-// String of the binary operation node.
+// String representation of the binary operation node.
 func (e *BinaryOperationNode) String() string {
 	switch e.Operation {
 	case Plus, Minus, Times, Divide:

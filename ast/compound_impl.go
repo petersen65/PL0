@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the compound statement node.
-const compoundStatementFormat = "compound"
-
 // Create a new compound statement node in the abstract syntax tree.
 func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	compoundNode := &CompoundStatementNode{
@@ -22,22 +19,22 @@ func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Stat
 }
 
 // Children nodes of the compound statement node.
-func (s *CompoundStatementNode) Children() []Node {
-	children := make([]Node, 0, len(s.Statements))
+func (n *CompoundStatementNode) Children() []Node {
+	children := make([]Node, 0, len(n.Statements))
 
-	for _, statement := range s.Statements {
+	for _, statement := range n.Statements {
 		children = append(children, statement)
 	}
 
 	return children
 }
 
-// String of the compound statement node.
-func (s *CompoundStatementNode) String() string {
-	return compoundStatementFormat
+// String representation of the compound statement node.
+func (n *CompoundStatementNode) String() string {
+	return n.Kind().String()
 }	
 
 // Accept the visitor for the compound statement node.
-func (s *CompoundStatementNode) Accept(visitor Visitor) {
-	visitor.VisitCompoundStatement(s)
+func (n *CompoundStatementNode) Accept(visitor Visitor) {
+	visitor.VisitCompoundStatement(n)
 }

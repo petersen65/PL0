@@ -10,10 +10,10 @@ import (
 )
 
 // Format for the string representation of a literal node.
-const literalFormat = "literal(%v)"
+const literalFormat = "%v(%v)"
 
 // Create a new literal node in the abstract syntax tree.
-func newLiteral(value any, scope sym.Scope[Declaration], index int) Expression {
+func newLiteral(value any, scope sym.Scope, index int) Expression {
 	return &LiteralNode{
 		CommonNode:     CommonNode{NodeKind: KindLiteral},
 		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
@@ -22,16 +22,16 @@ func newLiteral(value any, scope sym.Scope[Declaration], index int) Expression {
 }
 
 // Children nodes of the literal node.
-func (e *LiteralNode) Children() []Node {
+func (n *LiteralNode) Children() []Node {
 	return make([]Node, 0)
 }
 
-// String of the literal node.
-func (e *LiteralNode) String() string {
-	return fmt.Sprintf(literalFormat, e.Value)
+// String representation of the literal node.
+func (n *LiteralNode) String() string {
+	return fmt.Sprintf(literalFormat, n.Kind(), n.Value)
 }
 
 // Accept the visitor for the literal node.
-func (e *LiteralNode) Accept(visitor Visitor) {
-	visitor.VisitLiteral(e)
+func (n *LiteralNode) Accept(visitor Visitor) {
+	visitor.VisitLiteral(n)
 }

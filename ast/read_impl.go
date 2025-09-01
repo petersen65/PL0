@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the read statement node.
-const readStatementFormat = "read"
-
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 	readNode := &ReadStatementNode{
@@ -19,16 +16,16 @@ func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 }
 
 // Children nodes of the read statement node.
-func (s *ReadStatementNode) Children() []Node {
-	return []Node{s.Variable}
+func (n *ReadStatementNode) Children() []Node {
+	return []Node{n.Variable}
 }
 
-// String of the read statement node.
-func (s *ReadStatementNode) String() string {
-	return readStatementFormat
-}	
+// String representation of the read statement node.
+func (n *ReadStatementNode) String() string {
+	return n.Kind().String()
+}
 
 // Accept the visitor for the read statement node.
-func (s *ReadStatementNode) Accept(visitor Visitor) {
-	visitor.VisitReadStatement(s)
+func (n *ReadStatementNode) Accept(visitor Visitor) {
+	visitor.VisitReadStatement(n)
 }

@@ -12,16 +12,16 @@ import (
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
-// Implementation of the name analyzer.
-type nameAnalyzer struct {
-	abstractSyntax ast.Block        // abstract syntax tree to run name analysis on
+// Implementation of the semantic analyzer.
+type semanticAnalyzer struct {
+	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	errorHandler   eh.ErrorHandler  // error handler that is used to handle errors that occurred during semantic analysis
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-// Return the interface of the name analyzer implementation.
+// Return the interface of the semantic analyzer implementation.
 func newAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHandler tok.TokenHandler) Analyzer {
-	return &nameAnalyzer{
+	return &semanticAnalyzer{
 		abstractSyntax: abstractSyntax,
 		errorHandler:   errorHandler,
 		tokenHandler:   tokenHandler,
@@ -30,7 +30,7 @@ func newAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHa
 
 // Analyze the abstract syntax tree for declaration and use errors and fill in the symbol table.
 // Name analyzer itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
-func (a *nameAnalyzer) Analyze() {
+func (a *semanticAnalyzer) Analyze() {
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
 		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
 	}
@@ -52,12 +52,12 @@ func (a *nameAnalyzer) Analyze() {
 }
 
 // Walk the block abstract syntax tree.
-func (a *nameAnalyzer) VisitBlock(bn *ast.BlockNode) {
+func (a *semanticAnalyzer) VisitBlock(bn *ast.BlockNode) {
 	// nothing to do because of an external pre-order walk
 }
 
 // Enter constant declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
+func (a *semanticAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
 	if cd.Scope.Lookup(cd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
 	} else {
@@ -66,7 +66,7 @@ func (a *nameAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode)
 }
 
 // Enter variable declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
+func (a *semanticAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 	if vd.Scope.Lookup(vd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
 	} else {
@@ -75,7 +75,7 @@ func (a *nameAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode)
 }
 
 // Enter procedure declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+func (a *semanticAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
 	if pd.Scope.Lookup(pd.Name) != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
@@ -86,12 +86,12 @@ func (a *nameAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNod
 }
 
 // Walk the literal abstract syntax tree.
-func (a *nameAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
+func (a *semanticAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
 	// nothing to do
 }
 
 // Check if the used identifier is declared and if it is used in the correct context.
-func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
+func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	if symbol := iu.Scope.Lookup(iu.Name); symbol == nil {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
@@ -102,8 +102,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.ConstantEntry
 
 				// add the constant usage to the constant declaration
-				symbol.Declaration.(*ast.ConstantDeclarationNode).ConstantUsage =
-					append(symbol.Declaration.(*ast.ConstantDeclarationNode).ConstantUsage, iu)
+				symbol.Type.(*ast.ConstantDeclarationNode).IdentifierUsage =
+					append(symbol.Type.(*ast.ConstantDeclarationNode).IdentifierUsage, iu)
 			} else {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -114,8 +114,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.VariableEntry
 
 				// add the variable usage to the variable declaration
-				symbol.Declaration.(*ast.VariableDeclarationNode).VariableUsage =
-					append(symbol.Declaration.(*ast.VariableDeclarationNode).VariableUsage, iu)
+				symbol.Type.(*ast.VariableDeclarationNode).IdentifierUsage =
+					append(symbol.Type.(*ast.VariableDeclarationNode).IdentifierUsage, iu)
 			} else {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -126,8 +126,8 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.Context = sym.ProcedureEntry
 
 				// add the procedure usage to the procedure declaration
-				symbol.Declaration.(*ast.ProcedureDeclarationNode).ProcedureUsage =
-					append(symbol.Declaration.(*ast.ProcedureDeclarationNode).ProcedureUsage, iu)
+				symbol.Type.(*ast.ProcedureDeclarationNode).IdentifierUsage =
+					append(symbol.Type.(*ast.ProcedureDeclarationNode).IdentifierUsage, iu)
 			} else {
 				a.appendError(expectedProcedureIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
@@ -139,68 +139,68 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 }
 
 // Walk the unary operation abstract syntax tree.
-func (a *nameAnalyzer) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
+func (a *semanticAnalyzer) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the expression
 	ast.Walk(uo.Operand, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the binary operation abstract syntax tree.
-func (a *nameAnalyzer) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
+func (a *semanticAnalyzer) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the left and right operand
 	ast.Walk(bo.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(bo.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the comparison operation abstract syntax tree.
-func (a *nameAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
+func (a *semanticAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
 	// set the usage mode bit to read for all constants and variables in the left and right operand
 	ast.Walk(co.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(co.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the assignment statement abstract syntax tree.
-func (a *nameAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
+func (a *semanticAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	// set the usage mode bit to write for the variable that is assigned to
 	as.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the read statement abstract syntax tree.
-func (a *nameAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
+func (a *semanticAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// set the usage mode bit to write for the variable that is read into
 	rs.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
 }
 
 // Walk the write statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {
+func (a *semanticAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the expression
 	ast.Walk(ws.Expression, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the call statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {
+func (a *semanticAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {
 	// set the usage mode bit to execute for the procedure that is called
 	cs.Procedure.(*ast.IdentifierUseNode).Use |= ast.Execute
 }
 
 // Walk the if statement abstract syntax tree.
-func (a *nameAnalyzer) VisitIfStatement(is *ast.IfStatementNode) {
+func (a *semanticAnalyzer) VisitIfStatement(is *ast.IfStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(is.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the while statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWhileStatement(ws *ast.WhileStatementNode) {
+func (a *semanticAnalyzer) VisitWhileStatement(ws *ast.WhileStatementNode) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(ws.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the compound statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+func (a *semanticAnalyzer) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
 	// nothing to do because of an external pre-order walk
 }
 
 // Append analyzer error to the token handler.
-func (a *nameAnalyzer) appendError(code eh.Failure, value any, index int) {
+func (a *semanticAnalyzer) appendError(code eh.Failure, value any, index int) {
 	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(eh.Error, code, value, index))
 }
 
@@ -221,17 +221,17 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 
 	switch d := node.(type) {
 	case *ast.ConstantDeclarationNode:
-		if len(d.ConstantUsage) == 0 {
+		if len(d.IdentifierUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.VariableDeclarationNode:
-		if len(d.VariableUsage) == 0 {
+		if len(d.IdentifierUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
 		}
 
 	case *ast.ProcedureDeclarationNode:
-		if len(d.ProcedureUsage) == 0 {
+		if len(d.IdentifierUsage) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
 		}
 	}
@@ -243,7 +243,7 @@ func addVariableToBlockClosure(node ast.Node, _ any) {
 		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == sym.VariableEntry {
 				// determine the block where the variable is declared
-				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Declaration)
+				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Type)
 
 				// determine the block where the variable is used
 				useBlock := ast.SearchBlock(ast.CurrentBlock, iu)
@@ -252,9 +252,9 @@ func addVariableToBlockClosure(node ast.Node, _ any) {
 				if useBlock.Depth-declarationBlock.Depth > 0 {
 					// check if the variable is already in the closure
 					if !slices.ContainsFunc(useBlock.Closure, func(d ast.Declaration) bool {
-						return d == symbol.Declaration
+						return d == symbol.Type
 					}) {
-						useBlock.Closure = append(useBlock.Closure, symbol.Declaration)
+						useBlock.Closure = append(useBlock.Closure, symbol.Type)
 					}
 				}
 			}

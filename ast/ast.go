@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package ast implements the abstract syntax tree (AST) produced by the parser for the programming language PL/0.
+// Package ast implements the abstract syntax tree (AST) produced in the parsing compiler phase.
 package ast
 
 import (
@@ -108,17 +108,17 @@ type (
 
 	// Base structure for all declaration nodes in the AST.
 	DeclarationNode struct {
-		Name             string                 `json:"name"`               // name of the declared identifier
-		DataTypeName     string                 `json:"data_type_name"`     // datatype name of the identifier
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope of the identifier declaration
-		IdentifierUsage  []Expression           `json:"usage"`              // all usages of the identifier
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		Name             string       `json:"name"`               // name of the declared identifier
+		DataTypeName     string       `json:"data_type_name"`     // datatype name of the identifier
+		Scope            sym.Scope    `json:"scope"`              // scope of the identifier declaration
+		IdentifierUsage  []Expression `json:"usage"`              // all usages of the identifier
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// Base structure for all expression nodes in the AST.
 	ExpressionNode struct {
-		Scope            sym.Scope[Declaration] `json:"scope"`              // scope in which the expression is located
-		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
+		Scope            sym.Scope `json:"scope"`              // scope in which the expression is located
+		TokenStreamIndex int       `json:"token_stream_index"` // index of the token in the token stream
 	}
 
 	// Base structure for all statement nodes in the AST.
@@ -129,12 +129,12 @@ type (
 
 	// Block node represents a block in the AST.
 	BlockNode struct {
-		CommonNode                          // embedded common node
-		Depth        int32                  `json:"depth"`        // block nesting depth
-		Scope        sym.Scope[Declaration] `json:"scope"`        // scope with the symbol table of the block
-		Declarations []Declaration          `json:"declarations"` // all declarations of the block
-		Closure      []Declaration          `json:"closure"`      // all captured variable declarations from lexical parents of the block
-		Statement    Statement              `json:"statement"`    // statement of the block
+		CommonNode                 // embedded common node
+		Depth        int32         `json:"depth"`        // block nesting depth
+		Scope        sym.Scope     `json:"scope"`        // scope with the symbol table of the block
+		Declarations []Declaration `json:"declarations"` // all declarations of the block
+		Closure      []Declaration `json:"closure"`      // all captured variable declarations from lexical parents of the block
+		Statement    Statement     `json:"statement"`    // statement of the block
 	}
 
 	// ConstantDeclaration node represents a constant declaration in the AST.
@@ -278,7 +278,7 @@ type (
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		Node
-		Location() sym.Scope[Declaration]
+		Location() sym.Scope
 	}
 
 	// A statement represented as an abstract syntax tree.
@@ -312,18 +312,18 @@ type (
 )
 
 // NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(depth int32, scope sym.Scope[Declaration], declarations []Declaration, statement Statement) Block {
+func NewBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement) Block {
 	return newBlock(depth, scope, declarations, statement)
 }
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(emptyConstantName, ts.Integer64.String(), int64(0), sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
+	return newConstantDeclaration(emptyConstantName, ts.Integer64.String(), int64(0), sym.NewEmptyScope(), tok.NoTokenStreamIndex)
 }
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteral(int64(0), sym.NewEmptyScope[Declaration](), tok.NoTokenStreamIndex)
+	return newLiteral(int64(0), sym.NewEmptyScope(), tok.NoTokenStreamIndex)
 }
 
 // An empty statement does not generate code, should only be used in the context of parser errors, and is free from any side-effect.
@@ -332,42 +332,42 @@ func NewEmptyStatement() Statement {
 }
 
 // NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name, dataTypeName string, value any, scope sym.Scope[Declaration], index int) Declaration {
+func NewConstantDeclaration(name, dataTypeName string, value any, scope sym.Scope, index int) Declaration {
 	return newConstantDeclaration(name, dataTypeName, value, scope, index)
 }
 
 // NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name, dataTypeName string, scope sym.Scope[Declaration], index int) Declaration {
+func NewVariableDeclaration(name, dataTypeName string, scope sym.Scope, index int) Declaration {
 	return newVariableDeclaration(name, dataTypeName, scope, index)
 }
 
 // NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block, scope sym.Scope[Declaration], index int) Declaration {
+func NewProcedureDeclaration(name string, block Block, scope sym.Scope, index int) Declaration {
 	return newProcedureDeclaration(name, block, scope, index)
 }
 
 // NewLiteral creates a new literal node in the abstract syntax tree.
-func NewLiteral(value any, scope sym.Scope[Declaration], index int) Expression {
+func NewLiteral(value any, scope sym.Scope, index int) Expression {
 	return newLiteral(value, scope, index)
 }
 
 // NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
-func NewIdentifierUse(name string, scope sym.Scope[Declaration], context sym.Entry, index int) Expression {
+func NewIdentifierUse(name string, scope sym.Scope, context sym.Entry, index int) Expression {
 	return newIdentifierUse(name, scope, context, index)
 }
 
 // NewUnaryOperation creates a new unary operation node in the abstract syntax tree.
-func NewUnaryOperation(scope sym.Scope[Declaration], operation UnaryOperator, operand Expression, index int) Expression {
+func NewUnaryOperation(scope sym.Scope, operation UnaryOperator, operand Expression, index int) Expression {
 	return newUnaryOperation(scope, operation, operand, index)
 }
 
 // NewBinaryOperation creates a new binary operation node in the abstract syntax tree.
-func NewBinaryOperation(scope sym.Scope[Declaration], operation BinaryOperator, left, right Expression, index int) Expression {
+func NewBinaryOperation(scope sym.Scope, operation BinaryOperator, left, right Expression, index int) Expression {
 	return newBinaryOperation(scope, operation, left, right, index)
 }
 
 // NewComparisonOperation creates a new comparison operation node in the abstract syntax tree.
-func NewComparisonOperation(scope sym.Scope[Declaration], operation ComparisonOperator, left, right Expression, index int) Expression {
+func NewComparisonOperation(scope sym.Scope, operation ComparisonOperator, left, right Expression, index int) Expression {
 	return newComparisonOperation(scope, operation, left, right, index)
 }
 
@@ -404,6 +404,11 @@ func NewWhileStatement(condition Expression, statement Statement, beginIndex, en
 // NewCompoundStatement creates a compound statement node in the abstract syntax tree.
 func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
 	return newCompoundStatement(statements, beginIndex, endIndex)
+}
+
+// String representation of a node kind.
+func (n NodeKind) String() string {
+	return nodeKindNames[n]
 }
 
 // SearchBlock searches for a parent block node in the abstract syntax tree based on the search mode.

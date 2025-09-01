@@ -13,7 +13,7 @@ import (
 const procedureFormat = "declaration(%v,name=%v,used=%v)"
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope sym.Scope[Declaration], index int) Declaration {
+func newProcedureDeclaration(name string, block Block, scope sym.Scope, index int) Declaration {
 	return &ProcedureDeclarationNode{
 		CommonNode:       CommonNode{NodeKind: KindProcedureDeclaration},
 		DeclarationNode:  DeclarationNode{Name: name, DataTypeName: "", Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
@@ -22,16 +22,16 @@ func newProcedureDeclaration(name string, block Block, scope sym.Scope[Declarati
 }
 
 // Children nodes of the procedure declaration node.
-func (d *ProcedureDeclarationNode) Children() []Node {
-	return []Node{d.Block}
+func (n *ProcedureDeclarationNode) Children() []Node {
+	return []Node{n.Block}
 }
 
-// String of the procedure declaration node.
-func (d *ProcedureDeclarationNode) String() string {
-	return fmt.Sprintf(procedureFormat, sym.ProcedureEntry, d.Name, len(d.IdentifierUsage))
+// String representation of the procedure declaration node.
+func (n *ProcedureDeclarationNode) String() string {
+	return fmt.Sprintf(procedureFormat, n.Kind(), n.Name, len(n.IdentifierUsage))
 }
 
 // Accept the visitor for the procedure declaration node.
-func (d *ProcedureDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitProcedureDeclaration(d)
+func (n *ProcedureDeclarationNode) Accept(visitor Visitor) {
+	visitor.VisitProcedureDeclaration(n)
 }

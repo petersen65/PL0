@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the write statement node.
-const writeStatementFormat = "write"
-
 // Create a new write statement node in the abstract syntax tree.
 func newWriteStatement(expression Expression, beginIndex, endIndex int) Statement {
 	writeNode := &WriteStatementNode{
@@ -19,16 +16,16 @@ func newWriteStatement(expression Expression, beginIndex, endIndex int) Statemen
 }
 
 // Children nodes of the write statement node.
-func (s *WriteStatementNode) Children() []Node {
-	return []Node{s.Expression}
+func (n *WriteStatementNode) Children() []Node {
+	return []Node{n.Expression}
 }
 
-// String of the write statement node.
-func (s *WriteStatementNode) String() string {
-	return writeStatementFormat
-}	
+// String representation of the write statement node.
+func (n *WriteStatementNode) String() string {
+	return n.Kind().String()
+}
 
 // Accept the visitor for the write statement node.
-func (s *WriteStatementNode) Accept(visitor Visitor) {
-	visitor.VisitWriteStatement(s)
+func (n *WriteStatementNode) Accept(visitor Visitor) {
+	visitor.VisitWriteStatement(n)
 }

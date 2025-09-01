@@ -19,7 +19,7 @@ var comparisonOperationFormats = map[ComparisonOperator]string{
 }
 
 // Create a new comparison operation node in the abstract syntax tree.
-func newComparisonOperation(scope sym.Scope[Declaration], operation ComparisonOperator, left, right Expression, index int) Expression {
+func newComparisonOperation(scope sym.Scope, operation ComparisonOperator, left, right Expression, index int) Expression {
 	comparisonNode := &ComparisonOperationNode{
 		CommonNode:     CommonNode{NodeKind: KindBinaryOperation},
 		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
@@ -38,7 +38,7 @@ func (e *ComparisonOperationNode) Children() []Node {
 	return []Node{e.Left, e.Right}
 }
 
-// String of the comparison operation node.
+// String representation of the comparison operation node.
 func (e *ComparisonOperationNode) String() string {
 	switch e.Operation {
 	case Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual:

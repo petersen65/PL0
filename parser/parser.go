@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package parser implements a syntax analyzer for the programming language PL/0.
+// Package parser implements a syntax analyzer for the parsing compiler phase.
 package parser
 
 import (

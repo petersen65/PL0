@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the while statement node.
-const whileStatementFormat = "while"
-
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	whileNode := &WhileStatementNode{
@@ -21,16 +18,16 @@ func newWhileStatement(condition Expression, statement Statement, beginIndex, en
 }
 
 // Children nodes of the while-do statement node.
-func (s *WhileStatementNode) Children() []Node {
-	return []Node{s.Condition, s.Statement}
+func (n *WhileStatementNode) Children() []Node {
+	return []Node{n.Condition, n.Statement}
 }
 
-// String of the while-do statement node.
-func (s *WhileStatementNode) String() string {
-	return whileStatementFormat
+// String representation of the while-do statement node.
+func (n *WhileStatementNode) String() string {
+	return n.Kind().String()
 }	
 
 // Accept the visitor for the while-do statement node.
-func (s *WhileStatementNode) Accept(visitor Visitor) {
-	visitor.VisitWhileStatement(s)
+func (n *WhileStatementNode) Accept(visitor Visitor) {
+	visitor.VisitWhileStatement(n)
 }

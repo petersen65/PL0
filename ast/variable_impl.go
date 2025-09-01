@@ -13,7 +13,7 @@ import (
 const variableFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name, dataTypeName string, scope sym.Scope[Declaration], index int) Declaration {
+func newVariableDeclaration(name, dataTypeName string, scope sym.Scope, index int) Declaration {
 	return &VariableDeclarationNode{
 		CommonNode:       CommonNode{NodeKind: KindVariableDeclaration},
 		DeclarationNode:  DeclarationNode{Name: name, DataTypeName: dataTypeName, Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
@@ -21,16 +21,16 @@ func newVariableDeclaration(name, dataTypeName string, scope sym.Scope[Declarati
 }
 
 // Children nodes of the variable declaration node.
-func (d *VariableDeclarationNode) Children() []Node {
+func (n *VariableDeclarationNode) Children() []Node {
 	return make([]Node, 0)
 }
 
-// String of the variable declaration node.
-func (d *VariableDeclarationNode) String() string {
-	return fmt.Sprintf(variableFormat, sym.VariableEntry, d.Name, d.DataTypeName, len(d.IdentifierUsage))
+// String representation of the variable declaration node.
+func (n *VariableDeclarationNode) String() string {
+	return fmt.Sprintf(variableFormat, n.Kind(), n.Name, n.DataTypeName, len(n.IdentifierUsage))
 }
 
 // Accept the visitor for the variable declaration node.
-func (d *VariableDeclarationNode) Accept(visitor Visitor) {
-	visitor.VisitVariableDeclaration(d)
+func (n *VariableDeclarationNode) Accept(visitor Visitor) {
+	visitor.VisitVariableDeclaration(n)
 }

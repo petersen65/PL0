@@ -1,7 +1,7 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-// Package scanner implements a tokenizer and lexical analyzer for the programming language PL/0.
+// Package scanner implements a tokenizer and a lexical analyzer for the scanning compiler phase.
 package scanner
 
 import tok "github.com/petersen65/pl0/v3/token"

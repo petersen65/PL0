@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the call statement node.
-const callStatementFormat = "call"
-
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement {
 	callNode := &CallStatementNode{
@@ -19,16 +16,16 @@ func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement 
 }
 
 // Children nodes of the call statement node.
-func (s *CallStatementNode) Children() []Node {
-	return []Node{s.Procedure}
+func (n *CallStatementNode) Children() []Node {
+	return []Node{n.Procedure}
 }
 
-// String of the call statement node.
-func (s *CallStatementNode) String() string {
-	return callStatementFormat
-}	
+// String representation of the call statement node.
+func (n *CallStatementNode) String() string {
+	return n.Kind().String()
+}
 
 // Accept the visitor for the call statement node.
-func (s *CallStatementNode) Accept(visitor Visitor) {
-	visitor.VisitCallStatement(s)
+func (n *CallStatementNode) Accept(visitor Visitor) {
+	visitor.VisitCallStatement(n)
 }

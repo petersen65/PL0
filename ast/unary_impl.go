@@ -15,7 +15,7 @@ var unaryOperationFormats = map[UnaryOperator]string{
 }
 
 // Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(scope sym.Scope[Declaration], operation UnaryOperator, operand Expression, index int) Expression {
+func newUnaryOperation(scope sym.Scope, operation UnaryOperator, operand Expression, index int) Expression {
 	unaryNode := &UnaryOperationNode{
 		CommonNode:     CommonNode{NodeKind: KindUnaryOperation},
 		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
@@ -28,15 +28,15 @@ func newUnaryOperation(scope sym.Scope[Declaration], operation UnaryOperator, op
 }
 
 // Children nodes of the unary operation node.
-func (e *UnaryOperationNode) Children() []Node {
-	return []Node{e.Operand}
+func (n *UnaryOperationNode) Children() []Node {
+	return []Node{n.Operand}
 }
 
-// String of the unary operation node.
-func (e *UnaryOperationNode) String() string {
-	switch e.Operation {
+// String representation of the unary operation node.
+func (n *UnaryOperationNode) String() string {
+	switch n.Operation {
 	case Odd, Negate:
-		return unaryOperationFormats[e.Operation]
+		return unaryOperationFormats[n.Operation]
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
@@ -44,6 +44,6 @@ func (e *UnaryOperationNode) String() string {
 }
 
 // Accept the visitor for the unary operation node.
-func (e *UnaryOperationNode) Accept(visitor Visitor) {
-	visitor.VisitUnaryOperation(e)
+func (n *UnaryOperationNode) Accept(visitor Visitor) {
+	visitor.VisitUnaryOperation(n)
 }

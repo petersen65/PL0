@@ -3,9 +3,6 @@
 
 package ast
 
-// Format for the string representation of the if statement node.
-const ifStatementFormat = "if"
-
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	ifNode := &IfStatementNode{
@@ -21,16 +18,16 @@ func newIfStatement(condition Expression, statement Statement, beginIndex, endIn
 }
 
 // Children nodes of the if-then statement node.
-func (s *IfStatementNode) Children() []Node {
-	return []Node{s.Condition, s.Statement}
+func (n *IfStatementNode) Children() []Node {
+	return []Node{n.Condition, n.Statement}
 }
 
-// String of the if-then statement node.
-func (s *IfStatementNode) String() string {
-	return ifStatementFormat
-}	
+// String representation of the if-then statement node.
+func (n *IfStatementNode) String() string {
+	return n.Kind().String()
+}
 
 // Accept the visitor for the if-then statement node.
-func (s *IfStatementNode) Accept(visitor Visitor) {
-	visitor.VisitIfStatement(s)
+func (n *IfStatementNode) Accept(visitor Visitor) {
+	visitor.VisitIfStatement(n)
 }

@@ -322,7 +322,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	switch iu.Context {
 	case sym.ConstantEntry:
 		// get constant declaration of the constant to load
-		constantDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.ConstantDeclarationNode)
+		constantDeclaration := iu.Scope.Lookup(iu.Name).Type.(*ast.ConstantDeclarationNode)
 
 		// determine the intermediate code name of the abstract syntax constant declaration
 		codeName := iu.Scope.Lookup(iu.Name).Extension[symbolExtension].(*symbolMetaData).name
@@ -344,7 +344,7 @@ func (g *generator) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 
 	case sym.VariableEntry:
 		// get variable declaration of the variable to load
-		variableDeclaration := iu.Scope.Lookup(iu.Name).Declaration.(*ast.VariableDeclarationNode)
+		variableDeclaration := iu.Scope.Lookup(iu.Name).Type.(*ast.VariableDeclarationNode)
 
 		// determine the block nesting depth of the variable declaration
 		declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
@@ -519,7 +519,7 @@ func (g *generator) VisitAssignmentStatement(s *ast.AssignmentStatementNode) {
 
 	// get the variable declaration on the left-hand-side of the assignment
 	variableUse := s.Variable.(*ast.IdentifierUseNode)
-	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Type.(*ast.VariableDeclarationNode)
 
 	// determine the block nesting depth of the variable declaration
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
@@ -552,7 +552,7 @@ func (g *generator) VisitReadStatement(s *ast.ReadStatementNode) {
 
 	// get the variable declaration of the variable to read into
 	variableUse := s.Variable.(*ast.IdentifierUseNode)
-	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Declaration.(*ast.VariableDeclarationNode)
+	variableDeclaration := variableUse.Scope.Lookup(variableUse.Name).Type.(*ast.VariableDeclarationNode)
 
 	// determine the block nesting depth of the variable declaration
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, variableDeclaration).Depth
@@ -617,7 +617,7 @@ func (g *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 func (g *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// get the declaration of the procedure to call
 	procedureUse := s.Procedure.(*ast.IdentifierUseNode)
-	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Declaration.(*ast.ProcedureDeclarationNode)
+	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Type.(*ast.ProcedureDeclarationNode)
 
 	// determine the block nesting depth of the procedure declaration
 	declarationDepth := ast.SearchBlock(ast.CurrentBlock, procedureDeclaration).Depth

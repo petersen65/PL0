@@ -86,7 +86,7 @@ func (n *DeclarationNode) Index() int {
 }
 
 // Scope in which the expression is located.
-func (n *ExpressionNode) Location() sym.Scope[Declaration] {
+func (n *ExpressionNode) Location() sym.Scope {
 	return n.Scope
 }
 
