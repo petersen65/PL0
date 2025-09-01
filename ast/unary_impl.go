@@ -16,15 +16,15 @@ var unaryOperationFormats = map[UnaryOperator]string{
 
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(scope sym.Scope[Declaration], operation UnaryOperator, operand Expression, index int) Expression {
-	unary := &UnaryOperationNode{
-		CommonNode:     CommonNode{NodeKind: KindIdentifierUse},
+	unaryNode := &UnaryOperationNode{
+		CommonNode:     CommonNode{NodeKind: KindUnaryOperation},
 		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
 		Operation:      operation,
 		Operand:        operand,
 	}
 
-	operand.SetParent(unary)
-	return unary
+	operand.SetParent(unaryNode)
+	return unaryNode
 }
 
 // Children nodes of the unary operation node.

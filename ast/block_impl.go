@@ -18,7 +18,7 @@ const blockFormat = "block(depth=%v)"
 
 // Create a new block node in the abstract syntax tree.
 func newBlock(depth int32, scope sym.Scope[Declaration], declarations []Declaration, statement Statement) Block {
-	block := &BlockNode{
+	blockNode := &BlockNode{
 		CommonNode:   CommonNode{NodeKind: KindBlock},
 		Depth:        depth,
 		Scope:        scope,
@@ -27,12 +27,12 @@ func newBlock(depth int32, scope sym.Scope[Declaration], declarations []Declarat
 		Statement:    statement,
 	}
 
-	for _, declaration := range block.Declarations {
-		declaration.SetParent(block)
+	for _, declaration := range blockNode.Declarations {
+		declaration.SetParent(blockNode)
 	}
 
-	statement.SetParent(block)
-	return block
+	statement.SetParent(blockNode)
+	return blockNode
 }
 
 // Children nodes of the block node.

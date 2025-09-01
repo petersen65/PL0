@@ -38,15 +38,14 @@ func (u *IdentifierUseNode) Children() []Node {
 // String of the identifier-use node.
 func (u *IdentifierUseNode) String() string {
 	if symbol := u.Scope.Lookup(u.Name); symbol != nil {
+		format := identifierUseFormats[symbol.Kind]
+		
 		switch symbol.Kind {
 		case sym.ConstantEntry:
-			return fmt.Sprintf(identifierUseFormats[sym.ConstantEntry], symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
+			return fmt.Sprintf(format, symbol.Kind, symbol.Name, symbol.Declaration.(*ConstantDeclarationNode).Value, u.Use)
 
-		case sym.VariableEntry:
-			return fmt.Sprintf(identifierUseFormats[sym.VariableEntry], symbol.Kind, symbol.Name, u.Use)
-
-		case sym.ProcedureEntry:
-			return fmt.Sprintf(identifierUseFormats[sym.ProcedureEntry], symbol.Kind, symbol.Name, u.Use)
+		case sym.VariableEntry, sym.ProcedureEntry:
+			return fmt.Sprintf(format, symbol.Kind, symbol.Name, u.Use)
 
 		default:
 			panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownSymbolKind, nil, nil))

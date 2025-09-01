@@ -599,7 +599,7 @@ func (p *parser) condition(scope sym.Scope[ast.Declaration], anchors tok.Tokens)
 		oddIndex := p.lastTokenIndex()
 		p.nextToken()
 		operand := p.expression(scope, anchors)
-		operation = ast.NewUnaryOperation(ast.Odd, operand, oddIndex)
+		operation = ast.NewUnaryOperation(scope, ast.Odd, operand, oddIndex)
 	} else {
 		// handle left expression of a comparison operator
 		left := p.expression(scope, set(anchors, tok.Equal, tok.NotEqual, tok.Less, tok.LessEqual, tok.Greater, tok.GreaterEqual))
@@ -616,22 +616,22 @@ func (p *parser) condition(scope sym.Scope[ast.Declaration], anchors tok.Tokens)
 
 			switch comparisonOperator {
 			case tok.Equal:
-				operation = ast.NewComparisonOperation(ast.Equal, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.Equal, left, right, comparisonOperatorIndex)
 
 			case tok.NotEqual:
-				operation = ast.NewComparisonOperation(ast.NotEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.NotEqual, left, right, comparisonOperatorIndex)
 
 			case tok.Less:
-				operation = ast.NewComparisonOperation(ast.Less, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.Less, left, right, comparisonOperatorIndex)
 
 			case tok.LessEqual:
-				operation = ast.NewComparisonOperation(ast.LessEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.LessEqual, left, right, comparisonOperatorIndex)
 
 			case tok.Greater:
-				operation = ast.NewComparisonOperation(ast.Greater, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.Greater, left, right, comparisonOperatorIndex)
 
 			case tok.GreaterEqual:
-				operation = ast.NewComparisonOperation(ast.GreaterEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(scope, ast.GreaterEqual, left, right, comparisonOperatorIndex)
 
 			default:
 				p.appendError(expectedComparisonOperator, p.lastTokenName())
@@ -659,9 +659,9 @@ func (p *parser) expression(scope sym.Scope[ast.Declaration], anchors tok.Tokens
 		right := p.term(scope, set(anchors, tok.Plus, tok.Minus))
 
 		if plusOrMinus == tok.Plus {
-			operation = ast.NewBinaryOperation(ast.Plus, left, right, plusOrMinusIndex)
+			operation = ast.NewBinaryOperation(scope, ast.Plus, left, right, plusOrMinusIndex)
 		} else {
-			operation = ast.NewBinaryOperation(ast.Minus, left, right, plusOrMinusIndex)
+			operation = ast.NewBinaryOperation(scope, ast.Minus, left, right, plusOrMinusIndex)
 		}
 
 		left = operation
@@ -691,10 +691,10 @@ func (p *parser) term(scope sym.Scope[ast.Declaration], anchors tok.Tokens) ast.
 		right := p.factor(scope, set(anchors, tok.Times, tok.Divide))
 
 		if timesOrDevide == tok.Times {
-			operation = ast.NewBinaryOperation(ast.Times, left, right, timesOrDevideIndex)
+			operation = ast.NewBinaryOperation(scope, ast.Times, left, right, timesOrDevideIndex)
 
 		} else {
-			operation = ast.NewBinaryOperation(ast.Divide, left, right, timesOrDevideIndex)
+			operation = ast.NewBinaryOperation(scope, ast.Divide, left, right, timesOrDevideIndex)
 		}
 
 		left = operation
@@ -734,7 +734,7 @@ func (p *parser) factor(scope sym.Scope[ast.Declaration], anchors tok.Tokens) as
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, sym.ConstantEntry|sym.VariableEntry, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == tok.Number {
-			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), ts.Integer64, scope, p.lastTokenIndex())
+			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), scope, p.lastTokenIndex())
 			sign = tok.Unknown
 			p.nextToken()
 		} else if p.lastToken() == tok.LeftParenthesis {
@@ -759,7 +759,7 @@ func (p *parser) factor(scope sym.Scope[ast.Declaration], anchors tok.Tokens) as
 
 	// negate the factor if a leading minus sign is present
 	if sign == tok.Minus {
-		operand = ast.NewUnaryOperation(ast.Negate, operand, signIndex)
+		operand = ast.NewUnaryOperation(scope, ast.Negate, operand, signIndex)
 	}
 
 	return operand

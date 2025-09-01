@@ -121,6 +121,12 @@ type (
 		TokenStreamIndex int                    `json:"token_stream_index"` // index of the token in the token stream
 	}
 
+	// Base structure for all statement nodes in the AST.
+	StatementNode struct {
+		TokenStreamIndexBegin int `json:"token_stream_index_begin"` // begin index of the token in the token stream
+		TokenStreamIndexEnd   int `json:"token_stream_index_end"`   // end index of the token in the token stream
+	}
+
 	// Block node represents a block in the AST.
 	BlockNode struct {
 		CommonNode                          // embedded common node
@@ -195,68 +201,54 @@ type (
 
 	// AssignmentStatement node represents an assignment statement in the AST.
 	AssignmentStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the assignment statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the assignment statement
-		Variable              Expression `json:"variable"`                 // variable use on the left side of the assignment statement
-		Expression            Expression `json:"expression"`               // expression on the right side of the assignment statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Variable   Expression `json:"variable"`   // variable use on the left side of the assignment statement
+		Expression Expression `json:"expression"` // expression on the right side of the assignment statement
 	}
 
 	// ReadStatement node represents a read statement in the AST.
 	ReadStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the read statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the read statement
-		Variable              Expression `json:"variable"`                 // variable use of the read statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Variable Expression `json:"variable"` // variable use of the read statement
 	}
 
 	// WriteStatement node represents a write statement in the AST.
 	WriteStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the write statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the write statement
-		Expression            Expression `json:"expression"`               // expression of the write statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Expression Expression `json:"expression"` // expression of the write statement
 	}
 
 	// CallStatement node represents a call statement in the AST.
 	CallStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the call statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the call statement
-		Procedure             Expression `json:"procedure"`                // procedure use of the call statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Procedure Expression `json:"procedure"` // procedure use of the call statement
 	}
 
 	// IfStatement node represents an if-then statement in the AST.
 	IfStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the if-then statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the if-then statement
-		Condition             Expression `json:"condition"`                // if-condition of the if-then statement
-		Statement             Statement  `json:"statement"`                // then-statement of the if-then statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Condition Expression `json:"condition"` // if-condition of the if-then statement
+		Statement Statement  `json:"statement"` // then-statement of the if-then statement
 	}
 
 	// WhileStatement node represents a while-do statement in the AST.
 	WhileStatementNode struct {
-		TypeName              string     `json:"type"`                     // type name of the while-do statement node
-		ParentNode            Node       `json:"-"`                        // parent node of the while-do statement
-		Condition             Expression `json:"condition"`                // while-condition of the while-do statement
-		Statement             Statement  `json:"statement"`                // do-statement of the while-do statement
-		TokenStreamIndexBegin int        `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int        `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Condition Expression `json:"condition"` // while-condition of the while-do statement
+		Statement Statement  `json:"statement"` // do-statement of the while-do statement
 	}
 
 	// CompoundStatement node represents a begin-end statement in the AST.
 	CompoundStatementNode struct {
-		TypeName              string      `json:"type"`                     // type name of the compound statement node
-		ParentNode            Node        `json:"-"`                        // parent node of the begin-end compound statement
-		Statements            []Statement `json:"statements"`               // all statements of the begin-end compound statement
-		TokenStreamIndexBegin int         `json:"token_stream_index_begin"` // begin index of the token in the token stream
-		TokenStreamIndexEnd   int         `json:"token_stream_index_end"`   // end index of the token in the token stream
+		CommonNode
+		StatementNode
+		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
 	}
 
 	// A node in the abstract syntax tree.
