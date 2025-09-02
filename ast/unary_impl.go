@@ -45,7 +45,7 @@ func (n *UnaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitUnaryOperation(n)
 }
 
-// Find a block node that contains this unary operation node.
-func (n *UnaryOperationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this unary operation node.
+func (n *UnaryOperationNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

@@ -32,7 +32,7 @@ func (n *IfStatementNode) Accept(visitor Visitor) {
 	visitor.VisitIfStatement(n)
 }
 
-// Find a block node that contains this if-then statement node.
-func (n *IfStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this if-then statement node.
+func (n *IfStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

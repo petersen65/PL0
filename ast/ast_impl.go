@@ -127,9 +127,9 @@ func (n *statementNode) IndexPair() (int, int) {
 }
 
 // Search for a parent block node in the abstract syntax tree based on the search mode.
-func searchBlock(current Node, mode BlockSearchMode) *BlockNode {
+func searchBlock(current Node, mode BlockSearchMode) *blockNode {
 	for current != nil {
-		if block, ok := current.(*BlockNode); ok {
+		if block, ok := current.(*blockNode); ok {
 			if mode == CurrentBlock {
 				return block
 			} else if mode == RootBlock && block.Parent() == nil {

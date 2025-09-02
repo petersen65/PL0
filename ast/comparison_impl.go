@@ -52,7 +52,7 @@ func (e *ComparisonOperationNode) Accept(visitor Visitor) {
 	visitor.VisitComparisonOperation(e)
 }
 
-// Find a block node that contains this comparison operation node.
-func (e *ComparisonOperationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(e, mode)
+// Find the current block node that contains this comparison operation node.
+func (e *ComparisonOperationNode) CurrentBlock() Block {
+	return searchBlock(e, CurrentBlock)
 }

@@ -114,7 +114,7 @@ type (
 	ProcedureDeclarationNode struct {
 		commonNode            // embedded common node
 		declarationNode       // embedded declaration node
-		ProcedureBlock  Block `json:"procedure_block"` // block of the procedure
+		Block           Block `json:"procedure_block"` // block of the procedure
 	}
 
 	// Literal node represents the usage of a literal value in the AST.
@@ -220,6 +220,7 @@ type (
 		String() string
 		Accept(visitor Visitor)
 		Index() int
+		CurrentBlock() Block
 	}
 
 	// A declaration represented as an abstract syntax tree.
@@ -244,7 +245,7 @@ type (
 	//   - the dynamic type of the object (the AST node) determines the method to be called, and
 	//   - the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
-		VisitBlock(block *BlockNode)
+		VisitBlock(block Block)
 		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
 		VisitVariableDeclaration(declaration *VariableDeclarationNode)
 		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)

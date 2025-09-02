@@ -39,7 +39,7 @@ func (n *CompoundStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCompoundStatement(n)
 }
 
-// Find a block node that contains this compound statement node.
-func (n *CompoundStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this compound statement node.
+func (n *CompoundStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

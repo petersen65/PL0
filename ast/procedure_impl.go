@@ -13,13 +13,13 @@ func newProcedureDeclaration(name string, block Block, index int) Declaration {
 	return &ProcedureDeclarationNode{
 		commonNode:      commonNode{NodeKind: KindProcedureDeclaration},
 		declarationNode: declarationNode{Name: name, DataTypeName: "", IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
-		ProcedureBlock:  block,
+		Block:  block,
 	}
 }
 
 // Children nodes of the procedure declaration node.
 func (n *ProcedureDeclarationNode) Children() []Node {
-	return []Node{n.ProcedureBlock}
+	return []Node{n.Block}
 }
 
 // String representation of the procedure declaration node.
@@ -32,7 +32,7 @@ func (n *ProcedureDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitProcedureDeclaration(n)
 }
 
-// Find a block node that contains this procedure declaration node.
-func (n *ProcedureDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this procedure declaration node.
+func (n *ProcedureDeclarationNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

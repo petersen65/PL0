@@ -11,26 +11,16 @@ import (
 )
 
 type (
-	// Block node represents a block in the AST.
-	BlockNode struct {
-		commonNode                 // embedded common node
-		Depth        int32         `json:"depth"`              // block nesting depth
-		Scope        sym.Scope     `json:"scope"`              // scope with the symbol table of the block
-		Declarations []Declaration `json:"declarations"`       // all declarations of the block
-		Closure      []Declaration `json:"closure"`            // all captured variable declarations from lexical parents of the block
-		Statement    Statement     `json:"statement"`          // statement of the block
-		Id           int           `json:"id"`                 // each block needs to be uniquely identifiable
-		Counter      map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique names
-	}
-
-	// A block represented as an abstract syntax tree.
+	// Block represents a block of declarations and statements in the abstract syntax tree.
 	Block interface {
 		Node
 		Children() []Node
 		String() string
 		Index() int
 		Accept(visitor Visitor)
+		RootBlock() Block
 		Lookup(name string) *sym.Symbol
+		LookupCurrent(name string) *sym.Symbol
 		UniqueName(prefix rune) string
 		Print(print io.Writer, args ...any) error
 		Export(format exp.ExportFormat, print io.Writer) error

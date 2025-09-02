@@ -32,7 +32,7 @@ func (n *ConstantDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitConstantDeclaration(n)
 }
 
-// Find a block node that contains this constant declaration node.
-func (n *ConstantDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this constant declaration node.
+func (n *ConstantDeclarationNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

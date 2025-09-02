@@ -49,7 +49,7 @@ func (e *BinaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitBinaryOperation(e)
 }
 
-// Find a block node that contains this binary operation node.
-func (e *BinaryOperationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(e, mode)
+// Find the current block node that contains this binary operation node.
+func (e *BinaryOperationNode) CurrentBlock() Block {
+	return searchBlock(e, CurrentBlock)
 }

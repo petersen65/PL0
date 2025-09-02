@@ -30,7 +30,7 @@ func (n *CallStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCallStatement(n)
 }
 
-// Find a block node that contains this call statement node.
-func (n *CallStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this call statement node.
+func (n *CallStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

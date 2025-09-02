@@ -30,7 +30,7 @@ func (n *ReadStatementNode) Accept(visitor Visitor) {
 	visitor.VisitReadStatement(n)
 }
 
-// Find a block node that contains this read statement node.
-func (n *ReadStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this read statement node.
+func (n *ReadStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

@@ -31,7 +31,7 @@ func (n *VariableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(n)
 }
 
-// Find a block node that contains this variable declaration node.
-func (n *VariableDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this variable declaration node.
+func (n *VariableDeclarationNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

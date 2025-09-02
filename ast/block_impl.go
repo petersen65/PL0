@@ -16,9 +16,21 @@ import (
 // Format for the string representation of a block node.
 const blockFormat = "%v(depth=%v)"
 
+// The block node represents a block in the AST.
+type blockNode struct {
+	commonNode                 // embedded common node
+	Depth        int32         `json:"depth"`              // block nesting depth
+	Scope        sym.Scope     `json:"scope"`              // scope with the symbol table of the block
+	Declarations []Declaration `json:"declarations"`       // all declarations of the block
+	Closure      []Declaration `json:"closure"`            // all captured variable declarations from lexical parents of the block
+	Statement    Statement     `json:"statement"`          // statement of the block
+	Id           int           `json:"id"`                 // each block needs to be uniquely identifiable
+	Counter      map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique names
+}
+
 // Create a new block node in the abstract syntax tree.
 func newBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement, id int) Block {
-	blockNode := &BlockNode{
+	blockNode := &blockNode{
 		commonNode:   commonNode{NodeKind: KindBlock},
 		Depth:        depth,
 		Scope:        scope,
@@ -38,7 +50,7 @@ func newBlock(depth int32, scope sym.Scope, declarations []Declaration, statemen
 }
 
 // Children nodes of the block node.
-func (n *BlockNode) Children() []Node {
+func (n *blockNode) Children() []Node {
 	children := make([]Node, 0, len(n.Declarations)+1)
 
 	for _, declaration := range n.Declarations {
@@ -49,17 +61,17 @@ func (n *BlockNode) Children() []Node {
 }
 
 // String representation of the block node.
-func (n *BlockNode) String() string {
+func (n *blockNode) String() string {
 	return fmt.Sprintf(blockFormat, n.Kind(), n.Depth)
 }
 
 // Accept the visitor for the block node.
-func (n *BlockNode) Accept(visitor Visitor) {
+func (n *blockNode) Accept(visitor Visitor) {
 	visitor.VisitBlock(n)
 }
 
 // Index returns the token stream index of the block node.
-func (n *BlockNode) Index() int {
+func (n *blockNode) Index() int {
 	if len(n.Declarations) > 0 {
 		return n.Declarations[0].Index()
 	}
@@ -67,18 +79,28 @@ func (n *BlockNode) Index() int {
 	return n.Statement.Index()
 }
 
-// Find a block node that contains this block node.
-func (n *BlockNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the root block node that contains all block nodes.
+func (n *blockNode) RootBlock() Block {
+	return searchBlock(n, RootBlock)
 }
 
-// Lookup finds a symbol in the block's scope.
-func (n *BlockNode) Lookup(name string) *sym.Symbol {
+// Find the current block node that contains this block node.
+func (n *blockNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
+}
+
+// Find a symbol in the block's scope and all its parent scopes.
+func (n *blockNode) Lookup(name string) *sym.Symbol {
 	return n.Scope.Lookup(name)
 }
 
+// Find a symbol in the block's current scope.
+func (n *blockNode) LookupCurrent(name string) *sym.Symbol {
+	return n.Scope.LookupCurrent(name)
+}
+
 // Create a new compiler-generated unique name for a block.
-func (s *BlockNode) UniqueName(prefix rune) string {
+func (s *blockNode) UniqueName(prefix rune) string {
 	if _, ok := s.Counter[prefix]; !ok {
 		s.Counter[prefix] = 0
 	}
@@ -88,7 +110,7 @@ func (s *BlockNode) UniqueName(prefix rune) string {
 }
 
 // Print the abstract syntax tree to the specified writer.
-func (n *BlockNode) Print(print io.Writer, args ...any) error {
+func (n *blockNode) Print(print io.Writer, args ...any) error {
 	// traverse the abstract syntax tree and print each node
 	if err := printAbstractSyntaxTree(n, "", true, print); err != nil {
 		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
@@ -98,7 +120,7 @@ func (n *BlockNode) Print(print io.Writer, args ...any) error {
 }
 
 // Export the abstract syntax tree of the block node to the specified writer in the specified format.
-func (n *BlockNode) Export(format exp.ExportFormat, print io.Writer) error {
+func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 	// JSON formatting requires a prefix and indent for pretty printing
 	const prefix, indent = "", "  "
 

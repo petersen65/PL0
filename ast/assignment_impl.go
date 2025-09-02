@@ -35,8 +35,7 @@ func (s *AssignmentStatementNode) Accept(visitor Visitor) {
 	visitor.VisitAssignmentStatement(s)
 }
 
-// Find a block node that contains this assignment statement node.
-func (s *AssignmentStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(s, mode)
+// Find the current block node that contains this assignment statement node.
+func (s *AssignmentStatementNode) CurrentBlock() Block {
+	return searchBlock(s, CurrentBlock)
 }
-

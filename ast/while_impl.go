@@ -32,7 +32,7 @@ func (n *WhileStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWhileStatement(n)
 }
 
-// Find a block node that contains this while-do statement node.
-func (n *WhileStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this while-do statement node.
+func (n *WhileStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

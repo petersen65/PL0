@@ -37,7 +37,7 @@ func (n *IdentifierUseNode) Children() []Node {
 
 // String representation of the identifier-use node.
 func (n *IdentifierUseNode) String() string {
-	if symbol := n.Block(CurrentBlock).Lookup(n.Name); symbol != nil {
+	if symbol := n.CurrentBlock().Lookup(n.Name); symbol != nil {
 		format := identifierUseFormats[symbol.Kind]
 
 		switch symbol.Kind {
@@ -61,7 +61,7 @@ func (n *IdentifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(n)
 }
 
-// Find a block node that contains this identifier-use node.
-func (n *IdentifierUseNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this identifier-use node.
+func (n *IdentifierUseNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

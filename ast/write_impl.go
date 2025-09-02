@@ -30,7 +30,7 @@ func (n *WriteStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWriteStatement(n)
 }
 
-// Find a block node that contains this write statement node.
-func (n *WriteStatementNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this write statement node.
+func (n *WriteStatementNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }

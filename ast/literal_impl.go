@@ -32,7 +32,7 @@ func (n *LiteralNode) Accept(visitor Visitor) {
 	visitor.VisitLiteral(n)
 }
 
-// Find a block node that contains this literal node.
-func (n *LiteralNode) Block(mode BlockSearchMode) *BlockNode {
-	return searchBlock(n, mode)
+// Find the current block node that contains this literal node.
+func (n *LiteralNode) CurrentBlock() Block {
+	return searchBlock(n, CurrentBlock)
 }
