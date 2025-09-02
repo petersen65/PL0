@@ -50,7 +50,7 @@ func NewSymbol(name string, kind Entry, dataType ts.TypeDescriptor, value any) *
 	return newSymbol(name, kind, dataType, value)
 }
 
-// Create a new scope with an outer scope.
+// Create a new scope with an outer scope. The outer scope can be nil.
 func NewScope(outer Scope) Scope {
 	return newScope(outer)
 }

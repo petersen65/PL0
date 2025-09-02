@@ -14,7 +14,8 @@ type (
 
 	// Implementation of the scope data structure.
 	scope struct {
-		Outer       *scope       `json:"outer"`        // outer scope or nil if this is the outermost scope
+		Outer       *scope       `json:"-"`            // outer scope or nil if this is the outermost scope
+		Inner       []*scope     `json:"inner"`        // inner scopes nested within this scope
 		SymbolTable *symbolTable `json:"symbol_table"` // symbol table of the scope
 	}
 )
@@ -48,10 +49,18 @@ func newSymbolTable() *symbolTable {
 	}
 }
 
-// Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
+// Create a new scope with an outer scope. The outer scope can be nil.
 func newScope(outer Scope) Scope {
+	var outerScope *scope
+
+	if outer != nil {
+		outerScope = outer.(*scope)
+		outerScope.Inner = append(outerScope.Inner, nil)
+	}
+
 	return &scope{
-		Outer:       outer.(*scope),
+		Outer:       outerScope,
+		Inner:       make([]*scope, 0),
 		SymbolTable: newSymbolTable(),
 	}
 }
