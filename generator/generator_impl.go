@@ -299,7 +299,7 @@ func (g *generator) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
 // Generate code for a procedure declaration.
 func (g *generator) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
 	// generate code for the block of the procedure
-	pd.Block.Accept(g)
+	pd.ProcedureBlock.Accept(g)
 }
 
 // Generate code for a literal.
@@ -833,7 +833,7 @@ func configureSymbols(node ast.Node, code any) {
 		}
 
 	case *ast.ProcedureDeclarationNode:
-		name := n.Block.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
+		name := n.ProcedureBlock.(*ast.BlockNode).Scope.NewIdentifier(prefix[functionPrefix])
 		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
 		unit.Insert(ic.NewSymbol(name, ic.FunctionEntry, ic.Untyped))
 	}

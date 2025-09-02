@@ -3,10 +3,7 @@
 
 package ast
 
-import (
-	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Formats for the string representation of binary operation nodes.
 var binaryOperationFormats = map[BinaryOperator]string{
@@ -17,10 +14,10 @@ var binaryOperationFormats = map[BinaryOperator]string{
 }
 
 // Create a new binary operation node in the abstract syntax tree.
-func newBinaryOperation(scope sym.Scope, operation BinaryOperator, left, right Expression, index int) Expression {
+func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
 	binaryNode := &BinaryOperationNode{
-		CommonNode:     CommonNode{NodeKind: KindBinaryOperation},
-		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
+		commonNode:     commonNode{NodeKind: KindBinaryOperation},
+		expressionNode: expressionNode{TokenStreamIndex: index},
 		Operation:      operation,
 		Left:           left,
 		Right:          right,
@@ -50,4 +47,9 @@ func (e *BinaryOperationNode) String() string {
 // Accept the visitor for the binary operation node.
 func (e *BinaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitBinaryOperation(e)
+}
+
+// Find a block node that contains this binary operation node.
+func (e *BinaryOperationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(e, mode)
 }

@@ -82,7 +82,7 @@ func (a *semanticAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclaratio
 		pd.Scope.Insert(pd.Name, sym.NewSymbol(pd.Name, sym.ProcedureEntry, ast.Declaration(pd)))
 	}
 
-	pd.Block.Accept(a)
+	pd.ProcedureBlock.Accept(a)
 }
 
 // Walk the literal abstract syntax tree.

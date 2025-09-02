@@ -6,8 +6,8 @@ package ast
 // Create a new call statement node in the abstract syntax tree.
 func newCallStatement(procedure Expression, beginIndex, endIndex int) Statement {
 	callNode := &CallStatementNode{
-		CommonNode:    CommonNode{NodeKind: KindCallStatement},
-		StatementNode: StatementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
+		commonNode:    commonNode{NodeKind: KindCallStatement},
+		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
 		Procedure:     procedure,
 	}
 
@@ -28,4 +28,9 @@ func (n *CallStatementNode) String() string {
 // Accept the visitor for the call statement node.
 func (n *CallStatementNode) Accept(visitor Visitor) {
 	visitor.VisitCallStatement(n)
+}
+
+// Find a block node that contains this call statement node.
+func (n *CallStatementNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

@@ -3,10 +3,7 @@
 
 package ast
 
-import (
-	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Formats for the string representation of unary operation nodes.
 var unaryOperationFormats = map[UnaryOperator]string{
@@ -15,10 +12,10 @@ var unaryOperationFormats = map[UnaryOperator]string{
 }
 
 // Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(scope sym.Scope, operation UnaryOperator, operand Expression, index int) Expression {
+func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
 	unaryNode := &UnaryOperationNode{
-		CommonNode:     CommonNode{NodeKind: KindUnaryOperation},
-		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
+		commonNode:     commonNode{NodeKind: KindUnaryOperation},
+		expressionNode: expressionNode{TokenStreamIndex: index},
 		Operation:      operation,
 		Operand:        operand,
 	}
@@ -46,4 +43,9 @@ func (n *UnaryOperationNode) String() string {
 // Accept the visitor for the unary operation node.
 func (n *UnaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitUnaryOperation(n)
+}
+
+// Find a block node that contains this unary operation node.
+func (n *UnaryOperationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

@@ -3,10 +3,7 @@
 
 package ast
 
-import (
-	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import eh "github.com/petersen65/pl0/v3/errors"
 
 // Formats for the string representation of comparison operation nodes.
 var comparisonOperationFormats = map[ComparisonOperator]string{
@@ -19,10 +16,10 @@ var comparisonOperationFormats = map[ComparisonOperator]string{
 }
 
 // Create a new comparison operation node in the abstract syntax tree.
-func newComparisonOperation(scope sym.Scope, operation ComparisonOperator, left, right Expression, index int) Expression {
+func newComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
 	comparisonNode := &ComparisonOperationNode{
-		CommonNode:     CommonNode{NodeKind: KindBinaryOperation},
-		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
+		commonNode:     commonNode{NodeKind: KindBinaryOperation},
+		expressionNode: expressionNode{TokenStreamIndex: index},
 		Operation:      operation,
 		Left:           left,
 		Right:          right,
@@ -53,4 +50,9 @@ func (e *ComparisonOperationNode) String() string {
 // Accept the visitor for the comparison operation node.
 func (e *ComparisonOperationNode) Accept(visitor Visitor) {
 	visitor.VisitComparisonOperation(e)
+}
+
+// Find a block node that contains this comparison operation node.
+func (e *ComparisonOperationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(e, mode)
 }

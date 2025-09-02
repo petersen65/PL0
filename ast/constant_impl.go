@@ -3,20 +3,16 @@
 
 package ast
 
-import (
-	"fmt"
-
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import "fmt"
 
 // Format for the string representation of a constant declaration node.
 const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name, dataTypeName string, value any, scope sym.Scope, index int) Declaration {
+func newConstantDeclaration(name, dataTypeName string, value any, index int) Declaration {
 	return &ConstantDeclarationNode{
-		CommonNode:      CommonNode{NodeKind: KindConstantDeclaration},
-		DeclarationNode: DeclarationNode{Name: name, DataTypeName: dataTypeName, Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		commonNode:      commonNode{NodeKind: KindConstantDeclaration},
+		declarationNode: declarationNode{Name: name, DataTypeName: dataTypeName, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
 		Value:           value,
 	}
 }
@@ -34,4 +30,9 @@ func (n *ConstantDeclarationNode) String() string {
 // Accept the visitor for the constant declaration node.
 func (n *ConstantDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitConstantDeclaration(n)
+}
+
+// Find a block node that contains this constant declaration node.
+func (n *ConstantDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

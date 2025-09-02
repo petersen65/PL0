@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
 // Allows the detection of empty constants because of parsing errors. They should be ignored in all compiler phases.
@@ -17,6 +16,33 @@ const emptyConstantName = "@constant"
 
 // Separator for the string representation of a bit-mask.
 const bitMaskSeparator = "|"
+
+type (
+	// Base structure for all nodes in the AST.
+	commonNode struct {
+		NodeKind   NodeKind `json:"kind"` // kind of node for each node
+		ParentNode Node     `json:"-"`    // parent node for each node
+	}
+
+	// Base structure for all declaration nodes in the AST.
+	declarationNode struct {
+		Name             string       `json:"name"`               // name of the declared identifier
+		DataTypeName     string       `json:"data_type_name"`     // datatype name of the identifier
+		IdentifierUsage  []Expression `json:"usage"`              // all usages of the identifier
+		TokenStreamIndex int          `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// Base structure for all expression nodes in the AST.
+	expressionNode struct {
+		TokenStreamIndex int `json:"token_stream_index"` // index of the token in the token stream
+	}
+
+	// Base structure for all statement nodes in the AST.
+	statementNode struct {
+		TokenStreamIndexBegin int `json:"token_stream_index_begin"` // begin index of the token in the token stream
+		TokenStreamIndexEnd   int `json:"token_stream_index_end"`   // end index of the token in the token stream
+	}
+)
 
 var (
 	// Map kind of nodes to their string representation.
@@ -61,48 +87,60 @@ func (u Usage) String() string {
 }
 
 // Kind of node for each node in the AST.
-func (n *CommonNode) Kind() NodeKind {
+func (n *commonNode) Kind() NodeKind {
 	return n.NodeKind
 }
 
 // Parent node for each node in the AST.
-func (n *CommonNode) Parent() Node {
+func (n *commonNode) Parent() Node {
 	return n.ParentNode
 }
 
 // Set the parent node for each node in the AST.
-func (n *CommonNode) SetParent(parent Node) {
+func (n *commonNode) SetParent(parent Node) {
 	n.ParentNode = parent
 }
 
-// All usages of the declared identifier in expressions.
-func (n *DeclarationNode) Usage() []Expression {
-	return n.IdentifierUsage
-}
-
 // Token stream index of the declaration node.
-func (n *DeclarationNode) Index() int {
+func (n *declarationNode) Index() int {
 	return n.TokenStreamIndex
 }
 
-// Scope in which the expression is located.
-func (n *ExpressionNode) Location() sym.Scope {
-	return n.Scope
+// All usages of the declared identifier in expressions.
+func (n *declarationNode) Usage() []Expression {
+	return n.IdentifierUsage
 }
 
 // Token stream index of the expression node.
-func (n *ExpressionNode) Index() int {
+func (n *expressionNode) Index() int {
 	return n.TokenStreamIndex
 }
 
 // Token stream begin index of the statement node.
-func (n *StatementNode) Index() int {
+func (n *statementNode) Index() int {
 	return n.TokenStreamIndexBegin
 }
 
 // Token stream begin index and end index of the statement node.
-func (n *StatementNode) IndexPair() (int, int) {
+func (n *statementNode) IndexPair() (int, int) {
 	return n.TokenStreamIndexBegin, n.TokenStreamIndexEnd
+}
+
+// Search for a parent block node in the abstract syntax tree based on the search mode.
+func searchBlock(current Node, mode BlockSearchMode) *BlockNode {
+	for current != nil {
+		if block, ok := current.(*BlockNode); ok {
+			if mode == CurrentBlock {
+				return block
+			} else if mode == RootBlock && block.Parent() == nil {
+				return block
+			}
+		}
+
+		current = current.Parent()
+	}
+
+	return nil
 }
 
 // Walk traverses a abstract syntax tree in a specific order and calls the visitor or the visit function for each node.

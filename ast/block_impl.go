@@ -17,14 +17,16 @@ import (
 const blockFormat = "%v(depth=%v)"
 
 // Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement) Block {
+func newBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement, id int) Block {
 	blockNode := &BlockNode{
-		CommonNode:   CommonNode{NodeKind: KindBlock},
+		commonNode:   commonNode{NodeKind: KindBlock},
 		Depth:        depth,
 		Scope:        scope,
 		Declarations: declarations,
 		Closure:      make([]Declaration, 0),
 		Statement:    statement,
+		Id:           id,
+		Counter:      make(map[rune]uint),
 	}
 
 	for _, declaration := range blockNode.Declarations {
@@ -51,6 +53,11 @@ func (n *BlockNode) String() string {
 	return fmt.Sprintf(blockFormat, n.Kind(), n.Depth)
 }
 
+// Accept the visitor for the block node.
+func (n *BlockNode) Accept(visitor Visitor) {
+	visitor.VisitBlock(n)
+}
+
 // Index returns the token stream index of the block node.
 func (n *BlockNode) Index() int {
 	if len(n.Declarations) > 0 {
@@ -60,9 +67,24 @@ func (n *BlockNode) Index() int {
 	return n.Statement.Index()
 }
 
-// Accept the visitor for the block node.
-func (n *BlockNode) Accept(visitor Visitor) {
-	visitor.VisitBlock(n)
+// Find a block node that contains this block node.
+func (n *BlockNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
+}
+
+// Lookup finds a symbol in the block's scope.
+func (n *BlockNode) Lookup(name string) *sym.Symbol {
+	return n.Scope.Lookup(name)
+}
+
+// Create a new compiler-generated unique name for a block.
+func (s *BlockNode) UniqueName(prefix rune) string {
+	if _, ok := s.Counter[prefix]; !ok {
+		s.Counter[prefix] = 0
+	}
+
+	s.Counter[prefix]++
+	return fmt.Sprintf("%c%v.%v", prefix, s.Id, s.Counter[prefix])
 }
 
 // Print the abstract syntax tree to the specified writer.

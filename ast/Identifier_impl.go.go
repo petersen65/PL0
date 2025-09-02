@@ -21,10 +21,10 @@ var identifierUseFormats = map[sym.Entry]string{
 }
 
 // Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, scope sym.Scope, context sym.Entry, index int) Expression {
+func newIdentifierUse(name string, context sym.Entry, index int) Expression {
 	return &IdentifierUseNode{
-		CommonNode:     CommonNode{NodeKind: KindIdentifierUse},
-		ExpressionNode: ExpressionNode{Scope: scope, TokenStreamIndex: index},
+		commonNode:     commonNode{NodeKind: KindIdentifierUse},
+		expressionNode: expressionNode{TokenStreamIndex: index},
 		Name:           name,
 		Context:        context,
 	}
@@ -37,7 +37,7 @@ func (n *IdentifierUseNode) Children() []Node {
 
 // String representation of the identifier-use node.
 func (n *IdentifierUseNode) String() string {
-	if symbol := n.Scope.Lookup(n.Name); symbol != nil {
+	if symbol := n.Block(CurrentBlock).Lookup(n.Name); symbol != nil {
 		format := identifierUseFormats[symbol.Kind]
 
 		switch symbol.Kind {
@@ -59,4 +59,9 @@ func (n *IdentifierUseNode) String() string {
 // Accept the visitor for the identifier-use node.
 func (n *IdentifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(n)
+}
+
+// Find a block node that contains this identifier-use node.
+func (n *IdentifierUseNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

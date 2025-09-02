@@ -3,20 +3,16 @@
 
 package ast
 
-import (
-	"fmt"
-
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import "fmt"
 
 // Format for the string representation of a variable declaration node.
 const variableFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name, dataTypeName string, scope sym.Scope, index int) Declaration {
+func newVariableDeclaration(name, dataTypeName string, index int) Declaration {
 	return &VariableDeclarationNode{
-		CommonNode:       CommonNode{NodeKind: KindVariableDeclaration},
-		DeclarationNode:  DeclarationNode{Name: name, DataTypeName: dataTypeName, Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		commonNode:      commonNode{NodeKind: KindVariableDeclaration},
+		declarationNode: declarationNode{Name: name, DataTypeName: dataTypeName, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
 	}
 }
 
@@ -33,4 +29,9 @@ func (n *VariableDeclarationNode) String() string {
 // Accept the visitor for the variable declaration node.
 func (n *VariableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(n)
+}
+
+// Find a block node that contains this variable declaration node.
+func (n *VariableDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

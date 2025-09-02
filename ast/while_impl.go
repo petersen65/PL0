@@ -6,8 +6,8 @@ package ast
 // Create a new while-do statement node in the abstract syntax tree.
 func newWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	whileNode := &WhileStatementNode{
-		CommonNode:    CommonNode{NodeKind: KindWhileStatement},
-		StatementNode: StatementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
+		commonNode:    commonNode{NodeKind: KindWhileStatement},
+		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
 		Condition:     condition,
 		Statement:     statement,
 	}
@@ -25,9 +25,14 @@ func (n *WhileStatementNode) Children() []Node {
 // String representation of the while-do statement node.
 func (n *WhileStatementNode) String() string {
 	return n.Kind().String()
-}	
+}
 
 // Accept the visitor for the while-do statement node.
 func (n *WhileStatementNode) Accept(visitor Visitor) {
 	visitor.VisitWhileStatement(n)
+}
+
+// Find a block node that contains this while-do statement node.
+func (n *WhileStatementNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

@@ -38,7 +38,6 @@ type (
 	// Each declared identifier is associated with one specific scope. It is visible in its scope and all inner scopes.
 	// An identifier can be redeclared in an inner scope, which will shadow the outer declaration.
 	Scope interface {
-		NewIdentifier(prefix rune) string
 		Insert(name string, symbol *Symbol)
 		Lookup(name string) *Symbol
 		LookupCurrent(name string) *Symbol
@@ -51,14 +50,9 @@ func NewSymbol(name string, kind Entry, dataType ts.TypeDescriptor, value any) *
 	return newSymbol(name, kind, dataType, value)
 }
 
-// Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
-func NewScope(uniqueId int, outer Scope) Scope {
-	return newScope(uniqueId, outer)
-}
-
-// An empty scope should only be used in the context of parser errors and is free from any side-effect.
-func NewEmptyScope() Scope {
-	return newScope(EmptyScopeId, nil)
+// Create a new scope with an outer scope.
+func NewScope(outer Scope) Scope {
+	return newScope(outer)
 }
 
 // String representation of a symbol entry kind.

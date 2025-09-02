@@ -6,8 +6,8 @@ package ast
 // Create a new read statement node in the abstract syntax tree.
 func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 	readNode := &ReadStatementNode{
-		CommonNode:    CommonNode{NodeKind: KindReadStatement},
-		StatementNode: StatementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
+		commonNode:    commonNode{NodeKind: KindReadStatement},
+		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
 		Variable:      variable,
 	}
 
@@ -28,4 +28,9 @@ func (n *ReadStatementNode) String() string {
 // Accept the visitor for the read statement node.
 func (n *ReadStatementNode) Accept(visitor Visitor) {
 	visitor.VisitReadStatement(n)
+}
+
+// Find a block node that contains this read statement node.
+func (n *ReadStatementNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

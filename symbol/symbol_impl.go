@@ -3,11 +3,7 @@
 
 package symbol
 
-import (
-	"fmt"
-
-	ts "github.com/petersen65/pl0/v3/typesystem"
-)
+import ts "github.com/petersen65/pl0/v3/typesystem"
 
 type (
 	// A symbol table is a data structure that stores a mapping of the symbol name to the symbol.
@@ -18,10 +14,8 @@ type (
 
 	// Implementation of the scope data structure.
 	scope struct {
-		Id                int           `json:"id"`                 // each scope has a unique identifier
-		Outer             *scope        `json:"outer"`              // outer scope or nil if this is the outermost scope
-		SymbolTable       *symbolTable  `json:"symbol_table"`       // symbol table of the scope
-		IdentifierCounter map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique identifier names
+		Outer       *scope       `json:"outer"`        // outer scope or nil if this is the outermost scope
+		SymbolTable *symbolTable `json:"symbol_table"` // symbol table of the scope
 	}
 )
 
@@ -55,12 +49,10 @@ func newSymbolTable() *symbolTable {
 }
 
 // Create a new scope with an outer scope and an identifier that is unique across all compilation phases.
-func newScope(uniqueId int, outer Scope) Scope {
+func newScope(outer Scope) Scope {
 	return &scope{
-		Id:                uniqueId,
-		Outer:             outer.(*scope),
-		SymbolTable:       newSymbolTable(),
-		IdentifierCounter: make(map[rune]uint),
+		Outer:       outer.(*scope),
+		SymbolTable: newSymbolTable(),
 	}
 }
 
@@ -92,16 +84,6 @@ func (s *symbolTable) iterate() <-chan *Symbol {
 	}()
 
 	return symbols
-}
-
-// Create a new compiler-generated unique identifier name for a scope.
-func (s *scope) NewIdentifier(prefix rune) string {
-	if _, ok := s.IdentifierCounter[prefix]; !ok {
-		s.IdentifierCounter[prefix] = 0
-	}
-
-	s.IdentifierCounter[prefix]++
-	return fmt.Sprintf("%c%v.%v", prefix, s.Id, s.IdentifierCounter[prefix])
 }
 
 // Insert the given symbol into this scope's symbol table under the provided name. If a symbol with that name already exists, it will be replaced.

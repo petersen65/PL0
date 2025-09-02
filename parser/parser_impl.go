@@ -264,7 +264,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors
 		block.SetParent(declaration)
 
 		// set the block of the procedure declaration because it was not known before the block was parsed
-		declaration.(*ast.ProcedureDeclarationNode).Block = block
+		declaration.(*ast.ProcedureDeclarationNode).ProcedureBlock = block
 
 		// add the procedure declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)

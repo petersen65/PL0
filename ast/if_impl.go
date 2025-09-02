@@ -6,8 +6,8 @@ package ast
 // Create a new if-then statement node in the abstract syntax tree.
 func newIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
 	ifNode := &IfStatementNode{
-		CommonNode:    CommonNode{NodeKind: KindIfStatement},
-		StatementNode: StatementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
+		commonNode:    commonNode{NodeKind: KindIfStatement},
+		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
 		Condition:     condition,
 		Statement:     statement,
 	}
@@ -30,4 +30,9 @@ func (n *IfStatementNode) String() string {
 // Accept the visitor for the if-then statement node.
 func (n *IfStatementNode) Accept(visitor Visitor) {
 	visitor.VisitIfStatement(n)
+}
+
+// Find a block node that contains this if-then statement node.
+func (n *IfStatementNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }

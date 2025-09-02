@@ -9,8 +9,8 @@ const assignmentStatementFormat = "assignment"
 // Create a new assignment statement node in the abstract syntax tree.
 func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) Statement {
 	assignationNode := &AssignmentStatementNode{
-		CommonNode:    CommonNode{NodeKind: KindAssignmentStatement},
-		StatementNode: StatementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
+		commonNode:    commonNode{NodeKind: KindAssignmentStatement},
+		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
 		Variable:      variable,
 		Expression:    expression,
 	}
@@ -34,3 +34,9 @@ func (s *AssignmentStatementNode) String() string {
 func (s *AssignmentStatementNode) Accept(visitor Visitor) {
 	visitor.VisitAssignmentStatement(s)
 }
+
+// Find a block node that contains this assignment statement node.
+func (s *AssignmentStatementNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(s, mode)
+}
+

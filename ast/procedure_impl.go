@@ -3,27 +3,23 @@
 
 package ast
 
-import (
-	"fmt"
-
-	sym "github.com/petersen65/pl0/v3/symbol"
-)
+import "fmt"
 
 // Format for the string representation of a procedure declaration node.
 const procedureFormat = "declaration(%v,name=%v,used=%v)"
 
 // Create a new procedure declaration node in the abstract syntax tree.
-func newProcedureDeclaration(name string, block Block, scope sym.Scope, index int) Declaration {
+func newProcedureDeclaration(name string, block Block, index int) Declaration {
 	return &ProcedureDeclarationNode{
-		CommonNode:       CommonNode{NodeKind: KindProcedureDeclaration},
-		DeclarationNode:  DeclarationNode{Name: name, DataTypeName: "", Scope: scope, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
-		Block:            block,
+		commonNode:      commonNode{NodeKind: KindProcedureDeclaration},
+		declarationNode: declarationNode{Name: name, DataTypeName: "", IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		ProcedureBlock:  block,
 	}
 }
 
 // Children nodes of the procedure declaration node.
 func (n *ProcedureDeclarationNode) Children() []Node {
-	return []Node{n.Block}
+	return []Node{n.ProcedureBlock}
 }
 
 // String representation of the procedure declaration node.
@@ -34,4 +30,9 @@ func (n *ProcedureDeclarationNode) String() string {
 // Accept the visitor for the procedure declaration node.
 func (n *ProcedureDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitProcedureDeclaration(n)
+}
+
+// Find a block node that contains this procedure declaration node.
+func (n *ProcedureDeclarationNode) Block(mode BlockSearchMode) *BlockNode {
+	return searchBlock(n, mode)
 }
