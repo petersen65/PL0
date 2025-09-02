@@ -27,7 +27,13 @@ type (
 	}
 )
 
-// NewBlock creates a new block node in the abstract syntax tree.
-func NewBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement, id int) Block {
-	return newBlock(depth, scope, declarations, statement, id)
+// Prepare a new block node in the abstract syntax tree. The parent can be nil, if the new block is the root block.
+// The prepared block is not yet fully initialized and needs to be finished with declarations and a statement.
+func PrepareBlock(parent Block, depth int32, id int) Block {
+	return prepareBlock(parent, depth, id)
+}
+
+// Finish the prepared block by adding all its declarations and its statement.
+func FinishBlock(block Block, declarations []Declaration, statement Statement) {
+	finishBlock(block.(*blockNode), declarations, statement)
 }

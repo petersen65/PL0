@@ -18,7 +18,7 @@ const integerBitSize = 64
 
 // Implementation of the recursive descent parser.
 type parser struct {
-	uniqueScopeId  int              // the parser is required to provide a unique number for each scope it creates
+	uniqueBlockId  int              // the parser is required to provide a unique number for each block it creates
 	errorHandler   eh.ErrorHandler  // error handler that is used to handle errors that occurred during parsing
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 	abstractSyntax ast.Block        // abstract syntax tree of the program
@@ -75,7 +75,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 	//   declaration of constants, variables and procedures
 	//   followed by a statement
 	//   and ends with the program-end
-	p.abstractSyntax = p.block(0, nil, set(declarations, statements, tok.ProgramEnd))
+	p.abstractSyntax = p.block(nil, 0, set(declarations, statements, tok.ProgramEnd))
 
 	// the program must end with a specific token
 	if p.lastToken() != tok.ProgramEnd {
@@ -93,13 +93,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(blockNestingDepth int32, outer sym.Scope, expected tok.Tokens) ast.Block {
-	// generate a scope number that must be unique accross compilation
-	p.uniqueScopeId++
-
-	// a block has its own scope to manage its symbols
-	var scope = sym.NewScope(p.uniqueScopeId, outer)
-
+func (p *parser) block(parent ast.Block, blockNestingDepth int32, expected tok.Tokens) ast.Block {
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
 	constants := make([]ast.Declaration, 0)
 	variables := make([]ast.Declaration, 0)
@@ -111,18 +105,24 @@ func (p *parser) block(blockNestingDepth int32, outer sym.Scope, expected tok.To
 		p.appendError(maxBlockDepth, blockNestingDepth)
 	}
 
-	// declare all constants, variables and procedures of the block
+	// generate a block number that must be unique accross compilation phases
+	p.uniqueBlockId++
+
+	// prepare a new current block that can be used as parent block for upcoming procedure declarations
+	current := ast.PrepareBlock(parent, blockNestingDepth, p.uniqueBlockId)
+
+	// declare all constants, variables and procedures of the current block
 	for {
 		if p.lastToken() == tok.ConstWord {
-			constants = append(constants, p.constWord(scope)...)
+			constants = append(constants, p.constWord()...)
 		}
 
 		if p.lastToken() == tok.VarWord {
-			variables = append(variables, p.varWord(scope)...)
+			variables = append(variables, p.varWord()...)
 		}
 
 		if p.lastToken() == tok.ProcedureWord {
-			procedures = append(procedures, p.procedureWord(blockNestingDepth, scope, expected)...)
+			procedures = append(procedures, p.procedureWord(current, blockNestingDepth, expected)...)
 		}
 
 		// after declarations, the block expects
@@ -137,7 +137,7 @@ func (p *parser) block(blockNestingDepth int32, outer sym.Scope, expected tok.To
 
 	// parse all statement instructions which are defining the code logic of the block
 	//   or the parser forwards to all expected tokens as anchors in the case of a syntax error
-	statement, err := p.statement(scope, set(expected, tok.Semicolon, tok.EndWord))
+	statement, err := p.statement(set(expected, tok.Semicolon, tok.EndWord))
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
 	if !err && statement == nil {
@@ -150,27 +150,28 @@ func (p *parser) block(blockNestingDepth int32, outer sym.Scope, expected tok.To
 	//   or the parser would forward to all expected tokens as anchors in the case of a syntax error
 	p.tokenHandler.Recover(unexpectedTokens, expected, tok.Tokens{})
 
-	// return a new block node in the abstract syntax tree
+	// finish the current block by adding all its declarations and its statement
 	all = append(append(append(all, constants...), variables...), procedures...)
-	return ast.NewBlock(blockNestingDepth, scope, all, statement)
+	ast.FinishBlock(current, all, statement)
+	return current
 }
 
 // Sequence of constants declarations.
-func (p *parser) constWord(scope sym.Scope) []ast.Declaration {
+func (p *parser) constWord() []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
 	// all constants are declared in a sequence of identifier equal number
 	for {
 		// first constant declaration
-		declarations = append(declarations, p.constantIdentifier(scope))
+		declarations = append(declarations, p.constantIdentifier())
 
 		// a comma separates constant declarations which are grouped by a semicolon
 		for p.lastToken() == tok.Comma {
 			p.nextToken()
 
 			// next constant declaration
-			declarations = append(declarations, p.constantIdentifier(scope))
+			declarations = append(declarations, p.constantIdentifier())
 		}
 
 		// a semicolon separates constant declaration groups from each other
@@ -190,19 +191,19 @@ func (p *parser) constWord(scope sym.Scope) []ast.Declaration {
 }
 
 // Sequence of variable declarations.
-func (p *parser) varWord(scope sym.Scope) []ast.Declaration {
+func (p *parser) varWord() []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
 	// all variables are declared in a sequence of identifiers
 	for {
 		// first variable declaration
-		declarations = append(declarations, p.variableIdentifier(scope))
+		declarations = append(declarations, p.variableIdentifier())
 
 		// a comma separates variable declarations which are grouped by a semicolon
 		for p.lastToken() == tok.Comma {
 			p.nextToken()
-			declarations = append(declarations, p.variableIdentifier(scope))
+			declarations = append(declarations, p.variableIdentifier())
 		}
 
 		// a semicolon separates variable declaration groups from each other
@@ -222,7 +223,7 @@ func (p *parser) varWord(scope sym.Scope) []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors tok.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int32, anchors tok.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
 	// all procedures are declared in a sequence of procedure identifiers with each having a block
@@ -230,7 +231,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors
 		p.nextToken()
 
 		// procedure declaration
-		declaration := p.procedureIdentifier(scope)
+		declaration := p.procedureIdentifier()
 
 		// after the procedure identifier, a semicolon is expected to separate the identifier from the block
 		if p.lastToken() == tok.Semicolon {
@@ -243,7 +244,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors
 		//   declaration of constants, variables and procedures
 		//   followed by a statement
 		//   and ends with a semicolon
-		block := p.block(blockNestingDepth+1, scope, set(anchors, tok.Semicolon))
+		block := p.block(parent, blockNestingDepth+1, set(anchors, tok.Semicolon))
 
 		// after the procedure block ends a semicolon is expected to separate
 		//   the block from the parent block
@@ -264,7 +265,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors
 		block.SetParent(declaration)
 
 		// set the block of the procedure declaration because it was not known before the block was parsed
-		declaration.(*ast.ProcedureDeclarationNode).ProcedureBlock = block
+		declaration.(*ast.ProcedureDeclarationNode).Block = block
 
 		// add the procedure declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)
@@ -274,7 +275,7 @@ func (p *parser) procedureWord(blockNestingDepth int32, scope sym.Scope, anchors
 }
 
 // An assignment is an identifier followed by becomes followed by an expression.
-func (p *parser) assignment(scope sym.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) assignment(anchors tok.Tokens) ast.Statement {
 	var becomesIndex int
 	name := p.lastTokenValue()
 	nameIndex := p.lastTokenIndex()
@@ -294,17 +295,17 @@ func (p *parser) assignment(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 	}
 
 	// the right side of an assignment is an expression
-	right := p.expression(scope, anchors)
+	right := p.expression(anchors)
 
 	// the left side of an assignment is an identifier
-	left := ast.NewIdentifierUse(name, scope, sym.VariableEntry, nameIndex)
+	left := ast.NewIdentifierUse(name, sym.VariableEntry, nameIndex)
 
 	endIndex := p.lastTokenIndex()
 	return ast.NewAssignmentStatement(left, right, becomesIndex, endIndex)
 }
 
 // A read statement is the read operator followed by an identifier that must be a variable.
-func (p *parser) read(scope sym.Scope) ast.Statement {
+func (p *parser) read() ast.Statement {
 	var name string
 	var nameIndex int
 
@@ -326,21 +327,21 @@ func (p *parser) read(scope sym.Scope) ast.Statement {
 
 	// a read statement that uses a variable identifier
 	endIndex := p.lastTokenIndex()
-	return ast.NewReadStatement(ast.NewIdentifierUse(name, scope, sym.VariableEntry, nameIndex), readIndex, endIndex)
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, sym.VariableEntry, nameIndex), readIndex, endIndex)
 }
 
 // A write statement is the write operator followed by an expression.
-func (p *parser) write(scope sym.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) write(anchors tok.Tokens) ast.Statement {
 	writeIndex := p.lastTokenIndex()
 	p.nextToken()
-	expression := p.expression(scope, anchors)
+	expression := p.expression(anchors)
 
 	endIndex := p.lastTokenIndex()
 	return ast.NewWriteStatement(expression, writeIndex, endIndex)
 }
 
 // A call statement is the call word followed by a procedure identifier.
-func (p *parser) callWord(scope sym.Scope) ast.Statement {
+func (p *parser) callWord() ast.Statement {
 	var name string
 	var nameIndex int
 
@@ -361,16 +362,16 @@ func (p *parser) callWord(scope sym.Scope) ast.Statement {
 
 	// a call statement that uses a procedure identifier
 	endIndex := p.lastTokenIndex()
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, scope, sym.ProcedureEntry, nameIndex), callIndex, endIndex)
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, sym.ProcedureEntry, nameIndex), callIndex, endIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
-func (p *parser) ifWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) ifWord(anchors tok.Tokens) ast.Statement {
 	ifIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
-	condition := p.condition(scope, set(anchors, tok.ThenWord, tok.DoWord))
+	condition := p.condition(set(anchors, tok.ThenWord, tok.DoWord))
 
 	if p.lastToken() == tok.ThenWord {
 		p.nextToken()
@@ -379,7 +380,7 @@ func (p *parser) ifWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 	}
 
 	// parse the statement which is executed if the condition is true
-	statement, err := p.statement(scope, anchors)
+	statement, err := p.statement(anchors)
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
 	if !err && statement == nil {
@@ -391,12 +392,12 @@ func (p *parser) ifWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 }
 
 // A while statement is the while word followed by a condition followed by the do word followed by a statement.
-func (p *parser) whileWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) whileWord(anchors tok.Tokens) ast.Statement {
 	whileIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	// parse the condition which is evaluated to true or false
-	condition := p.condition(scope, set(anchors, tok.DoWord))
+	condition := p.condition(set(anchors, tok.DoWord))
 
 	if p.lastToken() == tok.DoWord {
 		p.nextToken()
@@ -405,7 +406,7 @@ func (p *parser) whileWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 	}
 
 	// parse the statement which is executed as long as the condition is true
-	statement, err := p.statement(scope, anchors)
+	statement, err := p.statement(anchors)
 
 	// replace nil statement with an empty statement (nil means "no statement" like a single semicolon)
 	if !err && statement == nil {
@@ -417,7 +418,7 @@ func (p *parser) whileWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 }
 
 // A begin-end compound statement is the begin word followed by a statements with semicolons followed by the end word.
-func (p *parser) beginWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
+func (p *parser) beginWord(anchors tok.Tokens) ast.Statement {
 	beginIndex := p.lastTokenIndex()
 	p.nextToken()
 
@@ -425,7 +426,7 @@ func (p *parser) beginWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 	compound := make([]ast.Statement, 0)
 
 	// the first statement of a begin-end compound (only if the compound is not empty and there is no parsing error)
-	if statement, err := p.statement(scope, set(anchors, tok.EndWord, tok.Semicolon)); !err && statement != nil {
+	if statement, err := p.statement(set(anchors, tok.EndWord, tok.Semicolon)); !err && statement != nil {
 		compound = append(compound, statement)
 	}
 
@@ -437,7 +438,7 @@ func (p *parser) beginWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 		}
 
 		// the next statement of a begin-end compound (only if a statement is available and there is no parsing error)
-		if statement, err := p.statement(scope, set(anchors, tok.EndWord, tok.Semicolon)); !err && statement != nil {
+		if statement, err := p.statement(set(anchors, tok.EndWord, tok.Semicolon)); !err && statement != nil {
 			compound = append(compound, statement)
 		}
 	}
@@ -461,30 +462,30 @@ func (p *parser) beginWord(scope sym.Scope, anchors tok.Tokens) ast.Statement {
 //	an if statement,
 //	a while statement,
 //	or a sequence of statements surrounded by begin and end.
-func (p *parser) statement(scope sym.Scope, anchors tok.Tokens) (ast.Statement, bool) {
+func (p *parser) statement(anchors tok.Tokens) (ast.Statement, bool) {
 	var statement ast.Statement
 
 	switch p.lastToken() {
 	case tok.Identifier:
-		statement = p.assignment(scope, anchors)
+		statement = p.assignment(anchors)
 
 	case tok.Read:
-		statement = p.read(scope)
+		statement = p.read()
 
 	case tok.Write:
-		statement = p.write(scope, anchors)
+		statement = p.write(anchors)
 
 	case tok.CallWord:
-		statement = p.callWord(scope)
+		statement = p.callWord()
 
 	case tok.IfWord:
-		statement = p.ifWord(scope, anchors)
+		statement = p.ifWord(anchors)
 
 	case tok.WhileWord:
-		statement = p.whileWord(scope, anchors)
+		statement = p.whileWord(anchors)
 
 	case tok.BeginWord:
-		statement = p.beginWord(scope, anchors)
+		statement = p.beginWord(anchors)
 
 	default:
 		// intentionally do nothing because the current token is not a statement anymore (not necessarily an error)
@@ -509,7 +510,7 @@ func (p *parser) statement(scope sym.Scope, anchors tok.Tokens) (ast.Statement, 
 }
 
 // A constant identifier is an identifier followed by an equal sign followed by a number and is stored in a constant declaration of the abstract syntax tree
-func (p *parser) constantIdentifier(scope sym.Scope) ast.Declaration {
+func (p *parser) constantIdentifier() ast.Declaration {
 	// in case of a parsing error, return an empty declaration
 	declaration := ast.NewEmptyDeclaration()
 
@@ -545,12 +546,11 @@ func (p *parser) constantIdentifier(scope sym.Scope) ast.Declaration {
 				p.nextToken()
 			}
 		} else {
-			// create a new constant declaration with the identifier name, data type name, the number value, and the scope of the block
+			// create a new constant declaration with the identifier name, data type name, and the number value
 			declaration = ast.NewConstantDeclaration(
 				constantName,
 				ts.Integer64.String(),
 				p.numberValue(sign, p.lastTokenValue()),
-				scope,
 				constantNameIndex)
 
 			p.nextToken()
@@ -563,46 +563,46 @@ func (p *parser) constantIdentifier(scope sym.Scope) ast.Declaration {
 }
 
 // A variable identifier is stored in a variable declaration of the abstract syntax tree
-func (p *parser) variableIdentifier(scope sym.Scope) ast.Declaration {
+func (p *parser) variableIdentifier() ast.Declaration {
 	if p.lastToken() != tok.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
 
-	// create a new variable declaration with the identifier name and the scope of the block
-	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ts.Integer64.String(), scope, p.lastTokenIndex())
+	// create a new variable declaration with the identifier name and the data type name
+	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ts.Integer64.String(), p.lastTokenIndex())
 
 	p.nextToken()
 	return declaration
 }
 
 // A procedure identifier is stored in a procedure declaration of the abstract syntax tree
-func (p *parser) procedureIdentifier(scope sym.Scope) ast.Declaration {
+func (p *parser) procedureIdentifier() ast.Declaration {
 	if p.lastToken() != tok.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
 		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
 	}
 
 	// the procedure block is not yet known and will be set after the block is parsed
-	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), nil, scope, p.lastTokenIndex())
+	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), nil, p.lastTokenIndex())
 
 	p.nextToken()
 	return declaration
 }
 
 // A condition is either an odd expression or two expressions separated by a comparison operator.
-func (p *parser) condition(scope sym.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) condition(anchors tok.Tokens) ast.Expression {
 	// in case of a parsing error, return an empty declaration
 	operation := ast.NewEmptyExpression()
 
 	if p.lastToken() == tok.OddWord {
 		oddIndex := p.lastTokenIndex()
 		p.nextToken()
-		operand := p.expression(scope, anchors)
-		operation = ast.NewUnaryOperation(scope, ast.Odd, operand, oddIndex)
+		operand := p.expression(anchors)
+		operation = ast.NewUnaryOperation(ast.Odd, operand, oddIndex)
 	} else {
 		// handle left expression of a comparison operator
-		left := p.expression(scope, set(anchors, tok.Equal, tok.NotEqual, tok.Less, tok.LessEqual, tok.Greater, tok.GreaterEqual))
+		left := p.expression(set(anchors, tok.Equal, tok.NotEqual, tok.Less, tok.LessEqual, tok.Greater, tok.GreaterEqual))
 
 		if !p.lastToken().In(set(tok.Equal, tok.NotEqual, tok.Less, tok.LessEqual, tok.Greater, tok.GreaterEqual)) {
 			p.appendError(expectedComparisonOperator, p.lastTokenName())
@@ -612,26 +612,26 @@ func (p *parser) condition(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 			p.nextToken()
 
 			// handle right expression of a comparison operator
-			right := p.expression(scope, anchors)
+			right := p.expression(anchors)
 
 			switch comparisonOperator {
 			case tok.Equal:
-				operation = ast.NewComparisonOperation(scope, ast.Equal, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Equal, left, right, comparisonOperatorIndex)
 
 			case tok.NotEqual:
-				operation = ast.NewComparisonOperation(scope, ast.NotEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.NotEqual, left, right, comparisonOperatorIndex)
 
 			case tok.Less:
-				operation = ast.NewComparisonOperation(scope, ast.Less, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Less, left, right, comparisonOperatorIndex)
 
 			case tok.LessEqual:
-				operation = ast.NewComparisonOperation(scope, ast.LessEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.LessEqual, left, right, comparisonOperatorIndex)
 
 			case tok.Greater:
-				operation = ast.NewComparisonOperation(scope, ast.Greater, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.Greater, left, right, comparisonOperatorIndex)
 
 			case tok.GreaterEqual:
-				operation = ast.NewComparisonOperation(scope, ast.GreaterEqual, left, right, comparisonOperatorIndex)
+				operation = ast.NewComparisonOperation(ast.GreaterEqual, left, right, comparisonOperatorIndex)
 
 			default:
 				p.appendError(expectedComparisonOperator, p.lastTokenName())
@@ -644,11 +644,11 @@ func (p *parser) condition(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 }
 
 // An expression is a sequence of terms separated by plus or minus.
-func (p *parser) expression(scope sym.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) expression(anchors tok.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left term of a plus or minus operator
-	left := p.term(scope, set(anchors, tok.Plus, tok.Minus))
+	left := p.term(set(anchors, tok.Plus, tok.Minus))
 
 	for p.lastToken() == tok.Plus || p.lastToken() == tok.Minus {
 		plusOrMinus := p.lastToken()
@@ -656,12 +656,12 @@ func (p *parser) expression(scope sym.Scope, anchors tok.Tokens) ast.Expression 
 		p.nextToken()
 
 		// handle right term of a plus or minus operator
-		right := p.term(scope, set(anchors, tok.Plus, tok.Minus))
+		right := p.term(set(anchors, tok.Plus, tok.Minus))
 
 		if plusOrMinus == tok.Plus {
-			operation = ast.NewBinaryOperation(scope, ast.Plus, left, right, plusOrMinusIndex)
+			operation = ast.NewBinaryOperation(ast.Plus, left, right, plusOrMinusIndex)
 		} else {
-			operation = ast.NewBinaryOperation(scope, ast.Minus, left, right, plusOrMinusIndex)
+			operation = ast.NewBinaryOperation(ast.Minus, left, right, plusOrMinusIndex)
 		}
 
 		left = operation
@@ -676,11 +676,11 @@ func (p *parser) expression(scope sym.Scope, anchors tok.Tokens) ast.Expression 
 }
 
 // A term is a sequence of factors separated by times or divide.
-func (p *parser) term(scope sym.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) term(anchors tok.Tokens) ast.Expression {
 	var operation ast.Expression
 
 	// handle left factor of a times or divide operator
-	left := p.factor(scope, set(anchors, tok.Times, tok.Divide))
+	left := p.factor(set(anchors, tok.Times, tok.Divide))
 
 	for p.lastToken() == tok.Times || p.lastToken() == tok.Divide {
 		timesOrDevide := p.lastToken()
@@ -688,13 +688,13 @@ func (p *parser) term(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 		p.nextToken()
 
 		// handle right factor of a times or divide operator
-		right := p.factor(scope, set(anchors, tok.Times, tok.Divide))
+		right := p.factor(set(anchors, tok.Times, tok.Divide))
 
 		if timesOrDevide == tok.Times {
-			operation = ast.NewBinaryOperation(scope, ast.Times, left, right, timesOrDevideIndex)
+			operation = ast.NewBinaryOperation(ast.Times, left, right, timesOrDevideIndex)
 
 		} else {
-			operation = ast.NewBinaryOperation(scope, ast.Divide, left, right, timesOrDevideIndex)
+			operation = ast.NewBinaryOperation(ast.Divide, left, right, timesOrDevideIndex)
 		}
 
 		left = operation
@@ -709,7 +709,7 @@ func (p *parser) term(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 }
 
 // A factor is either an identifier, a number, or an expression surrounded by parentheses.
-func (p *parser) factor(scope sym.Scope, anchors tok.Tokens) ast.Expression {
+func (p *parser) factor(anchors tok.Tokens) ast.Expression {
 	var sign tok.Token
 	var signIndex int
 
@@ -731,15 +731,15 @@ func (p *parser) factor(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 	for p.lastToken().In(factors) {
 		if p.lastToken() == tok.Identifier {
 			// the factor can be a constant or a variable
-			operand = ast.NewIdentifierUse(p.lastTokenValue(), scope, sym.ConstantEntry|sym.VariableEntry, p.lastTokenIndex())
+			operand = ast.NewIdentifierUse(p.lastTokenValue(), sym.ConstantEntry|sym.VariableEntry, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == tok.Number {
-			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), scope, p.lastTokenIndex())
+			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), p.lastTokenIndex())
 			sign = tok.Unknown
 			p.nextToken()
 		} else if p.lastToken() == tok.LeftParenthesis {
 			p.nextToken()
-			operand = p.expression(scope, set(anchors, tok.RightParenthesis))
+			operand = p.expression(set(anchors, tok.RightParenthesis))
 
 			if p.lastToken() == tok.RightParenthesis {
 				p.nextToken()
@@ -759,7 +759,7 @@ func (p *parser) factor(scope sym.Scope, anchors tok.Tokens) ast.Expression {
 
 	// negate the factor if a leading minus sign is present
 	if sign == tok.Minus {
-		operand = ast.NewUnaryOperation(scope, ast.Negate, operand, signIndex)
+		operand = ast.NewUnaryOperation(ast.Negate, operand, signIndex)
 	}
 
 	return operand

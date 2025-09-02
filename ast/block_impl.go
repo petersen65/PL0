@@ -28,25 +28,42 @@ type blockNode struct {
 	Counter      map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique names
 }
 
-// Create a new block node in the abstract syntax tree.
-func newBlock(depth int32, scope sym.Scope, declarations []Declaration, statement Statement, id int) Block {
-	blockNode := &blockNode{
-		commonNode:   commonNode{NodeKind: KindBlock},
+// Prepare a new block node in the abstract syntax tree. The parent can be nil, if the new block is the root block.
+// The prepared block is not yet fully initialized and needs to be finished with declarations and a statement.
+func prepareBlock(parent Block, depth int32, id int) Block {
+	var outerScope sym.Scope
+
+	// inherit the outer scope from the parent block
+	if parent != nil {
+		outerScope = parent.(*blockNode).Scope
+	}
+
+	// return a prepared block node with an initialized scope hierarchy
+	return &blockNode{
+		commonNode:   commonNode{NodeKind: KindBlock, ParentNode: parent},
 		Depth:        depth,
-		Scope:        scope,
-		Declarations: declarations,
+		Scope:        sym.NewScope(outerScope),
+		Declarations: make([]Declaration, 0),
 		Closure:      make([]Declaration, 0),
-		Statement:    statement,
+		Statement:    NewEmptyStatement(),
 		Id:           id,
 		Counter:      make(map[rune]uint),
 	}
+}
 
+// Finish the prepared block by adding all its declarations and its statement.
+func finishBlock(blockNode *blockNode, declarations []Declaration, statement Statement) {
+	// add all declarations and the statement to this block node
+	blockNode.Declarations = declarations
+	blockNode.Statement = statement
+
+	// ensure that all declarations belong to this block node
 	for _, declaration := range blockNode.Declarations {
 		declaration.SetParent(blockNode)
 	}
 
-	statement.SetParent(blockNode)
-	return blockNode
+	// ensure that the statement is the statement of this block node
+	blockNode.Statement.SetParent(blockNode)
 }
 
 // Children nodes of the block node.
