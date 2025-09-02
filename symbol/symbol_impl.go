@@ -95,7 +95,8 @@ func (s *symbolTable) iterate() <-chan *Symbol {
 	return symbols
 }
 
-// Insert the given symbol into this scope's symbol table under the provided name. If a symbol with that name already exists, it will be replaced.
+// Insert the given symbol into this scope's symbol table under the provided name. 
+// If a symbol with that name already exists, it will be replaced.
 func (s *scope) Insert(name string, symbol *Symbol) {
 	s.SymbolTable.insert(name, symbol)
 }

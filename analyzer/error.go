@@ -15,6 +15,8 @@ const (
 	unknownSymbolKind
 	identifierNotFound
 	identifierAlreadyDeclared
+	constantDataTypeNotFound
+	variableDataTypeNotFound
 	expectedConstantIdentifier
 	expectedVariableIdentifier
 	expectedProcedureIdentifier
@@ -32,6 +34,8 @@ var failureMap = map[eh.Failure]string{
 	unknownSymbolKind:           "unknown symbol kind: %v",
 	identifierNotFound:          "identifier not found: %v",
 	identifierAlreadyDeclared:   "identifier already declared: %v",
+	constantDataTypeNotFound:    "constant data type not found: %v",
+	variableDataTypeNotFound:    "variable data type not found: %v",
 	expectedConstantIdentifier:  "expected constant identifier, found %v",
 	expectedVariableIdentifier:  "expected variable identifier, found %v",
 	expectedProcedureIdentifier: "expected procedure identifier, found %v",

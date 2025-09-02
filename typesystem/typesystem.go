@@ -7,7 +7,6 @@ package typesystem
 import plt "github.com/petersen65/pl0/v3/platform"
 
 // Primitive data types that are built-in and cannot be further refined.
-// The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
 const (
 	Bit        PrimitiveDataType = iota // single bit that the compiler packs into bytes, words, longs, or quad words
 	Integer64                           // signed 64-bit integer
@@ -23,12 +22,6 @@ const (
 	Boolean                             // unsigned 8-bit boolean (0 or 1, false or true)
 	Character                           // Unicode code point (signed 32-bit integer, U+0000 ... U+10FFFF)
 	String                              // encoded string (sequence of UTF encoded characters)
-)
-
-// Primitive data type bit flags for pointer and reference modifiers (bits 8+).
-const (
-	Pointer   PrimitiveDataType = 1 << 8 // bit 8: pointer type (^T)
-	Reference PrimitiveDataType = 1 << 9 // bit 9: reference type (var T)
 )
 
 // All supported kinds of data types provided by the type system.
@@ -66,6 +59,20 @@ type (
 	// Mode for parameter passing in procedures and functions.
 	ParameterPassingMode int
 
+	// Structure field describes a field in a structure type descriptor.
+	StructureField struct {
+		Name       string         `json:"name"`   // name identifier used to access this field within the structure
+		Type       TypeDescriptor `json:"type"`   // type descriptor defining the data type of this field
+		ByteOffset int            `json:"offset"` // byte offset is automatically calculated by the type descriptor
+	}
+
+	// Parameter and its passing mode for a function or procedure call.
+	FunctionParameter struct {
+		Name string               `json:"name"` // identifier name used to reference this parameter within the function
+		Type TypeDescriptor       `json:"type"` // type descriptor defining the data type of this parameter
+		Mode ParameterPassingMode `json:"mode"` // determines how the parameter is passed (e.g., by value, by reference)
+	}
+
 	// The common type descriptor is the shared interface for all type descriptors.
 	CommonTypeDescriptor interface {
 		Name() string
@@ -81,7 +88,7 @@ type (
 	}
 )
 
-// Create a new simple type descriptor with an underlying primitive type and a governing ABI.
+// Create a new simple type descriptor with an underlying primitive type.
 func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
@@ -91,7 +98,7 @@ func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType) TypeD
 	}
 }
 
-// Create a new pointer type descriptor with a value type and a governing ABI.
+// Create a new pointer type descriptor with a value type.
 func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
@@ -102,9 +109,21 @@ func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference
 	}
 }
 
-// Create a new structure type descriptor with fields and a governing ABI.
-func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked bool) TypeDescriptor {
+// Create a new structure field with a name and field type.
+func NewStructureField(name string, fieldType TypeDescriptor) *StructureField {
+	return &StructureField{
+		Name: name,
+		Type: fieldType,
+	}
+}
+
+// Create a new structure type descriptor with fields.
+func NewStructureTypeDescriptor(name string, fields []*StructureField, isPacked bool) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
+
+	if fields == nil {
+		fields = make([]*StructureField, 0)
+	}
 
 	return &structureTypeDescriptor{
 		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
@@ -115,9 +134,22 @@ func NewStructureTypeDescriptor(name string, fields []*structureField, isPacked 
 	}
 }
 
-// Create a new function type descriptor with parameters, a return type, and a governing ABI. The return type may be nil for procedures.
-func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, returnType TypeDescriptor) TypeDescriptor {
+// Create a new function parameter with a name, parameter type, and passing mode.
+func NewFunctionParameter(name string, parameterType TypeDescriptor, mode ParameterPassingMode) *FunctionParameter {
+	return &FunctionParameter{
+		Name: name,
+		Type: parameterType,
+		Mode: mode,
+	}
+}
+
+// Create a new function type descriptor with parameters and a return type. The return type may be nil for procedures.
+func NewFunctionTypeDescriptor(name string, parameters []*FunctionParameter, returnType TypeDescriptor) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
+
+	if parameters == nil {
+		parameters = make([]*FunctionParameter, 0)
+	}
 
 	return &functionTypeDescriptor{
 		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
@@ -126,10 +158,19 @@ func NewFunctionTypeDescriptor(name string, parameters []*functionParameter, ret
 	}
 }
 
-// The type system requires a current application binary interface to be set.
-func SetCurrentApplicationBinaryInterface(abi plt.ApplicationBinaryInterface) {
-	currentABI = abi
-	enforceSpecifiedApplicationBinaryInterface()
+// String representation of a primitive data type.
+func (t PrimitiveDataType) String() string {
+	return primitiveDataTypeNames[t]
+}
+
+// String representation of a data type kind.
+func (k DataTypeKind) String() string {
+	return dataTypeKindNames[k]
+}
+
+// String representation of a parameter passing mode.
+func (m ParameterPassingMode) String() string {
+	return parameterModeNames[m]
 }
 
 // Get the current application binary interface used by the type system.
@@ -137,37 +178,8 @@ func GetCurrentApplicationBinaryInterface() plt.ApplicationBinaryInterface {
 	return currentABI
 }
 
-// Return the string representation of a data type kind.
-func (k DataTypeKind) String() string {
-	return dataTypeKindNames[k]
-}
-
-// Return the string representation of a parameter passing mode.
-func (m ParameterPassingMode) String() string {
-	return parameterModeNames[m]
-}
-
-// Return the plain data type without modifiers.
-func (t PrimitiveDataType) AsPlain() PrimitiveDataType {
-	return t & 0xFF
-}
-
-// Return the plain data type with a pointer modifier.
-func (t PrimitiveDataType) AsPointer() PrimitiveDataType {
-	return t.AsPlain() | Pointer
-}
-
-// Check whether the data type is a pointer type.
-func (t PrimitiveDataType) IsPointer() bool {
-	return t&Pointer != 0
-}
-
-// Return the plain data type with a reference modifier.
-func (t PrimitiveDataType) AsReference() PrimitiveDataType {
-	return t.AsPlain() | Reference
-}
-
-// Check whether the data type is a reference type.
-func (t PrimitiveDataType) IsReference() bool {
-	return t&Reference != 0
+// The type system requires a current application binary interface to be set.
+func SetCurrentApplicationBinaryInterface(abi plt.ApplicationBinaryInterface) {
+	currentABI = abi
+	enforceSpecifiedApplicationBinaryInterface()
 }

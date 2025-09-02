@@ -50,33 +50,19 @@ type (
 		IsReference          bool           `json:"is_reference"` // true if this is a reference rather than a raw pointer
 	}
 
-	// Structure field describes a field in a structure.
-	structureField struct {
-		Name       string         `json:"name"`   // name identifier used to access this field within the structure
-		Type       TypeDescriptor `json:"type"`   // type descriptor defining the data type of this field
-		ByteOffset int            `json:"offset"` // byte offset from the beginning of the structure
-	}
-
 	// Structure based data types that group multiple fields.
 	structureTypeDescriptor struct {
 		commonTypeDescriptor                   // embedded common type descriptor
-		Fields               []*structureField `json:"fields"`    // ordered list of fields that comprise this structure
+		Fields               []*StructureField `json:"fields"`    // ordered list of fields that comprise this structure
 		IsPacked             bool              `json:"is_packed"` // memory layout optimized to minimize padding between fields
 		ByteSize             int               `json:"size"`      // cache the total size of the structure in bytes
 		ByteAlignment        int               `json:"alignment"` // cache the alignment of the structure in bytes
 	}
 
-	// Parameter and its passing mode for a function or procedure call.
-	functionParameter struct {
-		Name string               `json:"name"` // identifier name used to reference this parameter within the function
-		Type TypeDescriptor       `json:"type"` // type descriptor defining the data type of this parameter
-		Mode ParameterPassingMode `json:"mode"` // determines how the parameter is passed (e.g., by value, by reference)
-	}
-
 	// Data type of a function or procedure that defines its signature.
 	functionTypeDescriptor struct {
 		commonTypeDescriptor                      // embedded common type descriptor
-		Parameters           []*functionParameter `json:"parameters"`  // ordered list of parameters that the function accepts
+		Parameters           []*FunctionParameter `json:"parameters"`  // ordered list of parameters that the function accepts
 		ReturnType           TypeDescriptor       `json:"return_type"` // type descriptor of the value returned by the function (nil for procedures)
 	}
 
@@ -288,19 +274,6 @@ var (
 		OutputParameter:      "out",
 	}
 )
-
-// String representation of a primitive data type.
-func (t PrimitiveDataType) String() string {
-	var prefix string
-
-	if t.IsPointer() {
-		prefix = pointerPrefix
-	} else if t.IsReference() {
-		prefix = referencePrefix
-	}
-
-	return fmt.Sprintf("%v%v", prefix, primitiveDataTypeNames[t.AsPlain()])
-}
 
 // Name for any data type.
 func (d *commonTypeDescriptor) Name() string {

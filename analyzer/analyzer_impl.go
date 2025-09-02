@@ -10,6 +10,7 @@ import (
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Implementation of the semantic analyzer.
@@ -28,9 +29,18 @@ func newAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHa
 	}
 }
 
-// Analyze the abstract syntax tree for declaration and use errors and fill in the symbol table.
+// Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
 // Name analyzer itself is performing a top down, left to right, and leftmost derivation walk on the abstract syntax tree.
 func (a *semanticAnalyzer) Analyze() {
+	// get the root block of the abstract syntax tree to insert built-in data types into its scope
+	rootBlock := a.abstractSyntax.RootBlock()
+
+	// insert built-in data types into the scope of the root block
+	int64TypeName := ts.Integer64.String()
+	int64Type := ts.NewSimpleTypeDescriptor(int64TypeName, ts.Integer64)
+	int64Symbol := sym.NewSymbol(int64TypeName, sym.DataTypeEntry, int64Type, nil)
+	rootBlock.Insert(int64TypeName, int64Symbol)
+
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
 		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
 	}
@@ -52,37 +62,56 @@ func (a *semanticAnalyzer) Analyze() {
 }
 
 // Walk the block abstract syntax tree.
-func (a *semanticAnalyzer) VisitBlock(bn *ast.BlockNode) {
+func (a *semanticAnalyzer) VisitBlock(b ast.Block) {
 	// nothing to do because of an external pre-order walk
 }
 
-// Enter constant declaration into the symbol table and check for redeclaration.
+// Insert the symbol for a constant declaration into the current block's scope.
 func (a *semanticAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
-	if cd.Scope.Lookup(cd.Name) != nil {
+	cb := cd.CurrentBlock()           // current bloc
+	s := cb.Lookup(cd.Name)           // constant symbol
+	dts := cb.Lookup(cd.DataTypeName) // constant data type symbol
+
+	// in the case of no errors, insert the constant symbol into the current block's scope
+	if s != nil {
 		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
+	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
+		a.appendError(constantDataTypeNotFound, cd.DataTypeName, cd.TokenStreamIndex)
 	} else {
-		cd.Scope.Insert(cd.Name, sym.NewSymbol(cd.Name, sym.ConstantEntry, ast.Declaration(cd)))
+		cb.Insert(cd.Name, sym.NewSymbol(cd.Name, sym.ConstantEntry, dts.DataType, cd.Value))
 	}
 }
 
-// Enter variable declaration into the symbol table and check for redeclaration.
+// Insert the symbol for a variable declaration into the current block's scope.
 func (a *semanticAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	if vd.Scope.Lookup(vd.Name) != nil {
+	cb := vd.CurrentBlock()           // current block
+	s := cb.Lookup(vd.Name)           // variable symbol
+	dts := cb.Lookup(vd.DataTypeName) // variable data type symbol
+
+	// in the case of no errors, insert the variable symbol into the current block's scope
+	if s != nil {
 		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
+	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
+		a.appendError(variableDataTypeNotFound, vd.DataTypeName, vd.TokenStreamIndex)
 	} else {
-		vd.Scope.Insert(vd.Name, sym.NewSymbol(vd.Name, sym.VariableEntry, ast.Declaration(vd)))
+		cb.Insert(vd.Name, sym.NewSymbol(vd.Name, sym.VariableEntry, dts.DataType, nil))
 	}
 }
 
-// Enter procedure declaration into the symbol table and check for redeclaration.
+// Insert the symbol for a procedure declaration into the current block's scope.
 func (a *semanticAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
-	if pd.Scope.Lookup(pd.Name) != nil {
+	cb := pd.CurrentBlock()                               // current block
+	s := cb.Lookup(pd.Name)                               // procedure symbol
+	dt := ts.NewFunctionTypeDescriptor(pd.Name, nil, nil) // procedure data type
+
+	// in the case of no errors, insert the procedure symbol into the current block's scope
+	if s != nil {
 		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
 	} else {
-		pd.Scope.Insert(pd.Name, sym.NewSymbol(pd.Name, sym.ProcedureEntry, ast.Declaration(pd)))
+		cb.Insert(pd.Name, sym.NewSymbol(pd.Name, sym.ProcedureEntry, dt, pd))
 	}
 
-	pd.ProcedureBlock.Accept(a)
+	pd.Block.Accept(a)
 }
 
 // Walk the literal abstract syntax tree.
@@ -92,14 +121,14 @@ func (a *semanticAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
 
 // Check if the used identifier is declared and if it is used in the correct context.
 func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	if symbol := iu.Scope.Lookup(iu.Name); symbol == nil {
+	if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol == nil {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
 	} else {
 		switch symbol.Kind {
 		case sym.ConstantEntry:
 			// make the identifier a constant because its symbol is a constant and it is used in a constant context
-			if iu.Context&sym.ConstantEntry != 0 {
-				iu.Context = sym.ConstantEntry
+			if iu.IdentifierKind&ast.Constant != 0 {
+				iu.IdentifierKind = ast.Constant
 
 				// add the constant usage to the constant declaration
 				symbol.Type.(*ast.ConstantDeclarationNode).IdentifierUsage =
@@ -161,13 +190,13 @@ func (a *semanticAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationN
 // Walk the assignment statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	// set the usage mode bit to write for the variable that is assigned to
-	as.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
+	as.Variable.(*ast.IdentifierUseNode).UsageMode |= ast.Write
 }
 
 // Walk the read statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// set the usage mode bit to write for the variable that is read into
-	rs.Variable.(*ast.IdentifierUseNode).Use |= ast.Write
+	rs.Variable.(*ast.IdentifierUseNode).UsageMode |= ast.Write
 }
 
 // Walk the write statement abstract syntax tree.
@@ -179,7 +208,7 @@ func (a *semanticAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {
 // Walk the call statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {
 	// set the usage mode bit to execute for the procedure that is called
-	cs.Procedure.(*ast.IdentifierUseNode).Use |= ast.Execute
+	cs.Procedure.(*ast.IdentifierUseNode).UsageMode |= ast.Execute
 }
 
 // Walk the if statement abstract syntax tree.
@@ -207,9 +236,9 @@ func (a *semanticAnalyzer) appendError(code eh.Failure, value any, index int) {
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
 func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
-		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
+		if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == sym.ConstantEntry || symbol.Kind == sym.VariableEntry {
-				iu.Use |= ast.Read
+				iu.UsageMode |= ast.Read
 			}
 		}
 	}
@@ -240,13 +269,13 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 // Add all variables that are used in a block to the closure of the block if they are declared in an outer block.
 func addVariableToBlockClosure(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
-		if symbol := iu.Scope.Lookup(iu.Name); symbol != nil {
+		if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == sym.VariableEntry {
 				// determine the block where the variable is declared
-				declarationBlock := ast.SearchBlock(ast.CurrentBlock, symbol.Type)
+				declarationBlock := ast.SearchBlock(symbol.Type, ast.CurrentBlock)
 
 				// determine the block where the variable is used
-				useBlock := ast.SearchBlock(ast.CurrentBlock, iu)
+				useBlock := ast.SearchBlock(iu, ast.CurrentBlock)
 
 				// add the variable to the closure of the block where it is used if it is declared in an outer block
 				if useBlock.Depth-declarationBlock.Depth > 0 {

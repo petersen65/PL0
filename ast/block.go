@@ -28,6 +28,7 @@ type (
 		Index() int
 		Accept(visitor Visitor)
 		RootBlock() Block
+		Insert(name string, symbol *sym.Symbol)
 		Lookup(name string) *sym.Symbol
 		LookupCurrent(name string) *sym.Symbol
 		UniqueName(prefix rune) string

@@ -106,6 +106,11 @@ func (n *blockNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Insert a new symbol into the block's current scope.
+func (n *blockNode) Insert(name string, symbol *sym.Symbol) {
+	n.Scope.Insert(name, symbol)
+}
+
 // Find a symbol in the block's scope and all its parent scopes.
 func (n *blockNode) Lookup(name string) *sym.Symbol {
 	return n.Scope.Lookup(name)
