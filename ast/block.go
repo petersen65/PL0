@@ -10,7 +10,16 @@ import (
 	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
+// Search parent block nodes in the abstract syntax tree.
+const (
+	CurrentBlock BlockSearchMode = iota
+	RootBlock
+)
+
 type (
+	// Search mode for block nodes in the abstract syntax tree.
+	BlockSearchMode int
+
 	// Block represents a block of declarations and statements in the abstract syntax tree.
 	Block interface {
 		Node
@@ -36,4 +45,9 @@ func PrepareBlock(parent Block, depth int32, id int) Block {
 // Finish the prepared block by adding all its declarations and its statement.
 func FinishBlock(block Block, declarations []Declaration, statement Statement) {
 	finishBlock(block.(*blockNode), declarations, statement)
+}
+
+// Search for a parent block node in the abstract syntax tree based on the search mode.
+func SearchBlock(current Node, mode BlockSearchMode) Block {
+	return searchBlock(current, mode)
 }

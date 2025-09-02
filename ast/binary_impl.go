@@ -40,7 +40,7 @@ func (e *BinaryOperationNode) String() string {
 		return binaryOperationFormats[e.Operation]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownBinaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownBinaryOperation, e.Operation, nil))
 	}
 }
 

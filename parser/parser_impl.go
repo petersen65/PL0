@@ -8,7 +8,6 @@ import (
 
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
@@ -298,7 +297,7 @@ func (p *parser) assignment(anchors tok.Tokens) ast.Statement {
 	right := p.expression(anchors)
 
 	// the left side of an assignment is an identifier
-	left := ast.NewIdentifierUse(name, sym.VariableEntry, nameIndex)
+	left := ast.NewIdentifierUse(name, ast.Variable, nameIndex)
 
 	endIndex := p.lastTokenIndex()
 	return ast.NewAssignmentStatement(left, right, becomesIndex, endIndex)
@@ -327,7 +326,7 @@ func (p *parser) read() ast.Statement {
 
 	// a read statement that uses a variable identifier
 	endIndex := p.lastTokenIndex()
-	return ast.NewReadStatement(ast.NewIdentifierUse(name, sym.VariableEntry, nameIndex), readIndex, endIndex)
+	return ast.NewReadStatement(ast.NewIdentifierUse(name, ast.Variable, nameIndex), readIndex, endIndex)
 }
 
 // A write statement is the write operator followed by an expression.
@@ -362,7 +361,7 @@ func (p *parser) callWord() ast.Statement {
 
 	// a call statement that uses a procedure identifier
 	endIndex := p.lastTokenIndex()
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, sym.ProcedureEntry, nameIndex), callIndex, endIndex)
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, ast.Procedure, nameIndex), callIndex, endIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
@@ -731,7 +730,7 @@ func (p *parser) factor(anchors tok.Tokens) ast.Expression {
 	for p.lastToken().In(factors) {
 		if p.lastToken() == tok.Identifier {
 			// the factor can be a constant or a variable
-			operand = ast.NewIdentifierUse(p.lastTokenValue(), sym.ConstantEntry|sym.VariableEntry, p.lastTokenIndex())
+			operand = ast.NewIdentifierUse(p.lastTokenValue(), ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == tok.Number {
 			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), p.lastTokenIndex())

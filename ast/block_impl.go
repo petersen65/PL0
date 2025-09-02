@@ -164,3 +164,20 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownExportFormat, format, nil))
 	}
 }
+
+// Search for a parent block node in the abstract syntax tree based on the search mode.
+func searchBlock(current Node, mode BlockSearchMode) *blockNode {
+	for current != nil {
+		if block, ok := current.(*blockNode); ok {
+			if mode == CurrentBlock {
+				return block
+			} else if mode == RootBlock && block.Parent() == nil {
+				return block
+			}
+		}
+
+		current = current.Parent()
+	}
+
+	return nil
+}

@@ -9,17 +9,17 @@ import ts "github.com/petersen65/pl0/v3/typesystem"
 // Empty scopes are required to use this number as their scope id
 const EmptyScopeId = -1
 
-// Kind of supported symbol entry as bit-mask.
+// Kind of supported symbol entry.
 const (
-	ConstantEntry Entry = 1 << iota
+	ConstantEntry EntryKind = iota
 	VariableEntry
 	ProcedureEntry
 	DataTypeEntry
 )
 
 type (
-	// Kind of symbol entries (bit-mask).
-	Entry uint64
+	// Kind of symbol entry.
+	EntryKind int
 
 	// Support for symbol extensions and scope extensions for compiler phases.
 	ExtensionType int
@@ -27,7 +27,7 @@ type (
 	// A symbol is a data structure that stores all the necessary information related to a declared identifier that the compiler must know.
 	Symbol struct {
 		Name      string                `json:"name"`      // name of the symbol
-		Kind      Entry                 `json:"kind"`      // kind of the symbol
+		Kind      EntryKind             `json:"kind"`      // kind of the symbol
 		DataType  ts.TypeDescriptor     `json:"data_type"` // data type information of the symbol
 		Value     any                   `json:"value"`     // value information of a constant entry
 		Extension map[ExtensionType]any `json:"extension"` // symbol extensions for compiler phases
@@ -45,8 +45,8 @@ type (
 	}
 )
 
-// Create a new entry for the symbol table.
-func NewSymbol(name string, kind Entry, dataType ts.TypeDescriptor, value any) *Symbol {
+// Create a new symbol to represent a declared identifier.
+func NewSymbol(name string, kind EntryKind, dataType ts.TypeDescriptor, value any) *Symbol {
 	return newSymbol(name, kind, dataType, value)
 }
 
@@ -55,7 +55,7 @@ func NewScope(outer Scope) Scope {
 	return newScope(outer)
 }
 
-// String representation of a symbol entry kind.
-func (e Entry) String() string {
+// String representation of an entry kind.
+func (e EntryKind) String() string {
 	return kindNames[e]
 }

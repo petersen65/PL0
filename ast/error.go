@@ -8,7 +8,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 // Failure codes for the abstract syntax tree.
 const (
 	_ eh.Failure = iota + 3000
-	unknownSymbolKind
+	unknownIdentifierKind
 	unknownUnaryOperation
 	unknownBinaryOperation
 	unknownComparisonOperation
@@ -22,12 +22,12 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
-	unknownSymbolKind:               "unknown symbol kind",
-	unknownUnaryOperation:           "unknown unary operation",
-	unknownBinaryOperation:          "unknown binary operation",
-	unknownComparisonOperation:      "unknown comparison operation",
-	cannotWalkOnNilNode:             "cannot walk on nil node",
-	walkRequiresVisitorOrFunction:   "cannot walk without a visitor or visit function",
+	unknownIdentifierKind:          "unknown identifier kind: %v",
+	unknownUnaryOperation:          "unknown unary operation: %v",
+	unknownBinaryOperation:         "unknown binary operation: %v",
+	unknownComparisonOperation:     "unknown comparison operation: %v",
+	cannotWalkOnNilNode:            "cannot walk on nil node",
+	walkRequiresVisitorOrFunction:  "cannot walk without a visitor or visit function",
 	walkRequiresInterfaceOrFunction: "walk requires a visitor with a Visitor interface or a visit function",
 	inOrderRequiresTwoChildren:      "in-order traversal requires exactly two children",
 	unknownExportFormat:             "unknown export format: %v",

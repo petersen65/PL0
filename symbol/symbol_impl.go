@@ -22,7 +22,7 @@ type (
 
 var (
 	// Map symbol kinds to their string representation.
-	kindNames = map[Entry]string{
+	kindNames = map[EntryKind]string{
 		ConstantEntry:  "constant",
 		VariableEntry:  "variable",
 		ProcedureEntry: "procedure",
@@ -31,7 +31,7 @@ var (
 )
 
 // Create a new entry for the symbol table.
-func newSymbol(name string, kind Entry, dataType ts.TypeDescriptor, value any) *Symbol {
+func newSymbol(name string, kind EntryKind, dataType ts.TypeDescriptor, value any) *Symbol {
 	return &Symbol{
 		Name:      name,
 		Kind:      kind,

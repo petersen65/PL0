@@ -36,7 +36,7 @@ func (n *UnaryOperationNode) String() string {
 		return unaryOperationFormats[n.Operation]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.Operation, nil))
 	}
 }
 

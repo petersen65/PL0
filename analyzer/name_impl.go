@@ -7,18 +7,18 @@ import ast "github.com/petersen65/pl0/v3/ast"
 
 // Implementation of the name analysis phase of the semantic analyzer.
 type nameAnalyzer struct {
-    abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
+	abstractSyntax ast.Block // abstract syntax tree to run semantic analysis on
 }
 
 // Return the interface of the name analyzer implementation.
 func newNameAnalyzer(abstractSyntax ast.Block) ast.Visitor {
-    return &nameAnalyzer{
-        abstractSyntax: abstractSyntax,
-    }
+	return &nameAnalyzer{
+		abstractSyntax: abstractSyntax,
+	}
 }
 
 // Walk the block abstract syntax tree.
-func (a *nameAnalyzer) VisitBlock(bn *ast.BlockNode) {}
+func (a *nameAnalyzer) VisitBlock(b ast.Block) {}
 
 // Enter constant declaration into the symbol table and check for redeclaration.
 func (a *nameAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {}

@@ -42,7 +42,7 @@ func (e *ComparisonOperationNode) String() string {
 		return comparisonOperationFormats[e.Operation]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, e.Operation, nil))
 
 	}
 }

@@ -5,29 +5,67 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
-// Format for the string representation of unknown identifier-use nodes.
-const unknownUseFormat = "%v(kind=unknown,name=%v,usage=%v)"
+// Separator for the string representation of a bit-mask.
+const bitMaskSeparator = "|"
 
-// Formats for the string representation of identifier-use nodes.
-var identifierUseFormats = map[sym.Entry]string{
-	sym.ConstantEntry:  "%v(kind=%v,name=%v,value=%v,usage=%v)",
-	sym.VariableEntry:  "%v(kind=%v,name=%v,usage=%v)",
-	sym.ProcedureEntry: "%v(kind=%v,name=%v,usage=%v)",
-}
+// Format for the string representation of an identifier-use node.
+const identifierUseFormat = "%v(name=%v,usage=%v)"
 
-// Create a new identifier-use node in the abstract syntax tree.
-func newIdentifierUse(name string, context sym.Entry, index int) Expression {
+var (
+	// Map identifier kinds to their string representation.
+	identifierKindNames = map[IdentifierKind]string{
+		Constant:  "constant",
+		Variable:  "variable",
+		Procedure: "procedure",
+	}
+
+	// Map usage modes to their string representation.
+	usageModeNames = map[UsageMode]string{
+		Read:    "read",
+		Write:   "write",
+		Execute: "execute",
+	}
+)
+
+// Create a new identifier-use node for the abstract syntax tree.
+func newIdentifierUse(name string, kind IdentifierKind, index int) Expression {
 	return &IdentifierUseNode{
 		commonNode:     commonNode{NodeKind: KindIdentifierUse},
 		expressionNode: expressionNode{TokenStreamIndex: index},
 		Name:           name,
-		Context:        context,
+		IdentifierKind: kind,
 	}
+}
+
+// String representation of an identifier kind bit-mask.
+func (u IdentifierKind) String() string {
+	var parts []string
+
+	for kind, name := range identifierKindNames {
+		if u&kind != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, bitMaskSeparator)
+}
+
+// String representation of a usage mode bit-mask.
+func (u UsageMode) String() string {
+	var parts []string
+
+	for usage, name := range usageModeNames {
+		if u&usage != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, bitMaskSeparator)
 }
 
 // Children nodes of the identifier-use node.
@@ -37,23 +75,13 @@ func (n *IdentifierUseNode) Children() []Node {
 
 // String representation of the identifier-use node.
 func (n *IdentifierUseNode) String() string {
-	if symbol := n.CurrentBlock().Lookup(n.Name); symbol != nil {
-		format := identifierUseFormats[symbol.Kind]
+	switch n.IdentifierKind {
+	case Constant, Variable, Procedure:
+		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind, n.Name, n.UsageMode)
 
-		switch symbol.Kind {
-		case sym.ConstantEntry:
-			return fmt.Sprintf(format, n.Kind(), symbol.Kind, symbol.Name, symbol.Value, n.Use)
-
-		case sym.VariableEntry, sym.ProcedureEntry:
-			return fmt.Sprintf(format, n.Kind(), symbol.Kind, symbol.Name, n.Use)
-
-		default:
-			panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownSymbolKind, nil, nil))
-		}
+	default:
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, n.IdentifierKind, nil))
 	}
-
-	// if the symbol is not found, return a generic identifier-use string
-	return fmt.Sprintf(unknownUseFormat, n.Kind(), n.Name, n.Use)
 }
 
 // Accept the visitor for the identifier-use node.
