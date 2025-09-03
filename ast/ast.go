@@ -9,7 +9,7 @@ const (
 	KindBlock NodeKind = iota
 	KindConstantDeclaration
 	KindVariableDeclaration
-	KindProcedureDeclaration
+	KindFunctionDeclaration
 	KindLiteral
 	KindIdentifierUse
 	KindUnaryOperation
@@ -59,7 +59,7 @@ type (
 		VisitBlock(block Block)
 		VisitConstantDeclaration(declaration ConstantDeclaration)
 		VisitVariableDeclaration(declaration VariableDeclaration)
-		VisitProcedureDeclaration(declaration ProcedureDeclaration)
+		VisitFunctionDeclaration(declaration FunctionDeclaration)
 		VisitLiteral(literal *LiteralNode)
 		VisitIdentifierUse(use *IdentifierUseNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)

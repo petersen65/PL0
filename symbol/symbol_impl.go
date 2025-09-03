@@ -25,6 +25,7 @@ var (
 	kindNames = map[EntryKind]string{
 		ConstantEntry:  "constant",
 		VariableEntry:  "variable",
+		FunctionEntry:  "function",
 		ProcedureEntry: "procedure",
 		DataTypeEntry:  "data_type",
 	}

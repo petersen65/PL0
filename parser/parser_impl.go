@@ -263,10 +263,13 @@ func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int32, anchor
 		// the parent of a block needs to point to its procedure declaration
 		block.SetParent(declaration)
 
-		// set the block of the procedure declaration because it was not known before the block was parsed
-		declaration.(*ast.ProcedureDeclarationNode).Block = block
+		// if there was no parsing error, set the block of the procedure declaration because it was not known before the block was parsed
+		if declaration.Kind() == ast.KindFunctionDeclaration {
+			declaration.(ast.FunctionDeclaration).SetBlock(block)
+		}
 
-		// add the procedure declaration to the list of declarations for the parent block node
+
+		// add the function declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)
 	}
 
@@ -583,7 +586,7 @@ func (p *parser) procedureIdentifier() ast.Declaration {
 	}
 
 	// the procedure block is not yet known and will be set after the block is parsed
-	declaration := ast.NewProcedureDeclaration(p.lastTokenValue(), nil, p.lastTokenIndex())
+	declaration := ast.NewFunctionDeclaration(p.lastTokenValue(), nil, nil, "", p.lastTokenIndex())
 
 	p.nextToken()
 	return declaration

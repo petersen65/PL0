@@ -9,7 +9,18 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
+// Parameter passing modes for functions and procedures.
+const (
+	CallByValue          PassingMode = iota // call by value
+	CallByReference                         // call by reference
+	CallByConstReference                    // call by const reference
+	OutputParameter                         // output parameter
+)
+
 type (
+	// Function or procedure parameter passing modes.
+	PassingMode int
+
 	// A constant declaration node in the abstract syntax tree.
 	ConstantDeclaration interface {
 		Declaration
@@ -21,9 +32,22 @@ type (
 		Declaration
 	}
 
-	// A procedure declaration node in the abstract syntax tree.
-	ProcedureDeclaration interface {
+	// Parameter and its passing mode for a function or procedure call.
+	FunctionParameter struct {
+		Name         string      `json:"name"`           // identifier name used to reference this parameter within the function
+		DataTypeName string      `json:"data_type_name"` // data type name defining the data type of this parameter
+		PassingMode  PassingMode `json:"passing_mode"`   // determines how the parameter is passed (e.g., by value, by reference)
+	}
+
+	// A function or procedure declaration node in the abstract syntax tree.
+	FunctionDeclaration interface {
 		Declaration
+		Block() Block
+		SetBlock(block Block)
+		IsFunction() bool
+		IsProcedure() bool
+		Parameters() []*FunctionParameter
+		ReturnTypeName() string
 	}
 
 	// Any declaration node in the abstract syntax tree.
@@ -51,7 +75,16 @@ func NewVariableDeclaration(name, dataTypeName string, index int) VariableDeclar
 	return newVariableDeclaration(name, dataTypeName, index)
 }
 
-// Create a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block, index int) ProcedureDeclaration {
-	return newProcedureDeclaration(name, block, index)
+// Create a new function parameter for a function or procedure declaration.
+func NewFunctionParameter(name, dataTypeName string, mode PassingMode) *FunctionParameter {
+	return &FunctionParameter{Name: name, DataTypeName: dataTypeName, PassingMode: mode}
+}
+
+// Create a new function or procedure declaration node in the abstract syntax tree. For a procedure, the return type name has to be an empty string.
+func NewFunctionDeclaration(name string, block Block, parameters []*FunctionParameter, returnTypeName string, index int) FunctionDeclaration {
+	if parameters == nil {
+		parameters = make([]*FunctionParameter, 0)
+	}
+
+	return newFunctionDeclaration(name, block, parameters, returnTypeName, index)
 }

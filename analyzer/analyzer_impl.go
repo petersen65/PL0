@@ -20,6 +20,14 @@ type semanticAnalyzer struct {
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
+// Map parameter passing modes from the abstract syntax tree to the type system.
+var passingModeMap = map[ast.PassingMode]ts.ParameterPassingMode{
+	ast.CallByValue:          ts.CallByValue,
+	ast.CallByReference:      ts.CallByReference,
+	ast.CallByConstReference: ts.CallByConstReference,
+	ast.OutputParameter:      ts.OutputParameter,
+}
+
 // Return the interface of the semantic analyzer implementation.
 func newAnalyzer(abstractSyntax ast.Block, errorHandler eh.ErrorHandler, tokenHandler tok.TokenHandler) Analyzer {
 	return &semanticAnalyzer{
@@ -36,10 +44,8 @@ func (a *semanticAnalyzer) Analyze() {
 	rootBlock := a.abstractSyntax.RootBlock()
 
 	// insert built-in data types into the scope of the root block
-	int64TypeName := ts.Integer64.String()
-	int64Type := ts.NewSimpleTypeDescriptor(int64TypeName, ts.Integer64)
-	int64Symbol := sym.NewSymbol(int64TypeName, sym.DataTypeEntry, int64Type, nil)
-	rootBlock.Insert(int64TypeName, int64Symbol)
+	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64)
+	rootBlock.Insert(int64Type.Name(), sym.NewSymbol(int64Type.Name(), sym.DataTypeEntry, int64Type, nil))
 
 	if a.abstractSyntax == nil || a.errorHandler == nil || a.tokenHandler == nil {
 		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
@@ -102,20 +108,56 @@ func (a *semanticAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) 
 	}
 }
 
-// Insert the symbol for a procedure declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitProcedureDeclaration(pd ast.ProcedureDeclaration) {
-	cb := pd.CurrentBlock()                               // current block
-	s := cb.Lookup(pd.Name)                               // procedure symbol
-	dt := ts.NewFunctionTypeDescriptor(pd.Name, nil, nil) // procedure data type
+// Insert the symbol for a function declaration into the current block's scope.
+func (a *semanticAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
+	cb := fd.CurrentBlock()   // current block
+	s := cb.Lookup(fd.Name()) // function symbol
 
-	// in the case of no errors, insert the procedure symbol into the current block's scope
-	if s != nil {
-		a.appendError(identifierAlreadyDeclared, pd.Name, pd.TokenStreamIndex)
-	} else {
-		cb.Insert(pd.Name, sym.NewSymbol(pd.Name, sym.ProcedureEntry, dt, pd))
+	var symbolEntry sym.EntryKind = sym.ProcedureEntry // function or procedure symbol entry kind
+	var parameters = make([]*ts.FunctionParameter, 0)  // function parameters
+	var returnType ts.TypeDescriptor                   // function return type or nil
+
+	// handle the return data type of a function
+	if fd.IsFunction() {
+		symbolEntry = sym.FunctionEntry
+
+		if rts := cb.Lookup(fd.ReturnTypeName()); rts == nil || rts.Kind != sym.DataTypeEntry {
+			a.appendError(functionReturnTypeNotFound, fd.ReturnTypeName(), fd.Index())
+		} else {
+			returnType = rts.DataType
+		}
 	}
 
-	pd.Block.Accept(a)
+	// translate function parameters from the function declaration into data type representations of the type system
+	for _, parameter := range fd.Parameters() {
+		if pts := cb.Lookup(parameter.DataTypeName); pts == nil || pts.Kind != sym.DataTypeEntry {
+			a.appendError(functionParameterTypeNotFound, parameter.DataTypeName, fd.Index())
+		} else {
+			parameters = append(parameters, ts.NewFunctionParameter(parameter.Name, pts.DataType, passingModeMap[parameter.PassingMode]))
+		}
+	}
+
+	// append an error if the function was already declared
+	if s != nil {
+		a.appendError(identifierAlreadyDeclared, fd.Name(), fd.Index())
+	} else {
+		// create a data type for a function or procedure with a predefined list of parameters and an optional return type
+		functiontype := ts.NewFunctionTypeDescriptor(parameters, returnType)
+
+		// if the function data type is not found, insert it into the current block's scope
+		if fts := cb.Lookup(functiontype.Name()); fts != nil {
+			functiontype = fts.DataType
+		} else {
+			cb.Insert(functiontype.Name(), sym.NewSymbol(functiontype.Name(), sym.DataTypeEntry, functiontype, nil))
+		}
+
+		// insert the function symbol into the current block's scope
+		symbol := sym.NewSymbol(fd.Name(), symbolEntry, functiontype, nil)
+		cb.Insert(fd.Name(), symbol)
+		fd.SetSymbol(symbol)
+	}
+
+	fd.Block().Accept(a)
 }
 
 // Walk the literal abstract syntax tree.

@@ -13,6 +13,7 @@ const EmptyScopeId = -1
 const (
 	ConstantEntry EntryKind = iota
 	VariableEntry
+	FunctionEntry
 	ProcedureEntry
 	DataTypeEntry
 )

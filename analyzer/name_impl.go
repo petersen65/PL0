@@ -26,8 +26,8 @@ func (a *nameAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {}
 // Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
 func (a *nameAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {}
 
-// Enter the procedure declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalyzer) VisitProcedureDeclaration(pd ast.ProcedureDeclaration) {}
+// Enter the function declaration as a symbol into the block's scope and check for redeclaration.
+func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {}
 
 // Walk the literal abstract syntax tree.
 func (a *nameAnalyzer) VisitLiteral(ln *ast.LiteralNode) {}

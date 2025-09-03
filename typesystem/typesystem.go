@@ -41,7 +41,7 @@ const (
 	DataTypeProcedure // the procedure type describes a function with parameters but no return value
 )
 
-// Parameter passing modes for procedures and functions.
+// Parameter passing modes for functions and procedures.
 const (
 	CallByValue          ParameterPassingMode = iota // call by value
 	CallByReference                                  // call by reference
@@ -56,7 +56,7 @@ type (
 	// Kind of data type (e.g., simple, composite, pointer).
 	DataTypeKind int
 
-	// Mode for parameter passing in procedures and functions.
+	// Mode for parameter passing in functions and procedures.
 	ParameterPassingMode int
 
 	// Structure field describes a field in a structure type descriptor.
@@ -89,11 +89,11 @@ type (
 )
 
 // Create a new simple type descriptor with an underlying primitive type.
-func NewSimpleTypeDescriptor(name string, primitiveType PrimitiveDataType) TypeDescriptor {
+func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	return &simpleTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: primitiveType.String(), Abi: currentABI},
 		PrimitiveType:        primitiveType,
 	}
 }
@@ -144,18 +144,21 @@ func NewFunctionParameter(name string, parameterType TypeDescriptor, mode Parame
 }
 
 // Create a new function type descriptor with parameters and a return type. The return type may be nil for procedures.
-func NewFunctionTypeDescriptor(name string, parameters []*FunctionParameter, returnType TypeDescriptor) TypeDescriptor {
+func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeDescriptor) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	if parameters == nil {
 		parameters = make([]*FunctionParameter, 0)
 	}
 
-	return &functionTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+	typeDescriptor := &functionTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI},
 		Parameters:           parameters,
 		ReturnType:           returnType,
 	}
+
+	typeDescriptor.TypeName = typeDescriptor.String()
+	return typeDescriptor
 }
 
 // String representation of a primitive data type.

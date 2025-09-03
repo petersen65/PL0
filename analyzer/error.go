@@ -17,6 +17,8 @@ const (
 	identifierAlreadyDeclared
 	constantDataTypeNotFound
 	variableDataTypeNotFound
+	functionReturnTypeNotFound
+	functionParameterTypeNotFound
 	expectedConstantIdentifier
 	expectedVariableIdentifier
 	expectedProcedureIdentifier
@@ -27,19 +29,21 @@ const (
 
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
-	invalidNameAnalysisState:    "name analysis is in an undefined state and cannot continue parsing",
-	declarationValidationFailed: "identifier declaration validation failed",
-	usageValidationFailed:       "identifier usage validation failed",
-	closureDeterminationFailed:  "closure determination failed",
-	unknownSymbolKind:           "unknown symbol kind: %v",
-	identifierNotFound:          "identifier not found: %v",
-	identifierAlreadyDeclared:   "identifier already declared: %v",
-	constantDataTypeNotFound:    "constant data type not found: %v",
-	variableDataTypeNotFound:    "variable data type not found: %v",
-	expectedConstantIdentifier:  "expected constant identifier, found %v",
-	expectedVariableIdentifier:  "expected variable identifier, found %v",
-	expectedProcedureIdentifier: "expected procedure identifier, found %v",
-	unusedConstantIdentifier:    "constant declared but not used: %v",
-	unusedVariableIdentifier:    "variable declared but not used: %v",
-	unusedProcedureIdentifier:   "procedure declared but not used: %v",
+	invalidNameAnalysisState:      "name analysis is in an undefined state and cannot continue parsing",
+	declarationValidationFailed:   "identifier declaration validation failed",
+	usageValidationFailed:         "identifier usage validation failed",
+	closureDeterminationFailed:    "closure determination failed",
+	unknownSymbolKind:             "unknown symbol kind: %v",
+	identifierNotFound:            "identifier not found: %v",
+	identifierAlreadyDeclared:     "identifier already declared: %v",
+	constantDataTypeNotFound:      "constant data type not found: %v",
+	variableDataTypeNotFound:      "variable data type not found: %v",
+	functionReturnTypeNotFound:    "function return data type not found: %v",
+	functionParameterTypeNotFound: "function parameter data type not found: %v",
+	expectedConstantIdentifier:    "expected constant identifier, found %v",
+	expectedVariableIdentifier:    "expected variable identifier, found %v",
+	expectedProcedureIdentifier:   "expected procedure identifier, found %v",
+	unusedConstantIdentifier:      "constant declared but not used: %v",
+	unusedVariableIdentifier:      "variable declared but not used: %v",
+	unusedProcedureIdentifier:     "procedure declared but not used: %v",
 }

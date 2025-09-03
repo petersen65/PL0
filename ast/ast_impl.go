@@ -21,7 +21,7 @@ var nodeKindNames = map[NodeKind]string{
 	KindBlock:                "block",
 	KindConstantDeclaration:  "constant",
 	KindVariableDeclaration:  "variable",
-	KindProcedureDeclaration: "procedure",
+	KindFunctionDeclaration:  "function",
 	KindLiteral:              "literal",
 	KindIdentifierUse:        "use",
 	KindUnaryOperation:       "unary",
