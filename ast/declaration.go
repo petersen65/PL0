@@ -55,8 +55,10 @@ type (
 		Node
 		Name() string
 		DataTypeName() string
+		Symbol() *sym.Symbol
 		SetSymbol(sym *sym.Symbol)
 		Usage() []Expression
+		AddUsage(use Expression)
 	}
 )
 

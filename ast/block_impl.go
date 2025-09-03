@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
 	eh "github.com/petersen65/pl0/v3/errors"
 	exp "github.com/petersen65/pl0/v3/export"
@@ -18,19 +19,19 @@ const blockFormat = "%v(depth=%v)"
 
 // The block node represents a block in the AST.
 type blockNode struct {
-	commonNode                 // embedded common node
-	Depth        int32         `json:"depth"`              // block nesting depth
-	Scope        sym.Scope     `json:"scope"`              // scope with the symbol table of the block
-	Declarations []Declaration `json:"declarations"`       // all declarations of the block
-	Closure      []Declaration `json:"closure"`            // all captured variable declarations from lexical parents of the block
-	Statement    Statement     `json:"statement"`          // statement of the block
-	Id           int           `json:"id"`                 // each block needs to be uniquely identifiable
-	Counter      map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique names
+	commonNode                      // embedded common node
+	NestingDepth      int           `json:"depth"`              // block nesting depth
+	Scope             sym.Scope     `json:"scope"`              // scope with the symbol table of the block
+	BlockDeclarations []Declaration `json:"declarations"`       // all declarations of the block
+	Closure           []Declaration `json:"closure"`            // all captured declarations from lexical parents of the block
+	BlockStatement    Statement     `json:"statement"`          // statement of the block
+	Id                int           `json:"id"`                 // each block needs to be uniquely identifiable
+	Counter           map[rune]uint `json:"identifier_counter"` // counter for compiler-generated unique names
 }
 
 // Prepare a new block node in the abstract syntax tree. The parent can be nil, if the new block is the root block.
 // The prepared block is not yet fully initialized and needs to be finished with declarations and a statement.
-func prepareBlock(parent Block, depth int32, id int) Block {
+func prepareBlock(parent Block, depth int, id int) Block {
 	var outerScope sym.Scope
 
 	// inherit the outer scope from the parent block
@@ -40,46 +41,46 @@ func prepareBlock(parent Block, depth int32, id int) Block {
 
 	// return a prepared block node with an initialized scope hierarchy
 	return &blockNode{
-		commonNode:   commonNode{NodeKind: KindBlock, ParentNode: parent},
-		Depth:        depth,
-		Scope:        sym.NewScope(outerScope),
-		Declarations: make([]Declaration, 0),
-		Closure:      make([]Declaration, 0),
-		Statement:    NewEmptyStatement(),
-		Id:           id,
-		Counter:      make(map[rune]uint),
+		commonNode:        commonNode{NodeKind: KindBlock, ParentNode: parent},
+		NestingDepth:      depth,
+		Scope:             sym.NewScope(outerScope),
+		BlockDeclarations: make([]Declaration, 0),
+		Closure:           make([]Declaration, 0),
+		BlockStatement:    NewEmptyStatement(),
+		Id:                id,
+		Counter:           make(map[rune]uint),
 	}
 }
 
 // Finish the prepared block by adding all its declarations and its statement.
 func finishBlock(blockNode *blockNode, declarations []Declaration, statement Statement) {
 	// add all declarations and the statement to this block node
-	blockNode.Declarations = declarations
-	blockNode.Statement = statement
+	blockNode.BlockDeclarations = declarations
+	blockNode.BlockStatement = statement
 
 	// ensure that all declarations belong to this block node
-	for _, declaration := range blockNode.Declarations {
+	for _, declaration := range blockNode.BlockDeclarations {
 		declaration.SetParent(blockNode)
 	}
 
 	// ensure that the statement is the statement of this block node
-	blockNode.Statement.SetParent(blockNode)
+	blockNode.BlockStatement.SetParent(blockNode)
 }
 
 // Children nodes of the block node.
 func (n *blockNode) Children() []Node {
-	children := make([]Node, 0, len(n.Declarations)+1)
+	children := make([]Node, 0, len(n.BlockDeclarations)+1)
 
-	for _, declaration := range n.Declarations {
+	for _, declaration := range n.BlockDeclarations {
 		children = append(children, declaration)
 	}
 
-	return append(children, n.Statement)
+	return append(children, n.BlockStatement)
 }
 
 // String representation of the block node.
 func (n *blockNode) String() string {
-	return fmt.Sprintf(blockFormat, n.Kind(), n.Depth)
+	return fmt.Sprintf(blockFormat, n.Kind(), n.NestingDepth)
 }
 
 // Accept the visitor for the block node.
@@ -89,11 +90,38 @@ func (n *blockNode) Accept(visitor Visitor) {
 
 // Index returns the token stream index of the block node.
 func (n *blockNode) Index() int {
-	if len(n.Declarations) > 0 {
-		return n.Declarations[0].Index()
+	if len(n.BlockDeclarations) > 0 {
+		return n.BlockDeclarations[0].Index()
 	}
 
-	return n.Statement.Index()
+	return n.BlockStatement.Index()
+}
+
+// The nesting depth of the block node.
+func (n *blockNode) Depth() int {
+	return n.NestingDepth
+}
+
+// All declarations contained in the block node.
+func (n *blockNode) Declarations() []Declaration {
+	return n.BlockDeclarations
+}
+
+// The statement contained in the block node.
+func (n *blockNode) Statement() Statement {
+	return n.BlockStatement
+}
+
+// All captured declarations from lexical parents of the block.
+func (n *blockNode) CapturedDeclarations() []Declaration {
+	return n.Closure
+}
+
+// Add a captured declaration to the block.
+func (n *blockNode) AddCapturedDeclaration(declaration Declaration) {
+	if !slices.Contains(n.Closure, declaration) {
+		n.Closure = append(n.Closure, declaration)
+	}
 }
 
 // Find the root block node that contains all block nodes.
@@ -171,8 +199,8 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 }
 
 // Search for a parent block node in the abstract syntax tree based on the search mode.
-func searchBlock(current Node, mode BlockSearchMode) *blockNode {
-	for current != nil {
+func searchBlock(node Node, mode BlockSearchMode) Block {
+	for current := node.Parent(); current != nil; current = current.Parent() {
 		if block, ok := current.(*blockNode); ok {
 			if mode == CurrentBlock {
 				return block
@@ -180,8 +208,19 @@ func searchBlock(current Node, mode BlockSearchMode) *blockNode {
 				return block
 			}
 		}
+	}
 
-		current = current.Parent()
+	return nil
+}
+
+// Search for a declaration node in the abstract syntax tree based on its associated symbol information.
+func searchDeclaration(node Node, symbol *sym.Symbol) Declaration {
+	for block := searchBlock(node, CurrentBlock); block != nil; block = searchBlock(block, CurrentBlock) {
+		for _, declaration := range block.Declarations() {
+			if declaration.Symbol() == symbol {
+				return declaration
+			}
+		}
 	}
 
 	return nil

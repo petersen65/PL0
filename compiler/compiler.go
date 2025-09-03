@@ -16,11 +16,11 @@ import (
 	ana "github.com/petersen65/pl0/v3/analyzer"
 	ast "github.com/petersen65/pl0/v3/ast"
 	cfg "github.com/petersen65/pl0/v3/cfg"
-	emi "github.com/petersen65/pl0/v3/emitter"
+	// emi "github.com/petersen65/pl0/v3/emitter"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	eh "github.com/petersen65/pl0/v3/errors"
 	exp "github.com/petersen65/pl0/v3/export"
-	gen "github.com/petersen65/pl0/v3/generator"
+	// gen "github.com/petersen65/pl0/v3/generator"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 	par "github.com/petersen65/pl0/v3/parser"
 	plt "github.com/petersen65/pl0/v3/platform"
@@ -359,19 +359,19 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 	}
 
 	// code generation based on the abstract syntax tree results in an intermediate code unit and debug information
-	generator := gen.NewGenerator(abstractSyntax, buildConfiguration, tokenHandler)
-	generator.Generate()
-	intermediateCode := generator.GetIntermediateCodeUnit()
-	debugInformation := generator.GetDebugInformation()
+	// generator := gen.NewGenerator(abstractSyntax, buildConfiguration, tokenHandler)
+	// generator.Generate()
+	// intermediateCode := generator.GetIntermediateCodeUnit()
+	// debugInformation := generator.GetDebugInformation()
 
 	// build control flow graph from an intermediate code unit
-	controlFlow := cfg.NewControlFlowGraph(intermediateCode)
-	controlFlow.Build()
+	// controlFlow := cfg.NewControlFlowGraph(intermediateCode)
+	// controlFlow.Build()
 
 	// emit assembly code for a target platform from the intermediate code unit
-	emitter := emi.NewEmitter(intermediateCode, buildConfiguration, debugInformation)
-	emitter.Emit()
-	assemblyCode := emitter.GetAssemblyCodeUnit()
+	// emitter := emi.NewEmitter(intermediateCode, buildConfiguration, debugInformation)
+	// emitter.Emit()
+	// assemblyCode := emitter.GetAssemblyCodeUnit()
 
 	// return compilation unit with all intermediate results and error handler
 	return CompilationUnit{
@@ -381,9 +381,9 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 		TokenHandler:     tokenHandler,
 		TokenStream:      tokenStream,
 		AbstractSyntax:   abstractSyntax,
-		IntermediateCode: intermediateCode,
-		ControlFlow:      controlFlow,
-		AssemblyCode:     assemblyCode,
+		// IntermediateCode: intermediateCode,
+		// ControlFlow:      controlFlow,
+		// AssemblyCode:     assemblyCode,
 	}
 }
 

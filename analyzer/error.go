@@ -21,10 +21,10 @@ const (
 	functionParameterTypeNotFound
 	expectedConstantIdentifier
 	expectedVariableIdentifier
-	expectedProcedureIdentifier
+	expectedFunctionIdentifier
 	unusedConstantIdentifier
 	unusedVariableIdentifier
-	unusedProcedureIdentifier
+	unusedFunctionIdentifier
 )
 
 // Map failure codes to error messages.
@@ -42,8 +42,8 @@ var failureMap = map[eh.Failure]string{
 	functionParameterTypeNotFound: "function parameter data type not found: %v",
 	expectedConstantIdentifier:    "expected constant identifier, found %v",
 	expectedVariableIdentifier:    "expected variable identifier, found %v",
-	expectedProcedureIdentifier:   "expected procedure identifier, found %v",
+	expectedFunctionIdentifier:    "expected function identifier, found %v",
 	unusedConstantIdentifier:      "constant declared but not used: %v",
 	unusedVariableIdentifier:      "variable declared but not used: %v",
-	unusedProcedureIdentifier:     "procedure declared but not used: %v",
+	unusedFunctionIdentifier:      "function declared but not used: %v",
 }

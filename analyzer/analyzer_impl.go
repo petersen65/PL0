@@ -4,8 +4,6 @@
 package analyzer
 
 import (
-	"slices"
-
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
@@ -165,7 +163,7 @@ func (a *semanticAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
 	// nothing to do
 }
 
-// Check if the used identifier is declared and if it is used in the correct context.
+// Check if the used identifier is declared and if it is used as the expected kind of identifier.
 func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol == nil {
 		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
@@ -177,34 +175,37 @@ func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 				iu.IdentifierKind = ast.Constant
 
 				// add the constant usage to the constant declaration
-				symbol.Type.(*ast.ConstantDeclarationNode).IdentifierUsage =
-					append(symbol.Type.(*ast.ConstantDeclarationNode).IdentifierUsage, iu)
+				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
+					declaration.AddUsage(iu)
+				}
 			} else {
 				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
 		case sym.VariableEntry:
-			// make the identifier a variable because its symbol is a variable and it is used in a variable context
-			if iu.Context&sym.VariableEntry != 0 {
-				iu.Context = sym.VariableEntry
+			// make the identifier a variable because its symbol is a variable and it is used as a variable kind
+			if iu.IdentifierKind&ast.Variable != 0 {
+				iu.IdentifierKind = ast.Variable
 
 				// add the variable usage to the variable declaration
-				symbol.Type.(*ast.VariableDeclarationNode).IdentifierUsage =
-					append(symbol.Type.(*ast.VariableDeclarationNode).IdentifierUsage, iu)
+				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
+					declaration.AddUsage(iu)
+				}
 			} else {
 				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
 		case sym.ProcedureEntry:
-			// make the identifier a procedure because its symbol is a procedure and it is used in a procedure context
-			if iu.Context&sym.ProcedureEntry != 0 {
-				iu.Context = sym.ProcedureEntry
+			// make the identifier a procedure because its symbol is a procedure and it is used as a procedure kind
+			if iu.IdentifierKind&ast.Procedure != 0 {
+				iu.IdentifierKind = ast.Procedure
 
 				// add the procedure usage to the procedure declaration
-				symbol.Type.(*ast.ProcedureDeclarationNode).IdentifierUsage =
-					append(symbol.Type.(*ast.ProcedureDeclarationNode).IdentifierUsage, iu)
+				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
+					declaration.AddUsage(iu)
+				}
 			} else {
-				a.appendError(expectedProcedureIdentifier, iu.Name, iu.TokenStreamIndex)
+				a.appendError(expectedFunctionIdentifier, iu.Name, iu.TokenStreamIndex)
 			}
 
 		default:
@@ -295,19 +296,19 @@ func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 	th := tokenHandler.(tok.TokenHandler)
 
 	switch d := node.(type) {
-	case *ast.ConstantDeclarationNode:
-		if len(d.IdentifierUsage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name, d.TokenStreamIndex))
+	case ast.ConstantDeclaration:
+		if len(d.Usage()) == 0 {
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name(), d.Index()))
 		}
 
-	case *ast.VariableDeclarationNode:
-		if len(d.IdentifierUsage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name, d.TokenStreamIndex))
+	case ast.VariableDeclaration:
+		if len(d.Usage()) == 0 {
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name(), d.Index()))
 		}
 
-	case *ast.ProcedureDeclarationNode:
-		if len(d.IdentifierUsage) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name, d.TokenStreamIndex))
+	case ast.FunctionDeclaration:
+		if len(d.Usage()) == 0 {
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, d.Name(), d.Index()))
 		}
 	}
 }
@@ -317,20 +318,18 @@ func addVariableToBlockClosure(node ast.Node, _ any) {
 	if iu, ok := node.(*ast.IdentifierUseNode); ok {
 		if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol != nil {
 			if symbol.Kind == sym.VariableEntry {
+				// determine the declaration of the symbol
+				declaration := ast.SearchDeclaration(iu, symbol)
+
 				// determine the block where the variable is declared
-				declarationBlock := ast.SearchBlock(symbol.Type, ast.CurrentBlock)
+				declarationBlock := declaration.CurrentBlock()
 
 				// determine the block where the variable is used
 				useBlock := ast.SearchBlock(iu, ast.CurrentBlock)
 
 				// add the variable to the closure of the block where it is used if it is declared in an outer block
-				if useBlock.Depth-declarationBlock.Depth > 0 {
-					// check if the variable is already in the closure
-					if !slices.ContainsFunc(useBlock.Closure, func(d ast.Declaration) bool {
-						return d == symbol.Type
-					}) {
-						useBlock.Closure = append(useBlock.Closure, symbol.Type)
-					}
+				if useBlock.Depth()-declarationBlock.Depth() > 0 {
+					useBlock.AddCapturedDeclaration(declaration)
 				}
 			}
 		}

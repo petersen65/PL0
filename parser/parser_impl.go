@@ -92,7 +92,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 }
 
 // A block is a sequence of declarations followed by a statement.
-func (p *parser) block(parent ast.Block, blockNestingDepth int32, expected tok.Tokens) ast.Block {
+func (p *parser) block(parent ast.Block, blockNestingDepth int, expected tok.Tokens) ast.Block {
 	// a block can contain a sequence of declarations, so lists for all declarations are initialized
 	constants := make([]ast.Declaration, 0)
 	variables := make([]ast.Declaration, 0)
@@ -222,7 +222,7 @@ func (p *parser) varWord() []ast.Declaration {
 }
 
 // Sequence of procedure declarations.
-func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int32, anchors tok.Tokens) []ast.Declaration {
+func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int, anchors tok.Tokens) []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 
 	// all procedures are declared in a sequence of procedure identifiers with each having a block

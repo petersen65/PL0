@@ -27,6 +27,11 @@ type (
 		String() string
 		Index() int
 		Accept(visitor Visitor)
+		Depth() int
+		Declarations() []Declaration
+		Statement() Statement
+		CapturedDeclarations() []Declaration
+		AddCapturedDeclaration(declaration Declaration)
 		RootBlock() Block
 		Insert(name string, symbol *sym.Symbol)
 		Lookup(name string) *sym.Symbol
@@ -39,7 +44,7 @@ type (
 
 // Prepare a new block node in the abstract syntax tree. The parent can be nil, if the new block is the root block.
 // The prepared block is not yet fully initialized and needs to be finished with declarations and a statement.
-func PrepareBlock(parent Block, depth int32, id int) Block {
+func PrepareBlock(parent Block, depth int, id int) Block {
 	return prepareBlock(parent, depth, id)
 }
 
@@ -49,6 +54,11 @@ func FinishBlock(block Block, declarations []Declaration, statement Statement) {
 }
 
 // Search for a parent block node in the abstract syntax tree based on the search mode.
-func SearchBlock(current Node, mode BlockSearchMode) Block {
-	return searchBlock(current, mode)
+func SearchBlock(node Node, mode BlockSearchMode) Block {
+	return searchBlock(node, mode)
+}
+
+// Search for a declaration node in the abstract syntax tree based on its associated symbol information.
+func SearchDeclaration(node Node, symbol *sym.Symbol) Declaration {
+	return searchDeclaration(node, symbol)
 }
