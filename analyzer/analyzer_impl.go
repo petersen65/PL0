@@ -129,7 +129,11 @@ func (a *semanticAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) 
 	// translate function parameters from the function declaration into data type representations of the type system
 	for _, parameter := range fd.Parameters() {
 		if pts := cb.Lookup(parameter.DataTypeName); pts == nil || pts.Kind != sym.DataTypeEntry {
-			a.appendError(functionParameterTypeNotFound, parameter.DataTypeName, fd.Index())
+			if fd.IsProcedure() {
+				a.appendError(procedureParameterTypeNotFound, parameter.DataTypeName, fd.Index())
+			} else {
+				a.appendError(functionParameterTypeNotFound, parameter.DataTypeName, fd.Index())
+			}
 		} else {
 			parameters = append(parameters, ts.NewFunctionParameter(parameter.Name, pts.DataType, passingModeMap[parameter.PassingMode]))
 		}
@@ -164,48 +168,61 @@ func (a *semanticAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
 }
 
 // Check if the used identifier is declared and if it is used as the expected kind of identifier.
-func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
-	if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol == nil {
-		a.appendError(identifierNotFound, iu.Name, iu.TokenStreamIndex)
+func (a *semanticAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
+	if symbol := iu.CurrentBlock().Lookup(iu.Name()); symbol == nil {
+		a.appendError(identifierNotFound, iu.Name(), iu.Index())
 	} else {
 		switch symbol.Kind {
 		case sym.ConstantEntry:
 			// make the identifier a constant because its symbol is a constant and it is used as a constant kind
-			if iu.IdentifierKind&ast.Constant != 0 {
-				iu.IdentifierKind = ast.Constant
+			if iu.Context()&ast.Constant != 0 {
+				iu.SetContext(ast.Constant)
 
 				// add the constant usage to the constant declaration
 				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
 					declaration.AddUsage(iu)
 				}
 			} else {
-				a.appendError(expectedConstantIdentifier, iu.Name, iu.TokenStreamIndex)
+				a.appendError(expectedConstantIdentifier, iu.Name(), iu.Index())
 			}
 
 		case sym.VariableEntry:
 			// make the identifier a variable because its symbol is a variable and it is used as a variable kind
-			if iu.IdentifierKind&ast.Variable != 0 {
-				iu.IdentifierKind = ast.Variable
+			if iu.Context()&ast.Variable != 0 {
+				iu.SetContext(ast.Variable)
 
 				// add the variable usage to the variable declaration
 				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
 					declaration.AddUsage(iu)
 				}
 			} else {
-				a.appendError(expectedVariableIdentifier, iu.Name, iu.TokenStreamIndex)
+				a.appendError(expectedVariableIdentifier, iu.Name(), iu.Index())
+			}
+
+		case sym.FunctionEntry:
+			// make the identifier a function because its symbol is a function and it is used as a function kind
+			if iu.Context()&ast.Function != 0 {
+				iu.SetContext(ast.Function)
+
+				// add the function usage to the function declaration
+				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
+					declaration.AddUsage(iu)
+				}
+			} else {
+				a.appendError(expectedFunctionIdentifier, iu.Name(), iu.Index())
 			}
 
 		case sym.ProcedureEntry:
 			// make the identifier a procedure because its symbol is a procedure and it is used as a procedure kind
-			if iu.IdentifierKind&ast.Procedure != 0 {
-				iu.IdentifierKind = ast.Procedure
+			if iu.Context()&ast.Procedure != 0 {
+				iu.SetContext(ast.Procedure)
 
 				// add the procedure usage to the procedure declaration
 				if declaration := ast.SearchDeclaration(iu, symbol); declaration != nil {
 					declaration.AddUsage(iu)
 				}
 			} else {
-				a.appendError(expectedFunctionIdentifier, iu.Name, iu.TokenStreamIndex)
+				a.appendError(expectedProcedureIdentifier, iu.Name(), iu.Index())
 			}
 
 		default:
@@ -237,13 +254,17 @@ func (a *semanticAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationN
 // Walk the assignment statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
 	// set the usage mode bit to write for the variable that is assigned to
-	as.Variable.(*ast.IdentifierUseNode).UsageMode |= ast.Write
+	usageMode := as.Variable.(ast.IdentifierUse).UsageMode()
+	usageMode |= ast.Write
+	as.Variable.(ast.IdentifierUse).SetUsageMode(usageMode)
 }
 
 // Walk the read statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
 	// set the usage mode bit to write for the variable that is read into
-	rs.Variable.(*ast.IdentifierUseNode).UsageMode |= ast.Write
+	usageMode := rs.Variable.(ast.IdentifierUse).UsageMode()
+	usageMode |= ast.Write
+	rs.Variable.(ast.IdentifierUse).SetUsageMode(usageMode)
 }
 
 // Walk the write statement abstract syntax tree.
@@ -255,7 +276,9 @@ func (a *semanticAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {
 // Walk the call statement abstract syntax tree.
 func (a *semanticAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {
 	// set the usage mode bit to execute for the procedure that is called
-	cs.Procedure.(*ast.IdentifierUseNode).UsageMode |= ast.Execute
+	usageMode := cs.Procedure.(ast.IdentifierUse).UsageMode()
+	usageMode |= ast.Execute
+	cs.Procedure.(ast.IdentifierUse).SetUsageMode(usageMode)
 }
 
 // Walk the if statement abstract syntax tree.
@@ -282,10 +305,10 @@ func (a *semanticAnalyzer) appendError(code eh.Failure, value any, index int) {
 
 // For all occurrences of a constant or variable usage, set the usage mode bit to read.
 func setConstantVariableUsageAsRead(node ast.Node, _ any) {
-	if iu, ok := node.(*ast.IdentifierUseNode); ok {
-		if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol != nil {
+	if iu, ok := node.(ast.IdentifierUse); ok {
+		if symbol := iu.CurrentBlock().Lookup(iu.Name()); symbol != nil {
 			if symbol.Kind == sym.ConstantEntry || symbol.Kind == sym.VariableEntry {
-				iu.UsageMode |= ast.Read
+				iu.SetUsageMode(iu.UsageMode() | ast.Read)
 			}
 		}
 	}
@@ -295,28 +318,38 @@ func setConstantVariableUsageAsRead(node ast.Node, _ any) {
 func validateIdentifierUsage(node ast.Node, tokenHandler any) {
 	th := tokenHandler.(tok.TokenHandler)
 
-	switch d := node.(type) {
-	case ast.ConstantDeclaration:
+	switch node.Kind() {
+	case ast.KindConstantDeclaration:
+		d := node.(ast.ConstantDeclaration)
+
 		if len(d.Usage()) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name(), d.Index()))
 		}
 
-	case ast.VariableDeclaration:
+	case ast.KindVariableDeclaration:
+		d := node.(ast.VariableDeclaration)
+
 		if len(d.Usage()) == 0 {
 			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name(), d.Index()))
 		}
 
-	case ast.FunctionDeclaration:
+	case ast.KindFunctionDeclaration:
+		d := node.(ast.FunctionDeclaration)
+
 		if len(d.Usage()) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, d.Name(), d.Index()))
+			if d.IsFunction() {
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, d.Name(), d.Index()))
+			} else {
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name(), d.Index()))
+			}
 		}
 	}
 }
 
 // Add all variables that are used in a block to the closure of the block if they are declared in an outer block.
 func addVariableToBlockClosure(node ast.Node, _ any) {
-	if iu, ok := node.(*ast.IdentifierUseNode); ok {
-		if symbol := iu.CurrentBlock().Lookup(iu.Name); symbol != nil {
+	if iu, ok := node.(ast.IdentifierUse); ok {
+		if symbol := iu.CurrentBlock().Lookup(iu.Name()); symbol != nil {
 			if symbol.Kind == sym.VariableEntry {
 				// determine the declaration of the symbol
 				declaration := ast.SearchDeclaration(iu, symbol)

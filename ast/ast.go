@@ -61,7 +61,7 @@ type (
 		VisitVariableDeclaration(declaration VariableDeclaration)
 		VisitFunctionDeclaration(declaration FunctionDeclaration)
 		VisitLiteral(literal *LiteralNode)
-		VisitIdentifierUse(use *IdentifierUseNode)
+		VisitIdentifierUse(use IdentifierUse)
 		VisitUnaryOperation(operation *UnaryOperationNode)
 		VisitBinaryOperation(operation *BinaryOperationNode)
 		VisitComparisonOperation(operation *ComparisonOperationNode)

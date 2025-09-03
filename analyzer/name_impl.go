@@ -33,7 +33,7 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {}
 func (a *nameAnalyzer) VisitLiteral(ln *ast.LiteralNode) {}
 
 // Check if the used identifier is declared and if it is used in the correct context.
-func (a *nameAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {}
+func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {}
 
 // Walk the unary operation abstract syntax tree.
 func (a *nameAnalyzer) VisitUnaryOperation(uo *ast.UnaryOperationNode) {}

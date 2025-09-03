@@ -16,11 +16,21 @@ const bitMaskSeparator = "|"
 // Format for the string representation of an identifier-use node.
 const identifierUseFormat = "%v(name=%v,usage=%v)"
 
+// Represents a single use of an identifier.
+type identifierUseNode struct {
+	commonNode                    // embedded common node
+	expressionNode                // embedded expression node
+	Identifier     string         `json:"name"`            // name of the identifier
+	IdentifierKind IdentifierKind `json:"identifier_kind"` // kind of the identifier used
+	Mode           UsageMode      `json:"usage_mode"`      // usage mode of the identifier
+}
+
 var (
 	// Map identifier kinds to their string representation.
 	identifierKindNames = map[IdentifierKind]string{
-		Constant:  "constant",
-		Variable:  "variable",
+		Constant: "constant",
+		Variable: "variable",
+		Function: "function",
 		Procedure: "procedure",
 	}
 
@@ -34,10 +44,10 @@ var (
 
 // Create a new identifier-use node for the abstract syntax tree.
 func newIdentifierUse(name string, kind IdentifierKind, index int) Expression {
-	return &IdentifierUseNode{
+	return &identifierUseNode{
 		commonNode:     commonNode{NodeKind: KindIdentifierUse},
 		expressionNode: expressionNode{TokenStreamIndex: index},
-		Name:           name,
+		Identifier:     name,
 		IdentifierKind: kind,
 	}
 }
@@ -69,15 +79,15 @@ func (u UsageMode) String() string {
 }
 
 // Children nodes of the identifier-use node.
-func (n *IdentifierUseNode) Children() []Node {
+func (n *identifierUseNode) Children() []Node {
 	return make([]Node, 0)
 }
 
 // String representation of the identifier-use node.
-func (n *IdentifierUseNode) String() string {
+func (n *identifierUseNode) String() string {
 	switch n.IdentifierKind {
-	case Constant, Variable, Procedure:
-		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind, n.Name, n.UsageMode)
+	case Constant, Variable, Function:
+		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind, n.Identifier, n.Mode)
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, n.IdentifierKind, nil))
@@ -85,11 +95,36 @@ func (n *IdentifierUseNode) String() string {
 }
 
 // Accept the visitor for the identifier-use node.
-func (n *IdentifierUseNode) Accept(visitor Visitor) {
+func (n *identifierUseNode) Accept(visitor Visitor) {
 	visitor.VisitIdentifierUse(n)
 }
 
 // Find the current block node that contains this identifier-use node.
-func (n *IdentifierUseNode) CurrentBlock() Block {
+func (n *identifierUseNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
+}
+
+// The name of the used identifier.
+func (n *identifierUseNode) Name() string {
+	return n.Identifier
+}
+
+// The context in which the identifier is used (e.g., constant or variable).
+func (n *identifierUseNode) Context() IdentifierKind {
+	return n.IdentifierKind
+}
+
+// Set the context in which the identifier is used.
+func (n *identifierUseNode) SetContext(kind IdentifierKind) {
+	n.IdentifierKind = kind
+}
+
+// The way how the identifier is used (e.g., read or write).
+func (n *identifierUseNode) UsageMode() UsageMode {
+	return n.Mode
+}
+
+// Set the way how the identifier is used.
+func (n *identifierUseNode) SetUsageMode(mode UsageMode) {
+	n.Mode = mode
 }

@@ -21,6 +21,13 @@ type (
 	// Function or procedure parameter passing modes.
 	PassingMode int
 
+	// Parameter and its passing mode for a function or procedure call.
+	FunctionParameter struct {
+		Name         string      `json:"name"`           // identifier name used to reference this parameter within the function
+		DataTypeName string      `json:"data_type_name"` // data type name defining the data type of this parameter
+		PassingMode  PassingMode `json:"passing_mode"`   // determines how the parameter is passed (e.g., by value, by reference)
+	}
+
 	// A constant declaration node in the abstract syntax tree.
 	ConstantDeclaration interface {
 		Declaration
@@ -30,13 +37,7 @@ type (
 	// A variable declaration node in the abstract syntax tree.
 	VariableDeclaration interface {
 		Declaration
-	}
-
-	// Parameter and its passing mode for a function or procedure call.
-	FunctionParameter struct {
-		Name         string      `json:"name"`           // identifier name used to reference this parameter within the function
-		DataTypeName string      `json:"data_type_name"` // data type name defining the data type of this parameter
-		PassingMode  PassingMode `json:"passing_mode"`   // determines how the parameter is passed (e.g., by value, by reference)
+		Depth() int
 	}
 
 	// A function or procedure declaration node in the abstract syntax tree.

@@ -7,6 +7,7 @@ package ast
 const (
 	Constant IdentifierKind = 1 << iota
 	Variable
+	Function
 	Procedure
 )
 
@@ -24,17 +25,18 @@ type (
 	// Describe the kind of the used identifier.
 	IdentifierKind uint64
 
-	// Represents a single use of an identifier.
-	IdentifierUseNode struct {
-		commonNode                    // embedded common node
-		expressionNode                // embedded expression node
-		Name           string         `json:"name"`            // name of the identifier
-		IdentifierKind IdentifierKind `json:"identifier_kind"` // kind of the identifier used
-		UsageMode      UsageMode      `json:"usage_mode"`      // usage mode of the identifier
+	// An identifier-use node in the abstract syntax tree.
+	IdentifierUse interface {
+		Expression
+		Name() string
+		Context() IdentifierKind
+		SetContext(kind IdentifierKind)
+		UsageMode() UsageMode
+		SetUsageMode(mode UsageMode)
 	}
 )
 
-// NewIdentifierUse creates a new identifier-use node in the abstract syntax tree.
-func NewIdentifierUse(name string, context IdentifierKind, index int) Expression {
-	return newIdentifierUse(name, context, index)
+// Create a new identifier-use node in the abstract syntax tree.
+func NewIdentifierUse(name string, kind IdentifierKind, index int) Expression {
+	return newIdentifierUse(name, kind, index)
 }

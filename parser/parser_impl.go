@@ -268,7 +268,6 @@ func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int, anchors 
 			declaration.(ast.FunctionDeclaration).SetBlock(block)
 		}
 
-
 		// add the function declaration to the list of declarations for the parent block node
 		declarations = append(declarations, declaration)
 	}
@@ -364,7 +363,7 @@ func (p *parser) callWord() ast.Statement {
 
 	// a call statement that uses a procedure identifier
 	endIndex := p.lastTokenIndex()
-	return ast.NewCallStatement(ast.NewIdentifierUse(name, ast.Procedure, nameIndex), callIndex, endIndex)
+	return ast.NewCallStatement(ast.NewIdentifierUse(name, ast.Function, nameIndex), callIndex, endIndex)
 }
 
 // An if statement is the if word followed by a condition followed by the then word followed by a statement.
