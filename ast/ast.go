@@ -57,9 +57,9 @@ type (
 	//   - the dynamic type of the argument (the visitor) determines the behavior of the method.
 	Visitor interface {
 		VisitBlock(block Block)
-		VisitConstantDeclaration(declaration *ConstantDeclarationNode)
-		VisitVariableDeclaration(declaration *VariableDeclarationNode)
-		VisitProcedureDeclaration(declaration *ProcedureDeclarationNode)
+		VisitConstantDeclaration(declaration ConstantDeclaration)
+		VisitVariableDeclaration(declaration VariableDeclaration)
+		VisitProcedureDeclaration(declaration ProcedureDeclaration)
 		VisitLiteral(literal *LiteralNode)
 		VisitIdentifierUse(use *IdentifierUseNode)
 		VisitUnaryOperation(operation *UnaryOperationNode)

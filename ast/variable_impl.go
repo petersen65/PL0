@@ -8,30 +8,36 @@ import "fmt"
 // Format for the string representation of a variable declaration node.
 const variableFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
+// The node represents a variable declaration in the abstract syntax tree.
+type variableDeclarationNode struct {
+	commonNode      // embedded common node
+	declarationNode // embedded declaration node
+}
+
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name, dataTypeName string, index int) Declaration {
-	return &VariableDeclarationNode{
+func newVariableDeclaration(name, dataTypeName string, index int) VariableDeclaration {
+	return &variableDeclarationNode{
 		commonNode:      commonNode{NodeKind: KindVariableDeclaration},
-		declarationNode: declarationNode{Name: name, DataTypeName: dataTypeName, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		declarationNode: declarationNode{Identifier: name, DataType: dataTypeName, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
 	}
 }
 
 // Children nodes of the variable declaration node.
-func (n *VariableDeclarationNode) Children() []Node {
+func (n *variableDeclarationNode) Children() []Node {
 	return make([]Node, 0)
 }
 
 // String representation of the variable declaration node.
-func (n *VariableDeclarationNode) String() string {
-	return fmt.Sprintf(variableFormat, n.Kind(), n.Name, n.DataTypeName, len(n.IdentifierUsage))
+func (n *variableDeclarationNode) String() string {
+	return fmt.Sprintf(variableFormat, n.NodeKind, n.Identifier, n.DataType, len(n.IdentifierUsage))
 }
 
 // Accept the visitor for the variable declaration node.
-func (n *VariableDeclarationNode) Accept(visitor Visitor) {
+func (n *variableDeclarationNode) Accept(visitor Visitor) {
 	visitor.VisitVariableDeclaration(n)
 }
 
 // Find the current block node that contains this variable declaration node.
-func (n *VariableDeclarationNode) CurrentBlock() Block {
+func (n *variableDeclarationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }

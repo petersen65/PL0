@@ -30,7 +30,7 @@ type (
 		Kind      EntryKind             `json:"kind"`      // kind of the symbol
 		DataType  ts.TypeDescriptor     `json:"data_type"` // data type information of the symbol
 		Value     any                   `json:"value"`     // value information of a constant entry
-		Extension map[ExtensionType]any `json:"extension"` // symbol extensions for compiler phases
+		Extension map[ExtensionType]any `json:"-"`         // symbol extensions for compiler phases
 	}
 
 	// A scope is a data structure that stores information about its declared identifiers.

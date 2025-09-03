@@ -4,34 +4,34 @@
 package ast
 
 import (
+	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 type (
-	// ConstantDeclaration node represents a constant declaration in the AST.
-	ConstantDeclarationNode struct {
-		commonNode          // embedded common node
-		declarationNode     // embedded declaration node
-		Value           any `json:"value"` // value of the constant
+	// A constant declaration node in the abstract syntax tree.
+	ConstantDeclaration interface {
+		Declaration
+		Value() any
 	}
 
-	// VariableDeclaration node represents a variable declaration in the AST.
-	VariableDeclarationNode struct {
-		commonNode      // embedded common node
-		declarationNode // embedded declaration node
+	// A variable declaration node in the abstract syntax tree.
+	VariableDeclaration interface {
+		Declaration
 	}
 
-	// ProcedureDeclaration node represents a procedure declaration in the AST.
-	ProcedureDeclarationNode struct {
-		commonNode            // embedded common node
-		declarationNode       // embedded declaration node
-		Block           Block `json:"procedure_block"` // block of the procedure
+	// A procedure declaration node in the abstract syntax tree.
+	ProcedureDeclaration interface {
+		Declaration
 	}
 
-	// A declaration represented as an abstract syntax tree.
+	// Any declaration node in the abstract syntax tree.
 	Declaration interface {
 		Node
+		Name() string
+		DataTypeName() string
+		SetSymbol(sym *sym.Symbol)
 		Usage() []Expression
 	}
 )
@@ -41,17 +41,17 @@ func NewEmptyDeclaration() Declaration {
 	return newConstantDeclaration(emptyConstantName, ts.Integer64.String(), int64(0), tok.NoTokenStreamIndex)
 }
 
-// NewConstantDeclaration creates a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name, dataTypeName string, value any, index int) Declaration {
+// Create a new constant declaration node in the abstract syntax tree.
+func NewConstantDeclaration(name, dataTypeName string, value any, index int) ConstantDeclaration {
 	return newConstantDeclaration(name, dataTypeName, value, index)
 }
 
-// NewVariableDeclaration creates a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name, dataTypeName string, index int) Declaration {
+// Create a new variable declaration node in the abstract syntax tree.
+func NewVariableDeclaration(name, dataTypeName string, index int) VariableDeclaration {
 	return newVariableDeclaration(name, dataTypeName, index)
 }
 
-// NewProcedureDeclaration creates a new procedure declaration node in the abstract syntax tree.
-func NewProcedureDeclaration(name string, block Block, index int) Declaration {
+// Create a new procedure declaration node in the abstract syntax tree.
+func NewProcedureDeclaration(name string, block Block, index int) ProcedureDeclaration {
 	return newProcedureDeclaration(name, block, index)
 }

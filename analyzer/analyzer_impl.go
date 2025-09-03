@@ -67,39 +67,43 @@ func (a *semanticAnalyzer) VisitBlock(b ast.Block) {
 }
 
 // Insert the symbol for a constant declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {
-	cb := cd.CurrentBlock()           // current bloc
-	s := cb.Lookup(cd.Name)           // constant symbol
-	dts := cb.Lookup(cd.DataTypeName) // constant data type symbol
+func (a *semanticAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
+	cb := cd.CurrentBlock()             // current bloc
+	s := cb.Lookup(cd.Name())           // constant symbol
+	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if s != nil {
-		a.appendError(identifierAlreadyDeclared, cd.Name, cd.TokenStreamIndex)
+		a.appendError(identifierAlreadyDeclared, cd.Name(), cd.Index())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		a.appendError(constantDataTypeNotFound, cd.DataTypeName, cd.TokenStreamIndex)
+		a.appendError(constantDataTypeNotFound, cd.DataTypeName(), cd.Index())
 	} else {
-		cb.Insert(cd.Name, sym.NewSymbol(cd.Name, sym.ConstantEntry, dts.DataType, cd.Value))
+		symbol := sym.NewSymbol(cd.Name(), sym.ConstantEntry, dts.DataType, cd.Value())
+		cb.Insert(cd.Name(), symbol)
+		cd.SetSymbol(symbol)
 	}
 }
 
 // Insert the symbol for a variable declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {
-	cb := vd.CurrentBlock()           // current block
-	s := cb.Lookup(vd.Name)           // variable symbol
-	dts := cb.Lookup(vd.DataTypeName) // variable data type symbol
+func (a *semanticAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {
+	cb := vd.CurrentBlock()             // current block
+	s := cb.Lookup(vd.Name())           // variable symbol
+	dts := cb.Lookup(vd.DataTypeName()) // variable data type symbol
 
 	// in the case of no errors, insert the variable symbol into the current block's scope
 	if s != nil {
-		a.appendError(identifierAlreadyDeclared, vd.Name, vd.TokenStreamIndex)
+		a.appendError(identifierAlreadyDeclared, vd.Name(), vd.Index())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		a.appendError(variableDataTypeNotFound, vd.DataTypeName, vd.TokenStreamIndex)
+		a.appendError(variableDataTypeNotFound, vd.DataTypeName(), vd.Index())
 	} else {
-		cb.Insert(vd.Name, sym.NewSymbol(vd.Name, sym.VariableEntry, dts.DataType, nil))
+		symbol := sym.NewSymbol(vd.Name(), sym.VariableEntry, dts.DataType, nil)
+		cb.Insert(vd.Name(), symbol)
+		vd.SetSymbol(symbol)
 	}
 }
 
 // Insert the symbol for a procedure declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {
+func (a *semanticAnalyzer) VisitProcedureDeclaration(pd ast.ProcedureDeclaration) {
 	cb := pd.CurrentBlock()                               // current block
 	s := cb.Lookup(pd.Name)                               // procedure symbol
 	dt := ts.NewFunctionTypeDescriptor(pd.Name, nil, nil) // procedure data type
@@ -126,7 +130,7 @@ func (a *semanticAnalyzer) VisitIdentifierUse(iu *ast.IdentifierUseNode) {
 	} else {
 		switch symbol.Kind {
 		case sym.ConstantEntry:
-			// make the identifier a constant because its symbol is a constant and it is used in a constant context
+			// make the identifier a constant because its symbol is a constant and it is used as a constant kind
 			if iu.IdentifierKind&ast.Constant != 0 {
 				iu.IdentifierKind = ast.Constant
 

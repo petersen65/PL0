@@ -20,14 +20,14 @@ func newNameAnalyzer(abstractSyntax ast.Block) ast.Visitor {
 // Walk the block abstract syntax tree.
 func (a *nameAnalyzer) VisitBlock(b ast.Block) {}
 
-// Enter constant declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitConstantDeclaration(cd *ast.ConstantDeclarationNode) {}
+// Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
+func (a *nameAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {}
 
-// Enter variable declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitVariableDeclaration(vd *ast.VariableDeclarationNode) {}
+// Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
+func (a *nameAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {}
 
-// Enter procedure declaration into the symbol table and check for redeclaration.
-func (a *nameAnalyzer) VisitProcedureDeclaration(pd *ast.ProcedureDeclarationNode) {}
+// Enter the procedure declaration as a symbol into the block's scope and check for redeclaration.
+func (a *nameAnalyzer) VisitProcedureDeclaration(pd ast.ProcedureDeclaration) {}
 
 // Walk the literal abstract syntax tree.
 func (a *nameAnalyzer) VisitLiteral(ln *ast.LiteralNode) {}

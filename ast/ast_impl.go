@@ -70,7 +70,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	}
 
 	// filter out empty constants
-	if constant, ok := parent.(*ConstantDeclarationNode); ok && constant.Name == emptyConstantName {
+	if constant, ok := parent.(*constantDeclarationNode); ok && constant.Identifier == emptyConstantName {
 		return nil
 	}
 
