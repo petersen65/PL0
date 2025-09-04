@@ -11,7 +11,7 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// Implementation of the semantic analyzer. It performs all semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
+// Implementation of the semantic analyzer. It performs semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
 type semanticAnalyzer struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream

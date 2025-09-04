@@ -10,6 +10,7 @@ import (
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
+// The semantic analyzer performs semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
 type Analyzer interface {
 	SetupBuiltInSymbols()
 	PerformSemanticAnalysis()

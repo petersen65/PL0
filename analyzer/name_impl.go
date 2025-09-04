@@ -143,6 +143,7 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 		fd.SetSymbol(symbol)
 	}
 
+	// visit the block of the function or procedure declaration
 	fd.Block().Accept(a)
 }
 
