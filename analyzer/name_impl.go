@@ -140,7 +140,10 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 		// insert the function symbol into the current block's scope
 		symbol := sym.NewSymbol(fd.Name(), symbolEntry, functiontype, nil)
 		cb.Insert(fd.Name(), symbol)
+
+		// set the symbol and data type name of the function declaration
 		fd.SetSymbol(symbol)
+		fd.SetDataTypeName(functiontype.Name())
 	}
 
 	// visit the block of the function or procedure declaration
@@ -149,7 +152,7 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 
 // Visit the literal-use node.
 func (a *nameAnalyzer) VisitLiteralUse(lu ast.LiteralUse) {
-	// nothing to do because a literal does not have any identifiers
+	// nothing to do because a literal does not have any identifier names
 }
 
 // Check if the used identifier is declared and if it is used in the correct context.
@@ -234,12 +237,14 @@ func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
 
 // Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
 func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
+	as.Variable().Accept(a)
 	as.Expression().Accept(a)
 	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
 }
 
 // Visit the read statement node and set the usage mode bit to write for the variable that is read into.
 func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
+	rs.Variable().Accept(a)
 	rs.Variable().SetUsageMode(rs.Variable().UsageMode() | ast.Write)
 }
 
@@ -251,6 +256,7 @@ func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
 
 // Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
 func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {
+	cs.Function().Accept(a)
 	cs.Function().SetUsageMode(cs.Function().UsageMode() | ast.Execute)
 }
 

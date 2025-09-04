@@ -49,6 +49,7 @@ type (
 		IsProcedure() bool
 		Parameters() []*FunctionParameter
 		ReturnTypeName() string
+		SetDataTypeName(dataTypeName string)
 	}
 
 	// Any declaration node in the abstract syntax tree.

@@ -15,7 +15,7 @@ import (
 const bitMaskSeparator = "|"
 
 // Format for the string representation of an identifier-use node.
-const identifierUseFormat = "%v(name=%v,usage=%v)"
+const identifierUseFormat = "use(kind=%v,name=%v,mode=%v)"
 
 // Represents a single use of an identifier.
 type identifierUseNode struct {
@@ -88,7 +88,7 @@ func (n *identifierUseNode) Children() []Node {
 // String representation of the identifier-use node.
 func (n *identifierUseNode) String() string {
 	switch n.IdentifierKind {
-	case Constant, Variable, Function:
+	case Constant, Variable, Function, Procedure:
 		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind, n.Identifier, n.Mode)
 
 	default:

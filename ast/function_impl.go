@@ -6,7 +6,7 @@ package ast
 import "fmt"
 
 // Format for the string representation of a function or procedure declaration node.
-const functionFormat = "declaration(%v,name=%v,used=%v)"
+const functionFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // The node represents a function or procedure declaration in the abstract syntax tree.
 type functionDeclarationNode struct {
@@ -39,7 +39,7 @@ func (n *functionDeclarationNode) Children() []Node {
 
 // String representation of the function declaration node.
 func (n *functionDeclarationNode) String() string {
-	return fmt.Sprintf(functionFormat, n.NodeKind, n.Identifier, len(n.IdentifierUsage))
+	return fmt.Sprintf(functionFormat, n.NodeKind, n.Identifier, n.DataType, len(n.IdentifierUsage))
 }
 
 // Accept the visitor for the function declaration node.
@@ -80,4 +80,9 @@ func (n *functionDeclarationNode) Parameters() []*FunctionParameter {
 // Return type name of a function declaration (empty string for procedure declarations).
 func (n *functionDeclarationNode) ReturnTypeName() string {
 	return n.ReturnType
+}
+
+// The data type name of the function declaration will be set by the semantic analyzer after a data type for the function or procedure has been determined.
+func (n *functionDeclarationNode) SetDataTypeName(dataTypeName string) {
+	n.DataType = dataTypeName
 }
