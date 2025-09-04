@@ -11,7 +11,8 @@ import (
 )
 
 type Analyzer interface {
-	Analyze()
+	SetupBuiltInSymbols()
+	PerformSemanticAnalysis()
 }
 
 // Return the interface of the semantic analyzer implementation.

@@ -6,27 +6,27 @@ package ast
 // The call statement node represents a call statement in the abstract syntax tree.
 type callStatementNode struct {
 	statementNode
-	CallFunction Expression `json:"function"` // function or procedure use of the call statement
+	FunctionUse IdentifierUse `json:"function_use"` // function or procedure use of the call statement
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func newCallStatement(procedure Expression, beginIndex, endIndex int) CallStatement {
+func newCallStatement(functionUse IdentifierUse, beginIndex, endIndex int) CallStatement {
 	callNode := &callStatementNode{
 		statementNode: statementNode{
 			commonNode:            commonNode{NodeKind: KindCallStatement},
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		CallFunction: procedure,
+		FunctionUse: functionUse,
 	}
 
-	procedure.SetParent(callNode)
+	functionUse.SetParent(callNode)
 	return callNode
 }
 
 // Children nodes of the call statement node.
 func (n *callStatementNode) Children() []Node {
-	return []Node{n.CallFunction}
+	return []Node{n.FunctionUse}
 }
 
 // String representation of the call statement node.
@@ -45,6 +45,6 @@ func (n *callStatementNode) CurrentBlock() Block {
 }
 
 // Function or procedure use of the call statement.
-func (n *callStatementNode) Function() Expression {
-	return n.CallFunction
+func (n *callStatementNode) Function() IdentifierUse {
+	return n.FunctionUse
 }

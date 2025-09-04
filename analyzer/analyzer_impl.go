@@ -22,112 +22,31 @@ func newAnalyzer(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) Analyz
 	return &semanticAnalyzer{abstractSyntax: abstractSyntax, tokenHandler: tokenHandler}
 }
 
-// Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
-func (a *semanticAnalyzer) Analyze() {
-	// validate the state of the semantic analyzer and panic if it is invalid
-	if a.abstractSyntax == nil || a.tokenHandler == nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
-	}
-
+// Setup built-in symbols like data types in the root block of the abstract syntax tree.
+func (a *semanticAnalyzer) SetupBuiltInSymbols() {
 	// get the root block of the abstract syntax tree to insert built-in data types into its scope
 	rootBlock := a.abstractSyntax.RootBlock()
 
 	// insert built-in data types into the scope of the root block
 	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64)
 	rootBlock.Insert(int64Type.Name(), sym.NewSymbol(int64Type.Name(), sym.DataTypeEntry, int64Type, nil))
+}
 
-	// perform name analysis, enrich the abstract syntax tree, and fill in symbols into the scope of blocks
+// Perform the semantic analysis compiler phase on the abstract syntax tree.
+func (a *semanticAnalyzer) PerformSemanticAnalysis() {
+	// validate the state of the semantic analyzer and panic if it is invalid
+	if a.abstractSyntax == nil || a.tokenHandler == nil {
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
+	}
+
+	// perform name analysis, enrich the abstract syntax tree, and fill in symbols from declarations into the scope of their blocks
 	nameAnalyzer := NewNameAnalyzer(a.abstractSyntax, a.tokenHandler)
 	nameAnalyzer.Accept()
 
 	// determine the closure of all blocks
-	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
+	if err := ast.Walk(nameAnalyzer.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
 		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, closureDeterminationFailed, nil, err))
 	}
-}
-
-// Walk the block abstract syntax tree.
-func (a *semanticAnalyzer) VisitBlock(b ast.Block) {
-	// nothing to do because of an external pre-order walk
-}
-
-// Insert the symbol for a constant declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
-}
-
-// Insert the symbol for a variable declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {
-}
-
-// Insert the symbol for a function declaration into the current block's scope.
-func (a *semanticAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
-}
-
-// Walk the literal abstract syntax tree.
-func (a *semanticAnalyzer) VisitLiteralUse(lu ast.LiteralUse) {
-}
-
-// Check if the used identifier is declared and if it is used as the expected kind of identifier.
-func (a *semanticAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
-}
-
-// Walk the unary operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
-}
-
-// Walk the binary operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitBinaryOperation(bo ast.BinaryOperation) {
-}
-
-// Walk the comparison operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
-}
-
-// Walk the assignment statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
-	// set the usage mode bit to write for the variable that is assigned to
-	usageMode := as.Variable.(ast.IdentifierUse).UsageMode()
-	usageMode |= ast.Write
-	as.Variable.(ast.IdentifierUse).SetUsageMode(usageMode)
-}
-
-// Walk the read statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
-	// set the usage mode bit to write for the variable that is read into
-	usageMode := rs.Variable.(ast.IdentifierUse).UsageMode()
-	usageMode |= ast.Write
-	rs.Variable.(ast.IdentifierUse).SetUsageMode(usageMode)
-}
-
-// Walk the write statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
-	// set the usage mode bit to read for all constants and variables in the expression
-	ast.Walk(ws.Expression, ast.PreOrder, nil, setConstantVariableUsageAsRead)
-}
-
-// Walk the call statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitCallStatement(cs ast.CallStatement) {
-	// set the usage mode bit to execute for the procedure that is called
-	usageMode := cs.Function.(ast.IdentifierUse).UsageMode()
-	usageMode |= ast.Execute
-	cs.Function.(ast.IdentifierUse).SetUsageMode(usageMode)
-}
-
-// Walk the if statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitIfStatement(is ast.IfStatement) {
-	// set the usage mode bit to read for all constants and variables in the condition
-	ast.Walk(is.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
-}
-
-// Walk the while statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {
-	// set the usage mode bit to read for all constants and variables in the condition
-	ast.Walk(ws.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
-}
-
-// Walk the compound statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {
-	// nothing to do because of an external pre-order walk
 }
 
 // and creates a closure for accessing identifiers in lexical parents.

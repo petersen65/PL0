@@ -9,30 +9,30 @@ const assignmentStatementFormat = "assignment"
 // The assignment statement node represents an assignment statement in the abstract syntax tree.
 type assignmentStatementNode struct {
 	statementNode
-	LeftVariable    Expression `json:"variable"`   // variable use on the left side of the assignment statement
-	RightExpression Expression `json:"expression"` // expression on the right side of the assignment statement
+	LeftVariableUse IdentifierUse `json:"variable_use"`   // variable use on the left side of the assignment statement
+	RightExpression Expression    `json:"expression"` // expression on the right side of the assignment statement
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) AssignmentStatement {
+func newAssignmentStatement(variableUse IdentifierUse, expression Expression, beginIndex, endIndex int) AssignmentStatement {
 	assignationNode := &assignmentStatementNode{
 		statementNode: statementNode{
 			commonNode:            commonNode{NodeKind: KindAssignmentStatement},
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		LeftVariable:    variable,
+		LeftVariableUse: variableUse,
 		RightExpression: expression,
 	}
 
-	variable.SetParent(assignationNode)
+	variableUse.SetParent(assignationNode)
 	expression.SetParent(assignationNode)
 	return assignationNode
 }
 
 // Children nodes of the assignment statement node.
 func (s *assignmentStatementNode) Children() []Node {
-	return []Node{s.LeftVariable, s.RightExpression}
+	return []Node{s.LeftVariableUse, s.RightExpression}
 }
 
 // String representation of the assignment statement node.
@@ -51,8 +51,8 @@ func (s *assignmentStatementNode) CurrentBlock() Block {
 }
 
 // Variable use on the left side of the assignment statement.
-func (s *assignmentStatementNode) Variable() Expression {
-	return s.LeftVariable
+func (s *assignmentStatementNode) Variable() IdentifierUse {
+	return s.LeftVariableUse
 }
 
 // Expression on the right side of the assignment statement.

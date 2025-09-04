@@ -6,11 +6,11 @@ package ast
 // The read statement node represents a read statement in the abstract syntax tree.
 type readStatementNode struct {
 	statementNode
-	VariableUse Expression `json:"variable"` // variable use of the read statement
+	VariableUse IdentifierUse `json:"variable"` // variable use of the read statement
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(variable Expression, beginIndex, endIndex int) ReadStatement {
+func newReadStatement(variable IdentifierUse, beginIndex, endIndex int) ReadStatement {
 	readNode := &readStatementNode{
 		statementNode: statementNode{
 			commonNode:            commonNode{NodeKind: KindReadStatement},
@@ -45,6 +45,6 @@ func (n *readStatementNode) CurrentBlock() Block {
 }
 
 // Variable use of the read statement.
-func (n *readStatementNode) Variable() Expression {
+func (n *readStatementNode) Variable() IdentifierUse {
 	return n.VariableUse
 }

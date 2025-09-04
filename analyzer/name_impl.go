@@ -226,23 +226,35 @@ func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
 	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
-// Walk the assignment statement abstract syntax tree.
-func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {}
+// Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
+func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
+	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
+}
 
-// Walk the read statement abstract syntax tree.
-func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {}
+// Visit the read statement node and set the usage mode bit to write for the variable that is read into.
+func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
+	rs.Variable().SetUsageMode(rs.Variable().UsageMode() | ast.Write)
+}
 
-// Walk the write statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {}
+// Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
+func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
+	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
-// Walk the call statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {}
+// Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
+func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {
+	cs.Function().SetUsageMode(cs.Function().UsageMode() | ast.Execute)
+}
 
-// Walk the if statement abstract syntax tree.
-func (a *nameAnalyzer) VisitIfStatement(is ast.IfStatement) {}
+// Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
+func (a *nameAnalyzer) VisitIfStatement(is ast.IfStatement) {
+	ast.Walk(is.Condition(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
-// Walk the while statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {}
+// Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
+func (a *nameAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {
+	ast.Walk(ws.Condition(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
 // Walk the compound statement abstract syntax tree.
 func (a *nameAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {}

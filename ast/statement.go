@@ -9,14 +9,14 @@ type (
 	// An assignment statement node in the abstract syntax tree.
 	AssignmentStatement interface {
 		Statement
-		Variable() Expression
+		Variable() IdentifierUse
 		Expression() Expression
 	}
 
 	// A read statement node in the abstract syntax tree.
 	ReadStatement interface {
 		Statement
-		Variable() Expression
+		Variable() IdentifierUse
 	}
 
 	// A write statement node in the abstract syntax tree.
@@ -28,7 +28,7 @@ type (
 	// A call statement node in the abstract syntax tree.
 	CallStatement interface {
 		Statement
-		Function() Expression
+		Function() IdentifierUse
 	}
 
 	// An if-then statement node in the abstract syntax tree.
@@ -64,13 +64,13 @@ func NewEmptyStatement() Statement {
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
-func NewAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) AssignmentStatement {
-	return newAssignmentStatement(variable, expression, beginIndex, endIndex)
+func NewAssignmentStatement(variableUse IdentifierUse, expression Expression, beginIndex, endIndex int) AssignmentStatement {
+	return newAssignmentStatement(variableUse, expression, beginIndex, endIndex)
 }
 
 // Create a new read statement node in the abstract syntax tree.
-func NewReadStatement(variable Expression, beginIndex, endIndex int) ReadStatement {
-	return newReadStatement(variable, beginIndex, endIndex)
+func NewReadStatement(variableUse IdentifierUse, beginIndex, endIndex int) ReadStatement {
+	return newReadStatement(variableUse, beginIndex, endIndex)
 }
 
 // Create a new write statement node in the abstract syntax tree.
@@ -79,8 +79,8 @@ func NewWriteStatement(expression Expression, beginIndex, endIndex int) WriteSta
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func NewCallStatement(function Expression, beginIndex, endIndex int) CallStatement {
-	return newCallStatement(function, beginIndex, endIndex)
+func NewCallStatement(functionUse IdentifierUse, beginIndex, endIndex int) CallStatement {
+	return newCallStatement(functionUse, beginIndex, endIndex)
 }
 
 // Create a new if-then statement node in the abstract syntax tree.

@@ -16,10 +16,12 @@ import (
 	ana "github.com/petersen65/pl0/v3/analyzer"
 	ast "github.com/petersen65/pl0/v3/ast"
 	cfg "github.com/petersen65/pl0/v3/cfg"
+
 	// emi "github.com/petersen65/pl0/v3/emitter"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	eh "github.com/petersen65/pl0/v3/errors"
 	exp "github.com/petersen65/pl0/v3/export"
+
 	// gen "github.com/petersen65/pl0/v3/generator"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 	par "github.com/petersen65/pl0/v3/parser"
@@ -339,9 +341,13 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 	errorHandler := eh.NewErrorHandler()
 	errorHandler.AppendError(scannerError) // nil errors are ignored
 
-	// syntax analysis and semantic analysis of token stream
+	// syntax analysis of the token stream
 	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
-	ana.NewAnalyzer(abstractSyntax, tokenHandler).Analyze()
+
+	// semantic analysis of the abstract syntax tree
+	analyzer := ana.NewAnalyzer(abstractSyntax, tokenHandler)
+	analyzer.SetupBuiltInSymbols()
+	analyzer.PerformSemanticAnalysis()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(eh.Fatal|eh.Error, eh.AllComponents) > 0 {
@@ -375,12 +381,12 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 
 	// return compilation unit with all intermediate results and error handler
 	return CompilationUnit{
-		Name:             buildConfiguration.SourcePath,
-		SourceContent:    content,
-		ErrorHandler:     errorHandler,
-		TokenHandler:     tokenHandler,
-		TokenStream:      tokenStream,
-		AbstractSyntax:   abstractSyntax,
+		Name:           buildConfiguration.SourcePath,
+		SourceContent:  content,
+		ErrorHandler:   errorHandler,
+		TokenHandler:   tokenHandler,
+		TokenStream:    tokenStream,
+		AbstractSyntax: abstractSyntax,
 		// IntermediateCode: intermediateCode,
 		// ControlFlow:      controlFlow,
 		// AssemblyCode:     assemblyCode,
