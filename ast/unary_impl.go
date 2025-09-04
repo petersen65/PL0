@@ -11,15 +11,22 @@ var unaryOperationFormats = map[UnaryOperator]string{
 	Negate: "negate",
 }
 
+// The unary operation node represents a unary operation in the abstract syntax tree.
+type unaryOperationNode struct {
+	expressionNode               // embedded expression node
+	UnaryOperation UnaryOperator `json:"operation"` // unary operation
+	UnaryOperand   Expression    `json:"operand"`   // operand of the unary operation
+}
+
 // Create a new unary operation node in the abstract syntax tree.
-func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
-	unaryNode := &UnaryOperationNode{
+func newUnaryOperation(operation UnaryOperator, operand Expression, index int) UnaryOperation {
+	unaryNode := &unaryOperationNode{
 		expressionNode: expressionNode{
 			commonNode:       commonNode{NodeKind: KindUnaryOperation},
 			TokenStreamIndex: index,
 		},
-		Operation: operation,
-		Operand:   operand,
+		UnaryOperation: operation,
+		UnaryOperand:   operand,
 	}
 
 	operand.SetParent(unaryNode)
@@ -27,33 +34,43 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) E
 }
 
 // Children nodes of the unary operation node.
-func (n *UnaryOperationNode) Children() []Node {
-	return []Node{n.Operand}
+func (n *unaryOperationNode) Children() []Node {
+	return []Node{n.UnaryOperand}
 }
 
 // String representation of the unary operation node.
-func (n *UnaryOperationNode) String() string {
-	switch n.Operation {
+func (n *unaryOperationNode) String() string {
+	switch n.UnaryOperation {
 	case Odd, Negate:
-		return unaryOperationFormats[n.Operation]
+		return unaryOperationFormats[n.UnaryOperation]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.Operation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.UnaryOperation, nil))
 	}
 }
 
 // Accept the visitor for the unary operation node.
-func (n *UnaryOperationNode) Accept(visitor Visitor) {
+func (n *unaryOperationNode) Accept(visitor Visitor) {
 	visitor.VisitUnaryOperation(n)
 }
 
 // Find the current block node that contains this unary operation node.
-func (n *UnaryOperationNode) CurrentBlock() Block {
+func (n *unaryOperationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
 // Determine if the unary operation node represents a constant value.
-func (n *UnaryOperationNode) IsConstant() bool {
+func (n *unaryOperationNode) IsConstant() bool {
 	// a unary operation is constant if its operand is constant
-	return n.Operand.IsConstant()
+	return n.UnaryOperand.IsConstant()
+}
+
+// Unary operation of the unary operation node.
+func (n *unaryOperationNode) Operation() UnaryOperator {
+	return n.UnaryOperation
+}
+
+// Operand of the unary operation node.
+func (n *unaryOperationNode) Operand() Expression {
+	return n.UnaryOperand
 }

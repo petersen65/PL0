@@ -43,7 +43,7 @@ var (
 )
 
 // Create a new identifier-use node for the abstract syntax tree.
-func newIdentifierUse(name string, kind IdentifierKind, index int) Expression {
+func newIdentifierUse(name string, kind IdentifierKind, index int) IdentifierUse {
 	return &identifierUseNode{
 		expressionNode: expressionNode{
 			commonNode:       commonNode{NodeKind: KindIdentifierUse},

@@ -735,7 +735,7 @@ func (p *parser) factor(anchors tok.Tokens) ast.Expression {
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
 		} else if p.lastToken() == tok.Number {
-			operand = ast.NewLiteral(p.numberValue(sign, p.lastTokenValue()), p.lastTokenIndex())
+			operand = ast.NewLiteralUse(p.numberValue(sign, p.lastTokenValue()), p.lastTokenIndex())
 			sign = tok.Unknown
 			p.nextToken()
 		} else if p.lastToken() == tok.LeftParenthesis {

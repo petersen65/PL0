@@ -35,7 +35,7 @@ func NewNameAnalyzer(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *n
 }
 
 // Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
-func (a *nameAnalyzer) Accept()  {
+func (a *nameAnalyzer) Accept() {
 	// ensure that all used identifiers are declared before use and store all identifier symbols into each block's scope
 	a.abstractSyntax.Accept(a)
 
@@ -146,8 +146,10 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	fd.Block().Accept(a)
 }
 
-// Walk the literal abstract syntax tree.
-func (a *nameAnalyzer) VisitLiteral(ln *ast.LiteralNode) {}
+// Visit the literal-use node.
+func (a *nameAnalyzer) VisitLiteralUse(lu ast.LiteralUse) {
+	// nothing to do because a literal does not have any identifiers
+}
 
 // Check if the used identifier is declared and if it is used in the correct context.
 func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
@@ -207,14 +209,22 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
 	}
 }
 
-// Walk the unary operation abstract syntax tree.
-func (a *nameAnalyzer) VisitUnaryOperation(uo *ast.UnaryOperationNode) {}
+// Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
+func (a *nameAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
+	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
-// Walk the binary operation abstract syntax tree.
-func (a *nameAnalyzer) VisitBinaryOperation(bo *ast.BinaryOperationNode) {}
+// Visit the binary operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+func (a *nameAnalyzer) VisitBinaryOperation(bo ast.BinaryOperation) {
+	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+	ast.Walk(bo.Right(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
-// Walk the comparison operation abstract syntax tree.
-func (a *nameAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationNode) {}
+// Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
+	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
+}
 
 // Walk the assignment statement abstract syntax tree.
 func (a *nameAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {}

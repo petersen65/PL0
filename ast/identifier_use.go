@@ -41,6 +41,6 @@ type (
 )
 
 // Create a new identifier-use node in the abstract syntax tree.
-func NewIdentifierUse(name string, kind IdentifierKind, index int) Expression {
+func NewIdentifierUse(name string, kind IdentifierKind, index int) IdentifierUse {
 	return newIdentifierUse(name, kind, index)
 }

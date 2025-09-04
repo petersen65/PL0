@@ -11,7 +11,7 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// Implementation of the semantic analyzer.
+// Implementation of the semantic analyzer. It performs all semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
 type semanticAnalyzer struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
@@ -64,7 +64,7 @@ func (a *semanticAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) 
 }
 
 // Walk the literal abstract syntax tree.
-func (a *semanticAnalyzer) VisitLiteral(ln *ast.LiteralNode) {
+func (a *semanticAnalyzer) VisitLiteralUse(lu ast.LiteralUse) {
 }
 
 // Check if the used identifier is declared and if it is used as the expected kind of identifier.
@@ -72,23 +72,15 @@ func (a *semanticAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
 }
 
 // Walk the unary operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitUnaryOperation(uo *ast.UnaryOperationNode) {
-	// set the usage mode bit to read for all constants and variables in the expression
-	ast.Walk(uo.Operand, ast.PreOrder, nil, setConstantVariableUsageAsRead)
+func (a *semanticAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
 }
 
 // Walk the binary operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitBinaryOperation(bo *ast.BinaryOperationNode) {
-	// set the usage mode bit to read for all constants and variables in the left and right operand
-	ast.Walk(bo.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
-	ast.Walk(bo.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
+func (a *semanticAnalyzer) VisitBinaryOperation(bo ast.BinaryOperation) {
 }
 
 // Walk the comparison operation abstract syntax tree.
-func (a *semanticAnalyzer) VisitComparisonOperation(co *ast.ComparisonOperationNode) {
-	// set the usage mode bit to read for all constants and variables in the left and right operand
-	ast.Walk(co.Left, ast.PreOrder, nil, setConstantVariableUsageAsRead)
-	ast.Walk(co.Right, ast.PreOrder, nil, setConstantVariableUsageAsRead)
+func (a *semanticAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
 }
 
 // Walk the assignment statement abstract syntax tree.
