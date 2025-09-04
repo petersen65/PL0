@@ -56,14 +56,19 @@ func newScope(outer Scope) Scope {
 
 	if outer != nil {
 		outerScope = outer.(*scope)
-		outerScope.Inner = append(outerScope.Inner, nil)
 	}
 
-	return &scope{
+	inner := &scope{
 		Outer:       outerScope,
 		Inner:       make([]*scope, 0),
 		SymbolTable: newSymbolTable(),
 	}
+
+	if outerScope != nil {
+		outerScope.Inner = append(outerScope.Inner, inner)
+	}
+
+	return inner
 }
 
 // Insert a symbol into the symbol table. If the symbol already exists, it will be overwritten.
@@ -96,7 +101,7 @@ func (s *symbolTable) iterate() <-chan *Symbol {
 	return symbols
 }
 
-// Insert the given symbol into this scope's symbol table under the provided name. 
+// Insert the given symbol into this scope's symbol table under the provided name.
 // If a symbol with that name already exists, it will be replaced.
 func (s *scope) Insert(name string, symbol *Symbol) {
 	s.SymbolTable.insert(name, symbol)

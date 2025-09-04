@@ -14,6 +14,9 @@ import (
 	exp "github.com/petersen65/pl0/v3/export"
 )
 
+// Separator for the string representation of a bit-mask.
+const bitMaskSeparator = "|"
+
 // Text messages for printing an error report.
 const (
 	textErrorReport = "Error Report:"
@@ -153,6 +156,32 @@ func newSourceError(component Component, failureMap map[Failure]string, severity
 	}
 }
 
+// String representation of a severity level bit-mask.
+func (s Severity) String() string {
+	var parts []string
+
+	for severity, name := range severityMap {
+		if s&severity != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, bitMaskSeparator)
+}
+
+// String representation of a component bit-mask.
+func (c Component) String() string {
+	var parts []string
+
+	for component, name := range componentMap {
+		if c&component != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, bitMaskSeparator)
+}
+
 // Check if the error has a specific severity level.
 func (e *componentError) HasSeverity(severity Severity) bool {
 	return e.Severity&severity != 0
@@ -173,7 +202,7 @@ func (e *generalError) Error() string {
 		lineFeed = "\n"
 	}
 
-	return fmt.Sprintf("%v%v %v %v: %v%v", strings.Repeat(" ", int(e.Indent)), componentMap[e.Component], severityMap[e.Severity], e.Code, message, lineFeed)
+	return fmt.Sprintf("%v%v %v %v: %v%v", strings.Repeat(" ", int(e.Indent)), e.Component, e.Severity, e.Code, message, lineFeed)
 }
 
 // Implement the Unwrap method for the general error so that it can be used to unwrap the inner error.
@@ -229,7 +258,7 @@ func (e *generalError) UnmarshalJSON(raw []byte) error {
 // Implement the error interface for the line-column error so that it can be used like a native Go error.
 func (e *lineColumnError) Error() string {
 	message := e.Err.Error()
-	return fmt.Sprintf("%5v: %v %v %v [%v,%v]: %v\n", e.Line, componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
+	return fmt.Sprintf("%5v: %v %v %v [%v,%v]: %v\n", e.Line, e.Component, e.Severity, e.Code, e.Line, e.Column, message)
 }
 
 // Marshal the line column error to a JSON object because the JSON encoder does not support error interfaces directly.
@@ -276,7 +305,7 @@ func (e *lineColumnError) UnmarshalJSON(raw []byte) error {
 // Implement the error interface for the source error so that it can be used like a native Go error.
 func (e *sourceError) Error() string {
 	message := e.Err.Error()
-	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", componentMap[e.Component], severityMap[e.Severity], e.Code, e.Line, e.Column, message)
+	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", e.Component, e.Severity, e.Code, e.Line, e.Column, message)
 
 	linePrefix := fmt.Sprintf("%5v: ", e.Line)
 	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \n\r")

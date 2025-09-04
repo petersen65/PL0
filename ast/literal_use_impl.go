@@ -6,7 +6,7 @@ package ast
 import "fmt"
 
 // Format for the string representation of a literal-use node.
-const literalUseFormat = "%v(%v)"
+const literalUseFormat = "use(kind=%v,value=%v)"
 
 // Represents a single use of a literal value.
 type literalUseNode struct {
