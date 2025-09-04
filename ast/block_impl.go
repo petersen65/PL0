@@ -117,7 +117,7 @@ func (n *blockNode) CapturedDeclarations() []Declaration {
 	return n.AllCaptures
 }
 
-// Add a captured declaration to the block.
+// Add a captured declaration from a lexical parent to the block.
 func (n *blockNode) AddCapturedDeclaration(declaration Declaration) {
 	if !slices.Contains(n.AllCaptures, declaration) {
 		n.AllCaptures = append(n.AllCaptures, declaration)

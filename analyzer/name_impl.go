@@ -212,23 +212,29 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
 
 // Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
 func (a *nameAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
+	uo.Operand().Accept(a)
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Visit the binary operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
 func (a *nameAnalyzer) VisitBinaryOperation(bo ast.BinaryOperation) {
+	bo.Left().Accept(a)
+	bo.Right().Accept(a)
 	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(bo.Right(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
 func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
+	co.Left().Accept(a)
+	co.Right().Accept(a)
 	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
 func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
+	as.Expression().Accept(a)
 	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
 }
 
@@ -239,6 +245,7 @@ func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
 
 // Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
 func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
+	ws.Expression().Accept(a)
 	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
@@ -249,16 +256,24 @@ func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {
 
 // Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
 func (a *nameAnalyzer) VisitIfStatement(is ast.IfStatement) {
+	is.Condition().Accept(a)
+	is.Statement().Accept(a)
 	ast.Walk(is.Condition(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
 func (a *nameAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {
+	ws.Condition().Accept(a)
+	ws.Statement().Accept(a)
 	ast.Walk(ws.Condition(), ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
-// Walk the compound statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {}
+// Visit the compound statement node by visiting all its statements.
+func (a *nameAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {
+	for _, statement := range cs.Statements() {
+		statement.Accept(a)
+	}
+}
 
 // Append an error from the name analyzer to the token handler's error list.
 func (a *nameAnalyzer) appendError(code eh.Failure, value any, index int) {

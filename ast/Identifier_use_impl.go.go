@@ -112,6 +112,11 @@ func (n *identifierUseNode) IsConstant() bool {
 	return n.IdentifierKind == Constant
 }
 
+// Block nesting depth of the identifier use.
+func (n *identifierUseNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // The name of the used identifier.
 func (n *identifierUseNode) Name() string {
 	return n.Identifier
@@ -138,6 +143,8 @@ func (n *identifierUseNode) SetUsageMode(mode UsageMode) {
 }
 
 // Find the declaration of the identifier used by this identifier-use node.
+// An identifier use refers to a declaration if it is declared in the same block or in a lexical parent block.
+// The used identifier might not have a declaration if it was never declared. In that case, nil is returned.
 func (n *identifierUseNode) Declaration() Declaration {
 	if symbol := n.CurrentBlock().Lookup(n.Name()); symbol == nil {
 		return nil
@@ -147,6 +154,7 @@ func (n *identifierUseNode) Declaration() Declaration {
 }
 
 // Find the symbol of the identifier used by this identifier-use node.
+// The symbol might be nil if the identifier is used but was never declared.
 func (n *identifierUseNode) Symbol() *sym.Symbol {
 	if declaration := n.Declaration(); declaration == nil {
 		return nil

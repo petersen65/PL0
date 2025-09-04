@@ -30,6 +30,7 @@ type (
 	// An identifier-use node in the abstract syntax tree.
 	IdentifierUse interface {
 		Expression
+		Depth() int
 		Name() string
 		Context() IdentifierKind
 		SetContext(kind IdentifierKind)

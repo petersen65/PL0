@@ -43,32 +43,36 @@ func (a *semanticAnalyzer) PerformSemanticAnalysis() {
 	nameAnalyzer := NewNameAnalyzer(a.abstractSyntax, a.tokenHandler)
 	nameAnalyzer.Accept()
 
-	// determine the closure of all blocks
+	// determine captured declarations for all blocks in the abstract syntax tree
+	// note: this must be done after name analysis so that all identifier uses refer to their declarations and symbols
+	// note: even after name analysis, there might be identifier uses that do not refer to any declaration or symbol (i.e., undeclared identifiers)
 	if err := ast.Walk(nameAnalyzer.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, closureDeterminationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, capturedVariableDeterminationFailed, nil, err))
 	}
 }
 
-// and creates a closure for accessing identifiers in lexical parents.
-// Add all variables that are used in a block to the closure of the block if they are declared in an outer block.
+// This is a visitor function. It adds all variables that are used in this block but declared in a lexical parent to the captured declarations of the use-block.
 func addVariableToBlockClosure(node ast.Node, _ any) {
-	if iu, ok := node.(ast.IdentifierUse); ok {
-		if symbol := iu.CurrentBlock().Lookup(iu.Name()); symbol != nil {
-			if symbol.Kind == sym.VariableEntry {
-				// determine the declaration of the symbol
-				declaration := ast.SearchDeclaration(iu, symbol)
+	// only process identifier use nodes
+	if node.Kind() != ast.KindIdentifierUse {
+		return
+	}
 
-				// determine the block where the variable is declared
-				declarationBlock := declaration.CurrentBlock()
+	// assert that the node is an identifier use node
+	variableUse := node.(ast.IdentifierUse)
 
-				// determine the block where the variable is used
-				useBlock := ast.SearchBlock(iu, ast.CurrentBlock)
+	// only process identifier uses that refer to a variable symbol so that the use is a variable use
+	// note: for an identifier that was used but not declared, its symbol and declaration are nil
+	if symbol := variableUse.Symbol(); symbol == nil || symbol.Kind != sym.VariableEntry {
+		return
+	}
 
-				// add the variable to the closure of the block where it is used if it is declared in an outer block
-				if useBlock.Depth()-declarationBlock.Depth() > 0 {
-					useBlock.AddCapturedDeclaration(declaration)
-				}
-			}
-		}
+	// get the declaration of the used variable and assert that it is a variable declaration
+	variableDeclaration := variableUse.Declaration().(ast.VariableDeclaration)
+
+	// determine if the variable use refers to a variable that is declared in a lexical parent block
+	// and if so, add the variable declaration to the captured declarations of the block where the variable use occurs
+	if variableUse.Depth() > variableDeclaration.Depth() {
+		variableUse.CurrentBlock().AddCapturedDeclaration(variableDeclaration)
 	}
 }

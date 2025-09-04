@@ -46,8 +46,6 @@ func (n *variableDeclarationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
-
-
 // Block nesting depth of the variable declaration.
 func (n *variableDeclarationNode) Depth() int {
 	return n.CurrentBlock().Depth()
