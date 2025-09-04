@@ -205,13 +205,19 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 
 // Search for a parent block node in the abstract syntax tree based on the search mode.
 func searchBlock(node Node, mode BlockSearchMode) Block {
-	for current := node.Parent(); current != nil; current = current.Parent() {
-		if block, ok := current.(*blockNode); ok {
-			if mode == CurrentBlock {
-				return block
-			} else if mode == RootBlock && block.Parent() == nil {
-				return block
-			}
+	if node.Kind() == KindBlock && node.Parent() != nil && mode == CurrentBlock {
+		node = node.Parent()
+	}
+
+	for current := node; current != nil; current = current.Parent() {
+		// skip all non-block nodes
+		if current.Kind() != KindBlock {
+			continue
+		}
+
+		// at this point current is a block node
+		if mode == CurrentBlock || mode == RootBlock && current.Parent() == nil {
+			return current.(*blockNode)
 		}
 	}
 
