@@ -84,7 +84,7 @@ func (a *semanticAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) 
 }
 
 // Walk the assignment statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {
+func (a *semanticAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
 	// set the usage mode bit to write for the variable that is assigned to
 	usageMode := as.Variable.(ast.IdentifierUse).UsageMode()
 	usageMode |= ast.Write
@@ -92,7 +92,7 @@ func (a *semanticAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementN
 }
 
 // Walk the read statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
+func (a *semanticAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
 	// set the usage mode bit to write for the variable that is read into
 	usageMode := rs.Variable.(ast.IdentifierUse).UsageMode()
 	usageMode |= ast.Write
@@ -100,33 +100,33 @@ func (a *semanticAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {
 }
 
 // Walk the write statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {
+func (a *semanticAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
 	// set the usage mode bit to read for all constants and variables in the expression
 	ast.Walk(ws.Expression, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the call statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {
+func (a *semanticAnalyzer) VisitCallStatement(cs ast.CallStatement) {
 	// set the usage mode bit to execute for the procedure that is called
-	usageMode := cs.Procedure.(ast.IdentifierUse).UsageMode()
+	usageMode := cs.Function.(ast.IdentifierUse).UsageMode()
 	usageMode |= ast.Execute
-	cs.Procedure.(ast.IdentifierUse).SetUsageMode(usageMode)
+	cs.Function.(ast.IdentifierUse).SetUsageMode(usageMode)
 }
 
 // Walk the if statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitIfStatement(is *ast.IfStatementNode) {
+func (a *semanticAnalyzer) VisitIfStatement(is ast.IfStatement) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(is.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the while statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitWhileStatement(ws *ast.WhileStatementNode) {
+func (a *semanticAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {
 	// set the usage mode bit to read for all constants and variables in the condition
 	ast.Walk(ws.Condition, ast.PreOrder, nil, setConstantVariableUsageAsRead)
 }
 
 // Walk the compound statement abstract syntax tree.
-func (a *semanticAnalyzer) VisitCompoundStatement(cs *ast.CompoundStatementNode) {
+func (a *semanticAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {
 	// nothing to do because of an external pre-order walk
 }
 

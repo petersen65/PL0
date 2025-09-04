@@ -227,25 +227,25 @@ func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
 }
 
 // Walk the assignment statement abstract syntax tree.
-func (a *nameAnalyzer) VisitAssignmentStatement(as *ast.AssignmentStatementNode) {}
+func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {}
 
 // Walk the read statement abstract syntax tree.
-func (a *nameAnalyzer) VisitReadStatement(rs *ast.ReadStatementNode) {}
+func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {}
 
 // Walk the write statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWriteStatement(ws *ast.WriteStatementNode) {}
+func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {}
 
 // Walk the call statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCallStatement(cs *ast.CallStatementNode) {}
+func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {}
 
 // Walk the if statement abstract syntax tree.
-func (a *nameAnalyzer) VisitIfStatement(is *ast.IfStatementNode) {}
+func (a *nameAnalyzer) VisitIfStatement(is ast.IfStatement) {}
 
 // Walk the while statement abstract syntax tree.
-func (a *nameAnalyzer) VisitWhileStatement(ws *ast.WhileStatementNode) {}
+func (a *nameAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {}
 
 // Walk the compound statement abstract syntax tree.
-func (a *nameAnalyzer) VisitCompoundStatement(cs *ast.CompoundStatementNode) {}
+func (a *nameAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {}
 
 // Append an error from the name analyzer to the token handler's error list.
 func (a *nameAnalyzer) appendError(code eh.Failure, value any, index int) {

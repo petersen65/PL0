@@ -5,6 +5,7 @@ package ast
 
 // Base structure for all statement nodes in the AST.
 type statementNode struct {
+	commonNode                // embedded common node
 	TokenStreamIndexBegin int `json:"token_stream_index_begin"` // begin index of the token in the token stream
 	TokenStreamIndexEnd   int `json:"token_stream_index_end"`   // end index of the token in the token stream
 }

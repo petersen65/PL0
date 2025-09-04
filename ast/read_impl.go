@@ -3,12 +3,21 @@
 
 package ast
 
+// The read statement node represents a read statement in the abstract syntax tree.
+type readStatementNode struct {
+	statementNode
+	VariableUse Expression `json:"variable"` // variable use of the read statement
+}
+
 // Create a new read statement node in the abstract syntax tree.
-func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
-	readNode := &ReadStatementNode{
-		commonNode:    commonNode{NodeKind: KindReadStatement},
-		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
-		Variable:      variable,
+func newReadStatement(variable Expression, beginIndex, endIndex int) ReadStatement {
+	readNode := &readStatementNode{
+		statementNode: statementNode{
+			commonNode:            commonNode{NodeKind: KindReadStatement},
+			TokenStreamIndexBegin: beginIndex,
+			TokenStreamIndexEnd:   endIndex,
+		},
+		VariableUse: variable,
 	}
 
 	variable.SetParent(readNode)
@@ -16,21 +25,26 @@ func newReadStatement(variable Expression, beginIndex, endIndex int) Statement {
 }
 
 // Children nodes of the read statement node.
-func (n *ReadStatementNode) Children() []Node {
-	return []Node{n.Variable}
+func (n *readStatementNode) Children() []Node {
+	return []Node{n.VariableUse}
 }
 
 // String representation of the read statement node.
-func (n *ReadStatementNode) String() string {
+func (n *readStatementNode) String() string {
 	return n.Kind().String()
 }
 
 // Accept the visitor for the read statement node.
-func (n *ReadStatementNode) Accept(visitor Visitor) {
+func (n *readStatementNode) Accept(visitor Visitor) {
 	visitor.VisitReadStatement(n)
 }
 
 // Find the current block node that contains this read statement node.
-func (n *ReadStatementNode) CurrentBlock() Block {
+func (n *readStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
+}
+
+// Variable use of the read statement.
+func (n *readStatementNode) Variable() Expression {
+	return n.VariableUse
 }

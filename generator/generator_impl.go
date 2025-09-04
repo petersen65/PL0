@@ -616,7 +616,7 @@ func (g *generator) VisitWriteStatement(s *ast.WriteStatementNode) {
 // Generate code for a call statement.
 func (g *generator) VisitCallStatement(s *ast.CallStatementNode) {
 	// get the declaration of the procedure to call
-	procedureUse := s.Procedure.(*ast.IdentifierUseNode)
+	procedureUse := s.Function.(*ast.IdentifierUseNode)
 	procedureDeclaration := procedureUse.Scope.Lookup(procedureUse.Name).Type.(*ast.ProcedureDeclarationNode)
 
 	// determine the block nesting depth of the procedure declaration

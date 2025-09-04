@@ -6,56 +6,49 @@ package ast
 import tok "github.com/petersen65/pl0/v3/token"
 
 type (
-	// AssignmentStatement node represents an assignment statement in the AST.
-	AssignmentStatementNode struct {
-		commonNode
-		statementNode
-		Variable   Expression `json:"variable"`   // variable use on the left side of the assignment statement
-		Expression Expression `json:"expression"` // expression on the right side of the assignment statement
+	// An assignment statement node in the abstract syntax tree.
+	AssignmentStatement interface {
+		Statement
+		Variable() Expression
+		Expression() Expression
 	}
 
-	// ReadStatement node represents a read statement in the AST.
-	ReadStatementNode struct {
-		commonNode
-		statementNode
-		Variable Expression `json:"variable"` // variable use of the read statement
+	// A read statement node in the abstract syntax tree.
+	ReadStatement interface {
+		Statement
+		Variable() Expression
 	}
 
-	// WriteStatement node represents a write statement in the AST.
-	WriteStatementNode struct {
-		commonNode
-		statementNode
-		Expression Expression `json:"expression"` // expression of the write statement
+	// A write statement node in the abstract syntax tree.
+	WriteStatement interface {
+		Statement
+		Expression() Expression
 	}
 
-	// CallStatement node represents a call statement in the AST.
-	CallStatementNode struct {
-		commonNode
-		statementNode
-		Procedure Expression `json:"procedure"` // procedure use of the call statement
+	// A call statement node in the abstract syntax tree.
+	CallStatement interface {
+		Statement
+		Function() Expression
 	}
 
-	// IfStatement node represents an if-then statement in the AST.
-	IfStatementNode struct {
-		commonNode
-		statementNode
-		Condition Expression `json:"condition"` // if-condition of the if-then statement
-		Statement Statement  `json:"statement"` // then-statement of the if-then statement
+	// An if-then statement node in the abstract syntax tree.
+	IfStatement interface {
+		Statement
+		Condition() Expression
+		Statement() Statement
 	}
 
-	// WhileStatement node represents a while-do statement in the AST.
-	WhileStatementNode struct {
-		commonNode
-		statementNode
-		Condition Expression `json:"condition"` // while-condition of the while-do statement
-		Statement Statement  `json:"statement"` // do-statement of the while-do statement
+	// A while-do statement node in the abstract syntax tree.
+	WhileStatement interface {
+		Statement
+		Condition() Expression
+		Statement() Statement
 	}
 
-	// CompoundStatement node represents a begin-end statement in the AST.
-	CompoundStatementNode struct {
-		commonNode
-		statementNode
-		Statements []Statement `json:"statements"` // all statements of the begin-end compound statement
+	// A compound statement node in the abstract syntax tree.
+	CompoundStatement interface {
+		Statement
+		Statements() []Statement
 	}
 
 	// A statement represented as an abstract syntax tree.
@@ -70,37 +63,37 @@ func NewEmptyStatement() Statement {
 	return newCompoundStatement(make([]Statement, 0), tok.NoTokenStreamIndex, tok.NoTokenStreamIndex)
 }
 
-// NewAssignmentStatement creates a new assignment statement node in the abstract syntax tree.
-func NewAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) Statement {
+// Create a new assignment statement node in the abstract syntax tree.
+func NewAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) AssignmentStatement {
 	return newAssignmentStatement(variable, expression, beginIndex, endIndex)
 }
 
-// NewReadStatement creates a new read statement node in the abstract syntax tree.
-func NewReadStatement(variable Expression, beginIndex, endIndex int) Statement {
+// Create a new read statement node in the abstract syntax tree.
+func NewReadStatement(variable Expression, beginIndex, endIndex int) ReadStatement {
 	return newReadStatement(variable, beginIndex, endIndex)
 }
 
-// NewWriteStatement creates a new write statement node in the abstract syntax tree.
-func NewWriteStatement(expression Expression, beginIndex, endIndex int) Statement {
+// Create a new write statement node in the abstract syntax tree.
+func NewWriteStatement(expression Expression, beginIndex, endIndex int) WriteStatement {
 	return newWriteStatement(expression, beginIndex, endIndex)
 }
 
-// NewCallStatement creates a new call statement node in the abstract syntax tree.
-func NewCallStatement(procedure Expression, beginIndex, endIndex int) Statement {
-	return newCallStatement(procedure, beginIndex, endIndex)
+// Create a new call statement node in the abstract syntax tree.
+func NewCallStatement(function Expression, beginIndex, endIndex int) CallStatement {
+	return newCallStatement(function, beginIndex, endIndex)
 }
 
-// NewIfStatement creates a new if-then statement node in the abstract syntax tree.
-func NewIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
+// Create a new if-then statement node in the abstract syntax tree.
+func NewIfStatement(condition Expression, statement Statement, beginIndex, endIndex int) IfStatement {
 	return newIfStatement(condition, statement, beginIndex, endIndex)
 }
 
-// NewWhileStatement creates a new while-do statement node in the abstract syntax tree.
-func NewWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) Statement {
+// Create a new while-do statement node in the abstract syntax tree.
+func NewWhileStatement(condition Expression, statement Statement, beginIndex, endIndex int) WhileStatement {
 	return newWhileStatement(condition, statement, beginIndex, endIndex)
 }
 
-// NewCompoundStatement creates a compound statement node in the abstract syntax tree.
-func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) Statement {
+// Create a new compound statement node in the abstract syntax tree.
+func NewCompoundStatement(statements []Statement, beginIndex, endIndex int) CompoundStatement {
 	return newCompoundStatement(statements, beginIndex, endIndex)
 }

@@ -6,13 +6,23 @@ package ast
 // Format for the string representation of the assignment statement node.
 const assignmentStatementFormat = "assignment"
 
+// The assignment statement node represents an assignment statement in the abstract syntax tree.
+type assignmentStatementNode struct {
+	statementNode
+	LeftVariable    Expression `json:"variable"`   // variable use on the left side of the assignment statement
+	RightExpression Expression `json:"expression"` // expression on the right side of the assignment statement
+}
+
 // Create a new assignment statement node in the abstract syntax tree.
-func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) Statement {
-	assignationNode := &AssignmentStatementNode{
-		commonNode:    commonNode{NodeKind: KindAssignmentStatement},
-		statementNode: statementNode{TokenStreamIndexBegin: beginIndex, TokenStreamIndexEnd: endIndex},
-		Variable:      variable,
-		Expression:    expression,
+func newAssignmentStatement(variable, expression Expression, beginIndex, endIndex int) AssignmentStatement {
+	assignationNode := &assignmentStatementNode{
+		statementNode: statementNode{
+			commonNode:            commonNode{NodeKind: KindAssignmentStatement},
+			TokenStreamIndexBegin: beginIndex,
+			TokenStreamIndexEnd:   endIndex,
+		},
+		LeftVariable:    variable,
+		RightExpression: expression,
 	}
 
 	variable.SetParent(assignationNode)
@@ -21,21 +31,31 @@ func newAssignmentStatement(variable, expression Expression, beginIndex, endInde
 }
 
 // Children nodes of the assignment statement node.
-func (s *AssignmentStatementNode) Children() []Node {
-	return []Node{s.Variable, s.Expression}
+func (s *assignmentStatementNode) Children() []Node {
+	return []Node{s.LeftVariable, s.RightExpression}
 }
 
 // String representation of the assignment statement node.
-func (s *AssignmentStatementNode) String() string {
+func (s *assignmentStatementNode) String() string {
 	return assignmentStatementFormat
 }
 
 // Accept the visitor for the assignment statement node.
-func (s *AssignmentStatementNode) Accept(visitor Visitor) {
+func (s *assignmentStatementNode) Accept(visitor Visitor) {
 	visitor.VisitAssignmentStatement(s)
 }
 
 // Find the current block node that contains this assignment statement node.
-func (s *AssignmentStatementNode) CurrentBlock() Block {
+func (s *assignmentStatementNode) CurrentBlock() Block {
 	return searchBlock(s, CurrentBlock)
+}
+
+// Variable use on the left side of the assignment statement.
+func (s *assignmentStatementNode) Variable() Expression {
+	return s.LeftVariable
+}
+
+// Expression on the right side of the assignment statement.
+func (s *assignmentStatementNode) Expression() Expression {
+	return s.RightExpression
 }
