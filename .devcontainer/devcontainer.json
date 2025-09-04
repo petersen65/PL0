@@ -10,10 +10,10 @@
             "ARCHITECTURE": "linux/amd64",
             "BASE_IMG": "ubuntu:25.04",
             "TARGET_USER": "vscode",
-            "GO_VERSION": "1.25.0",
+            "GO_VERSION": "1.25.1",
             "GO_ARCHITECTURE": "linux-amd64",
             "GCC_VERSION": "15",
-            "LLVM_VERSION": "20"
+            "LLVM_VERSION": "21"
         }
     },
     "runArgs": [
