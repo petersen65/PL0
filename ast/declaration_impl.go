@@ -14,6 +14,7 @@ const emptyConstantName = "@constant"
 
 // Base structure for all declaration nodes in the abstract syntax tree.
 type declarationNode struct {
+	commonNode          // embedded common node
 	Identifier        string       `json:"name"`               // name of the declared identifier
 	DataType          string       `json:"data_type_name"`     // datatype name of the identifier
 	IdentifierUsage   []Expression `json:"usage"`              // all usages of the identifier

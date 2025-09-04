@@ -11,9 +11,11 @@ const literalFormat = "%v(%v)"
 // Create a new literal node in the abstract syntax tree.
 func newLiteral(value any, index int) Expression {
 	return &LiteralNode{
-		commonNode:     commonNode{NodeKind: KindLiteral},
-		expressionNode: expressionNode{TokenStreamIndex: index},
-		Value:          value,
+		expressionNode: expressionNode{
+			commonNode:       commonNode{NodeKind: KindLiteral},
+			TokenStreamIndex: index,
+		},
+		Value: value,
 	}
 }
 
@@ -35,4 +37,9 @@ func (n *LiteralNode) Accept(visitor Visitor) {
 // Find the current block node that contains this literal node.
 func (n *LiteralNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
+}
+
+// The literal node always represents a constant value.
+func (n *LiteralNode) IsConstant() bool {
+	return true
 }

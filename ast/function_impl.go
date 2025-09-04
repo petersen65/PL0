@@ -10,7 +10,6 @@ const functionFormat = "declaration(%v,name=%v,used=%v)"
 
 // The node represents a function or procedure declaration in the abstract syntax tree.
 type functionDeclarationNode struct {
-	commonNode                              // embedded common node
 	declarationNode                         // embedded declaration node
 	FunctionBlock      Block                `json:"function_block"` // block of the function
 	FunctionParameters []*FunctionParameter `json:"parameters"`     // ordered list of parameters that the function accepts
@@ -20,8 +19,13 @@ type functionDeclarationNode struct {
 // Create a new function or procedure declaration node in the abstract syntax tree.
 func newFunctionDeclaration(name string, block Block, parameters []*FunctionParameter, returnTypeName string, index int) FunctionDeclaration {
 	return &functionDeclarationNode{
-		commonNode:         commonNode{NodeKind: KindFunctionDeclaration},
-		declarationNode:    declarationNode{Identifier: name, DataType: "", IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		declarationNode: declarationNode{
+			commonNode:       commonNode{NodeKind: KindFunctionDeclaration},
+			Identifier:       name,
+			DataType:         "",
+			IdentifierUsage:  make([]Expression, 0),
+			TokenStreamIndex: index,
+		},
 		FunctionBlock:      block,
 		FunctionParameters: parameters,
 		ReturnType:         returnTypeName,

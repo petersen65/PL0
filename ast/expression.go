@@ -41,14 +41,12 @@ type (
 
 	// Literal node represents the usage of a literal value in the AST.
 	LiteralNode struct {
-		commonNode         // embedded common node
 		expressionNode     // embedded expression node
 		Value          any `json:"value"` // literal value
 	}
 
 	// UnaryOperation node represents a unary operation in the AST.
 	UnaryOperationNode struct {
-		commonNode                   // embedded common node
 		expressionNode               // embedded expression node
 		Operation      UnaryOperator `json:"operation"` // unary operation
 		Operand        Expression    `json:"operand"`   // operand of the unary operation
@@ -56,7 +54,6 @@ type (
 
 	// BinaryOperation node represents a binary operation in the AST.
 	BinaryOperationNode struct {
-		commonNode                    // embedded common node
 		expressionNode                // embedded expression node
 		Operation      BinaryOperator `json:"operation"` // binary operation
 		Left           Expression     `json:"left"`      // left operand of the binary operation
@@ -65,7 +62,6 @@ type (
 
 	// ComparisonOperationNode node represents a comparison operation in the AST.
 	ComparisonOperationNode struct {
-		commonNode                        // embedded common node
 		expressionNode                    // embedded expression node
 		Operation      ComparisonOperator `json:"operation"` // comparison operation
 		Left           Expression         `json:"left"`      // left operand of the comparison operation
@@ -75,6 +71,7 @@ type (
 	// An expression represented as an abstract syntax tree.
 	Expression interface {
 		Node
+		IsConstant() bool
 	}
 )
 

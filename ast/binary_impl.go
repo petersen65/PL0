@@ -16,11 +16,13 @@ var binaryOperationFormats = map[BinaryOperator]string{
 // Create a new binary operation node in the abstract syntax tree.
 func newBinaryOperation(operation BinaryOperator, left, right Expression, index int) Expression {
 	binaryNode := &BinaryOperationNode{
-		commonNode:     commonNode{NodeKind: KindBinaryOperation},
-		expressionNode: expressionNode{TokenStreamIndex: index},
-		Operation:      operation,
-		Left:           left,
-		Right:          right,
+		expressionNode: expressionNode{
+			commonNode:       commonNode{NodeKind: KindBinaryOperation},
+			TokenStreamIndex: index,
+		},
+		Operation: operation,
+		Left:      left,
+		Right:     right,
 	}
 
 	left.SetParent(binaryNode)
@@ -52,4 +54,10 @@ func (e *BinaryOperationNode) Accept(visitor Visitor) {
 // Find the current block node that contains this binary operation node.
 func (e *BinaryOperationNode) CurrentBlock() Block {
 	return searchBlock(e, CurrentBlock)
+}
+
+// Determine if the binary operation node represents a constant value.
+func (e *BinaryOperationNode) IsConstant() bool {
+	// a binary operation is constant if both its operands are constant
+	return e.Left.IsConstant() && e.Right.IsConstant()
 }

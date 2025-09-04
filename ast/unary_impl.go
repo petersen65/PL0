@@ -14,10 +14,12 @@ var unaryOperationFormats = map[UnaryOperator]string{
 // Create a new unary operation node in the abstract syntax tree.
 func newUnaryOperation(operation UnaryOperator, operand Expression, index int) Expression {
 	unaryNode := &UnaryOperationNode{
-		commonNode:     commonNode{NodeKind: KindUnaryOperation},
-		expressionNode: expressionNode{TokenStreamIndex: index},
-		Operation:      operation,
-		Operand:        operand,
+		expressionNode: expressionNode{
+			commonNode:       commonNode{NodeKind: KindUnaryOperation},
+			TokenStreamIndex: index,
+		},
+		Operation: operation,
+		Operand:   operand,
 	}
 
 	operand.SetParent(unaryNode)
@@ -48,4 +50,10 @@ func (n *UnaryOperationNode) Accept(visitor Visitor) {
 // Find the current block node that contains this unary operation node.
 func (n *UnaryOperationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
+}
+
+// Determine if the unary operation node represents a constant value.
+func (n *UnaryOperationNode) IsConstant() bool {
+	// a unary operation is constant if its operand is constant
+	return n.Operand.IsConstant()
 }

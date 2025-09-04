@@ -18,11 +18,13 @@ var comparisonOperationFormats = map[ComparisonOperator]string{
 // Create a new comparison operation node in the abstract syntax tree.
 func newComparisonOperation(operation ComparisonOperator, left, right Expression, index int) Expression {
 	comparisonNode := &ComparisonOperationNode{
-		commonNode:     commonNode{NodeKind: KindBinaryOperation},
-		expressionNode: expressionNode{TokenStreamIndex: index},
-		Operation:      operation,
-		Left:           left,
-		Right:          right,
+		expressionNode: expressionNode{
+			commonNode:       commonNode{NodeKind: KindComparisonOperation},
+			TokenStreamIndex: index,
+		},
+		Operation: operation,
+		Left:      left,
+		Right:     right,
 	}
 
 	left.SetParent(comparisonNode)
@@ -55,4 +57,10 @@ func (e *ComparisonOperationNode) Accept(visitor Visitor) {
 // Find the current block node that contains this comparison operation node.
 func (e *ComparisonOperationNode) CurrentBlock() Block {
 	return searchBlock(e, CurrentBlock)
+}
+
+// Determine if the comparison operation node represents a constant value.
+func (e *ComparisonOperationNode) IsConstant() bool {
+	// a comparison operation is constant if both its operands are constant
+	return e.Left.IsConstant() && e.Right.IsConstant()
 }

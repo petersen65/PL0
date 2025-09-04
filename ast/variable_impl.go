@@ -10,15 +10,19 @@ const variableFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // The node represents a variable declaration in the abstract syntax tree.
 type variableDeclarationNode struct {
-	commonNode      // embedded common node
 	declarationNode // embedded declaration node
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
 func newVariableDeclaration(name, dataTypeName string, index int) VariableDeclaration {
 	return &variableDeclarationNode{
-		commonNode:      commonNode{NodeKind: KindVariableDeclaration},
-		declarationNode: declarationNode{Identifier: name, DataType: dataTypeName, IdentifierUsage: make([]Expression, 0), TokenStreamIndex: index},
+		declarationNode: declarationNode{
+			commonNode:       commonNode{NodeKind: KindVariableDeclaration},
+			Identifier:       name,
+			DataType:         dataTypeName,
+			IdentifierUsage:  make([]Expression, 0),
+			TokenStreamIndex: index,
+		},
 	}
 }
 
@@ -41,6 +45,8 @@ func (n *variableDeclarationNode) Accept(visitor Visitor) {
 func (n *variableDeclarationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
+
+
 
 // Block nesting depth of the variable declaration.
 func (n *variableDeclarationNode) Depth() int {

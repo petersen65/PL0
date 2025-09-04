@@ -341,7 +341,7 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 
 	// syntax analysis and semantic analysis of token stream
 	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()
-	ana.NewAnalyzer(abstractSyntax, errorHandler, tokenHandler).Analyze()
+	ana.NewAnalyzer(abstractSyntax, tokenHandler).Analyze()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
 	if errorHandler.Count(eh.Fatal|eh.Error, eh.AllComponents) > 0 {

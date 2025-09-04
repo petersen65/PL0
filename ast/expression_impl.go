@@ -5,6 +5,7 @@ package ast
 
 // Base structure for all expression nodes in the AST.
 type expressionNode struct {
+	commonNode           // embedded common node
 	TokenStreamIndex int `json:"token_stream_index"` // index of the token in the token stream
 }
 

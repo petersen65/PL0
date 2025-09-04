@@ -33,6 +33,7 @@ type (
 		CapturedDeclarations() []Declaration
 		AddCapturedDeclaration(declaration Declaration)
 		RootBlock() Block
+		IsRootBlock() bool
 		Insert(name string, symbol *sym.Symbol)
 		Lookup(name string) *sym.Symbol
 		LookupCurrent(name string) *sym.Symbol

@@ -129,6 +129,11 @@ func (n *blockNode) RootBlock() Block {
 	return searchBlock(n, RootBlock)
 }
 
+// Check if the block node is the root block node.
+func (n *blockNode) IsRootBlock() bool {
+	return n.ParentNode == nil
+}
+
 // Find the current block node that contains this block node.
 func (n *blockNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
