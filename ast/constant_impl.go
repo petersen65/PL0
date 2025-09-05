@@ -15,14 +15,14 @@ type constantDeclarationNode struct {
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(name, dataTypeName string, value any, index int) ConstantDeclaration {
+func newConstantDeclaration(identifierName, dataTypeName string, value any, index int) ConstantDeclaration {
 	return &constantDeclarationNode{
 		declarationNode: declarationNode{
-			commonNode:       commonNode{NodeKind: KindConstantDeclaration},
-			Identifier:       name,
-			DataType:         dataTypeName,
-			IdentifierUsage:  make([]Expression, 0),
-			TokenStreamIndex: index,
+			commonNode:                 commonNode{NodeKind: KindConstantDeclaration},
+			Identifier:                 identifierName,
+			DataType:                   dataTypeName,
+			IdentifierUsage:            make([]Expression, 0),
+			TokenStreamIndexIdentifier: index,
 		},
 		ConstantValue: value,
 	}

@@ -14,12 +14,13 @@ const emptyConstantName = "@constant"
 
 // Base structure for all declaration nodes in the abstract syntax tree.
 type declarationNode struct {
-	commonNode          // embedded common node
-	Identifier        string       `json:"name"`               // name of the declared identifier
-	DataType          string       `json:"data_type_name"`     // datatype name of the identifier
-	IdentifierUsage   []Expression `json:"usage"`              // all usages of the identifier
-	SymbolInformation *sym.Symbol  `json:"symbol"`             // symbol information of the declared identifier
-	TokenStreamIndex  int          `json:"token_stream_index"` // index of the token in the token stream
+	commonNode                              // embedded common node
+	Identifier                 string       `json:"name"`                          // name of the declared identifier
+	DataType                   string       `json:"data_type_name"`                // datatype name of the identifier
+	IdentifierUsage            []Expression `json:"usage"`                         // all usages of the identifier
+	SymbolInformation          *sym.Symbol  `json:"symbol"`                        // symbol information of the declared identifier
+	TokenStreamIndexIdentifier int          `json:"token_stream_index_identifier"` // identifier index of the token in the token stream
+	TokenStreamIndexDataType   int          `json:"token_stream_index_data_type"`  // data type index of the token in the token stream
 }
 
 // Name of the declared identifier.
@@ -32,9 +33,14 @@ func (n *declarationNode) DataTypeName() string {
 	return n.DataType
 }
 
-// Token stream index of the declaration node.
+// Token stream identifier index of the declaration node.
 func (n *declarationNode) Index() int {
-	return n.TokenStreamIndex
+	return n.TokenStreamIndexIdentifier
+}
+
+// Token stream identifier index and data type index of the declaration node.
+func (n *declarationNode) IndexPair() (int, int) {
+	return n.TokenStreamIndexIdentifier, n.TokenStreamIndexDataType
 }
 
 // Get the symbol information associated with the declaration node.

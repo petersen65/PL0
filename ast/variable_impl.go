@@ -14,14 +14,15 @@ type variableDeclarationNode struct {
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func newVariableDeclaration(name, dataTypeName string, index int) VariableDeclaration {
+func newVariableDeclaration(identifierName, dataTypeName string, identifierIndex, dataTypeIndex int) VariableDeclaration {
 	return &variableDeclarationNode{
 		declarationNode: declarationNode{
-			commonNode:       commonNode{NodeKind: KindVariableDeclaration},
-			Identifier:       name,
-			DataType:         dataTypeName,
-			IdentifierUsage:  make([]Expression, 0),
-			TokenStreamIndex: index,
+			commonNode:                 commonNode{NodeKind: KindVariableDeclaration},
+			Identifier:                 identifierName,
+			DataType:                   dataTypeName,
+			IdentifierUsage:            make([]Expression, 0),
+			TokenStreamIndexIdentifier: identifierIndex,
+			TokenStreamIndexDataType:   dataTypeIndex,
 		},
 	}
 }

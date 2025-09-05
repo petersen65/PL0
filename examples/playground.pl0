@@ -1,10 +1,10 @@
 { provide playground for trying out PL/0 }
 
 const a = 99;
-var x, y, z, r;
+var x, y, z, r : int64;
 
 procedure P;
-var v, w;
+var v, w : int64;
 begin
     v := 777;
     ! v;

@@ -20,11 +20,11 @@ type functionDeclarationNode struct {
 func newFunctionDeclaration(name string, block Block, parameters []*FunctionParameter, returnTypeName string, index int) FunctionDeclaration {
 	return &functionDeclarationNode{
 		declarationNode: declarationNode{
-			commonNode:       commonNode{NodeKind: KindFunctionDeclaration},
-			Identifier:       name,
-			DataType:         "",
-			IdentifierUsage:  make([]Expression, 0),
-			TokenStreamIndex: index,
+			commonNode:                 commonNode{NodeKind: KindFunctionDeclaration},
+			Identifier:                 name,
+			DataType:                   "",
+			IdentifierUsage:            make([]Expression, 0),
+			TokenStreamIndexIdentifier: index,
 		},
 		FunctionBlock:      block,
 		FunctionParameters: parameters,

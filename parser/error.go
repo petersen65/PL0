@@ -23,6 +23,7 @@ const (
 	expectedBecomes
 	expectedNumber
 	expectedSemicolon
+	expectedColon
 	expectedThen
 	expectedDo
 	expectedEnd
@@ -49,6 +50,7 @@ var failureMap = map[eh.Failure]string{
 	expectedBecomes:                         "expected becomes, found %v",
 	expectedNumber:                          "expected number, found %v",
 	expectedSemicolon:                       "expected semicolon, found %v",
+	expectedColon:                           "expected colon, found %v",
 	expectedStatementsIdentifiers:           "expected statement keywords or identifier, found %v",
 	expectedThen:                            "expected then keyword, found %v",
 	expectedDo:                              "expected do keyword, found %v",

@@ -15,6 +15,9 @@ import (
 // Number of bits of a signed integer.
 const integerBitSize = 64
 
+// If no identifier can be found, it is set to this value.
+const noIdentifier = ""
+
 // Implementation of the recursive descent parser.
 type parser struct {
 	uniqueBlockId  int              // the parser is required to provide a unique number for each block it creates
@@ -194,25 +197,63 @@ func (p *parser) varWord() []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
-	// all variables are declared in a sequence of identifiers
+	// all variables are declared in a sequence of comma-separated identifiers that are grouped by a semicolon and a data type identifier
 	for {
-		// first variable declaration
-		declarations = append(declarations, p.variableIdentifier())
+		// data type identifier and its token stream index for the variable group
+		dataTypeName, dataTypeIndex := noIdentifier, 0
 
-		// a comma separates variable declarations which are grouped by a semicolon
+		// list of variable identifiers and their token stream indices in the variable group
+		variableGroup := make([]struct {
+			name  string
+			index int
+		}, 0)
+
+		// first variable identifier
+		name, index := p.identifier()
+
+		// add the variable identifier and its token stream index to the variable group
+		variableGroup = append(variableGroup, struct {
+			name  string
+			index int
+		}{name: name, index: index})
+
+		// a comma separates variable identifiers that are grouped by a semicolon and a data type identifier
 		for p.lastToken() == tok.Comma {
 			p.nextToken()
-			declarations = append(declarations, p.variableIdentifier())
+
+			// next variable identifier
+			name, index := p.identifier()
+
+			// add the variable identifier and its token stream index to the variable group
+			variableGroup = append(variableGroup, struct {
+				name  string
+				index int
+			}{name: name, index: index})
 		}
 
-		// a semicolon separates variable declaration groups from each other
+		// after the variable identifiers, a colon is expected to separate their identifiers from the data type identifier
+		if p.lastToken() == tok.Colon {
+			p.nextToken()
+			dataTypeName, dataTypeIndex = p.identifier()
+		} else {
+			p.appendError(expectedColon, p.lastTokenName())
+		}
+
+		// a semicolon separates variable groups from each other
 		if p.lastToken() == tok.Semicolon {
 			p.nextToken()
+
+			// create a new variable declaration for each item of the variable group
+			for _, variable := range variableGroup {
+				if variable.name != noIdentifier && dataTypeName != noIdentifier {
+					declarations = append(declarations, ast.NewVariableDeclaration(variable.name, dataTypeName, variable.index, dataTypeIndex))
+				}
+			}
 		} else {
 			p.appendError(expectedSemicolon, p.lastTokenName())
 		}
 
-		// check for more variable declaration groups
+		// check for more variable groups
 		if p.lastToken() != tok.Identifier {
 			break
 		}
@@ -563,18 +604,16 @@ func (p *parser) constantIdentifier() ast.Declaration {
 	return declaration
 }
 
-// A variable identifier is stored in a variable declaration of the abstract syntax tree
-func (p *parser) variableIdentifier() ast.Declaration {
+// An identifier is a token that represents a name in the source code.
+func (p *parser) identifier() (string, int) {
 	if p.lastToken() != tok.Identifier {
 		p.appendError(expectedIdentifier, p.lastTokenName())
-		return ast.NewEmptyDeclaration() // in case of a parsing error, return an empty declaration
+		return noIdentifier, p.lastTokenIndex() // in case of a parsing error, return an empty identifier
 	}
 
-	// create a new variable declaration with the identifier name and the data type name
-	declaration := ast.NewVariableDeclaration(p.lastTokenValue(), ts.Integer64.String(), p.lastTokenIndex())
-
+	name, identifierIndex := p.lastTokenValue(), p.lastTokenIndex()
 	p.nextToken()
-	return declaration
+	return name, identifierIndex
 }
 
 // A procedure identifier is stored in a procedure declaration of the abstract syntax tree

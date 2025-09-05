@@ -57,6 +57,7 @@ type (
 		Node
 		Name() string
 		DataTypeName() string
+		IndexPair() (int, int)
 		Symbol() *sym.Symbol
 		SetSymbol(sym *sym.Symbol)
 		Usage() []Expression
@@ -70,13 +71,13 @@ func NewEmptyDeclaration() Declaration {
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(name, dataTypeName string, value any, index int) ConstantDeclaration {
-	return newConstantDeclaration(name, dataTypeName, value, index)
+func NewConstantDeclaration(identifierName, dataTypeName string, value any, index int) ConstantDeclaration {
+	return newConstantDeclaration(identifierName, dataTypeName, value, index)
 }
 
 // Create a new variable declaration node in the abstract syntax tree.
-func NewVariableDeclaration(name, dataTypeName string, index int) VariableDeclaration {
-	return newVariableDeclaration(name, dataTypeName, index)
+func NewVariableDeclaration(identifierName, dataTypeName string, identifierIndex, dataTypeIndex int) VariableDeclaration {
+	return newVariableDeclaration(identifierName, dataTypeName, identifierIndex, dataTypeIndex)
 }
 
 // Create a new function parameter for a function or procedure declaration.
