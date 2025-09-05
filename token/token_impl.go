@@ -145,7 +145,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 				}
 			}
 
-			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \n\r")); err != nil {
+			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \n")); err != nil {
 				return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
 			}
 
@@ -312,7 +312,7 @@ func (e *tokenError) Error() string {
 	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", e.Component, e.Severity, e.Code, td.Line, td.Column, message)
 
 	linePrefix := fmt.Sprintf("%5v: ", td.Line)
-	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \n\r")
+	trimmedLine := strings.TrimLeft(string(td.CurrentLine), " \n")
 	trimmedLen := len(string(td.CurrentLine)) - len(trimmedLine)
 	indentionLen := len(linePrefix) + int(td.Column) - trimmedLen - 1 // valid column numbers are greater than 'trimmedLen'
 

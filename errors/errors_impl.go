@@ -308,7 +308,7 @@ func (e *sourceError) Error() string {
 	message = fmt.Sprintf("%v %v %v [%v,%v]: %v", e.Component, e.Severity, e.Code, e.Line, e.Column, message)
 
 	linePrefix := fmt.Sprintf("%5v: ", e.Line)
-	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \n\r")
+	trimmedLine := strings.TrimLeft(string(e.SourceCode), " \n")
 	trimmedLen := len(string(e.SourceCode)) - len(trimmedLine)
 	indentionLen := len(linePrefix) + int(e.Column) - trimmedLen - 1 // valid column numbers are greater than 'trimmedLen'
 

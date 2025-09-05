@@ -114,37 +114,46 @@ func (s *scanner) scan() (tok.TokenStream, error) {
 			return tokenStream, nil
 		}
 
-		token, characters := s.getToken()
-
-		tokenStream = append(tokenStream, tok.TokenDescription{
-			Token:       token,
-			TokenName:   token.String(),
-			TokenValue:  s.lastValue,
-			Line:        s.line,
-			Column:      s.column - characters,
-			CurrentLine: s.currentLine,
-		})
+		tokenStream = append(tokenStream, s.getToken())
 	}
 }
 
-// Return identifier, reserved word, number, operator token, and the number of consumed UTF-8 characters.
-func (s *scanner) getToken() (tok.Token, int) {
-	lastColumn := s.column
+// Return the token description that includes the token type, token name, token value, line number, column number, and current line content.
+func (s *scanner) getToken() tok.TokenDescription {
+	// capture the current line, column, and current line content to get the starting position of the token
+	tokenLine := s.line
+	tokenColumn := s.column
+	tokenCurrentLine := make([]byte, len(s.currentLine))
+	copy(tokenCurrentLine, s.currentLine)
+	token := tok.Unknown
+
+	// reset the last value for identifiers and numbers
 	s.lastValue = ""
 
+	// retrieve the next token and forward the scanner to the next character after the token
 	switch {
 	case s.isIdentifierOrWord():
-		return s.identifierOrWord(), s.column - lastColumn
+		token = s.identifierOrWord()
 
 	case s.isNumber():
-		return s.number(), s.column - lastColumn
+		token = s.number()
 
 	default:
-		return s.operatorOrStatement(), s.column - lastColumn
+		token = s.operatorOrStatement()
+	}
+
+	// return the token description with the token and its starting position (line, column, current line content)
+	return tok.TokenDescription{
+		Token:       token,
+		TokenName:   token.String(),
+		TokenValue:  s.lastValue,
+		Line:        tokenLine,
+		Column:      tokenColumn,
+		CurrentLine: tokenCurrentLine,
 	}
 }
 
-// Read the next UTF-8 character from the source code and update the line and column counters.
+// Read the next UTF-8 character from the source code and update line counter, column counter, and current line content.
 func (s *scanner) nextCharacter() {
 	if s.sourceIndex >= len(s.sourceCode) {
 		s.lastCharacter = endOfFileCharacter
@@ -152,12 +161,7 @@ func (s *scanner) nextCharacter() {
 	}
 
 	character, width := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
-
-	if character == utf8.RuneError {
-		s.lastCharacter = ' '
-	} else {
-		s.lastCharacter = character
-	}
+	s.lastCharacter = character
 
 	if s.line == 0 {
 		s.line = 1
@@ -202,14 +206,7 @@ func (s *scanner) setCurrentLine() {
 			break
 		}
 
-		if character == utf8.RuneError {
-			character = ' '
-		}
-
-		if character != '\r' {
-			s.currentLine = utf8.AppendRune(s.currentLine, character)
-		}
-
+		s.currentLine = utf8.AppendRune(s.currentLine, character)
 		i += width
 	}
 }
@@ -338,9 +335,8 @@ func (s *scanner) operatorOrStatement() tok.Token {
 
 // Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code.
 func createSourceCode(content []byte) []byte {
-	var decodingErrors int
+	var column, decodingErrors int
 	sourceCode := make([]byte, 0, len(content))
-	tabulator := []byte(strings.Repeat(" ", tabulatorSize))
 
 	// iterate over the binary content and decode each UTF-8 character
 	for i := 0; i < len(content); {
@@ -350,15 +346,39 @@ func createSourceCode(content []byte) []byte {
 		// check for decoding errors, replace tabulators, and only append valid Unicode code points to the source code
 		switch codepoint {
 		case utf8.RuneError:
-			decodingErrors++
+			// replace decoding errors with a space UTF-8 character
 			sourceCode = append(sourceCode, ' ')
+			decodingErrors++
+			column++
 
 		case '\t':
-			sourceCode = append(sourceCode, tabulator...)
+			// calculate spaces needed to reach the next tabulator stop
+			spacesToAdd := tabulatorSize - (column % tabulatorSize)
+
+			// if the column is already at a tabulator stop, add a full tabulator size of spaces
+			if spacesToAdd == 0 {
+				spacesToAdd = tabulatorSize
+			}
+
+			// add the calculated number of spaces
+			for j := 0; j < spacesToAdd; j++ {
+				sourceCode = append(sourceCode, ' ')
+			}
+
+			column += spacesToAdd
+
+		case '\r':
+			// ignore carriage return characters
+
+		case '\n':
+			// append the newline UTF-8 character and reset the column counter
+			sourceCode = append(sourceCode, content[i:i+width]...)
+			column = 0
 
 		default:
 			// append the original UTF-8 bytes for the decoded rune
 			sourceCode = append(sourceCode, content[i:i+width]...)
+			column++
 		}
 
 		// increment the index by the byte size of the decoded rune
