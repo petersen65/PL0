@@ -23,12 +23,13 @@ const endOfFileCharacter = 0
 
 // Implementation of the scanner that contains a tokenizer and lexical analyzer.
 type scanner struct {
-	sourceIndex   int    // index of the current character in the source code byte slice
-	sourceCode    []byte // source code to scan
-	line, column  int    // current line and column where the scanner is positioned
-	lastCharacter rune   // last UTF-8 character that was read
-	lastValue     string // last identifier or number value that was read
-	currentLine   []byte // current line of source code that is being scanned
+	errorHandler  eh.ErrorHandler // error handler that is used to handle errors that occurred during scanning
+	sourceIndex   int             // index of the current character in the source code byte slice
+	sourceCode    []byte          // source code to scan
+	line, column  int             // current line and column where the scanner is positioned
+	lastCharacter rune            // last UTF-8 character that was read
+	lastValue     string          // last identifier or number value that was read
+	currentLine   []byte          // current line of source code that is being scanned
 }
 
 var (
@@ -76,12 +77,12 @@ var (
 )
 
 // Return the interface of the scanner implementation.
-func newScanner() Scanner {
-	return &scanner{}
+func newScanner(errorHandler eh.ErrorHandler) Scanner {
+	return &scanner{errorHandler: errorHandler}
 }
 
 // Run the scanner to map the source code to its corresponding token stream.
-func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
+func (s *scanner) Scan(content []byte) tok.TokenStream {
 	s.sourceIndex = 0
 	s.sourceCode = createSourceCode(content)
 	s.line = 0
@@ -94,7 +95,7 @@ func (s *scanner) Scan(content []byte) (tok.TokenStream, error) {
 }
 
 // Perform a character scan that supports whitespace, comments, identifiers, reserved words, numbers and operators.
-func (s *scanner) scan() (tok.TokenStream, error) {
+func (s *scanner) scan() tok.TokenStream {
 	tokenStream := make(tok.TokenStream, 0)
 
 	for {
@@ -104,14 +105,14 @@ func (s *scanner) scan() (tok.TokenStream, error) {
 			}
 
 			if s.isComment() {
-				if err := s.comment(); err != nil {
-					return tokenStream, err
+				if errorToken := s.comment(); errorToken == tok.Error {
+					return tokenStream
 				}
 			}
 		}
 
 		if s.isEndOfContent() {
-			return tokenStream, nil
+			return tokenStream
 		}
 
 		tokenStream = append(tokenStream, s.getToken())
@@ -119,12 +120,13 @@ func (s *scanner) scan() (tok.TokenStream, error) {
 }
 
 // Return the token description that includes the token type, token name, token value, line number, column number, and current line content.
+// Each time this function is called, the scanner is forwarded to the starting position of the next token.
 func (s *scanner) getToken() tok.TokenDescription {
 	// capture the current line, column, and current line content to get the starting position of the token
-	tokenLine := s.line
-	tokenColumn := s.column
-	tokenCurrentLine := make([]byte, len(s.currentLine))
-	copy(tokenCurrentLine, s.currentLine)
+	line, column, currentLine := s.line, s.column, make([]byte, len(s.currentLine))
+	copy(currentLine, s.currentLine)
+
+	// fall back to Unknown token if no valid token could be scanned
 	token := tok.Unknown
 
 	// reset the last value for identifiers and numbers
@@ -135,8 +137,14 @@ func (s *scanner) getToken() tok.TokenDescription {
 	case s.isIdentifierOrWord():
 		token = s.identifierOrWord()
 
-	case s.isNumber():
-		token = s.number()
+	case s.isNumberLiteral():
+		token = s.numberLiteral()
+
+	case s.isStringLiteral():
+		token = s.stringLiteral()
+
+	case s.isCharacterLiteral():
+		token = s.characterLiteral()
 
 	default:
 		token = s.operatorOrStatement()
@@ -147,9 +155,9 @@ func (s *scanner) getToken() tok.TokenDescription {
 		Token:       token,
 		TokenName:   token.String(),
 		TokenValue:  s.lastValue,
-		Line:        tokenLine,
-		Column:      tokenColumn,
-		CurrentLine: tokenCurrentLine,
+		Line:        line,
+		Column:      column,
+		CurrentLine: currentLine,
 	}
 }
 
@@ -188,6 +196,16 @@ func (s *scanner) peekCharacter(expected rune) bool {
 
 	character, _ := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
 	return character == expected
+}
+
+// Peek the next UTF-8 character from the source code to check if it is a digit.
+func (s *scanner) peekDigit() bool {
+	if s.isEndOfContent() {
+		return false
+	}
+
+	character, _ := utf8.DecodeRune(s.sourceCode[s.sourceIndex:])
+	return unicode.IsDigit(character)
 }
 
 // Extract the current line of source code if the scanner is positioned on a new line.
@@ -234,7 +252,9 @@ func (s *scanner) isComment() bool {
 }
 
 // Scan a comment that starts with '{' or '(*' and ends with '}' or '*)'.
-func (s *scanner) comment() error {
+func (s *scanner) comment() tok.Token {
+	line, column := s.line, s.column
+
 	if s.lastCharacter == '{' {
 		s.nextCharacter()
 
@@ -243,7 +263,7 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return eh.NewLineColumnError(eh.Scanner, failureMap, eh.Error, eofComment, nil, s.line, s.column)
+			return s.appendError(eofComment, nil, line, column)
 		}
 	} else {
 		s.nextCharacter()
@@ -254,14 +274,14 @@ func (s *scanner) comment() error {
 		}
 
 		if s.isEndOfContent() {
-			return eh.NewLineColumnError(eh.Scanner, failureMap, eh.Error, eofComment, nil, s.line, s.column)
+			return s.appendError(eofComment, nil, line, column)
 		}
 
 		s.nextCharacter()
 	}
 
 	s.nextCharacter()
-	return nil
+	return tok.Unknown
 }
 
 // Check if the last character is the start of an identifier or a reserved word.
@@ -286,22 +306,157 @@ func (s *scanner) identifierOrWord() tok.Token {
 	return tok.Identifier
 }
 
-// Check if the last character is the start of a number.
-func (s *scanner) isNumber() bool {
+// Check if the last character is the beginning of a number literal.
+func (s *scanner) isNumberLiteral() bool {
 	return unicode.IsDigit(s.lastCharacter)
 }
 
-// Scan consecutive digits to form an unsigned number token.
-func (s *scanner) number() tok.Token {
+// Scan consecutive digits to form an integer or floating point numberLiteral literal.
+func (s *scanner) numberLiteral() tok.Token {
+	var isFloatingPoint bool
 	var builder strings.Builder
+	line, column := s.line, s.column
 
+	// scan the integer part
 	for unicode.IsDigit(s.lastCharacter) {
 		builder.WriteRune(s.lastCharacter)
 		s.nextCharacter()
 	}
 
+	// check for decimal point of floating point numbers
+	if s.lastCharacter == '.' {
+		// peek ahead to see if there's a digit after the decimal point
+		if s.peekDigit() {
+			isFloatingPoint = true
+			builder.WriteRune(s.lastCharacter)
+			s.nextCharacter()
+
+			// scan the fractional part of the floating point number
+			for unicode.IsDigit(s.lastCharacter) {
+				builder.WriteRune(s.lastCharacter)
+				s.nextCharacter()
+			}
+		}
+	}
+
+	// check for scientific notation of floating point numbers (exponent part 'e' or 'E')
+	if s.lastCharacter == 'e' || s.lastCharacter == 'E' {
+		// peek ahead to ensure valid scientific notation (exponent part 'e' or 'E' followed by optional '+/-' sign and digits)
+		if s.peekValidScientificNotation() {
+			isFloatingPoint = true
+			builder.WriteRune(s.lastCharacter)
+			s.nextCharacter()
+
+			// optional '+/-' sign after exponent part 'e' or 'E'
+			if s.lastCharacter == '+' || s.lastCharacter == '-' {
+				builder.WriteRune(s.lastCharacter)
+				s.nextCharacter()
+			}
+
+			// exponent digits are required for valid scientific notation
+			for unicode.IsDigit(s.lastCharacter) {
+				builder.WriteRune(s.lastCharacter)
+				s.nextCharacter()
+			}
+		} else {
+			// consume exponent part 'e' or 'E'
+			builder.WriteRune(s.lastCharacter)
+			s.nextCharacter()
+
+			// consume optional '+/-' sign after exponent part 'e' or 'E'
+			if s.lastCharacter == '+' || s.lastCharacter == '-' {
+				builder.WriteRune(s.lastCharacter)
+				s.nextCharacter()
+			}
+
+			// invalid scientific notation for floating point number
+			return s.appendError(invalidScientificNotation, builder.String(), line, column)
+		}
+	}
+
+	// check for floating point suffixes (f, F, d, D)
+	if s.lastCharacter == 'f' || s.lastCharacter == 'F' ||
+		s.lastCharacter == 'd' || s.lastCharacter == 'D' {
+
+		builder.WriteRune(s.lastCharacter)
+		s.nextCharacter()
+
+		// floating point suffix without decimal point or scientific notation
+		if !isFloatingPoint {
+			return s.appendError(floatingPointSuffixWithoutDecimalPoint, builder.String(), line, column)
+		}
+
+		isFloatingPoint = true
+	}
+
 	s.lastValue = builder.String()
-	return tok.Number
+
+	// check for malformed patterns in floating point numbers
+	if isFloatingPoint && isMalformedFloatingPointNumber(s.lastValue) {
+		return s.appendError(malformedFloatingPointNumber, s.lastValue, line, column)
+	}
+
+	if isFloatingPoint {
+		return tok.FloatingPoint
+	}
+
+	return tok.Integer
+}
+
+// Check if the last character is the beginning of a string literal.
+func (s *scanner) isStringLiteral() bool {
+	return s.lastCharacter == '"'
+}
+
+// Scan a string literal that begins and ends with a double quote (").
+func (s *scanner) stringLiteral() tok.Token {
+	var builder strings.Builder
+	line, column := s.line, s.column
+
+	s.nextCharacter()
+
+	for !s.isEndOfContent() && s.lastCharacter != '"' {
+		builder.WriteRune(s.lastCharacter)
+		s.nextCharacter()
+	}
+
+	if s.isEndOfContent() {
+		return s.appendError(eofString, nil, line, column)
+	}
+
+	s.nextCharacter()
+	s.lastValue = builder.String()
+	return tok.String
+}
+
+// Check if the last character is the beginning of a character literal.
+func (s *scanner) isCharacterLiteral() bool {
+	return s.lastCharacter == '\''
+}
+
+// Scan a character literal that begins and ends with a single quote (').
+func (s *scanner) characterLiteral() tok.Token {
+	var builder strings.Builder
+	line, column := s.line, s.column
+
+	s.nextCharacter()
+
+	for !s.isEndOfContent() && s.lastCharacter != '\'' {
+		builder.WriteRune(s.lastCharacter)
+		s.nextCharacter()
+	}
+
+	if s.isEndOfContent() {
+		return s.appendError(eofCharacter, nil, line, column)
+	} else if builder.Len() == 0 {
+		return s.appendError(characterLiteralEmpty, nil, line, column)
+	} else if builder.Len() > 1 {
+		return s.appendError(characterLiteralContainsMultipleCharacters, nil, line, column)
+	}
+
+	s.nextCharacter()
+	s.lastValue = builder.String()
+	return tok.Character
 }
 
 // Scan operator or statement token and return an Unknown token if last character cannot be mapped to a token.
@@ -331,6 +486,72 @@ func (s *scanner) operatorOrStatement() tok.Token {
 
 	s.nextCharacter()
 	return tok.Unknown
+}
+
+// Append an error from the scanner to the error handler's error list and return the error token.
+func (s *scanner) appendError(code eh.Failure, value any, line, column int) tok.Token {
+	s.errorHandler.AppendError(eh.NewLineColumnError(eh.Scanner, failureMap, eh.Error, code, value, line, column))
+	return tok.Error
+}
+
+// Peek ahead to check if a floating point scientific notation is valid (e/E followed by optional +/- and digits).
+func (s *scanner) peekValidScientificNotation() bool {
+	if s.isEndOfContent() {
+		return false
+	}
+
+	peekIndex := s.sourceIndex
+
+	// check for optional sign after exponent part 'e' or 'E'
+	if character, width := utf8.DecodeRune(s.sourceCode[peekIndex:]); character == '+' || character == '-' {
+		peekIndex += width
+	}
+
+	// must have at least one digit exponent part 'e' or 'E' (and optional sign)
+	if peekIndex < len(s.sourceCode) {
+		character, _ := utf8.DecodeRune(s.sourceCode[peekIndex:])
+		return unicode.IsDigit(character)
+	}
+
+	return false
+}
+
+// Check if a floating point number is malformed (e.g., multiple decimal points, multiple 'e' or 'E', empty exponent after sign).
+func isMalformedFloatingPointNumber(number string) bool {
+	var decimalPointCount, exponentCount int
+
+	// check for patterns like:
+	//   - multiple decimal points: "3.14.15"
+	//   - multiple 'e' or 'E': "1e2e3"
+	//   - empty exponent after sign: "1e+"
+	for i, char := range number {
+		switch char {
+		case '.':
+			decimalPointCount++
+
+			if decimalPointCount > 1 {
+				return true
+			}
+
+		case 'e', 'E':
+			exponentCount++
+
+			if exponentCount > 1 {
+				return true
+			}
+
+			// check if 'e'/'E' is at the end or followed only by sign
+			if i == len(number)-1 {
+				return true
+			}
+
+			if i == len(number)-2 && (number[i+1] == '+' || number[i+1] == '-') {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // Filter binary source content from all UTF-8 errors, replace all tabulators, and return the binary content as valid source code.

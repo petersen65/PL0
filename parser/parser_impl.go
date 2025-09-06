@@ -47,7 +47,7 @@ var (
 	// Tokens that are used to begin factors in expressions.
 	factors = tok.Tokens{
 		tok.Identifier,
-		tok.Number,
+		tok.Integer,
 		tok.LeftParenthesis,
 	}
 )
@@ -580,7 +580,7 @@ func (p *parser) constantIdentifier() ast.Declaration {
 			p.nextToken()
 		}
 
-		if p.lastToken() != tok.Number {
+		if p.lastToken() != tok.Integer {
 			p.appendError(expectedNumber, p.lastTokenName())
 
 			// skip the next token if it is an identifier to continue parsing
@@ -773,7 +773,7 @@ func (p *parser) factor(anchors tok.Tokens) ast.Expression {
 			// the factor can be a constant or a variable
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
-		} else if p.lastToken() == tok.Number {
+		} else if p.lastToken() == tok.Integer {
 			operand = ast.NewLiteralUse(p.numberValue(sign, p.lastTokenValue()), p.lastTokenIndex())
 			sign = tok.Unknown
 			p.nextToken()

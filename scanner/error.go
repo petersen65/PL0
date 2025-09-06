@@ -9,9 +9,23 @@ import eh "github.com/petersen65/pl0/v3/errors"
 const (
 	_ eh.Failure = iota + 1000
 	eofComment
+	eofString
+	eofCharacter
+	characterLiteralEmpty
+	characterLiteralContainsMultipleCharacters
+	malformedFloatingPointNumber
+	invalidScientificNotation
+	floatingPointSuffixWithoutDecimalPoint
 )
 
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
-	eofComment: "end of file reached inside comment",
+	eofComment:            "end of file reached inside comment",
+	eofString:             "end of file reached inside string literal",
+	eofCharacter:          "end of file reached inside character literal",
+	characterLiteralEmpty: "character literal is empty",
+	characterLiteralContainsMultipleCharacters: "character literal contains multiple characters",
+	malformedFloatingPointNumber:               "malformed floating point number: %v",
+	invalidScientificNotation:                  "invalid scientific notation for floating point number: %v",
+	floatingPointSuffixWithoutDecimalPoint:     "floating point suffix without decimal point: %v",
 }

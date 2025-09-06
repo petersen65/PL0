@@ -6,8 +6,12 @@ package token
 // Tokens of the PL/0 programming language.
 const (
 	Unknown Token = iota
+	Error
 	Identifier
-	Number
+	Integer
+	FloatingPoint
+	String
+	Character
 	Plus
 	Minus
 	Times

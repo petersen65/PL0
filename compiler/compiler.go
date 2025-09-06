@@ -335,11 +335,12 @@ func CompileSourceToCompilationUnit(buildConfiguration plt.BuildConfiguration) (
 func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) CompilationUnit {
 	// set the current application binary interface required for the type system to be functional
 	ts.SetCurrentApplicationBinaryInterface(buildConfiguration.TargetPlatform.ApplicationBinaryInterface)
+	
+	// create the error handler for the compilation process
+	errorHandler := eh.NewErrorHandler()
 
 	// lexical analysis of content
-	tokenStream, scannerError := scn.NewScanner().Scan(content)
-	errorHandler := eh.NewErrorHandler()
-	errorHandler.AppendError(scannerError) // nil errors are ignored
+	tokenStream := scn.NewScanner(errorHandler).Scan(content)
 
 	// syntax analysis of the token stream
 	abstractSyntax, tokenHandler := par.NewParser(tokenStream, errorHandler).Parse()

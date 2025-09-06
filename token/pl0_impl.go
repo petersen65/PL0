@@ -6,8 +6,12 @@ package token
 // Map PL/0 tokens to their string representation.
 var tokenNames = map[Token]string{
 	Unknown:          "unknown",
+	Error:            "error",
 	Identifier:       "identifier",
-	Number:           "number",
+	Integer:          "integer",
+	FloatingPoint:    "floatingPoint",
+	String:           "string",
+	Character:        "character",
 	Plus:             "plus",
 	Minus:            "minus",
 	Times:            "times",
