@@ -52,6 +52,11 @@ func (n *functionDeclarationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Block nesting depth of the function declaration.
+func (n *functionDeclarationNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // Get the block of the function declaration node.
 func (n *functionDeclarationNode) Block() Block {
 	return n.FunctionBlock

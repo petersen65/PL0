@@ -28,6 +28,7 @@ type (
 		Index() int
 		Accept(visitor Visitor)
 		Depth() int
+		Function() FunctionDeclaration
 		Declarations() []Declaration
 		Statement() Statement
 		CapturedDeclarations() []Declaration

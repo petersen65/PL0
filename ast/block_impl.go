@@ -40,8 +40,9 @@ func prepareBlock(parent Block, depth int, id int) Block {
 	}
 
 	// return a prepared block node with an initialized scope hierarchy
+	// note: the parent node of the block node is set by the parser to its function declaration node
 	return &blockNode{
-		commonNode:      commonNode{NodeKind: KindBlock, ParentNode: parent},
+		commonNode:      commonNode{NodeKind: KindBlock},
 		NestingDepth:    depth,
 		Scope:           sym.NewScope(outerScope),
 		AllDeclarations: make([]Declaration, 0),
@@ -100,6 +101,15 @@ func (n *blockNode) Index() int {
 // The nesting depth of the block node.
 func (n *blockNode) Depth() int {
 	return n.NestingDepth
+}
+
+// The function declaration associated with the block node, or nil if the block is the root block.
+func (n *blockNode) Function() FunctionDeclaration {
+	if n.ParentNode != nil {
+		return n.ParentNode.(FunctionDeclaration)
+	}
+
+	return nil
 }
 
 // All declarations contained in the block node.
@@ -205,10 +215,18 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 
 // Search for a parent block node in the abstract syntax tree based on the search mode.
 func searchBlock(node Node, mode BlockSearchMode) Block {
+	// the parent of a block node is its function declaration node or nil for the root block
+	//   - the parent of the function declaration node is a block node that will be seen as the parent block of the current block
+	// 
+	// if the current node is a block node and the search mode is CurrentBlock, the search must start at the current block's parent node
+	//   - otherwise, the search would always return the current block node itself
 	if node.Kind() == KindBlock && node.Parent() != nil && mode == CurrentBlock {
 		node = node.Parent()
 	}
 
+	// traverse up the parent chain of block nodes and skip all non-block nodes
+	//   - if the search mode is CurrentBlock, return the first block node found
+	//   - if the search mode is RootBlock, return the block node without a parent (the root block)
 	for current := node; current != nil; current = current.Parent() {
 		// skip all non-block nodes
 		if current.Kind() != KindBlock {
@@ -226,7 +244,11 @@ func searchBlock(node Node, mode BlockSearchMode) Block {
 
 // Search for a declaration node in the abstract syntax tree based on its associated symbol information.
 func searchDeclaration(node Node, symbol *sym.Symbol) Declaration {
+	// traverse up the parent chain of block nodes and skip all non-block nodes
+	//   - in each block node, search for the declaration with the specified symbol
+	//   - return the first declaration found or nil if no declaration was found
 	for block := searchBlock(node, CurrentBlock); block != nil; block = searchBlock(block, CurrentBlock) {
+		// search for the declaration with the specified symbol in the current block node
 		for _, declaration := range block.Declarations() {
 			if declaration.Symbol() == symbol {
 				return declaration

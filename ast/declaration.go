@@ -43,6 +43,7 @@ type (
 	// A function or procedure declaration node in the abstract syntax tree.
 	FunctionDeclaration interface {
 		Declaration
+		Depth() int
 		Block() Block
 		SetBlock(block Block)
 		IsFunction() bool
