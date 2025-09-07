@@ -5,8 +5,6 @@
 package x86_64
 
 import (
-	"io"
-
 	dbg "github.com/petersen65/pl0/v3/debugging"
 	elf "github.com/petersen65/pl0/v3/emitter/elf"
 	exp "github.com/petersen65/pl0/v3/export"
@@ -278,6 +276,7 @@ type (
 	// AssemblyCodeUnit represents a logical unit of instructions created from one intermediate code unit.
 	AssemblyCodeUnit interface {
 		SymbolTable
+		exp.Exporter
 		AppendInstruction(operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction
 		AppendPrefixedInstruction(prefix, operation OperationCode, labels []string, tokenStreamIndex int, operands ...*Operand) *Instruction
 		AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, labels []string, values any)
@@ -287,8 +286,6 @@ type (
 		Location(index int, debugger elf.Debugger, attributes ...string) *elf.Directive
 		Filter(directive *elf.Directive) *elf.Directive
 		HasDebugInformation() bool
-		Print(print io.Writer, args ...any) error
-		Export(format exp.ExportFormat, print io.Writer) error
 	}
 )
 

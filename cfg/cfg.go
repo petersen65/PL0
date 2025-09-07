@@ -5,8 +5,6 @@
 package cfg
 
 import (
-	"io"
-
 	exp "github.com/petersen65/pl0/v3/export"
 	ic "github.com/petersen65/pl0/v3/generator/intermediate"
 )
@@ -14,10 +12,9 @@ import (
 type (
 	// ControlFlowGraph represents the control flow graph of an intermediate code unit.
 	ControlFlowGraph interface {
+		exp.Exporter
 		Build()
 		AppendBasicBlock(basicBlock *basicBlock)
-		Print(print io.Writer, args ...any) error
-		Export(format exp.ExportFormat, print io.Writer) error
 	}
 
 	// Basic blocks are maximal sequences of consecutive instructions that execute without branching.

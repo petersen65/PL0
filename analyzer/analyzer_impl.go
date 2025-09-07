@@ -8,7 +8,6 @@ import (
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
-	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Implementation of the semantic analyzer. It performs semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
@@ -20,16 +19,6 @@ type semanticAnalyzer struct {
 // Return the interface of the semantic analyzer implementation.
 func newAnalyzer(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) Analyzer {
 	return &semanticAnalyzer{abstractSyntax: abstractSyntax, tokenHandler: tokenHandler}
-}
-
-// Setup built-in symbols like data types in the root block of the abstract syntax tree.
-func (a *semanticAnalyzer) SetupBuiltInSymbols() {
-	// get the root block of the abstract syntax tree to insert built-in data types into its scope
-	rootBlock := a.abstractSyntax.RootBlock()
-
-	// insert built-in data types into the scope of the root block
-	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64)
-	rootBlock.Insert(int64Type.Name(), sym.NewSymbol(int64Type.Name(), sym.DataTypeEntry, int64Type, nil))
 }
 
 // Perform the semantic analysis compiler phase on the abstract syntax tree.

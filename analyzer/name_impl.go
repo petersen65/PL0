@@ -304,30 +304,30 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 	// safely switch on the kind of the node and then cast it to the appropriate declaration kind
 	switch node.Kind() {
 	case ast.KindConstantDeclaration:
-		d := node.(ast.ConstantDeclaration)
+		cd := node.(ast.ConstantDeclaration)
 
 		// if the constant declaration has no usages, report a warning
-		if len(d.Usage()) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, d.Name(), d.Index()))
+		if len(cd.Usage()) == 0 {
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, cd.Name(), cd.Index()))
 		}
 
 	case ast.KindVariableDeclaration:
-		d := node.(ast.VariableDeclaration)
+		vd := node.(ast.VariableDeclaration)
 
 		// if the variable declaration has no usages, report a warning
-		if len(d.Usage()) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, d.Name(), d.Index()))
+		if len(vd.Usage()) == 0 {
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, vd.Name(), vd.Index()))
 		}
 
 	case ast.KindFunctionDeclaration:
-		d := node.(ast.FunctionDeclaration)
+		fd := node.(ast.FunctionDeclaration)
 
 		// if the function or procedure declaration has no usages, report a warning
-		if len(d.Usage()) == 0 {
-			if d.IsFunction() {
-				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, d.Name(), d.Index()))
+		if len(fd.Usage()) == 0 {
+			if fd.IsFunction() {
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, fd.Name(), fd.Index()))
 			} else {
-				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, d.Name(), d.Index()))
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, fd.Name(), fd.Index()))
 			}
 		}
 	}

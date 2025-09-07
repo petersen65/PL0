@@ -12,7 +12,6 @@ import (
 
 // The semantic analyzer performs semantic checks on the abstract syntax tree (e.g., name analysis or usage analysis).
 type Analyzer interface {
-	SetupBuiltInSymbols()
 	PerformSemanticAnalysis()
 }
 

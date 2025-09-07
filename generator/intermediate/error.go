@@ -12,7 +12,6 @@ const (
 	invalidIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress
 	unknownInstructionOption
-	unknownDataTypeRepresentation
 	unknownExportFormat
 	intermediateCodeExportFailed
 )
@@ -23,7 +22,6 @@ var failureMap = map[eh.Failure]string{
 	invalidIntermediateCodeAddress:             "invalid intermediate code address: %v",
 	unexceptedVariantInIntermediateCodeAddress: "unexcepted variant in intermediate code address: %v",
 	unknownInstructionOption:                   "unknown instruction option: %v",
-	unknownDataTypeRepresentation:              "unknown datatype representation: %v",
 	unknownExportFormat:                        "unknown export format: %v",
 	intermediateCodeExportFailed:               "failed to export intermediate code",
 }

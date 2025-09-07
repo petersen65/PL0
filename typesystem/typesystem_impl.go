@@ -17,8 +17,8 @@ const byteAlignmentNotCalculated = -1
 
 // Prefixes for pointer and reference modifier string representations.
 const (
-	pointerPrefix   = "^"
-	referencePrefix = "var "
+	pointerPrefix   = "ptr."
+	referencePrefix = "ref."
 )
 
 // Packing rules define how structure based data types are packed.

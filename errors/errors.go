@@ -4,11 +4,7 @@
 // Package errors provides the error handling mechanism for the compiler.
 package errors
 
-import (
-	"io"
-
-	exp "github.com/petersen65/pl0/v3/export"
-)
+import exp "github.com/petersen65/pl0/v3/export"
 
 // Severity is a bit-mask of different error levels.
 const (
@@ -56,13 +52,12 @@ type (
 
 	// ErrorHandler is an interface that provides methods for error handling and printing.
 	ErrorHandler interface {
+		exp.Exporter
 		AppendError(err error) error
 		Count(severity Severity, component Component) int
 		HasErrors() bool
 		HasWarnings() bool
 		HasRemarks() bool
-		Print(print io.Writer, args ...any) error
-		Export(format exp.ExportFormat, print io.Writer) error
 	}
 )
 

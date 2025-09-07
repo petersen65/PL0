@@ -4,8 +4,6 @@
 package ast
 
 import (
-	"io"
-
 	exp "github.com/petersen65/pl0/v3/export"
 	sym "github.com/petersen65/pl0/v3/symbol"
 )
@@ -20,13 +18,19 @@ type (
 	// Search mode for block nodes in the abstract syntax tree.
 	BlockSearchMode int
 
+	// A symbol table is a collection of symbols that can be used to look up names and their associated information.
+	SymbolTable interface {
+		Insert(name string, symbol *sym.Symbol)
+		Lookup(name string) *sym.Symbol
+		LookupCurrent(name string) *sym.Symbol
+		UniqueName(prefix rune) string
+	}
+
 	// Block represents a block of declarations and statements in the abstract syntax tree.
 	Block interface {
 		Node
-		Children() []Node
-		String() string
-		Index() int
-		Accept(visitor Visitor)
+		SymbolTable
+		exp.Exporter
 		Depth() int
 		Function() FunctionDeclaration
 		Declarations() []Declaration
@@ -35,12 +39,6 @@ type (
 		AddCapturedDeclaration(declaration Declaration)
 		RootBlock() Block
 		IsRootBlock() bool
-		Insert(name string, symbol *sym.Symbol)
-		Lookup(name string) *sym.Symbol
-		LookupCurrent(name string) *sym.Symbol
-		UniqueName(prefix rune) string
-		Print(print io.Writer, args ...any) error
-		Export(format exp.ExportFormat, print io.Writer) error
 	}
 )
 

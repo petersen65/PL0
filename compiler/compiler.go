@@ -347,7 +347,6 @@ func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) C
 
 	// semantic analysis of the abstract syntax tree
 	analyzer := ana.NewAnalyzer(abstractSyntax, tokenHandler)
-	analyzer.SetupBuiltInSymbols()
 	analyzer.PerformSemanticAnalysis()
 
 	// return if any fatal or error errors occurred during lexical, syntax, or semantic analysis
