@@ -11,20 +11,14 @@ import (
 
 	eh "github.com/petersen65/pl0/v3/errors"
 	exp "github.com/petersen65/pl0/v3/export"
-)
-
-// Prefixes for pointer and reference modifier string representations.
-const (
-	pointerPrefix   = "ptr."
-	referencePrefix = "ref."
+	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
 type (
 	// Represents a logical unit of instructions created from one source file.
 	intermediateCodeUnit struct {
-		Names        []string           `json:"names"`        // enable deterministic iteration over the symbol table in the order of past inserts
-		SymbolTable  map[string]*Symbol `json:"symbol_table"` // symbol table for intermediate code flattened names
-		Instructions *list.List         `json:"-"`            // intermediate code instructions as doubly linked list that allows reordering
+		Scope        sym.Scope  `json:"scope"` // scope with the symbol table of the intermediate code unit
+		Instructions *list.List `json:"-"`     // intermediate code instructions as doubly linked list that allows reordering
 	}
 
 	// Navigation implementation for the unit's intermediate code instructions.
@@ -35,30 +29,59 @@ type (
 )
 
 var (
+	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
+	intermediateCodeContract = map[Operation][]AddressesContract{
+		// unary arithmetic or logical operation
+		Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Negate: {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
+
+		// binary arithmetic operation
+		Plus:   {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Minus:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Times:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+		Divide: {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
+
+		// binary comparison operation
+		Equal:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		NotEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		Less:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		LessEqual:    {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		Greater:      {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+		GreaterEqual: {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
+
+		// unconditional or conditional jump
+		Jump:             {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpEqual:        {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpNotEqual:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpLess:         {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpLessEqual:    {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpGreater:      {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		JumpGreaterEqual: {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+		BranchTarget:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
+
+		// function call and parameter passing
+		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
+		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty}, {Arg1: Literal, Arg2: Literal, Result: Temporary}},
+		Return:    {{Arg1: Literal, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Temporary}},
+
+		// function entry and exit sequences
+		Prologue: {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+		Epilogue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
+		Setup:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
+
+		// memory management and handling of variables or literals
+		AllocateVariable: {{Arg1: Empty, Arg2: Empty, Result: Variable}},
+		CopyLiteral:      {{Arg1: Literal, Arg2: Literal, Result: Temporary}},
+		LoadVariable:     {{Arg1: Variable, Arg2: Literal, Result: Temporary}},
+		StoreVariable:    {{Arg1: Temporary, Arg2: Literal, Result: Variable}},
+	}
+
 	// Map an address variant to its string representation.
 	variantNames = map[Variant]string{
 		Empty:     "empty",
 		Temporary: "temporary",
 		Literal:   "literal",
 		Variable:  "variable",
-	}
-
-	// Map an address datatype to its string representation that is based on the C language.
-	dataTypeNames = map[DataType]string{
-		Untyped:    "void",
-		Integer64:  "int64",
-		Integer32:  "int32",
-		Integer16:  "int16",
-		Integer8:   "int8",
-		Float64:    "float64",
-		Float32:    "float32",
-		Unsigned64: "uint64",
-		Unsigned32: "uint32",
-		Unsigned16: "uint16",
-		Unsigned8:  "uint8",
-		Boolean:    "uint8",
-		Character:  "codepoint",
-		String:     "text",
 	}
 
 	// Map three-address code operations of the intermediate code to their string representation.
@@ -107,75 +130,14 @@ var (
 		LoadVariable:     "loadVariable",
 		StoreVariable:    "storeVariable",
 	}
-
-	// The intermediate code contract maps all three-address code operations to their addresses contracts for validation.
-	intermediateCodeContract = map[Operation][]AddressesContract{
-		// unary arithmetic or logical operation
-		Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-		Negate: {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
-
-		// binary arithmetic operation
-		Plus:   {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Minus:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Times:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-		Divide: {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
-
-		// binary comparison operation
-		Equal:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		NotEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		Less:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		LessEqual:    {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		Greater:      {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-		GreaterEqual: {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
-
-		// unconditional or conditional jump
-		Jump:             {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpEqual:        {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpNotEqual:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpLess:         {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpLessEqual:    {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpGreater:      {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		JumpGreaterEqual: {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-		BranchTarget:     {{Arg1: Empty, Arg2: Empty, Result: Literal}},
-
-		// function call and parameter passing
-		Parameter: {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
-		Call:      {{Arg1: Literal, Arg2: Literal, Result: Empty}, {Arg1: Literal, Arg2: Literal, Result: Temporary}},
-		Return:    {{Arg1: Literal, Arg2: Empty, Result: Empty}, {Arg1: Literal, Arg2: Empty, Result: Temporary}},
-
-		// function entry and exit sequences
-		Prologue: {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-		Epilogue: {{Arg1: Empty, Arg2: Empty, Result: Empty}},
-		Setup:    {{Arg1: Literal, Arg2: Empty, Result: Empty}},
-
-		// memory management and handling of variables or literals
-		AllocateVariable: {{Arg1: Empty, Arg2: Empty, Result: Variable}},
-		CopyLiteral:      {{Arg1: Literal, Arg2: Literal, Result: Temporary}},
-		LoadVariable:     {{Arg1: Variable, Arg2: Literal, Result: Temporary}},
-		StoreVariable:    {{Arg1: Temporary, Arg2: Literal, Result: Variable}},
-	}
 )
 
 // Create a new intermediate code unit and initialize it with a unique identifier.
 func newIntermediateCodeUnit() IntermediateCodeUnit {
 	return &intermediateCodeUnit{
-		Names:        make([]string, 0),
-		SymbolTable:  make(map[string]*Symbol),
+		Scope:        sym.NewScope(nil),
 		Instructions: list.New(),
 	}
-}
-
-// String representation of a datatype with its modifiers.
-func (dt DataType) String() string {
-	var prefix string
-
-	if dt.IsPointer() {
-		prefix = pointerPrefix
-	} else if dt.IsReference() {
-		prefix = referencePrefix
-	}
-
-	return fmt.Sprintf("%v%v", prefix, dataTypeNames[dt.AsPlain()])
 }
 
 // String representation of the three-address code address.
@@ -188,16 +150,16 @@ func (a *Address) String() string {
 		representation = fmt.Sprintf("%v", a.Variant)
 
 	case len(a.Name) > 0 && a.Value != nil:
-		representation = fmt.Sprintf("%v %v %v %v", a.Variant, a.DataType, a.Name, a.Value)
+		representation = fmt.Sprintf("%v %v %v %v", a.Variant, a.DataTypeName, a.Name, a.Value)
 
 	case len(a.Name) > 0:
-		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Name)
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataTypeName, a.Name)
 
 	case a.Value != nil:
-		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataType, a.Value)
+		representation = fmt.Sprintf("%v %v %v", a.Variant, a.DataTypeName, a.Value)
 
 	default:
-		representation = fmt.Sprintf("%v %v", a.Variant, a.DataType)
+		representation = fmt.Sprintf("%v %v", a.Variant, a.DataTypeName)
 	}
 
 	if len(representation) > maxWidth {
@@ -237,21 +199,13 @@ func (u *intermediateCodeUnit) GetIterator() Iterator {
 }
 
 // Insert a symbol into the intermediate code symbol table. If the symbol already exists, it will be overwritten.
-func (u *intermediateCodeUnit) Insert(symbol *Symbol) {
-	if u.Lookup(symbol.Name) == nil {
-		u.Names = append(u.Names, symbol.Name)
-	}
-
-	u.SymbolTable[symbol.Name] = symbol
+func (u *intermediateCodeUnit) Insert(symbol *sym.Symbol) {
+	u.Scope.Insert(symbol.Name, symbol)
 }
 
 // Lookup a symbol in the the intermediate code symbol table. If the symbol is not found, nil is returned.
-func (u *intermediateCodeUnit) Lookup(name string) *Symbol {
-	if symbol, ok := u.SymbolTable[name]; ok {
-		return symbol
-	}
-
-	return nil
+func (u *intermediateCodeUnit) Lookup(name string) *sym.Symbol {
+	return u.Scope.Lookup(name)
 }
 
 // Marshal the intermediate code unit to a JSON object because the JSON encoder does not support the "list.List" type directly.
@@ -346,11 +300,6 @@ func (u *intermediateCodeUnit) Export(format exp.ExportFormat, print io.Writer) 
 
 // Validate the set of addresses for a three-address code operation and return the index of the contract.
 func (q *Quadruple) ValidateAddressesContract() AddressesContract {
-	// validate each address in the quadruple
-	if !q.Arg1.Validate() || !q.Arg2.Validate() || !q.Result.Validate() {
-		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidIntermediateCodeAddress, q, nil))
-	}
-
 	// determine the contract for the operation
 	contract := intermediateCodeContract[q.Operation]
 
@@ -362,20 +311,6 @@ func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 	}
 
 	panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidAddressesContract, q, nil))
-}
-
-// Validate variants and data types for a three-address code address and return a boolean indicating whether the address is valid.
-func (a *Address) Validate() bool {
-	switch a.Variant {
-	case Empty:
-		return a.DataType.IsUntyped()
-
-	case Temporary, Literal, Variable:
-		return a.DataType.IsSupported()
-
-	default:
-		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, unexceptedVariantInIntermediateCodeAddress, a, nil))
-	}
 }
 
 // Get the instruction at the current position in the list.

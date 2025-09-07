@@ -7,9 +7,9 @@ package intermediate
 import (
 	"container/list"
 	"fmt"
-	"io"
 
 	exp "github.com/petersen65/pl0/v3/export"
+	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
 // Three-address code operations of the intermediate code.
@@ -69,39 +69,6 @@ const (
 	Variable                 // variable address holds a variable name and its data type
 )
 
-// Data type of an address in the three-address code concept.
-// The first 8 bits (0-7) are used for the plain data type, the next bits (8+) are used for modifiers.
-const (
-	// note: the order of the data types is important, do not change it without updating the code of the '(dataType DataType) Is*' methods
-	Untyped    DataType = iota // the address does not have a data type
-	Integer64                  // signed 64-bit integer
-	Integer32                  // signed 32-bit integer
-	Integer16                  // signed 16-bit integer
-	Integer8                   // signed 8-bit integer
-	Float64                    // signed IEEE 754 64-bit floating-point number
-	Float32                    // signed IEEE 754 32-bit floating-point number
-	Unsigned64                 // unsigned 64-bit integer
-	Unsigned32                 // unsigned 32-bit integer
-	Unsigned16                 // unsigned 16-bit integer
-	Unsigned8                  // unsigned 8-bit integer
-	Boolean                    // unsigned 8-bit boolean (0 or 1, false or true)
-	Character                  // Unicode code point (signed 32-bit integer, U+0000 ... U+10FFFF)
-	String                     // Encoded string (sequence of UTF encoded characters)
-)
-
-// Data type bit flags for pointer and reference modifiers (bits 8+).
-const (
-	Pointer   DataType = 1 << 8 // bit 8: pointer type (ptr T)
-	Reference DataType = 1 << 9 // bit 9: reference type (ref T)
-)
-
-// Kind of supported symbol entry in the intermediate code.
-const (
-	ConstantEntry Entry = iota
-	VariableEntry
-	FunctionEntry
-)
-
 type (
 	// Operation represents a three-address code operation in the quadruple.
 	Operation int
@@ -109,18 +76,12 @@ type (
 	// The variant type is used to distinguish between different kinds of addresses in the three-address code concept.
 	Variant int
 
-	// The data type of an address in the three-address code concept.
-	DataType int
-
-	// Kind of symbol entries with flattened names in the intermediate code.
-	Entry int
-
 	// Address is the data structure for an argument or a result in the three-address code concept.
 	Address struct {
-		Variant  Variant  `json:"variant"`   // variant of what the address represents
-		DataType DataType `json:"data_type"` // data type of the address
-		Name     string   `json:"name"`      // name of an address
-		Value    any      `json:"value"`     // value of the address
+		Variant      Variant `json:"variant"`        // variant of what the address represents
+		DataTypeName string  `json:"data_type_name"` // data type of the address
+		Name         string  `json:"name"`           // name of an address
+		Value        any     `json:"value"`          // value of the address
 	}
 
 	// Quadruple represents a single three-address code operation with its three addresses (arg1, arg2, result).
@@ -144,30 +105,20 @@ type (
 		TokenStreamIndex int        `json:"token_stream_index"` // index of the token in the token stream
 	}
 
-	// A symbol is a data structure that stores all necessary information related to a declared identifier in the intermediate code.
-	// A declared identifier in the intermediate code has a flattened name and was derived from an identifier in the abstract syntax tree.
-	Symbol struct {
-		Name       string        `json:"name"`      // flattened name in the intermediate code
-		Kind       Entry         `json:"kind"`      // kind of symbol entry
-		DataType   DataType      `json:"data_type"` // data type of the symbol
-		Definition *list.Element `json:"-"`         // instruction where the symbol is defined
-	}
-
 	// A symbol table is a collection of symbols that can be used to look up names and their associated information.
 	SymbolTable interface {
-		Insert(symbol *Symbol)
-		Lookup(name string) *Symbol
+		Insert(symbol *sym.Symbol)
+		Lookup(name string) *sym.Symbol
 	}
 
 	// IntermediateCodeUnit represents a logical unit of instructions created from one source file.
 	// It manages a list of instructions and a symbol table with all declared identifiers in this unit of the intermediate code.
 	IntermediateCodeUnit interface {
 		SymbolTable
+		exp.Exporter
 		AppendInstruction(operation Operation, arg1, arg2, result *Address, tokenStreamIndex int) *list.Element
 		AppendExistingInstruction(instruction *Instruction) *list.Element
 		GetIterator() Iterator
-		Print(print io.Writer, args ...any) error
-		Export(format exp.ExportFormat, print io.Writer) error
 	}
 
 	// The iterator interface provides navigation methods for the units's intermediate code instructions.
@@ -193,23 +144,18 @@ func NewInstruction(operation Operation, arg1, arg2, result *Address, tokenStrea
 }
 
 // Create a new three-address code temporary address.
-func NewTemporaryAddress(dataType DataType, name string) *Address {
-	return &Address{Variant: Temporary, DataType: dataType, Name: name}
+func NewTemporaryAddress(dataTypeName string, name string) *Address {
+	return &Address{Variant: Temporary, DataTypeName: dataTypeName, Name: name}
 }
 
 // Create a new three-address code literal address.
-func NewLiteralAddress(dataType DataType, value any) *Address {
-	return &Address{Variant: Literal, DataType: dataType, Value: value}
+func NewLiteralAddress(dataTypeName string, value any) *Address {
+	return &Address{Variant: Literal, DataTypeName: dataTypeName, Value: value}
 }
 
 // Create a new three-address code variable address.
-func NewVariableAddress(dataType DataType, name string) *Address {
-	return &Address{Variant: Variable, DataType: dataType, Name: name}
-}
-
-// Create new symbol for the intermediate code.
-func NewSymbol(name string, kind Entry, dataType DataType) *Symbol {
-	return &Symbol{Name: name, Kind: kind, DataType: dataType}
+func NewVariableAddress(dataTypeName string, name string) *Address {
+	return &Address{Variant: Variable, DataTypeName: dataTypeName, Name: name}
 }
 
 // String representation of a variant.
@@ -226,89 +172,4 @@ func (o Operation) String() string {
 func (i *Instruction) String() string {
 	const tokenStreamIndexWidth = 6
 	return fmt.Sprintf("%*v    %v", tokenStreamIndexWidth, i.TokenStreamIndex, i.Quadruple)
-}
-
-// Return the plain data type without modifiers.
-func (dt DataType) AsPlain() DataType {
-	return dt & 0xFF
-}
-
-// Check whether the data type is a plain data type without modifiers.
-func (dt DataType) IsPlain() bool {
-	return dt == dt.AsPlain()
-}
-
-// Return the plain data type with a pointer modifier.
-func (dt DataType) AsPointer() DataType {
-	return dt.AsPlain() | Pointer
-}
-
-// Check whether the data type is a pointer type.
-func (dt DataType) IsPointer() bool {
-	return dt&Pointer != 0
-}
-
-// Return the plain data type with a reference modifier.
-func (dt DataType) AsReference() DataType {
-	return dt.AsPlain() | Reference
-}
-
-// Check whether the data type is a reference type.
-func (dt DataType) IsReference() bool {
-	return dt&Reference != 0
-}
-
-// Check whether the data type is untyped.
-func (dt DataType) IsUntyped() bool {
-	return dt.AsPlain() == Untyped
-}
-
-// Supported data types for symbol entries, temporaries, literals, and variables.
-func (dt DataType) IsSupported() bool {
-	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= String
-}
-
-// Check whether the data type has a signed representation.
-func (dt DataType) IsSigned() bool {
-	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Float32
-}
-
-// Check whether the data type has an unsigned representation.
-func (dt DataType) IsUnsigned() bool {
-	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Boolean
-}
-
-// Check whether the data type is a signed integer.
-func (dt DataType) IsSignedInteger() bool {
-	return dt.AsPlain() >= Integer64 && dt.AsPlain() <= Integer8
-}
-
-// Check whether the data type is an unsigned integer.
-func (dt DataType) IsUnsignedInteger() bool {
-	return dt.AsPlain() >= Unsigned64 && dt.AsPlain() <= Unsigned8
-}
-
-// Check whether the data type is an integer.
-func (dt DataType) IsInteger() bool {
-	return dt.IsSignedInteger() || dt.IsUnsignedInteger()
-}
-
-// Check whether the data type is a floating point number.
-func (dt DataType) IsFloatingPoint() bool {
-	return dt.AsPlain() == Float64 || dt == Float32
-}
-
-// Check whether the data type is a boolean.
-func (dt DataType) IsBoolean() bool {
-	return dt.AsPlain() == Boolean
-}
-
-// Check whether the data type is a character.
-func (dt DataType) IsCharacter() bool {
-	return dt.AsPlain() == Character
-}
-
-// Check whether the data type is a string.
-func (dt DataType) IsString() bool {
-	return dt.AsPlain() == String
 }
