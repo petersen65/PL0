@@ -18,8 +18,11 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// Abstract syntax extension for the symbol.
-const symbolExtension sym.ExtensionType = 16
+// Intermediate code extension for each symbol from the abstract syntax tree.
+const intermediateCodeExtension sym.ExtensionType = 16
+
+// Generator extension for each symbol from the intermediate code unit.
+const generatorExtension sym.ExtensionType = 32
 
 // Prefixes for address names in the three-address code concept.
 const (
@@ -62,24 +65,7 @@ type (
 )
 
 var (
-	// Map abstract syntax data types to intermediate code data types (intentially their type systems are kept separate).
-	dataTypeMap = map[ts.PrimitiveDataType]ic.DataType{
-		ts.Integer64:  ic.Integer64,
-		ts.Integer32:  ic.Integer32,
-		ts.Integer16:  ic.Integer16,
-		ts.Integer8:   ic.Integer8,
-		ts.Float64:    ic.Float64,
-		ts.Float32:    ic.Float32,
-		ts.Unsigned64: ic.Unsigned64,
-		ts.Unsigned32: ic.Unsigned32,
-		ts.Unsigned16: ic.Unsigned16,
-		ts.Unsigned8:  ic.Unsigned8,
-		ts.Boolean:    ic.Boolean,
-		ts.Character:  ic.Character,
-		ts.String:     ic.String,
-	}
-
-	// Map UTF string encodings to their abstract syntax string base data type.
+	// Map UTF string encodings to their type system string base data type.
 	stringBaseTypeMap = map[plt.StringEncoding]ts.PrimitiveDataType{
 		plt.UTF8:  ts.Unsigned8,
 		plt.UTF16: ts.Unsigned16,
@@ -96,7 +82,7 @@ var (
 	}
 
 	// NoAddress represents an unused address in the three-address code concept.
-	noAddress = &ic.Address{Variant: ic.Empty, DataType: ic.Untyped}
+	noAddress = &ic.Address{Variant: ic.Empty}
 )
 
 // Create a new intermediate code generator.
@@ -167,7 +153,7 @@ func (g *generator) VisitBlock(b ast.Block) {
 			ic.BranchTarget, // target for any branching operation
 			noAddress,
 			noAddress,
-			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			ic.NewLiteralAddress(ts.String.String(), blockBegin), // branch target label
 			b.Index()) // block node in the token stream (first declaration or statement in the block)
 	} else {
 		// take the flattened name of the function declaration as the branch target label
@@ -179,18 +165,18 @@ func (g *generator) VisitBlock(b ast.Block) {
 			ic.BranchTarget, // target for any branching operation
 			noAddress,
 			noAddress,
-			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			ic.NewLiteralAddress(ts.String.String(), blockBegin), // branch target label
 			b.Index()) // block node in the token stream (first declaration or statement in the block)
 
 		// update intermediate code function symbol with the instruction that marks the beginning of the block
 		codeSymbol := g.intermediateCode.Lookup(blockBegin)
-		codeSymbol.Definition = element
+		codeSymbol.Extension[generatorExtension] = element
 	}
 
 	// create entry sequence for the block
 	g.intermediateCode.AppendInstruction(
 		ic.Prologue, // function entry sequence
-		ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+		ic.NewLiteralAddress(ts.String.String(), blockBegin), // branch target label
 		noAddress,
 		noAddress,
 		b.Index()) // block node in the token stream (first declaration or statement in the block)
@@ -200,7 +186,7 @@ func (g *generator) VisitBlock(b ast.Block) {
 		ic.AllocateVariable, // allocate memory for the static link variable
 		noAddress,
 		noAddress,
-		ic.NewVariableAddress(ic.Unsigned64, staticLinkSymbol),
+		ic.NewVariableAddress(ts.Unsigned64.String(), staticLinkSymbol),
 		b.Index()) // block node in the token stream (first declaration or statement in the block)
 
 	// all declarations except blocks of nested function declarations
@@ -213,7 +199,7 @@ func (g *generator) VisitBlock(b ast.Block) {
 	// initialize the memory space and internal data structures for the block
 	g.intermediateCode.AppendInstruction(
 		ic.Setup, // setup of function call before the statement of the block is generated
-		ic.NewLiteralAddress(ic.Integer32, b.Depth), // block nesting depth
+		ic.NewLiteralAddress(ts.Integer32.String(), b.Depth), // block nesting depth
 		noAddress,
 		noAddress,
 		b.Statement().Index()) // block node in the token stream (first statement in the block)
@@ -240,15 +226,15 @@ func (g *generator) VisitBlock(b ast.Block) {
 		// create a copy-literal instruction to store the return value in a temporary
 		copyLiteral := ic.NewInstruction(
 			ic.CopyLiteral, // copy the value of the literal to a temporary
-			ic.NewLiteralAddress(ic.Integer64, returnValue),                             // literal value for the return value
-			ic.NewLiteralAddress(ic.String, b.UniqueName(prefix[labelPrefix])),          // new literal data label as source
-			ic.NewTemporaryAddress(ic.Integer64, b.UniqueName(prefix[temporaryPrefix])), // temporary as destination
+			ic.NewLiteralAddress(ts.Integer64.String(), returnValue),                             // literal value for the return value
+			ic.NewLiteralAddress(ts.String.String(), b.UniqueName(prefix[labelPrefix])),          // new literal data label as source
+			ic.NewTemporaryAddress(ts.Integer64.String(), b.UniqueName(prefix[temporaryPrefix])), // temporary as destination
 			indexEnd) // block node in the token stream (only applicable if the statement is a compound statement)
 
 		// return from the main block with a final result
 		returnFromMain := ic.NewInstruction(
 			ic.Return, // return from the main block
-			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			ic.NewLiteralAddress(ts.String.String(), blockBegin), // branch target label
 			noAddress,
 			copyLiteral.Quadruple.Result, // temporary with the return value
 			indexEnd)                     // block node in the token stream (only applicable if the statement is a compound statement)
@@ -260,7 +246,7 @@ func (g *generator) VisitBlock(b ast.Block) {
 		// return from other blocks
 		g.intermediateCode.AppendInstruction(
 			ic.Return, // return from the block
-			ic.NewLiteralAddress(ic.String, blockBegin), // branch target label
+			ic.NewLiteralAddress(ts.String.String(), blockBegin), // branch target label
 			noAddress,
 			noAddress, // no return value
 			indexEnd)  // block node in the token stream (only applicable if the statement is a compound statement)
@@ -288,7 +274,7 @@ func (g *generator) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 	codeSymbol := g.intermediateCode.Lookup(codeName)
 
 	// append allocate instruction to the unit and set it as definition for the intermediate code variable
-	codeSymbol.Definition = g.intermediateCode.AppendInstruction(
+	codeSymbol.Extension[generatorExtension] = g.intermediateCode.AppendInstruction(
 		ic.AllocateVariable, // allocate memory for the variable in its memory space
 		noAddress,
 		noAddress,
@@ -817,33 +803,51 @@ func (g *generator) popResult() *ic.Address {
 	return result.Value.(*ic.Address)
 }
 
-// Configure abstract syntax extensions and fill the symbol table of the intermediate code unit. This is a visit function.
+// This is a visit function. Configure intermediate code extensions for abstract syntax declarations and fill the symbol table of the intermediate code unit.
 func configureSymbols(node ast.Node, code any) {
 	unit := code.(ic.IntermediateCodeUnit)
 
-	switch n := node.(type) {
-	case ast.ConstantDeclaration:
-		name := n.CurrentBlock().UniqueName(prefix[constantPrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		unit.Insert(ic.NewSymbol(name, ic.ConstantEntry, dataTypeMap[n.DataType]))
+	// safely switch on the kind of the node and then cast it to the appropriate declaration kind
+	switch node.Kind() {
+	case ast.KindConstantDeclaration:
+		cd := node.(ast.ConstantDeclaration)
 
-		if !dataTypeMap[n.DataType].IsSupported() {
-			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unsupportedDataTypeInConstantDeclaration, n, nil))
+		// create the intermediate code name of the abstract syntax constant declaration
+		name := cd.CurrentBlock().UniqueName(prefix[constantPrefix])
+
+		// store the intermediate code name in the abstract syntax constant declaration symbol extension
+		cd.Symbol().Extension[intermediateCodeExtension] = newSymbolMetaData(name)
+
+		// insert a new constant symbol for each abstract syntax declaration into the intermediate code symbol table
+		unit.Insert(sym.NewSymbol(name, sym.ConstantEntry, cd.Symbol().DataType, nil))
+
+	case ast.KindVariableDeclaration:
+		vd := node.(ast.VariableDeclaration)
+
+		// create the intermediate code name of the abstract syntax variable declaration
+		name := vd.CurrentBlock().UniqueName(prefix[variablePrefix])
+
+		// store the intermediate code name in the abstract syntax variable declaration symbol extension
+		vd.Symbol().Extension[intermediateCodeExtension] = newSymbolMetaData(name)
+
+		// insert a new variable symbol for each abstract syntax declaration into the intermediate code symbol table
+		unit.Insert(sym.NewSymbol(name, sym.VariableEntry, vd.Symbol().DataType, nil))
+
+	case ast.KindFunctionDeclaration:
+		fd := node.(ast.FunctionDeclaration)
+
+		// create the intermediate code name of the abstract syntax function declaration
+		name := fd.CurrentBlock().UniqueName(prefix[functionPrefix])
+
+		// store the intermediate code name in the abstract syntax function declaration symbol extension
+		fd.Symbol().Extension[intermediateCodeExtension] = newSymbolMetaData(name)
+
+		// insert a new function symbol for each abstract syntax declaration into the intermediate code symbol table
+		if fd.IsFunction() {
+			unit.Insert(sym.NewSymbol(name, sym.FunctionEntry, fd.Symbol().DataType, nil))
+		} else {
+			unit.Insert(sym.NewSymbol(name, sym.ProcedureEntry, fd.Symbol().DataType, nil))
 		}
-
-	case ast.VariableDeclaration:
-		name := n.CurrentBlock().UniqueName(prefix[variablePrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		unit.Insert(ic.NewSymbol(name, ic.VariableEntry, dataTypeMap[n.DataType]))
-
-		if !dataTypeMap[n.DataType].IsSupported() {
-			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unsupportedDataTypeInVariableDeclaration, n, nil))
-		}
-
-	case ast.FunctionDeclaration:
-		name := n.CurrentBlock().UniqueName(prefix[functionPrefix])
-		n.Scope.LookupCurrent(n.Name).Extension[symbolExtension] = newSymbolMetaData(name)
-		unit.Insert(ic.NewSymbol(name, ic.FunctionEntry, ic.Untyped))
 	}
 }
 
@@ -873,7 +877,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
 
 			// take the flattened name from intermediate code as the function name
-			function = n.Scope.Lookup(pd.Name).Extension[symbolExtension].(*symbolMetaData).name
+			function = n.Scope.Lookup(pd.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
 
 			// take the abstract syntax procedure declaration name as the function source name
 			functionSource = pd.Name
@@ -889,7 +893,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 				switch dn := declaration.(type) {
 				case ast.ConstantDeclaration:
 					// determine the intermediate code name of the abstract syntax constant declaration
-					name := dn.Scope.LookupCurrent(dn.Name).Extension[symbolExtension].(*symbolMetaData).name
+					name := dn.Scope.LookupCurrent(dn.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
 
 					// take the abstract syntax constant declaration name as the constant source name
 					nameSource := dn.Name
@@ -904,7 +908,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 
 				case ast.VariableDeclaration:
 					// determine the intermediate code name of the abstract syntax variable declaration
-					name := dn.Scope.LookupCurrent(dn.Name).Extension[symbolExtension].(*symbolMetaData).name
+					name := dn.Scope.LookupCurrent(dn.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
 
 					// take the abstract syntax variable declaration name as the variable source name
 					nameSource := dn.Name
@@ -962,7 +966,12 @@ func appendStringDataType(stringEncoding plt.StringEncoding, debugInformation db
 	debugInformation.AppendMember(stringType.Name(), stringDataMemberName, stringDataMemberName, stringEncodingPointerType)
 }
 
-// Get the intermediate code name from an abstract syntax declaration symbol. The name is flattened and unique within the intermediate code unit.
+// Set the intermediate code name for an abstract syntax symbol. The name is flattened and unique within the intermediate code unit.
+func setIntermediateCodeName(symbol *sym.Symbol, name string) {
+	symbol.Extension[intermediateCodeExtension] = newSymbolMetaData(name)
+}
+
+// Get the intermediate code name from an abstract syntax symbol. The name is flattened and unique within the intermediate code unit.
 func getIntermediateCodeName(symbol *sym.Symbol) string {
-	return symbol.Extension[symbolExtension].(*symbolMetaData).name
+	return symbol.Extension[intermediateCodeExtension].(*symbolMetaData).name
 }
