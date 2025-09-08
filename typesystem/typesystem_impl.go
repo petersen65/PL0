@@ -89,7 +89,6 @@ var (
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
-				Bit:        0,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -105,7 +104,6 @@ var (
 				String:     16,
 			},
 			TypeAlignments: map[PrimitiveDataType]int{
-				Bit:        1,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -128,7 +126,6 @@ var (
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
-				Bit:        0,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -144,7 +141,6 @@ var (
 				String:     16,
 			},
 			TypeAlignments: map[PrimitiveDataType]int{
-				Bit:        1,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -167,7 +163,6 @@ var (
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
-				Bit:        0,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -183,7 +178,6 @@ var (
 				String:     16,
 			},
 			TypeAlignments: map[PrimitiveDataType]int{
-				Bit:        1,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -206,7 +200,6 @@ var (
 			PointerSize:      8,
 			PointerAlignment: 8,
 			TypeSizes: map[PrimitiveDataType]int{
-				Bit:        0,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,
@@ -222,7 +215,6 @@ var (
 				String:     16,
 			},
 			TypeAlignments: map[PrimitiveDataType]int{
-				Bit:        1,
 				Integer8:   1,
 				Integer16:  2,
 				Integer32:  4,

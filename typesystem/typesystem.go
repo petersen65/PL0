@@ -8,8 +8,7 @@ import plt "github.com/petersen65/pl0/v3/platform"
 
 // Primitive data types that are built-in and cannot be further refined.
 const (
-	Bit        PrimitiveDataType = iota // single bit that the compiler packs into bytes, words, longs, or quad words
-	Integer64                           // signed 64-bit integer
+	Integer64  PrimitiveDataType = iota // signed 64-bit integer
 	Integer32                           // signed 32-bit integer
 	Integer16                           // signed 16-bit integer
 	Integer8                            // signed 8-bit integer

@@ -137,9 +137,6 @@ func (s *scope) IterateCurrent() <-chan *Symbol {
 
 // Setup all built-in symbols for the scope.
 func (s *scope) setupBuiltInSymbols() {
-	bitType := ts.NewSimpleTypeDescriptor(ts.Bit)
-	s.Insert(bitType.String(), NewSymbol(bitType.String(), DataTypeEntry, bitType, nil))
-
 	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64)
 	s.Insert(int64Type.String(), NewSymbol(int64Type.String(), DataTypeEntry, int64Type, nil))
 
