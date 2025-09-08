@@ -278,7 +278,7 @@ func (g *generator) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 		ic.AllocateVariable, // allocate memory for the variable in its memory space
 		noAddress,
 		noAddress,
-		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
+		ic.NewVariableAddress(codeSymbol.DataType.String(), codeSymbol.Name), // variable with flat unique name
 		vd.Index()) // variable declaration in the token stream
 }
 
@@ -297,7 +297,7 @@ func (g *generator) VisitLiteralUse(ln ast.LiteralUse) {
 	instruction := ic.NewInstruction(
 		ic.CopyLiteral, // copy the value of the literal to a temporary
 		ic.NewLiteralAddress(dataTypeMap[ln.DataType], ln.Value),                                 // literal value
-		ic.NewLiteralAddress(ic.String, cb.UniqueName(prefix[labelPrefix])),                      // new literal data label as source
+		ic.NewLiteralAddress(ts.String.String(), cb.UniqueName(prefix[labelPrefix])),             // new literal data label as source
 		ic.NewTemporaryAddress(dataTypeMap[ln.DataType], cb.UniqueName(prefix[temporaryPrefix])), // temporary as destination
 		ln.Index()) // literal use in the token stream
 
@@ -325,9 +325,9 @@ func (g *generator) VisitIdentifierUse(iu ast.IdentifierUse) {
 		// create a copy-literal instruction to store the constant value in a temporary
 		instruction := ic.NewInstruction(
 			ic.CopyLiteral, // copy the value of the constant to a temporary
-			ic.NewLiteralAddress(dataTypeMap[constantDeclaration.DataType], constantDeclaration.Value), // literal value
-			ic.NewLiteralAddress(ic.String, cb.UniqueName(prefix[labelPrefix])),                        // new literal data label as source
-			ic.NewTemporaryAddress(codeSymbol.DataType, cb.UniqueName(prefix[temporaryPrefix])),        // temporary as destination
+			ic.NewLiteralAddress(codeSymbol.DataType.String(), constantDeclaration.Value),                // literal value
+			ic.NewLiteralAddress(ts.String.String(), cb.UniqueName(prefix[labelPrefix])),                 // new literal data label as source
+			ic.NewTemporaryAddress(codeSymbol.DataType.String(), cb.UniqueName(prefix[temporaryPrefix])), // temporary as destination
 			iu.Index()) // constant use in the token stream
 
 		// push the temporary onto the results-list and append the instruction to the intermediate code unit
@@ -359,9 +359,9 @@ func (g *generator) VisitIdentifierUse(iu ast.IdentifierUse) {
 		// create a load-variable instruction to load the variable value into a temporary
 		instruction := ic.NewInstruction(
 			ic.LoadVariable, // load the value of the variable into a temporary
-			ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name),                         // variable with flat unique name
-			ic.NewLiteralAddress(ic.Integer32, depthDifference),                                 // block nesting depth difference
-			ic.NewTemporaryAddress(codeSymbol.DataType, cb.UniqueName(prefix[temporaryPrefix])), // the resulting temporary
+			ic.NewVariableAddress(codeSymbol.DataType.String(), codeSymbol.Name),                         // variable with flat unique name
+			ic.NewLiteralAddress(ts.Integer32.String(), depthDifference),                                 // block nesting depth difference
+			ic.NewTemporaryAddress(codeSymbol.DataType.String(), cb.UniqueName(prefix[temporaryPrefix])), // the resulting temporary
 			iu.Index()) // variable use in the token stream
 
 		// push the temporary onto the results-list and append the instruction to the intermediate code unit
@@ -535,8 +535,8 @@ func (g *generator) VisitAssignmentStatement(s ast.AssignmentStatement) {
 	g.intermediateCode.AppendInstruction(
 		ic.StoreVariable, // store the resultant value from the right-hand-side expression in the variable on the left-hand-side of the assignment
 		right,            // consumed right-hand-side result
-		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
-		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
+		ic.NewLiteralAddress(ts.Integer32.String(), depthDifference),         // block nesting depth difference
+		ic.NewVariableAddress(codeSymbol.DataType.String(), codeSymbol.Name), // variable with flat unique name
 		s.Index()) // assignment statement in the token stream
 }
 
@@ -567,17 +567,17 @@ func (g *generator) VisitReadStatement(s ast.ReadStatement) {
 	// append the instruction to the intermediate code unit
 	call := ic.NewInstruction(
 		ic.Call, // call the read standard function with one return value
-		ic.NewLiteralAddress(ic.String, readStatementSymbol),                                // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)),                                        // block nesting depth difference ignored for standard functions
-		ic.NewTemporaryAddress(codeSymbol.DataType, cb.UniqueName(prefix[temporaryPrefix])), // the standard function result
+		ic.NewLiteralAddress(ts.String.String(), readStatementSymbol),                                // label of standard function to call
+		ic.NewLiteralAddress(ts.Integer32.String(), int32(0)),                                        // block nesting depth difference ignored for standard functions
+		ic.NewTemporaryAddress(codeSymbol.DataType.String(), cb.UniqueName(prefix[temporaryPrefix])), // the standard function result
 		s.Index()) // call statement in the token stream
 
 	// store the resultant value into the variable used by the read statement
 	store := ic.NewInstruction(
 		ic.StoreVariable,      // store the value of the standard function result into a variable
 		call.Quadruple.Result, // standard function resultant value
-		ic.NewLiteralAddress(ic.Integer32, depthDifference),         // block nesting depth difference
-		ic.NewVariableAddress(codeSymbol.DataType, codeSymbol.Name), // variable with flat unique name
+		ic.NewLiteralAddress(ts.Integer32.String(), depthDifference),         // block nesting depth difference
+		ic.NewVariableAddress(codeSymbol.DataType.String(), codeSymbol.Name), // variable with flat unique name
 		s.Index()) // read statement in the token stream
 
 	// append the instructions to the intermediate code unit
@@ -602,8 +602,8 @@ func (g *generator) VisitWriteStatement(s ast.WriteStatement) {
 	// append the instruction to the intermediate code unit
 	g.intermediateCode.AppendInstruction(
 		ic.Call, // call the write standard function with one parameter
-		ic.NewLiteralAddress(ic.String, writeStatementSymbol), // label of standard function to call
-		ic.NewLiteralAddress(ic.Integer32, int32(0)),          // block nesting depth difference ignored for standard functions
+		ic.NewLiteralAddress(ts.String.String(), writeStatementSymbol), // label of standard function to call
+		ic.NewLiteralAddress(ts.Integer32.String(), int32(0)),          // block nesting depth difference ignored for standard functions
 		noAddress,
 		s.Index()) // call statement in the token stream
 }
@@ -629,8 +629,8 @@ func (g *generator) VisitCallStatement(s ast.CallStatement) {
 	// append the instruction to the intermediate code unit
 	g.intermediateCode.AppendInstruction(
 		ic.Call, // call to an intermediate code function
-		ic.NewLiteralAddress(ic.String, codeName),           // label of intermediate code function to call
-		ic.NewLiteralAddress(ic.Integer32, depthDifference), // block nesting depth difference
+		ic.NewLiteralAddress(ts.String.String(), codeName),           // label of intermediate code function to call
+		ic.NewLiteralAddress(ts.Integer32.String(), depthDifference), // block nesting depth difference
 		noAddress,
 		s.Index()) // call statement in the token stream
 }
@@ -654,7 +654,7 @@ func (g *generator) VisitIfStatement(s ast.IfStatement) {
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
-		ic.NewLiteralAddress(ic.String, behindStatement), // behind if-then statement
+		ic.NewLiteralAddress(ts.String.String(), behindStatement), // behind if-then statement
 		s.Index()) // if-then statement in the token stream
 }
 
@@ -670,7 +670,7 @@ func (g *generator) VisitWhileStatement(s ast.WhileStatement) {
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
-		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
+		ic.NewLiteralAddress(ts.String.String(), beforeCondition), // before while-do condition expression
 		s.Index()) // before while-do statement condition expression in the token stream
 
 	// calculate the result of the condition expression
@@ -687,7 +687,7 @@ func (g *generator) VisitWhileStatement(s ast.WhileStatement) {
 		ic.Jump, // jump back to the condition expression
 		noAddress,
 		noAddress,
-		ic.NewLiteralAddress(ic.String, beforeCondition), // before while-do condition expression
+		ic.NewLiteralAddress(ts.String.String(), beforeCondition), // before while-do condition expression
 		s.Index()) // end of while-do statement in the token stream
 
 	// append a branch-target instruction behind the statement instructions
@@ -695,7 +695,7 @@ func (g *generator) VisitWhileStatement(s ast.WhileStatement) {
 		ic.BranchTarget, // target for any branching operation
 		noAddress,
 		noAddress,
-		ic.NewLiteralAddress(ic.String, behindStatement), // behind while-do statement
+		ic.NewLiteralAddress(ts.String.String(), behindStatement), // behind while-do statement
 		s.Index()) // behind while-do statement in the token stream
 }
 
@@ -710,7 +710,7 @@ func (g *generator) VisitCompoundStatement(s ast.CompoundStatement) {
 // Conditional jump instruction based on an expression that must be a unary or comparison operation node.
 func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition bool, label string) {
 	var jump *ic.Instruction
-	address := ic.NewLiteralAddress(ic.String, label)
+	address := ic.NewLiteralAddress(ts.String.String(), label)
 
 	// odd operation or comparison operations are valid for conditional jumps
 	switch condition := expression.(type) {
@@ -851,7 +851,7 @@ func configureSymbols(node ast.Node, code any) {
 	}
 }
 
-// Collect the debug string table from the abstract syntax tree and store it as debug information.
+// This is a visit function. Collect the debug string table from the abstract syntax tree and store it as debug information.
 func collectDebugStringTable(node ast.Node, code any) {
 	var function, functionSource string
 	var global, entryPoint bool
@@ -859,68 +859,78 @@ func collectDebugStringTable(node ast.Node, code any) {
 	info := code.(dbg.DebugInformation)
 
 	// only process block nodes from the abstract syntax tree
-	if n, ok := node.(*ast.BlockNode); ok {
-		// only the main block has no parent procedure declaration
-		if n.ParentNode == nil {
-			// take the entry point label as the function name and the function source name
-			function = plt.EntryPointLabel
-			functionSource = plt.EntryPointLabel
+	if node.Kind() != ast.KindBlock {
+		return
+	}
 
-			// only the entry point is marked as global
-			global = true
-			entryPoint = true
+	// now safely cast the node to a block node
+	block := node.(ast.Block)
 
-			// token stream index of the main block
-			tokenStreamIndex = n.Index()
-		} else {
-			// treat the parent node as a procedure declaration
-			pd := n.ParentNode.(*ast.ProcedureDeclarationNode)
+	// only the main block has no parent function declaration
+	if block.IsRootBlock() {
+		// take the entry point label as the function name and the function source name
+		function = plt.EntryPointLabel
+		functionSource = plt.EntryPointLabel
 
-			// take the flattened name from intermediate code as the function name
-			function = n.Scope.Lookup(pd.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
+		// only the entry point is marked as global
+		global = true
+		entryPoint = true
 
-			// take the abstract syntax procedure declaration name as the function source name
-			functionSource = pd.Name
+		// token stream index of the main block
+		tokenStreamIndex = block.Index()
+	} else {
+		// treat the parent node as a function declaration
+		fd := block.Function()
 
-			// token stream index of the procedure declaration
-			tokenStreamIndex = pd.TokenStreamIndex
-		}
+		// take the flattened name from intermediate code as the function name
+		function = getIntermediateCodeName(fd.Symbol())
 
-		// append the function to the debug information
-		if info.AppendFunction(function, functionSource, global, entryPoint, tokenStreamIndex) {
-			// append all constant declarations and variable declarations of the function to the debug information
-			for _, declaration := range n.Declarations {
-				switch dn := declaration.(type) {
-				case ast.ConstantDeclaration:
-					// determine the intermediate code name of the abstract syntax constant declaration
-					name := dn.Scope.LookupCurrent(dn.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
+		// take the abstract syntax function declaration name as the function source name
+		functionSource = fd.Name()
 
-					// take the abstract syntax constant declaration name as the constant source name
-					nameSource := dn.Name
+		// token stream index of the function declaration
+		tokenStreamIndex = fd.Index()
+	}
 
-					// extract the data type name of the constant from intermediate code and abstract syntax
-					dataTypeName := dataTypeMap[dn.DataType].String()
-					dataTypeNameSource := dn.DataType.String()
+	// append the function to the debug information
+	if info.AppendFunction(function, functionSource, global, entryPoint, tokenStreamIndex) {
+		// append all constant declarations and variable declarations of the function to the debug information
+		for _, declaration := range block.Declarations() {
+			// safely switch on the kind of the node and then cast it to the appropriate declaration kind
+			switch declaration.Kind() {
+			case ast.KindConstantDeclaration:
+				cd := declaration.(ast.ConstantDeclaration)
 
-					// append the local constant of the function to the debug information
-					constantType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
-					info.AppendConstant(function, functionSource, name, nameSource, constantType, dn.Value, dn.TokenStreamIndex)
+				// determine the intermediate code name of the abstract syntax constant declaration
+				name := getIntermediateCodeName(cd.Symbol())
 
-				case ast.VariableDeclaration:
-					// determine the intermediate code name of the abstract syntax variable declaration
-					name := dn.Scope.LookupCurrent(dn.Name).Extension[intermediateCodeExtension].(*symbolMetaData).name
+				// take the abstract syntax constant declaration name as the constant source name
+				nameSource := cd.Name()
 
-					// take the abstract syntax variable declaration name as the variable source name
-					nameSource := dn.Name
+				// extract the data type name of the constant from intermediate code and abstract syntax
+				dataTypeName := cd.DataTypeName()
+				dataTypeNameSource := cd.DataTypeName()
 
-					// extract the data type name of the variable from intermediate code and abstract syntax
-					dataTypeName := dataTypeMap[dn.DataType].String()
-					dataTypeNameSource := dn.DataType.String()
+				// append the local constant of the function to the debug information
+				constantType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
+				info.AppendConstant(function, functionSource, name, nameSource, constantType, cd.Value, cd.Index())
 
-					// append the local variable of the function to the debug information
-					variableType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
-					info.AppendVariable(function, functionSource, name, nameSource, variableType, dn.TokenStreamIndex)
-				}
+			case ast.KindVariableDeclaration:
+				vd := declaration.(ast.VariableDeclaration)
+
+				// determine the intermediate code name of the abstract syntax variable declaration
+				name := getIntermediateCodeName(vd.Symbol())
+
+				// take the abstract syntax variable declaration name as the variable source name
+				nameSource := vd.Name()
+
+				// extract the data type name of the variable from intermediate code and abstract syntax
+				dataTypeName := vd.DataTypeName()
+				dataTypeNameSource := vd.DataTypeName()
+
+				// append the local variable of the function to the debug information
+				variableType := dbg.NewSimpleDataType(dataTypeName, dataTypeNameSource)
+				info.AppendVariable(function, functionSource, name, nameSource, variableType, vd.Index())
 			}
 		}
 	}
