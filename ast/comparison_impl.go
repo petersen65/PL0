@@ -3,14 +3,18 @@
 
 package ast
 
-import eh "github.com/petersen65/pl0/v3/errors"
+import (
+	eh "github.com/petersen65/pl0/v3/errors"
+	ts "github.com/petersen65/pl0/v3/typesystem"
+)
 
 // The comparison operation node represents a comparison operation in the abstract syntax tree.
 type comparisonOperationNode struct {
-	expressionNode                         // embedded expression node
-	ComparisonOperation ComparisonOperator `json:"operation"` // comparison operation
-	ComparisonLeft      Expression         `json:"left"`      // left operand of the comparison operation
-	ComparisonRight     Expression         `json:"right"`     // right operand of the comparison operation
+	expressionNode                    // embedded expression node
+	DataType_      ts.TypeDescriptor  `json:"data_type"`            // data type of the comparison operation (always boolean if operands are valid)
+	Operation_     ComparisonOperator `json:"comparison_operation"` // comparison operation
+	Left_          Expression         `json:"left_operand"`         // left operand of the comparison operation
+	Right_         Expression         `json:"right_operand"`        // right operand of the comparison operation
 }
 
 // Formats for the string representation of comparison operation nodes.
@@ -30,9 +34,10 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 			commonNode:       commonNode{NodeKind: KindComparisonOperation},
 			TokenStreamIndex: index,
 		},
-		ComparisonOperation: operation,
-		ComparisonLeft:      left,
-		ComparisonRight:     right,
+		DataType_:  ts.NewSimpleTypeDescriptor(ts.Boolean),
+		Operation_: operation,
+		Left_:      left,
+		Right_:     right,
 	}
 
 	left.SetParent(comparisonNode)
@@ -42,17 +47,17 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 
 // Children nodes of the comparison operation node.
 func (e *comparisonOperationNode) Children() []Node {
-	return []Node{e.ComparisonLeft, e.ComparisonRight}
+	return []Node{e.Left_, e.Right_}
 }
 
 // String representation of the comparison operation node.
 func (e *comparisonOperationNode) String() string {
-	switch e.ComparisonOperation {
+	switch e.Operation_ {
 	case Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual:
-		return comparisonOperationFormats[e.ComparisonOperation]
+		return comparisonOperationFormats[e.Operation_]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, e.ComparisonOperation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, e.Operation_, nil))
 
 	}
 }
@@ -70,20 +75,34 @@ func (e *comparisonOperationNode) CurrentBlock() Block {
 // Determine if the comparison operation node represents a constant value.
 func (e *comparisonOperationNode) IsConstant() bool {
 	// a comparison operation is constant if both its operands are constant
-	return e.ComparisonLeft.IsConstant() && e.ComparisonRight.IsConstant()
+	return e.Left_.IsConstant() && e.Right_.IsConstant()
+}
+
+// Determine the data type of the comparison operation node which is always boolean.
+// If the data types of the left and right operands do not match, nil is returned.
+// If the data type of the operands cannot be determined, nil is returned.
+func (n *comparisonOperationNode) DataType() ts.TypeDescriptor {
+	left := n.Left_.DataType()
+	right := n.Right_.DataType()
+
+	if left == nil || left != right {
+		return nil
+	}
+
+	return n.DataType_
 }
 
 // Comparison operation of the comparison operation node.
 func (n *comparisonOperationNode) Operation() ComparisonOperator {
-	return n.ComparisonOperation
+	return n.Operation_
 }
 
 // Left operand of the comparison operation node.
 func (n *comparisonOperationNode) Left() Expression {
-	return n.ComparisonLeft
+	return n.Left_
 }
 
 // Right operand of the comparison operation node.
 func (n *comparisonOperationNode) Right() Expression {
-	return n.ComparisonRight
+	return n.Right_
 }

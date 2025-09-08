@@ -3,8 +3,6 @@
 
 package ast
 
-import ts "github.com/petersen65/pl0/v3/typesystem"
-
 // Hints for the literal use when the literal is created.
 const (
 	NoHint        LiteralHint = iota // no special hint provided when the literal was created
@@ -20,7 +18,6 @@ type (
 		Expression
 		Value() any
 		Hint() LiteralHint
-		DataType() ts.TypeDescriptor
 	}
 )
 

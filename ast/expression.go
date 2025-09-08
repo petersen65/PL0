@@ -3,7 +3,10 @@
 
 package ast
 
-import tok "github.com/petersen65/pl0/v3/token"
+import (
+	tok "github.com/petersen65/pl0/v3/token"
+	ts "github.com/petersen65/pl0/v3/typesystem"
+)
 
 // Operators with one operand.
 const (
@@ -66,6 +69,7 @@ type (
 	Expression interface {
 		Node
 		IsConstant() bool
+		DataType() ts.TypeDescriptor
 	}
 )
 

@@ -3,7 +3,10 @@
 
 package ast
 
-import eh "github.com/petersen65/pl0/v3/errors"
+import (
+	eh "github.com/petersen65/pl0/v3/errors"
+	ts "github.com/petersen65/pl0/v3/typesystem"
+)
 
 // Formats for the string representation of unary operation nodes.
 var unaryOperationFormats = map[UnaryOperator]string{
@@ -14,8 +17,8 @@ var unaryOperationFormats = map[UnaryOperator]string{
 // The unary operation node represents a unary operation in the abstract syntax tree.
 type unaryOperationNode struct {
 	expressionNode               // embedded expression node
-	UnaryOperation UnaryOperator `json:"operation"` // unary operation
-	UnaryOperand   Expression    `json:"operand"`   // operand of the unary operation
+	Operation_     UnaryOperator `json:"unary_operation"` // unary operation
+	Operand_       Expression    `json:"unary_operand"`   // operand of the unary operation
 }
 
 // Create a new unary operation node in the abstract syntax tree.
@@ -25,8 +28,8 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 			commonNode:       commonNode{NodeKind: KindUnaryOperation},
 			TokenStreamIndex: index,
 		},
-		UnaryOperation: operation,
-		UnaryOperand:   operand,
+		Operation_: operation,
+		Operand_:   operand,
 	}
 
 	operand.SetParent(unaryNode)
@@ -35,17 +38,17 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 
 // Children nodes of the unary operation node.
 func (n *unaryOperationNode) Children() []Node {
-	return []Node{n.UnaryOperand}
+	return []Node{n.Operand_}
 }
 
 // String representation of the unary operation node.
 func (n *unaryOperationNode) String() string {
-	switch n.UnaryOperation {
+	switch n.Operation_ {
 	case Odd, Negate:
-		return unaryOperationFormats[n.UnaryOperation]
+		return unaryOperationFormats[n.Operation_]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.UnaryOperation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.Operation_, nil))
 	}
 }
 
@@ -62,15 +65,20 @@ func (n *unaryOperationNode) CurrentBlock() Block {
 // Determine if the unary operation node represents a constant value.
 func (n *unaryOperationNode) IsConstant() bool {
 	// a unary operation is constant if its operand is constant
-	return n.UnaryOperand.IsConstant()
+	return n.Operand_.IsConstant()
+}
+
+// Determine the data type of the unary operation node. If the data type of the operand cannot be determined, nil is returned.
+func (n *unaryOperationNode) DataType() ts.TypeDescriptor {
+	return n.Operand_.DataType()
 }
 
 // Unary operation of the unary operation node.
 func (n *unaryOperationNode) Operation() UnaryOperator {
-	return n.UnaryOperation
+	return n.Operation_
 }
 
 // Operand of the unary operation node.
 func (n *unaryOperationNode) Operand() Expression {
-	return n.UnaryOperand
+	return n.Operand_
 }

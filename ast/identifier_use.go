@@ -3,8 +3,6 @@
 
 package ast
 
-import ts "github.com/petersen65/pl0/v3/typesystem"
-
 // Kind of a used identifier as bit-mask.
 const (
 	Constant IdentifierKind = 1 << iota
@@ -37,7 +35,6 @@ type (
 		UsageMode() UsageMode
 		SetUsageMode(mode UsageMode)
 		Declaration() Declaration
-		DataType() ts.TypeDescriptor
 	}
 )
 
