@@ -54,6 +54,7 @@ type (
 	// A statement represented as an abstract syntax tree.
 	Statement interface {
 		Node
+		Depth() int
 		IndexPair() (int, int)
 	}
 )

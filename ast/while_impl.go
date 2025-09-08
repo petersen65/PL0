@@ -6,8 +6,8 @@ package ast
 // The while statement node represents a while-do statement in the abstract syntax tree.
 type whileStatementNode struct {
 	statementNode
-	WhileCondition Expression `json:"condition"` // while-condition of the while-do statement
-	DoStatement    Statement  `json:"statement"` // do-statement of the while-do statement
+	Condition_ Expression `json:"condition"` // while-condition of the while-do statement
+	Statement_ Statement  `json:"statement"` // do-statement of the while-do statement
 }
 
 // Create a new while-do statement node in the abstract syntax tree.
@@ -18,8 +18,8 @@ func newWhileStatement(condition Expression, statement Statement, beginIndex, en
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		WhileCondition: condition,
-		DoStatement:    statement,
+		Condition_: condition,
+		Statement_: statement,
 	}
 
 	condition.SetParent(whileNode)
@@ -29,7 +29,7 @@ func newWhileStatement(condition Expression, statement Statement, beginIndex, en
 
 // Children nodes of the while-do statement node.
 func (n *whileStatementNode) Children() []Node {
-	return []Node{n.WhileCondition, n.DoStatement}
+	return []Node{n.Condition_, n.Statement_}
 }
 
 // String representation of the while-do statement node.
@@ -47,12 +47,17 @@ func (n *whileStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Depth of the block that contains this while-do statement node.
+func (n *whileStatementNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // While-condition of the while-do statement.
 func (n *whileStatementNode) Condition() Expression {
-	return n.WhileCondition
+	return n.Condition_
 }
 
 // Do-statement of the while-do statement.
 func (n *whileStatementNode) Statement() Statement {
-	return n.DoStatement
+	return n.Statement_
 }

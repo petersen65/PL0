@@ -48,6 +48,11 @@ func (n *constantDeclarationNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Block nesting depth of the constant declaration.
+func (n *constantDeclarationNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // Value of the constant in the constant declaration node.
 func (n *constantDeclarationNode) Value() any {
 	return n.Value_

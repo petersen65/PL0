@@ -6,7 +6,7 @@ package ast
 // The write statement node represents a write statement in the abstract syntax tree.
 type writeStatementNode struct {
 	statementNode
-	WriteExpression Expression `json:"expression"` // expression of the write statement
+	Expression_ Expression `json:"expression"` // expression of the write statement
 }
 
 // Create a new write statement node in the abstract syntax tree.
@@ -17,7 +17,7 @@ func newWriteStatement(expression Expression, beginIndex, endIndex int) WriteSta
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		WriteExpression: expression,
+		Expression_: expression,
 	}
 
 	expression.SetParent(writeNode)
@@ -26,7 +26,7 @@ func newWriteStatement(expression Expression, beginIndex, endIndex int) WriteSta
 
 // Children nodes of the write statement node.
 func (n *writeStatementNode) Children() []Node {
-	return []Node{n.WriteExpression}
+	return []Node{n.Expression_}
 }
 
 // String representation of the write statement node.
@@ -44,7 +44,12 @@ func (n *writeStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Depth of the block that contains this write statement node.
+func (n *writeStatementNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // Expression of the write statement.
 func (n *writeStatementNode) Expression() Expression {
-	return n.WriteExpression
+	return n.Expression_
 }

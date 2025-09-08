@@ -19,13 +19,11 @@ type (
 	// A variable declaration node in the abstract syntax tree.
 	VariableDeclaration interface {
 		Declaration
-		Depth() int
 	}
 
 	// A function or procedure declaration node in the abstract syntax tree.
 	FunctionDeclaration interface {
 		Declaration
-		Depth() int
 		Block() Block
 		SetBlock(block Block)
 		IsFunction() bool
@@ -37,6 +35,7 @@ type (
 	// Any declaration node in the abstract syntax tree.
 	Declaration interface {
 		Node
+		Depth() int
 		IdentifierName() string
 		DataTypeName() string
 		DataType() ts.TypeDescriptor

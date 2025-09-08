@@ -9,8 +9,8 @@ const assignmentStatementFormat = "assignment"
 // The assignment statement node represents an assignment statement in the abstract syntax tree.
 type assignmentStatementNode struct {
 	statementNode
-	LeftVariableUse IdentifierUse `json:"variable_use"`   // variable use on the left side of the assignment statement
-	RightExpression Expression    `json:"expression"` // expression on the right side of the assignment statement
+	Variable_   IdentifierUse `json:"variable_use"` // variable use on the left side of the assignment statement
+	Expression_ Expression    `json:"expression"`   // expression on the right side of the assignment statement
 }
 
 // Create a new assignment statement node in the abstract syntax tree.
@@ -21,8 +21,8 @@ func newAssignmentStatement(variableUse IdentifierUse, expression Expression, be
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		LeftVariableUse: variableUse,
-		RightExpression: expression,
+		Variable_:   variableUse,
+		Expression_: expression,
 	}
 
 	variableUse.SetParent(assignationNode)
@@ -32,7 +32,7 @@ func newAssignmentStatement(variableUse IdentifierUse, expression Expression, be
 
 // Children nodes of the assignment statement node.
 func (s *assignmentStatementNode) Children() []Node {
-	return []Node{s.LeftVariableUse, s.RightExpression}
+	return []Node{s.Variable_, s.Expression_}
 }
 
 // String representation of the assignment statement node.
@@ -50,12 +50,17 @@ func (s *assignmentStatementNode) CurrentBlock() Block {
 	return searchBlock(s, CurrentBlock)
 }
 
+// Depth of the block that contains this assignment statement node.
+func (s *assignmentStatementNode) Depth() int {
+	return s.CurrentBlock().Depth()
+}
+
 // Variable use on the left side of the assignment statement.
 func (s *assignmentStatementNode) Variable() IdentifierUse {
-	return s.LeftVariableUse
+	return s.Variable_
 }
 
 // Expression on the right side of the assignment statement.
 func (s *assignmentStatementNode) Expression() Expression {
-	return s.RightExpression
+	return s.Expression_
 }

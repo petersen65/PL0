@@ -6,7 +6,7 @@ package ast
 // The read statement node represents a read statement in the abstract syntax tree.
 type readStatementNode struct {
 	statementNode
-	VariableUse IdentifierUse `json:"variable"` // variable use of the read statement
+	Variable_ IdentifierUse `json:"variable_use"` // variable use of the read statement
 }
 
 // Create a new read statement node in the abstract syntax tree.
@@ -17,7 +17,7 @@ func newReadStatement(variable IdentifierUse, beginIndex, endIndex int) ReadStat
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		VariableUse: variable,
+		Variable_: variable,
 	}
 
 	variable.SetParent(readNode)
@@ -26,7 +26,7 @@ func newReadStatement(variable IdentifierUse, beginIndex, endIndex int) ReadStat
 
 // Children nodes of the read statement node.
 func (n *readStatementNode) Children() []Node {
-	return []Node{n.VariableUse}
+	return []Node{n.Variable_}
 }
 
 // String representation of the read statement node.
@@ -44,7 +44,12 @@ func (n *readStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Depth of the block that contains this read statement node.
+func (n *readStatementNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // Variable use of the read statement.
 func (n *readStatementNode) Variable() IdentifierUse {
-	return n.VariableUse
+	return n.Variable_
 }

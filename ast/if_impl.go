@@ -6,8 +6,8 @@ package ast
 // The if statement node represents an if-then statement in the abstract syntax tree.
 type ifStatementNode struct {
 	statementNode
-	IfCondition   Expression `json:"condition"` // if-condition of the if-then statement
-	ThenStatement Statement  `json:"statement"` // then-statement of the if-then statement
+	Condition_   Expression `json:"condition"` // if-condition of the if-then statement
+	Statement_ Statement  `json:"statement"` // then-statement of the if-then statement
 }
 
 // Create a new if-then statement node in the abstract syntax tree.
@@ -18,8 +18,8 @@ func newIfStatement(condition Expression, statement Statement, beginIndex, endIn
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		IfCondition:   condition,
-		ThenStatement: statement,
+		Condition_:   condition,
+		Statement_: statement,
 	}
 
 	condition.SetParent(ifNode)
@@ -29,7 +29,7 @@ func newIfStatement(condition Expression, statement Statement, beginIndex, endIn
 
 // Children nodes of the if-then statement node.
 func (n *ifStatementNode) Children() []Node {
-	return []Node{n.IfCondition, n.ThenStatement}
+	return []Node{n.Condition_, n.Statement_}
 }
 
 // String representation of the if-then statement node.
@@ -47,12 +47,17 @@ func (n *ifStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Depth of the block that contains this if-then statement node.
+func (n *ifStatementNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // If-condition of the if-then statement.
 func (n *ifStatementNode) Condition() Expression {
-	return n.IfCondition
+	return n.Condition_
 }
 
 // Then-statement of the if-then statement.
 func (n *ifStatementNode) Statement() Statement {
-	return n.ThenStatement
+	return n.Statement_
 }

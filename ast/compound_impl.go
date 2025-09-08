@@ -6,7 +6,7 @@ package ast
 // The compound statement node represents a begin-end statement in the abstract syntax tree.
 type compoundStatementNode struct {
 	statementNode
-	AllStatements []Statement `json:"statements"` // all statements of the begin-end compound statement
+	Statements_ []Statement `json:"statements"` // all statements of the begin-end compound statement
 }
 
 // Create a new compound statement node in the abstract syntax tree.
@@ -17,10 +17,10 @@ func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Comp
 			TokenStreamIndexBegin: beginIndex,
 			TokenStreamIndexEnd:   endIndex,
 		},
-		AllStatements: statements,
+		Statements_: statements,
 	}
 
-	for _, statement := range compoundNode.AllStatements {
+	for _, statement := range compoundNode.Statements_ {
 		statement.SetParent(compoundNode)
 	}
 
@@ -29,9 +29,9 @@ func newCompoundStatement(statements []Statement, beginIndex, endIndex int) Comp
 
 // Children nodes of the compound statement node.
 func (n *compoundStatementNode) Children() []Node {
-	children := make([]Node, 0, len(n.AllStatements))
+	children := make([]Node, 0, len(n.Statements_))
 
-	for _, statement := range n.AllStatements {
+	for _, statement := range n.Statements_ {
 		children = append(children, statement)
 	}
 
@@ -53,7 +53,12 @@ func (n *compoundStatementNode) CurrentBlock() Block {
 	return searchBlock(n, CurrentBlock)
 }
 
+// Depth of the block that contains this compound statement node.
+func (n *compoundStatementNode) Depth() int {
+	return n.CurrentBlock().Depth()
+}
+
 // All statements of the compound statement.
 func (n *compoundStatementNode) Statements() []Statement {
-	return n.AllStatements
+	return n.Statements_
 }
