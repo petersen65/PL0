@@ -6,6 +6,7 @@ package ast
 import (
 	"slices"
 
+	ts "github.com/petersen65/pl0/v3/typesystem"
 	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
@@ -15,22 +16,31 @@ const emptyConstantName = "@constant"
 // Base structure for all declaration nodes in the abstract syntax tree.
 type declarationNode struct {
 	commonNode                              // embedded common node
-	Identifier                 string       `json:"name"`                          // name of the declared identifier
-	DataType                   string       `json:"data_type_name"`                // datatype name of the identifier
-	IdentifierUsage            []Expression `json:"usage"`                         // all usages of the identifier
-	SymbolInformation          *sym.Symbol  `json:"symbol"`                        // symbol information of the declared identifier
+	IdentifierName_            string       `json:"identifier_name"`               // name of the declared identifier
+	DataTypeName_              string       `json:"data_type_name"`                // datatype name of the identifier
+	Usage_                     []Expression `json:"usage"`                         // all usages of the identifier in expressions
+	Symbol_                    *sym.Symbol  `json:"symbol"`                        // symbol information of the declared identifier
 	TokenStreamIndexIdentifier int          `json:"token_stream_index_identifier"` // identifier index of the token in the token stream
 	TokenStreamIndexDataType   int          `json:"token_stream_index_data_type"`  // data type index of the token in the token stream
 }
 
-// Name of the declared identifier.
-func (n *declarationNode) Name() string {
-	return n.Identifier
+// Identifier name of the declared identifier.
+func (n *declarationNode) IdentifierName() string {
+	return n.IdentifierName_
 }
 
 // Data type name of the declared identifier.
 func (n *declarationNode) DataTypeName() string {
-	return n.DataType
+	return n.DataTypeName_
+}
+
+// Data type descriptor of the declared identifier. Returns nil if the symbol is not set.
+func (n *declarationNode) DataType() ts.TypeDescriptor {
+	if n.Symbol_ != nil {
+		return n.Symbol_.DataType
+	}
+
+	return nil
 }
 
 // Token stream identifier index of the declaration node.
@@ -45,23 +55,28 @@ func (n *declarationNode) IndexPair() (int, int) {
 
 // Get the symbol information associated with the declaration node.
 func (n *declarationNode) Symbol() *sym.Symbol {
-	return n.SymbolInformation
+	return n.Symbol_
 }
 
 // Associate the declaration node with its symbol information.
 // The declaration node is created during syntax analysis and the symbol is created during semantic analysis.
+// If the symbol has a data type and the declaration node does not have a data type name, it is set from the symbol.
 func (n *declarationNode) SetSymbol(symbol *sym.Symbol) {
-	n.SymbolInformation = symbol
+	n.Symbol_ = symbol
+
+	if symbol != nil && n.DataTypeName_ == "" && symbol.DataType != nil {
+		n.DataTypeName_ = symbol.DataType.String()
+	}
 }
 
 // All usages of the declared identifier in expressions.
 func (n *declarationNode) Usage() []Expression {
-	return n.IdentifierUsage
+	return n.Usage_
 }
 
 // Add a usage of the declared identifier in an expression.
-func (n *declarationNode) AddUsage(use Expression) {
-	if !slices.Contains(n.IdentifierUsage, use) {
-		n.IdentifierUsage = append(n.IdentifierUsage, use)
+func (n *declarationNode) AddUsage(usage Expression) {
+	if !slices.Contains(n.Usage_, usage) {
+		n.Usage_ = append(n.Usage_, usage)
 	}
 }

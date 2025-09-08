@@ -10,7 +10,7 @@ const (
 	KindConstantDeclaration
 	KindVariableDeclaration
 	KindFunctionDeclaration
-	KindLiteral
+	KindLiteralUse
 	KindIdentifierUse
 	KindUnaryOperation
 	KindBinaryOperation

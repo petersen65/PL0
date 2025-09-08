@@ -33,8 +33,7 @@ type (
 
 	// Common fields shared by all type descriptors.
 	commonTypeDescriptor struct {
-		TypeName string                         `json:"type_name"`                    // name identifier for all data type kinds
-		Abi      plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
+		Abi plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
 	}
 
 	// Primitive data types that cannot be further refined.
@@ -53,6 +52,7 @@ type (
 	// Structure based data types that group multiple fields.
 	structureTypeDescriptor struct {
 		commonTypeDescriptor                   // embedded common type descriptor
+		TypeName             string            `json:"type_name"` // name of the structure data type
 		Fields               []*StructureField `json:"fields"`    // ordered list of fields that comprise this structure
 		IsPacked             bool              `json:"is_packed"` // memory layout optimized to minimize padding between fields
 		ByteSize             int               `json:"size"`      // cache the total size of the structure in bytes
@@ -275,11 +275,6 @@ var (
 	}
 )
 
-// Name for any data type.
-func (d *commonTypeDescriptor) Name() string {
-	return d.TypeName
-}
-
 // String representation of the simple type.
 func (d *simpleTypeDescriptor) String() string {
 	return d.PrimitiveType.String()
@@ -501,7 +496,7 @@ func (d *functionTypeDescriptor) String() string {
 	}
 
 	if d.ReturnType != nil {
-		return fmt.Sprintf("function(%v): %v", strings.Join(parameters, ", "), d.ReturnType.Name())
+		return fmt.Sprintf("function(%v): %v", strings.Join(parameters, ", "), d.ReturnType.String())
 	}
 
 	return fmt.Sprintf("procedure(%v)", strings.Join(parameters, ", "))

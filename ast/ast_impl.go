@@ -12,28 +12,28 @@ import (
 
 // Base structure for all nodes in the AST.
 type commonNode struct {
-	NodeKind   NodeKind `json:"kind"` // kind of node for each node
-	ParentNode Node     `json:"-"`    // parent node for each node
+	NodeKind   NodeKind `json:"node_kind"` // kind of node for each node
+	ParentNode Node     `json:"-"`         // parent node for each node
 }
 
 // Map node kinds to their string representation.
 var nodeKindNames = map[NodeKind]string{
-	KindBlock:                "block",
-	KindConstantDeclaration:  "constant",
-	KindVariableDeclaration:  "variable",
-	KindFunctionDeclaration:  "function",
-	KindLiteral:              "literal",
-	KindIdentifierUse:        "use",
-	KindUnaryOperation:       "unary",
-	KindBinaryOperation:      "binary",
-	KindComparisonOperation:  "comparison",
-	KindAssignmentStatement:  "assignment",
-	KindReadStatement:        "read",
-	KindWriteStatement:       "write",
-	KindCallStatement:        "call",
-	KindIfStatement:          "if",
-	KindWhileStatement:       "while",
-	KindCompoundStatement:    "compound",
+	KindBlock:               "block",
+	KindConstantDeclaration: "constant_declaration",
+	KindVariableDeclaration: "variable_declaration",
+	KindFunctionDeclaration: "function_declaration",
+	KindLiteralUse:          "literal_use",
+	KindIdentifierUse:       "identifier_use",
+	KindUnaryOperation:      "unary_operation",
+	KindBinaryOperation:     "binary_operation",
+	KindComparisonOperation: "comparison_operation",
+	KindAssignmentStatement: "assignment_statement",
+	KindReadStatement:       "read_statement",
+	KindWriteStatement:      "write_statement",
+	KindCallStatement:       "call_statement",
+	KindIfStatement:         "if_statement",
+	KindWhileStatement:      "while_statement",
+	KindCompoundStatement:   "compound_statement",
 }
 
 // Kind of node for each node in the AST.
@@ -70,7 +70,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	}
 
 	// filter out empty constants
-	if constant, ok := parent.(*constantDeclarationNode); ok && constant.Identifier == emptyConstantName {
+	if constant, ok := parent.(*constantDeclarationNode); ok && constant.IdentifierName_ == emptyConstantName {
 		return nil
 	}
 

@@ -61,26 +61,22 @@ type (
 
 	// Structure field describes a field in a structure type descriptor.
 	StructureField struct {
-		Name       string         `json:"name"`   // name identifier used to access this field within the structure
-		Type       TypeDescriptor `json:"type"`   // type descriptor defining the data type of this field
-		ByteOffset int            `json:"offset"` // byte offset is automatically calculated by the type descriptor
+		Name       string         `json:"name"`      // name identifier used to access this field within the structure
+		TypeName   string         `json:"type_name"` // type string defining the data type name of this field
+		Type       TypeDescriptor `json:"type"`      // type descriptor defining the data type of this field
+		ByteOffset int            `json:"offset"`    // byte offset is automatically calculated by the type descriptor
 	}
 
 	// Parameter and its passing mode for a function or procedure call.
 	FunctionParameter struct {
-		Name string               `json:"name"` // identifier name used to reference this parameter within the function
-		Type TypeDescriptor       `json:"type"` // type descriptor defining the data type of this parameter
-		Mode ParameterPassingMode `json:"mode"` // determines how the parameter is passed (e.g., by value, by reference)
-	}
-
-	// The common type descriptor is the shared interface for all type descriptors.
-	CommonTypeDescriptor interface {
-		Name() string
+		Name     string               `json:"name"`      // identifier name used to reference this parameter within the function
+		TypeName string               `json:"type_name"` // type string defining the data type name of this parameter
+		Type     TypeDescriptor       `json:"type"`      // type descriptor defining the data type of this parameter
+		Mode     ParameterPassingMode `json:"mode"`      // determines how the parameter is passed (e.g., by value, by reference)
 	}
 
 	// The type descriptor is the interface for all specific type descriptions.
 	TypeDescriptor interface {
-		CommonTypeDescriptor
 		String() string
 		Kind() DataTypeKind
 		Size() int
@@ -93,39 +89,34 @@ func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	return &simpleTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: primitiveType.String(), Abi: currentABI},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI},
 		PrimitiveType:        primitiveType,
 	}
 }
 
 // Create a new pointer type descriptor with a value type.
 func NewPointerTypeDescriptor(valueType TypeDescriptor, isReference bool) TypeDescriptor {
-	var typeName string
 	enforceSpecifiedApplicationBinaryInterface()
-	
-	if isReference {
-		typeName = referencePrefix + valueType.String()
-	} else {
-		typeName = pointerPrefix + valueType.String()
-	}
 
 	return &pointerTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: typeName, Abi: currentABI},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI},
 		ValueType:            valueType,
 		IsReference:          isReference,
 	}
 }
 
-// Create a new structure field with a name and field type.
-func NewStructureField(name string, fieldType TypeDescriptor) *StructureField {
+// Create a new structure field with a name and field type information.
+// A structure field can either be used with a type name or a type descriptor or both. The type name can be empty or the type descriptor can be nil.
+func NewStructureField(fieldName string, fieldTypeName string, fieldType TypeDescriptor) *StructureField {
 	return &StructureField{
-		Name: name,
-		Type: fieldType,
+		Name:     fieldName,
+		TypeName: fieldTypeName,
+		Type:     fieldType,
 	}
 }
 
 // Create a new structure type descriptor with fields.
-func NewStructureTypeDescriptor(name string, fields []*StructureField, isPacked bool) TypeDescriptor {
+func NewStructureTypeDescriptor(structureTypeName string, fields []*StructureField, isPacked bool) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	if fields == nil {
@@ -133,7 +124,8 @@ func NewStructureTypeDescriptor(name string, fields []*StructureField, isPacked 
 	}
 
 	return &structureTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI},
+		TypeName:             structureTypeName,
 		Fields:               fields,
 		IsPacked:             isPacked,
 		ByteSize:             byteSizeNotCalculated,
@@ -141,12 +133,14 @@ func NewStructureTypeDescriptor(name string, fields []*StructureField, isPacked 
 	}
 }
 
-// Create a new function parameter with a name, parameter type, and passing mode.
-func NewFunctionParameter(name string, parameterType TypeDescriptor, mode ParameterPassingMode) *FunctionParameter {
+// Create a new function parameter with a name, parameter type information, and passing mode.
+// A function parameter can either be used with a type name or a type descriptor or both. The type name can be empty or the type descriptor can be nil.
+func NewFunctionParameter(parameterName, parameterTypeName string, parameterType TypeDescriptor, mode ParameterPassingMode) *FunctionParameter {
 	return &FunctionParameter{
-		Name: name,
-		Type: parameterType,
-		Mode: mode,
+		Name:     parameterName,
+		TypeName: parameterTypeName,
+		Type:     parameterType,
+		Mode:     mode,
 	}
 }
 
@@ -164,7 +158,6 @@ func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeD
 		ReturnType:           returnType,
 	}
 
-	typeDescriptor.TypeName = typeDescriptor.String()
 	return typeDescriptor
 }
 

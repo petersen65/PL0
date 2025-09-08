@@ -18,9 +18,9 @@ func newVariableDeclaration(identifierName, dataTypeName string, identifierIndex
 	return &variableDeclarationNode{
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindVariableDeclaration},
-			Identifier:                 identifierName,
-			DataType:                   dataTypeName,
-			IdentifierUsage:            make([]Expression, 0),
+			IdentifierName_:            identifierName,
+			DataTypeName_:              dataTypeName,
+			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: identifierIndex,
 			TokenStreamIndexDataType:   dataTypeIndex,
 		},
@@ -34,7 +34,7 @@ func (n *variableDeclarationNode) Children() []Node {
 
 // String representation of the variable declaration node.
 func (n *variableDeclarationNode) String() string {
-	return fmt.Sprintf(variableFormat, n.NodeKind, n.Identifier, n.DataType, len(n.IdentifierUsage))
+	return fmt.Sprintf(variableFormat, n.NodeKind, n.IdentifierName_, n.DataTypeName_, len(n.Usage_))
 }
 
 // Accept the visitor for the variable declaration node.

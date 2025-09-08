@@ -3,8 +3,6 @@
 
 package ast
 
-import sym "github.com/petersen65/pl0/v3/symbol"
-
 // Kind of a used identifier as bit-mask.
 const (
 	Constant IdentifierKind = 1 << iota
@@ -31,13 +29,12 @@ type (
 	IdentifierUse interface {
 		Expression
 		Depth() int
-		Name() string
-		Context() IdentifierKind
-		SetContext(kind IdentifierKind)
+		IdentifierName() string
+		IdentifierKind() IdentifierKind
+		SetIdentifierKind(kind IdentifierKind)
 		UsageMode() UsageMode
 		SetUsageMode(mode UsageMode)
 		Declaration() Declaration
-		Symbol() *sym.Symbol
 	}
 )
 

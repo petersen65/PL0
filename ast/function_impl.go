@@ -3,32 +3,36 @@
 
 package ast
 
-import "fmt"
+import (
+	"fmt"
+
+	ts "github.com/petersen65/pl0/v3/typesystem"
+)
 
 // Format for the string representation of a function or procedure declaration node.
 const functionFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // The node represents a function or procedure declaration in the abstract syntax tree.
 type functionDeclarationNode struct {
-	declarationNode                         // embedded declaration node
-	FunctionBlock      Block                `json:"function_block"` // block of the function
-	FunctionParameters []*FunctionParameter `json:"parameters"`     // ordered list of parameters that the function accepts
-	ReturnType         string               `json:"return_type"`    // type name of the value returned by the function (empty string for procedures)
+	declarationNode                            // embedded declaration node
+	FunctionBlock      Block                   `json:"function_block"`      // block of the function
+	FunctionParameters []*ts.FunctionParameter `json:"function_parameters"` // ordered list of parameters that the function accepts
+	ReturnTypeName_    string                  `json:"return_type_name"`    // type name of the value returned by the function (empty string for procedures)
 }
 
 // Create a new function or procedure declaration node in the abstract syntax tree.
-func newFunctionDeclaration(name string, block Block, parameters []*FunctionParameter, returnTypeName string, index int) FunctionDeclaration {
+func newFunctionDeclaration(identifierName string, block Block, parameters []*ts.FunctionParameter, returnTypeName string, index int) FunctionDeclaration {
 	return &functionDeclarationNode{
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindFunctionDeclaration},
-			Identifier:                 name,
-			DataType:                   "",
-			IdentifierUsage:            make([]Expression, 0),
+			IdentifierName_:            identifierName,
+			DataTypeName_:              "",
+			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: index,
 		},
 		FunctionBlock:      block,
 		FunctionParameters: parameters,
-		ReturnType:         returnTypeName,
+		ReturnTypeName_:    returnTypeName,
 	}
 }
 
@@ -39,7 +43,7 @@ func (n *functionDeclarationNode) Children() []Node {
 
 // String representation of the function declaration node.
 func (n *functionDeclarationNode) String() string {
-	return fmt.Sprintf(functionFormat, n.NodeKind, n.Identifier, n.DataType, len(n.IdentifierUsage))
+	return fmt.Sprintf(functionFormat, n.NodeKind, n.IdentifierName_, n.DataTypeName_, len(n.Usage_))
 }
 
 // Accept the visitor for the function declaration node.
@@ -69,25 +73,25 @@ func (n *functionDeclarationNode) SetBlock(block Block) {
 
 // The node represents a function declaration.
 func (n *functionDeclarationNode) IsFunction() bool {
-	return len(n.ReturnType) > 0
+	return len(n.ReturnTypeName_) > 0
 }
 
 // The node represents a procedure declaration.
 func (n *functionDeclarationNode) IsProcedure() bool {
-	return len(n.ReturnType) == 0
+	return len(n.ReturnTypeName_) == 0
 }
 
 // Parameter list of a function or procedure declaration.
-func (n *functionDeclarationNode) Parameters() []*FunctionParameter {
+func (n *functionDeclarationNode) Parameters() []*ts.FunctionParameter {
 	return n.FunctionParameters
 }
 
 // Return type name of a function declaration (empty string for procedure declarations).
 func (n *functionDeclarationNode) ReturnTypeName() string {
-	return n.ReturnType
+	return n.ReturnTypeName_
 }
 
 // The data type name of the function declaration will be set by the semantic analyzer after a data type for the function or procedure has been determined.
 func (n *functionDeclarationNode) SetDataTypeName(dataTypeName string) {
-	n.DataType = dataTypeName
+	n.DataTypeName_ = dataTypeName
 }

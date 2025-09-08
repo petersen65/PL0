@@ -11,17 +11,17 @@ const literalUseFormat = "use(kind=%v,value=%v)"
 // Represents a single use of a literal value.
 type literalUseNode struct {
 	expressionNode     // embedded expression node
-	LiteralValue   any `json:"value"` // value of the literal
+	Value_         any `json:"value"` // value of the literal
 }
 
 // Create a new literal-use node in the abstract syntax tree.
 func newLiteralUse(value any, index int) LiteralUse {
 	return &literalUseNode{
 		expressionNode: expressionNode{
-			commonNode:       commonNode{NodeKind: KindLiteral},
+			commonNode:       commonNode{NodeKind: KindLiteralUse},
 			TokenStreamIndex: index,
 		},
-		LiteralValue: value,
+		Value_: value,
 	}
 }
 
@@ -32,7 +32,7 @@ func (n *literalUseNode) Children() []Node {
 
 // String representation of the literal-use node.
 func (n *literalUseNode) String() string {
-	return fmt.Sprintf(literalUseFormat, n.Kind(), n.LiteralValue)
+	return fmt.Sprintf(literalUseFormat, n.Kind(), n.Value_)
 }
 
 // Accept the visitor for the literal-use node.
@@ -52,5 +52,5 @@ func (n *literalUseNode) IsConstant() bool {
 
 // Value of the literal in the literal-use node.
 func (n *literalUseNode) Value() any {
-	return n.LiteralValue
+	return n.Value_
 }

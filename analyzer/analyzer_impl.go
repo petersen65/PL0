@@ -50,17 +50,17 @@ func addVariableToBlockClosure(node ast.Node, _ any) {
 	// assert that the node is an identifier use node
 	variableUse := node.(ast.IdentifierUse)
 
-	// only process identifier uses that refer to a variable symbol so that the use is a variable use
+	// only process identifier uses that have a declaration and a symbol of kind variable
 	// note: for an identifier that was used but not declared, its symbol and declaration are nil
-	if symbol := variableUse.Symbol(); symbol == nil || symbol.Kind != sym.VariableEntry {
+	if variableUse.Declaration() == nil || variableUse.Declaration().Symbol() == nil || variableUse.Declaration().Symbol().Kind != sym.VariableEntry {
 		return
 	}
 
-	// get the declaration of the used variable and assert that it is a variable declaration
+	// assert that the declaration of the identifier use is a variable declaration
 	variableDeclaration := variableUse.Declaration().(ast.VariableDeclaration)
 
 	// determine if the variable use refers to a variable that is declared in a lexical parent block
-	// and if so, add the variable declaration to the captured declarations of the block where the variable use occurs
+	// if so, add the variable declaration to the captured declarations of the block where the variable use occurs
 	if variableUse.Depth() > variableDeclaration.Depth() {
 		variableUse.CurrentBlock().AddCapturedDeclaration(variableDeclaration)
 	}

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
-	sym "github.com/petersen65/pl0/v3/symbol"
 )
 
 // Separator for the string representation of a bit-mask.
@@ -19,10 +18,10 @@ const identifierUseFormat = "use(kind=%v,name=%v,mode=%v)"
 
 // Represents a single use of an identifier.
 type identifierUseNode struct {
-	expressionNode                // embedded expression node
-	Identifier     string         `json:"name"`            // name of the identifier
-	IdentifierKind IdentifierKind `json:"identifier_kind"` // kind of the identifier used
-	Mode           UsageMode      `json:"usage_mode"`      // usage mode of the identifier
+	expressionNode                 // embedded expression node
+	IdentifierName_ string         `json:"identifier_name"` // name of the identifier
+	IdentifierKind_ IdentifierKind `json:"identifier_kind"` // kind of the identifier used
+	UsageMode_      UsageMode      `json:"usage_mode"`      // usage mode of the identifier
 }
 
 var (
@@ -49,8 +48,8 @@ func newIdentifierUse(name string, kind IdentifierKind, index int) IdentifierUse
 			commonNode:       commonNode{NodeKind: KindIdentifierUse},
 			TokenStreamIndex: index,
 		},
-		Identifier:     name,
-		IdentifierKind: kind,
+		IdentifierName_: name,
+		IdentifierKind_: kind,
 	}
 }
 
@@ -87,12 +86,12 @@ func (n *identifierUseNode) Children() []Node {
 
 // String representation of the identifier-use node.
 func (n *identifierUseNode) String() string {
-	switch n.IdentifierKind {
+	switch n.IdentifierKind_ {
 	case Constant, Variable, Function, Procedure:
-		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind, n.Identifier, n.Mode)
+		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind_, n.IdentifierName_, n.UsageMode_)
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, n.IdentifierKind, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, n.IdentifierKind_, nil))
 	}
 }
 
@@ -109,7 +108,7 @@ func (n *identifierUseNode) CurrentBlock() Block {
 // Determine if the identifier-use node represents a constant value.
 func (n *identifierUseNode) IsConstant() bool {
 	// an identifier use is constant if it is a constant identifier
-	return n.IdentifierKind == Constant
+	return n.IdentifierKind_ == Constant
 }
 
 // Block nesting depth of the identifier use.
@@ -118,47 +117,37 @@ func (n *identifierUseNode) Depth() int {
 }
 
 // The name of the used identifier.
-func (n *identifierUseNode) Name() string {
-	return n.Identifier
+func (n *identifierUseNode) IdentifierName() string {
+	return n.IdentifierName_
 }
 
-// The context in which the identifier is used (e.g., constant or variable).
-func (n *identifierUseNode) Context() IdentifierKind {
-	return n.IdentifierKind
+// The kind of the used identifier (e.g., constant, variable, function, or procedure).
+func (n *identifierUseNode) IdentifierKind() IdentifierKind {
+	return n.IdentifierKind_
 }
 
-// Set the context in which the identifier is used.
-func (n *identifierUseNode) SetContext(kind IdentifierKind) {
-	n.IdentifierKind = kind
+// Set the kind of the used identifier.
+func (n *identifierUseNode) SetIdentifierKind(kind IdentifierKind) {
+	n.IdentifierKind_ = kind
 }
 
 // The way how the identifier is used (e.g., read or write).
 func (n *identifierUseNode) UsageMode() UsageMode {
-	return n.Mode
+	return n.UsageMode_
 }
 
 // Set the way how the identifier is used.
 func (n *identifierUseNode) SetUsageMode(mode UsageMode) {
-	n.Mode = mode
+	n.UsageMode_ = mode
 }
 
 // Find the declaration of the identifier used by this identifier-use node.
 // An identifier use refers to a declaration if it is declared in the same block or in a lexical parent block.
 // The used identifier might not have a declaration if it was never declared. In that case, nil is returned.
 func (n *identifierUseNode) Declaration() Declaration {
-	if symbol := n.CurrentBlock().Lookup(n.Name()); symbol == nil {
+	if symbol := n.CurrentBlock().Lookup(n.IdentifierName()); symbol == nil {
 		return nil
 	} else {
 		return SearchDeclaration(n, symbol)
-	}
-}
-
-// Find the symbol of the identifier used by this identifier-use node.
-// The symbol might be nil if the identifier is used but was never declared.
-func (n *identifierUseNode) Symbol() *sym.Symbol {
-	if declaration := n.Declaration(); declaration == nil {
-		return nil
-	} else {
-		return n.Declaration().Symbol()
 	}
 }

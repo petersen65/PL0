@@ -11,7 +11,7 @@ const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 // The node represents a constant declaration in the abstract syntax tree.
 type constantDeclarationNode struct {
 	declarationNode     // embedded declaration node
-	ConstantValue   any `json:"value"` // value of the constant
+	Value_          any `json:"constant_value"` // value of the constant
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
@@ -19,12 +19,12 @@ func newConstantDeclaration(identifierName, dataTypeName string, value any, inde
 	return &constantDeclarationNode{
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindConstantDeclaration},
-			Identifier:                 identifierName,
-			DataType:                   dataTypeName,
-			IdentifierUsage:            make([]Expression, 0),
+			IdentifierName_:            identifierName,
+			DataTypeName_:              dataTypeName,
+			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: index,
 		},
-		ConstantValue: value,
+		Value_: value,
 	}
 }
 
@@ -35,7 +35,7 @@ func (n *constantDeclarationNode) Children() []Node {
 
 // String representation of the constant declaration node.
 func (n *constantDeclarationNode) String() string {
-	return fmt.Sprintf(constantFormat, n.NodeKind, n.Identifier, n.ConstantValue, n.DataType, len(n.IdentifierUsage))
+	return fmt.Sprintf(constantFormat, n.NodeKind, n.IdentifierName_, n.Value_, n.DataTypeName_, len(n.Usage_))
 }
 
 // Accept the visitor for the constant declaration node.
@@ -50,5 +50,5 @@ func (n *constantDeclarationNode) CurrentBlock() Block {
 
 // Value of the constant in the constant declaration node.
 func (n *constantDeclarationNode) Value() any {
-	return n.ConstantValue
+	return n.Value_
 }
