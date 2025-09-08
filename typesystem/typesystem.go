@@ -25,18 +25,24 @@ type (
 	// Kind of data type (e.g., simple, composite, pointer).
 	DataTypeKind int
 
-	// The type descriptor is the interface for all specific type descriptions.
-	TypeDescriptor interface {
-		String() string
-		Kind() DataTypeKind
-		Size() int
-		Alignment() int
+	// The type checker interface provides checks for the characteristics of a type descriptor.
+	TypeChecker interface {
 		IsPointer() bool
 		IsReference() bool
 		IsInteger() bool
 		IsFloatingPoint() bool
 		IsSigned() bool
 		IsUnsigned() bool
+	}
+
+	// The type descriptor is the interface for all specific type descriptions.
+	TypeDescriptor interface {
+		TypeChecker
+		String() string
+		Kind() DataTypeKind
+		Size() int
+		Alignment() int
+		Equal(other TypeDescriptor) bool
 	}
 )
 

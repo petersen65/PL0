@@ -61,6 +61,47 @@ func (d *structureTypeDescriptor) Alignment() int {
 	return d.calculateAlignment(seen)
 }
 
+type structurePair struct {
+	a, b *structureTypeDescriptor
+}
+var structureEqualityVisited map[structurePair]bool
+
+// Check if the structure type descriptor is equal to another type descriptor.
+func (d *structureTypeDescriptor) Equal(other TypeDescriptor) bool {
+	o, ok := other.(*structureTypeDescriptor)
+	if !ok {
+		return false
+	}
+	if structureEqualityVisited == nil {
+		structureEqualityVisited = make(map[structurePair]bool)
+		defer func() { structureEqualityVisited = nil }()
+	}
+	pair := structurePair{d, o}
+	if structureEqualityVisited[pair] {
+		return true
+	}
+	structureEqualityVisited[pair] = true
+	if d.TypeName != o.TypeName || d.IsPacked != o.IsPacked {
+		return false
+	}
+	if len(d.Fields) != len(o.Fields) {
+		return false
+	}
+	for i := range d.Fields {
+		f1, f2 := d.Fields[i], o.Fields[i]
+		if f1.Name != f2.Name {
+			return false
+		}
+		if (f1.Type == nil) != (f2.Type == nil) {
+			return false
+		}
+		if f1.Type != nil && !f1.Type.Equal(f2.Type) {
+			return false
+		}
+	}
+	return true
+}
+
 // Calculate the memory size in bytes of a structure using a recursive approach.
 func (d *structureTypeDescriptor) calculateSize(seen map[string]bool) int {
 	// check for a circular reference

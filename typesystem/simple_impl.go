@@ -41,6 +41,17 @@ func (d *simpleTypeDescriptor) Alignment() int {
 	return applicationBinaryInterfaceSpecifications[d.Abi].TypeAlignments[d.PrimitiveType]
 }
 
+// Check if the simple type descriptor is equal to another type descriptor.
+func (d *simpleTypeDescriptor) Equal(other TypeDescriptor) bool {
+	// check if the other type descriptor is also a simple type descriptor
+	if o, ok := other.(*simpleTypeDescriptor); ok {
+		return d.PrimitiveType == o.PrimitiveType
+	}
+
+	// data types are not equal if they are of different type descriptors
+	return false
+}
+
 // Check if the simple type descriptor represents an integer data type.
 func (d *simpleTypeDescriptor) IsInteger() bool {
 	switch d.PrimitiveType {

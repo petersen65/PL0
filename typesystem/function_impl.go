@@ -47,3 +47,33 @@ func (d *functionTypeDescriptor) Size() int {
 func (d *functionTypeDescriptor) Alignment() int {
 	return applicationBinaryInterfaceSpecifications[d.Abi].PointerAlignment
 }
+
+// Check if the function type descriptor is equal to another type descriptor.
+func (d *functionTypeDescriptor) Equal(other TypeDescriptor) bool {
+	o, ok := other.(*functionTypeDescriptor)
+	if !ok {
+		return false
+	}
+	if len(d.Parameters) != len(o.Parameters) {
+		return false
+	}
+	for i := range d.Parameters {
+		p1, p2 := d.Parameters[i], o.Parameters[i]
+		if p1.Mode != p2.Mode {
+			return false
+		}
+		if (p1.Type == nil) != (p2.Type == nil) {
+			return false
+		}
+		if p1.Type != nil && !p1.Type.Equal(p2.Type) {
+			return false
+		}
+	}
+	if (d.ReturnType == nil) != (o.ReturnType == nil) {
+		return false
+	}
+	if d.ReturnType != nil && !d.ReturnType.Equal(o.ReturnType) {
+		return false
+	}
+	return true
+}
