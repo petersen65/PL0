@@ -39,12 +39,6 @@ type (
 	// Take two operands and perform a comparison on them.
 	ComparisonOperator int
 
-	// A literal-use node in the abstract syntax tree.
-	LiteralUse interface {
-		Expression
-		Value() any
-	}
-
 	// An unary operation node in the abstract syntax tree.
 	UnaryOperation interface {
 		Expression
@@ -77,12 +71,7 @@ type (
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteralUse(int64(0), tok.NoTokenStreamIndex)
-}
-
-// Create a new literal-use node in the abstract syntax tree.
-func NewLiteralUse(value any, index int) LiteralUse {
-	return newLiteralUse(value, index)
+	return newLiteralUse(int64(0), NoHint, tok.NoTokenStreamIndex)
 }
 
 // Create a new unary operation node in the abstract syntax tree.

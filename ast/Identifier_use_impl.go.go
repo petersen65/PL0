@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Separator for the string representation of a bit-mask.
@@ -141,13 +142,23 @@ func (n *identifierUseNode) SetUsageMode(mode UsageMode) {
 	n.UsageMode_ = mode
 }
 
-// Find the declaration of the identifier used by this identifier-use node.
-// An identifier use refers to a declaration if it is declared in the same block or in a lexical parent block.
+// Determine the declaration of the identifier used by this identifier-use node.
 // The used identifier might not have a declaration if it was never declared. In that case, nil is returned.
+// An identifier use refers to a declaration if it is declared in the same block or in a lexical parent block.
 func (n *identifierUseNode) Declaration() Declaration {
 	if symbol := n.CurrentBlock().Lookup(n.IdentifierName()); symbol == nil {
 		return nil
 	} else {
 		return SearchDeclaration(n, symbol)
 	}
+}
+
+// Determine the data type of the identifier used by this identifier-use node.
+// The used identifier might not have a data type if it was never declared. In that case, nil is returned.
+func (n *identifierUseNode) DataType() ts.TypeDescriptor {
+	if declaration := n.Declaration(); declaration != nil {
+		return declaration.DataType()
+	}
+
+	return nil
 }
