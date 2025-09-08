@@ -5,13 +5,13 @@ package typesystem
 
 import plt "github.com/petersen65/pl0/v3/platform"
 
-// Get the current application binary interface used by the type system.
-func GetCurrentApplicationBinaryInterface() plt.ApplicationBinaryInterface {
-	return currentABI
-}
-
 // The type system requires a current application binary interface to be set.
 func SetCurrentApplicationBinaryInterface(abi plt.ApplicationBinaryInterface) {
 	currentABI = abi
 	enforceSpecifiedApplicationBinaryInterface()
+}
+
+// Get the current application binary interface used by the type system.
+func GetCurrentApplicationBinaryInterface() plt.ApplicationBinaryInterface {
+	return currentABI
 }
