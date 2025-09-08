@@ -907,7 +907,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 				// take the abstract syntax constant declaration name as the constant source name
 				nameSource := cd.Name()
 
-				// extract the data type name of the constant from intermediate code and abstract syntax
+				// extract the data type names of the constant from abstract syntax
 				dataTypeName := cd.DataTypeName()
 				dataTypeNameSource := cd.DataTypeName()
 
@@ -924,7 +924,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 				// take the abstract syntax variable declaration name as the variable source name
 				nameSource := vd.Name()
 
-				// extract the data type name of the variable from intermediate code and abstract syntax
+				// extract the data type names of the variable from abstract syntax
 				dataTypeName := vd.DataTypeName()
 				dataTypeNameSource := vd.DataTypeName()
 
@@ -940,7 +940,7 @@ func collectDebugStringTable(node ast.Node, code any) {
 func appendStringDataType(stringEncoding plt.StringEncoding, debugInformation dbg.DebugInformation) {
 	// string target encoding data type names that depend on the target platform's string encoding
 	stringEncodingTypeNameSource := stringBaseTypeMap[stringEncoding]
-	stringEncodingTypeName := dataTypeMap[stringEncodingTypeNameSource]
+	stringEncodingTypeName := stringEncodingTypeNameSource
 
 	// create the string member data type for length
 	uint64Type := dbg.NewSimpleDataType(
@@ -956,8 +956,8 @@ func appendStringDataType(stringEncoding plt.StringEncoding, debugInformation db
 
 	// create the string member data type for pointer to data
 	stringEncodingPointerType := dbg.NewPointerDataType(
-		stringEncodingTypeName.AsPointer().String(),
-		stringEncodingTypeNameSource.AsPointer().String(),
+		stringEncodingTypeName.PointerString(),
+		stringEncodingTypeNameSource.PointerString(),
 		stringEncodingType,
 	)
 

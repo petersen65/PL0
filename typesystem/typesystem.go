@@ -50,7 +50,7 @@ const (
 )
 
 type (
-	// Primitive data types.
+	// Built-in primitive data types.
 	PrimitiveDataType int
 
 	// Kind of data type (e.g., simple, composite, pointer).
@@ -99,11 +99,18 @@ func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType) TypeDescriptor {
 }
 
 // Create a new pointer type descriptor with a value type.
-func NewPointerTypeDescriptor(name string, valueType TypeDescriptor, isReference bool) TypeDescriptor {
+func NewPointerTypeDescriptor(valueType TypeDescriptor, isReference bool) TypeDescriptor {
+	var typeName string
 	enforceSpecifiedApplicationBinaryInterface()
+	
+	if isReference {
+		typeName = referencePrefix + valueType.String()
+	} else {
+		typeName = pointerPrefix + valueType.String()
+	}
 
 	return &pointerTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{TypeName: name, Abi: currentABI},
+		commonTypeDescriptor: commonTypeDescriptor{TypeName: typeName, Abi: currentABI},
 		ValueType:            valueType,
 		IsReference:          isReference,
 	}
@@ -164,6 +171,16 @@ func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeD
 // String representation of a primitive data type.
 func (t PrimitiveDataType) String() string {
 	return primitiveDataTypeNames[t]
+}
+
+// String representation of a primitive data type as a pointer type.
+func (t PrimitiveDataType) PointerString() string {
+	return pointerPrefix + primitiveDataTypeNames[t]
+}
+
+// String representation of a primitive data type as a reference type.
+func (t PrimitiveDataType) ReferenceString() string {
+	return referencePrefix + primitiveDataTypeNames[t]
 }
 
 // String representation of a data type kind.
