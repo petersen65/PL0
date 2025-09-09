@@ -17,7 +17,7 @@ var unaryOperationFormats = map[UnaryOperator]string{
 // The unary operation node represents a unary operation in the abstract syntax tree.
 type unaryOperationNode struct {
 	expressionNode                       // embedded expression node
-	Requirements   ts.DataTypeCapability `json:"unary_requirements"` // required data type capabilities
+	Requirements_  ts.DataTypeCapability `json:"unary_requirements"` // required data type capabilities
 	Operation_     UnaryOperator         `json:"unary_operation"`    // unary operation
 	Operand_       Expression            `json:"unary_operand"`      // operand of the unary operation
 }
@@ -40,11 +40,11 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 	switch operation {
 	case Odd:
 		// the odd operation requires an odd-checkable data type
-		unaryNode.Requirements = ts.OddCheckable
+		unaryNode.Requirements_ = ts.OddCheckable
 
 	case Negate:
 		// the negate operation requires a negatable data type
-		unaryNode.Requirements = ts.Negatable
+		unaryNode.Requirements_ = ts.Negatable
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, operation, nil))

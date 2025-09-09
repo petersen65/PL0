@@ -11,7 +11,7 @@ import (
 // The arithmetic operation node represents a arithmetic operation in the abstract syntax tree.
 type arithmeticOperationNode struct {
 	expressionNode                       // embedded expression node
-	Requirements   ts.DataTypeCapability `json:"arithmetic_requirements"` // required data type capabilities
+	Requirements_  ts.DataTypeCapability `json:"arithmetic_requirements"` // required data type capabilities
 	Operation_     ArithmeticOperator    `json:"arithmetic_operation"`    // arithmetic operation
 	Left_          Expression            `json:"left_operand"`            // left operand of the arithmetic operation
 	Right_         Expression            `json:"right_operand"`           // right operand of the arithmetic operation
@@ -45,7 +45,7 @@ func newArithmeticOperation(operation ArithmeticOperator, left, right Expression
 	switch operation {
 	case Plus, Minus, Times, Divide:
 		// all arithmetic operations require numeric data types
-		binaryNode.Requirements = ts.Numeric
+		binaryNode.Requirements_ = ts.Numeric
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, operation, nil))

@@ -11,7 +11,7 @@ import (
 // The comparison operation node represents a comparison operation in the abstract syntax tree.
 type comparisonOperationNode struct {
 	expressionNode                       // embedded expression node
-	Requirements   ts.DataTypeCapability `json:"comparison_requirements"` // required data type capabilities
+	Requirements_  ts.DataTypeCapability `json:"comparison_requirements"` // required data type capabilities
 	DataType_      ts.TypeDescriptor     `json:"data_type"`               // data type of the comparison operation (always boolean if operands are valid)
 	Operation_     ComparisonOperator    `json:"comparison_operation"`    // comparison operation
 	Left_          Expression            `json:"left_operand"`            // left operand of the comparison operation
@@ -49,11 +49,11 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 	switch operation {
 	case Equal, NotEqual:
 		// equality operations require equality-comparable data types
-		comparisonNode.Requirements = ts.Equality
+		comparisonNode.Requirements_ = ts.Equality
 
 	case Less, LessEqual, Greater, GreaterEqual:
 		// ordering operations require orderable data types
-		comparisonNode.Requirements = ts.Ordered
+		comparisonNode.Requirements_ = ts.Ordered
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, operation, nil))
