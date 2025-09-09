@@ -81,6 +81,16 @@ func (n NodeKind) String() string {
 }
 
 // Walk traverses an abstract syntax tree in a specific order and calls the visitor or the visit function for each node.
+// It filters out empty constant declarations which can be created during parsing of erroneous code.
 func Walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
-	return walk(parent, order, visitor, visit)
+	filter := func(node Node) bool {
+		if constant, ok := node.(*constantDeclarationNode); ok && constant.IdentifierName_ == emptyConstantName {
+			return true
+		}
+
+		return false
+	}
+
+	// delegate to the enhanced walk function with filtering capability
+	return walk(parent, order, visitor, visit, filter)
 }

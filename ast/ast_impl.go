@@ -59,18 +59,22 @@ func (n *commonNode) SetParent(parent Node) {
 //	  B   C
 //	 / \   \
 //	D   E   F
-func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any)) error {
+func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, visitor any), filter func(Node) bool) error {
 	// check preconditions for walking the tree and return an error if any are violated
 	if parent == nil {
 		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, cannotWalkOnNilNode, nil, nil)
-	} else if visitor == nil && visit == nil {
+	}
+
+	if visitor == nil && visit == nil {
 		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, walkRequiresVisitorOrFunction, nil, nil)
-	} else if _, ok := visitor.(Visitor); !ok && visit == nil {
+	}
+
+	if _, ok := visitor.(Visitor); !ok && visit == nil {
 		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, walkRequiresInterfaceOrFunction, nil, nil)
 	}
 
-	// filter out empty constants
-	if constant, ok := parent.(*constantDeclarationNode); ok && constant.IdentifierName_ == emptyConstantName {
+	// if a filter function is provided, use it to determine if the current node should be processed
+	if filter != nil && !filter(parent) {
 		return nil
 	}
 
@@ -91,9 +95,17 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 			parent.Accept(visitor.(Visitor))
 		}
 
-		// traverse the childs left to right in pre-order
+		// traverse children left to right and propagate errors
 		for _, child := range parent.Children() {
-			walk(child, order, visitor, visit)
+			// skip nil children
+			if child == nil {
+				continue
+			}
+
+			// propagate error
+			if err := walk(child, order, visitor, visit, filter); err != nil {
+				return err
+			}
 		}
 
 	// In-order traversal is a method of traversing a tree data structure in which each node is processed between (in) its child nodes.
@@ -106,12 +118,19 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	//   3. Traverse the right subtree in in-order
 	// An in-order traversal would visit the nodes in the following order: D, B, E, A, C, F.
 	case InOrder:
-		if len(parent.Children()) != 2 {
-			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, inOrderRequiresTwoChildren, nil, nil)
+		children := parent.Children()
+
+		// in-order traversal is only defined for binary trees
+		if len(children) != 2 {
+			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, inOrderRequiresBinaryTree, nil, nil)
 		}
 
-		// traverse the left subtree in in-order
-		walk(parent.Children()[0], order, visitor, visit)
+		// traverse the left subtree in in-order and propagate errors
+		if children[0] != nil {
+			if err := walk(children[0], order, visitor, visit, filter); err != nil {
+				return err
+			}
+		}
 
 		// call the visit function or visit the parent node
 		if visit != nil {
@@ -120,8 +139,12 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 			parent.Accept(visitor.(Visitor))
 		}
 
-		// traverse the right subtree in in-order
-		walk(parent.Children()[1], order, visitor, visit)
+		// traverse the right subtree in in-order and propagate errors
+		if children[1] != nil {
+			if err := walk(children[1], order, visitor, visit, filter); err != nil {
+				return err
+			}
+		}
 
 	// Post-order traversal is a method of traversing a tree data structure in which each node is processed after (post) its child nodes.
 	// This method is often used when you need to ensure that a node is processed after its descendants, such as when deleting or freeing nodes of a tree.
@@ -131,9 +154,17 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	//   2. Visit the parent node
 	// A post-order traversal would visit the nodes in the following order: D, E, B, F, C, A.
 	case PostOrder:
-		// traverse the childs left to right in post-order
+		// traverse the childs left to right in post-order and propagate errors
 		for _, child := range parent.Children() {
-			walk(child, order, visitor, visit)
+			// skip nil children
+			if child == nil {
+				continue
+			}
+
+			// propagate error
+			if err := walk(child, order, visitor, visit, filter); err != nil {
+				return err
+			}
 		}
 
 		// call the visit function or visit the parent node
@@ -154,12 +185,17 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	//   3. Repeat step 2 for each subsequent depth, visiting all nodes at each depth before moving on to the next
 	// A level-order traversal would visit the nodes in the following order: A, B, C, D, E, F.
 	case LevelOrder:
-		queue := make([]Node, 0)
-		queue = append(queue, parent)
+		// use a queue to keep track of nodes to visit
+		queue := []Node{parent}
 
 		for len(queue) > 0 {
 			node := queue[0]  // get the first node in the queue
 			queue = queue[1:] // remove the first node from the queue
+
+			// skip nil nodes
+			if node == nil {
+				continue
+			}
 
 			// call the visit function or visit the node
 			if visit != nil {
@@ -168,8 +204,16 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 				node.Accept(visitor.(Visitor))
 			}
 
-			queue = append(queue, node.Children()...) // add the node's children to the end of the queue
+			// add the node's children to the end of the queue and filter out nil children
+			for _, child := range node.Children() {
+				if child != nil {
+					queue = append(queue, child)
+				}
+			}
 		}
+
+	default:
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, unknownTraversalOrder, nil, nil)
 	}
 
 	return nil
