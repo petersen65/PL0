@@ -9,18 +9,22 @@ import (
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
+// Constant folding evaluates compile-time constant expressions in the abstract syntax tree and replaces them with their computed values.
+// It optimizes the code by pre-computing arithmetic operations, comparisons, and other expressions where all operands are known constants.
 type constantFolding struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-func NewConstantFolding(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *constantFolding {
+// Return the interface of the constant folding implementation.
+func newConstantFolding(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *constantFolding {
 	return &constantFolding{
 		abstractSyntax: abstractSyntax,
 		tokenHandler:   tokenHandler,
 	}
 }
 
+// Analyze the abstract syntax tree for constant expressions and fold them where possible.
 func (c *constantFolding) Accept() {
 	c.abstractSyntax.Accept(c)
 }

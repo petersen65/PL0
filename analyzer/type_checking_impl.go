@@ -9,19 +9,22 @@ import (
 	tok "github.com/petersen65/pl0/v3/token"
 )
 
+// Type checking validates the type correctness of all expressions and statements in the abstract syntax tree.
+// It verifies that operators are applied to compatible types, assignments match declared types, and function calls provide correct argument types.
 type typeChecking struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-func NewTypeChecking(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *typeChecking {
+// Return the interface of the type checking implementation.
+func newTypeChecking(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *typeChecking {
 	return &typeChecking{
 		abstractSyntax: abstractSyntax,
 		tokenHandler:   tokenHandler,
 	}
 }
 
-// Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
+// Analyze the abstract syntax tree for type correctness of all expressions and statements.
 func (c *typeChecking) Accept() {
 	c.abstractSyntax.Accept(c)
 }
