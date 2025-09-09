@@ -58,17 +58,20 @@ func newScope(outer Scope) Scope {
 		outerScope = outer.(*scope)
 	}
 
+	// create the scope with an optional outer scope that can be nil
 	inner := &scope{
 		Outer:       outerScope,
 		Inner:       make([]*scope, 0),
 		SymbolTable: newSymbolTable(),
 	}
 
-	if outerScope != nil {
+	// if there is no outer scope, this is the outermost scope, so add built-in symbols.
+	if outerScope == nil {
+		inner.setupBuiltInSymbols()
+	} else {
 		outerScope.Inner = append(outerScope.Inner, inner)
 	}
 
-	inner.setupBuiltInSymbols()
 	return inner
 }
 
@@ -135,44 +138,44 @@ func (s *scope) IterateCurrent() <-chan *Symbol {
 	return s.SymbolTable.iterate()
 }
 
-// Setup all built-in symbols for the scope.
+// Setup all built-in symbols for any outermost scope.
 func (s *scope) setupBuiltInSymbols() {
-	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64)
+	int64Type := ts.NewSimpleTypeDescriptor(ts.Integer64, true)
 	s.Insert(int64Type.String(), NewSymbol(int64Type.String(), DataTypeEntry, int64Type, nil))
 
-	int32Type := ts.NewSimpleTypeDescriptor(ts.Integer32)
+	int32Type := ts.NewSimpleTypeDescriptor(ts.Integer32, true)
 	s.Insert(int32Type.String(), NewSymbol(int32Type.String(), DataTypeEntry, int32Type, nil))
 
-	int16Type := ts.NewSimpleTypeDescriptor(ts.Integer16)
+	int16Type := ts.NewSimpleTypeDescriptor(ts.Integer16, true)
 	s.Insert(int16Type.String(), NewSymbol(int16Type.String(), DataTypeEntry, int16Type, nil))
 
-	int8Type := ts.NewSimpleTypeDescriptor(ts.Integer8)
+	int8Type := ts.NewSimpleTypeDescriptor(ts.Integer8, true)
 	s.Insert(int8Type.String(), NewSymbol(int8Type.String(), DataTypeEntry, int8Type, nil))
 
-	float64Type := ts.NewSimpleTypeDescriptor(ts.Float64)
+	float64Type := ts.NewSimpleTypeDescriptor(ts.Float64, true)
 	s.Insert(float64Type.String(), NewSymbol(float64Type.String(), DataTypeEntry, float64Type, nil))
 
-	float32Type := ts.NewSimpleTypeDescriptor(ts.Float32)
+	float32Type := ts.NewSimpleTypeDescriptor(ts.Float32, true)
 	s.Insert(float32Type.String(), NewSymbol(float32Type.String(), DataTypeEntry, float32Type, nil))
 
-	uint64Type := ts.NewSimpleTypeDescriptor(ts.Unsigned64)
+	uint64Type := ts.NewSimpleTypeDescriptor(ts.Unsigned64, true)
 	s.Insert(uint64Type.String(), NewSymbol(uint64Type.String(), DataTypeEntry, uint64Type, nil))
 
-	uint32Type := ts.NewSimpleTypeDescriptor(ts.Unsigned32)
+	uint32Type := ts.NewSimpleTypeDescriptor(ts.Unsigned32, true)
 	s.Insert(uint32Type.String(), NewSymbol(uint32Type.String(), DataTypeEntry, uint32Type, nil))
 
-	uint16Type := ts.NewSimpleTypeDescriptor(ts.Unsigned16)
+	uint16Type := ts.NewSimpleTypeDescriptor(ts.Unsigned16, true)
 	s.Insert(uint16Type.String(), NewSymbol(uint16Type.String(), DataTypeEntry, uint16Type, nil))
 
-	uint8Type := ts.NewSimpleTypeDescriptor(ts.Unsigned8)
+	uint8Type := ts.NewSimpleTypeDescriptor(ts.Unsigned8, true)
 	s.Insert(uint8Type.String(), NewSymbol(uint8Type.String(), DataTypeEntry, uint8Type, nil))
 
-	boolType := ts.NewSimpleTypeDescriptor(ts.Boolean)
+	boolType := ts.NewSimpleTypeDescriptor(ts.Boolean, true)
 	s.Insert(boolType.String(), NewSymbol(boolType.String(), DataTypeEntry, boolType, nil))
 
-	charType := ts.NewSimpleTypeDescriptor(ts.Character)
+	charType := ts.NewSimpleTypeDescriptor(ts.Character, true)
 	s.Insert(charType.String(), NewSymbol(charType.String(), DataTypeEntry, charType, nil))
 
-	stringType := ts.NewSimpleTypeDescriptor(ts.String)
+	stringType := ts.NewSimpleTypeDescriptor(ts.String, true)
 	s.Insert(stringType.String(), NewSymbol(stringType.String(), DataTypeEntry, stringType, nil))
 }

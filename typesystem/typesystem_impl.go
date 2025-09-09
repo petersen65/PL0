@@ -9,8 +9,9 @@ import (
 
 // Common fields shared by all type descriptors.
 type commonTypeDescriptor struct {
-	Abi   plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
-	Kind_ DataTypeKind                   `json:"data_type_kind"`               // kind of data type (e.g., simple, structure, pointer)
+	Abi     plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
+	Kind_   DataTypeKind                   `json:"data_type_kind"`               // kind of data type (e.g., simple, structure, pointer)
+	BuiltIn bool                           `json:"built_in"`                     // indicates if this type is a built-in data type
 }
 
 // Map a data type kind to its string representation.
@@ -26,6 +27,11 @@ var dataTypeKindNames = map[DataTypeKind]string{
 // Kind of data type represented by the common type descriptor.
 func (d *commonTypeDescriptor) Kind() DataTypeKind {
 	return d.Kind_
+}
+
+// The common type descriptor represents a built-in data type.
+func (d *commonTypeDescriptor) IsBuiltIn() bool {
+	return d.BuiltIn
 }
 
 // Check if the common type descriptor represents a pointer data type.

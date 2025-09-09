@@ -34,7 +34,7 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 			commonNode:       commonNode{NodeKind: KindComparisonOperation},
 			TokenStreamIndex: index,
 		},
-		DataType_:  ts.NewSimpleTypeDescriptor(ts.Boolean),
+		DataType_:  left.CurrentBlock().BuiltInDataType(ts.Boolean.String()),
 		Operation_: operation,
 		Left_:      left,
 		Right_:     right,

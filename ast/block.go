@@ -6,6 +6,7 @@ package ast
 import (
 	exp "github.com/petersen65/pl0/v3/export"
 	sym "github.com/petersen65/pl0/v3/symbol"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Search parent block nodes in the abstract syntax tree.
@@ -24,6 +25,7 @@ type (
 		Lookup(name string) *sym.Symbol
 		LookupCurrent(name string) *sym.Symbol
 		UniqueName(prefix rune) string
+		BuiltInDataType(name string) ts.TypeDescriptor
 	}
 
 	// Block represents a block of declarations and statements in the abstract syntax tree.

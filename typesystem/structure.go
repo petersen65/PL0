@@ -12,7 +12,7 @@ type StructureField struct {
 }
 
 // Create a new structure type descriptor with fields.
-func NewStructureTypeDescriptor(structureTypeName string, fields []*StructureField, isPacked bool) TypeDescriptor {
+func NewStructureTypeDescriptor(structureTypeName string, fields []*StructureField, isPacked, builtIn bool) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	if fields == nil {
@@ -20,7 +20,7 @@ func NewStructureTypeDescriptor(structureTypeName string, fields []*StructureFie
 	}
 
 	return &structureTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeStructure},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeStructure, BuiltIn: builtIn},
 		TypeName:             structureTypeName,
 		Fields:               fields,
 		IsPacked:             isPacked,

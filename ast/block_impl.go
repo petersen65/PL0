@@ -12,6 +12,7 @@ import (
 	eh "github.com/petersen65/pl0/v3/errors"
 	exp "github.com/petersen65/pl0/v3/export"
 	sym "github.com/petersen65/pl0/v3/symbol"
+	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // Format for the string representation of a block node.
@@ -174,6 +175,20 @@ func (s *blockNode) UniqueName(prefix rune) string {
 	return fmt.Sprintf("%c%v.%v", prefix, s.UniqueId, s.Counter[prefix])
 }
 
+// Find a built-in data type in the root block's scope.
+func (s *blockNode) BuiltInDataType(name string) ts.TypeDescriptor {
+	// built-in data types are always defined in the outermost scope of the root block
+	rb := s.RootBlock()
+
+	// look for the built-in data type in the root block's scope
+	if symbol := rb.Lookup(name); symbol != nil && symbol.Kind == sym.DataTypeEntry && symbol.DataType.IsBuiltIn(){
+		return symbol.DataType
+	}
+
+	// there is no built-in data type with the specified name
+	return nil
+}
+
 // Print the abstract syntax tree to the specified writer.
 func (n *blockNode) Print(print io.Writer, args ...any) error {
 	// traverse the abstract syntax tree and print each node
@@ -217,7 +232,7 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 func searchBlock(node Node, mode BlockSearchMode) Block {
 	// the parent of a block node is its function declaration node or nil for the root block
 	//   - the parent of the function declaration node is a block node that will be seen as the parent block of the current block
-	// 
+	//
 	// if the current node is a block node and the search mode is CurrentBlock, the search must start at the current block's parent node
 	//   - otherwise, the search would always return the current block node itself
 	if node.Kind() == KindBlock && node.Parent() != nil && mode == CurrentBlock {

@@ -24,11 +24,11 @@ const (
 type PrimitiveDataType int
 
 // Create a new simple type descriptor with an underlying primitive type.
-func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType) TypeDescriptor {
+func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType, builtIn bool) TypeDescriptor {
 	enforceSpecifiedApplicationBinaryInterface()
 
 	return &simpleTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeSimple},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeSimple, BuiltIn: builtIn},
 		PrimitiveType:        primitiveType,
 	}
 }

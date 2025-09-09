@@ -27,6 +27,7 @@ type (
 
 	// The type checker interface provides checks for the characteristics of a type descriptor.
 	TypeChecker interface {
+		IsBuiltIn() bool
 		IsPointer() bool
 		IsReference() bool
 		IsInteger() bool

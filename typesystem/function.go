@@ -25,7 +25,7 @@ type (
 )
 
 // Create a new function type descriptor with parameters and a return type. The return type may be nil for procedures.
-func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeDescriptor) TypeDescriptor {
+func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeDescriptor, builtIn bool) TypeDescriptor {
 	kind := DataTypeFunction
 	enforceSpecifiedApplicationBinaryInterface()
 
@@ -38,7 +38,7 @@ func NewFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeD
 	}
 
 	return &functionTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: kind},
+		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: kind, BuiltIn: builtIn},
 		Parameters:           parameters,
 		ReturnType:           returnType,
 	}

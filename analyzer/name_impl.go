@@ -119,7 +119,7 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 		a.appendError(identifierAlreadyDeclared, fd.IdentifierName(), fd.Index())
 	} else {
 		// create a data type for a function or procedure with a predefined list of parameters and an optional return type
-		functionType := ts.NewFunctionTypeDescriptor(fd.Parameters(), returnType)
+		functionType := ts.NewFunctionTypeDescriptor(fd.Parameters(), returnType, false)
 
 		// if the function data type is not found, insert it into the current block's scope
 		if fts := cb.Lookup(functionType.String()); fts != nil {
