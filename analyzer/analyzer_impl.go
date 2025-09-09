@@ -29,7 +29,7 @@ func (a *semanticAnalyzer) PerformSemanticAnalysis() {
 	}
 
 	// perform name analysis, enrich the abstract syntax tree, and fill in symbols from declarations into the scope of their blocks
-	nameAnalyzer := NewNameAnalyzer(a.abstractSyntax, a.tokenHandler)
+	nameAnalyzer := newNameAnalysis(a.abstractSyntax, a.tokenHandler)
 	nameAnalyzer.Accept()
 
 	// determine captured declarations for all blocks in the abstract syntax tree

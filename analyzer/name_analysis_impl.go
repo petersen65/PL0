@@ -13,21 +13,21 @@ import (
 
 // Name analysis validates the correctness of identifier declarations and creates a symbol table with type name information provided by the abstract syntax tree.
 // Herby, the analyzer checks for duplicate declarations and verifies that identifiers are declared before use.
-type nameAnalyzer struct {
+type nameAnalysis struct {
 	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
 	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
 }
 
-// Return the interface of the name analyzer implementation.
-func NewNameAnalyzer(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *nameAnalyzer {
-	return &nameAnalyzer{
+// Return the interface of the name analysis implementation.
+func newNameAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *nameAnalysis {
+	return &nameAnalysis{
 		abstractSyntax: abstractSyntax,
 		tokenHandler:   tokenHandler,
 	}
 }
 
 // Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
-func (a *nameAnalyzer) Accept() {
+func (a *nameAnalysis) Accept() {
 	// ensure that all used identifiers are declared before use and store all identifier symbols into each block's scope
 	a.abstractSyntax.Accept(a)
 
@@ -38,7 +38,7 @@ func (a *nameAnalyzer) Accept() {
 }
 
 // Walk the block abstract syntax tree by visiting all declarations and the block statement.
-func (a *nameAnalyzer) VisitBlock(b ast.Block) {
+func (a *nameAnalysis) VisitBlock(b ast.Block) {
 	for _, decl := range b.Declarations() {
 		decl.Accept(a)
 	}
@@ -47,7 +47,7 @@ func (a *nameAnalyzer) VisitBlock(b ast.Block) {
 }
 
 // Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
+func (a *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	cb := cd.CurrentBlock()             // current block
 	s := cb.Lookup(cd.IdentifierName()) // constant symbol
 	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
@@ -65,7 +65,7 @@ func (a *nameAnalyzer) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 }
 
 // Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {
+func (a *nameAnalysis) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 	cb := vd.CurrentBlock()             // current block
 	s := cb.Lookup(vd.IdentifierName()) // variable symbol
 	dts := cb.Lookup(vd.DataTypeName()) // variable data type symbol
@@ -83,7 +83,7 @@ func (a *nameAnalyzer) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 }
 
 // Enter the function declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
+func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	cb := fd.CurrentBlock()             // current block
 	s := cb.Lookup(fd.IdentifierName()) // function symbol
 
@@ -141,12 +141,12 @@ func (a *nameAnalyzer) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 }
 
 // Visit the literal-use node.
-func (a *nameAnalyzer) VisitLiteralUse(lu ast.LiteralUse) {
+func (a *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
 	// nothing to do because a literal does not have any identifier names
 }
 
 // Check if the used identifier is declared and if it is used correctly according to its symbol kind. Record the usage of the identifier in its declaration.
-func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
+func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 	// if the identifier used does not have a declaration or symbol, report an error
 	if iu.Declaration() == nil || iu.Declaration().Symbol() == nil {
 		a.appendError(identifierNotFound, iu.IdentifierName(), iu.Index())
@@ -204,13 +204,13 @@ func (a *nameAnalyzer) VisitIdentifierUse(iu ast.IdentifierUse) {
 }
 
 // Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
-func (a *nameAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
+func (a *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
 	uo.Operand().Accept(a)
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (a *nameAnalyzer) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
+func (a *nameAnalysis) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
 	bo.Left().Accept(a)
 	bo.Right().Accept(a)
 	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
@@ -218,7 +218,7 @@ func (a *nameAnalyzer) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
 }
 
 // Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
+func (a *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Left().Accept(a)
 	co.Right().Accept(a)
 	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
@@ -226,53 +226,53 @@ func (a *nameAnalyzer) VisitComparisonOperation(co ast.ComparisonOperation) {
 }
 
 // Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
-func (a *nameAnalyzer) VisitAssignmentStatement(as ast.AssignmentStatement) {
+func (a *nameAnalysis) VisitAssignmentStatement(as ast.AssignmentStatement) {
 	as.Variable().Accept(a)
 	as.Expression().Accept(a)
 	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
 }
 
 // Visit the read statement node and set the usage mode bit to write for the variable that is read into.
-func (a *nameAnalyzer) VisitReadStatement(rs ast.ReadStatement) {
+func (a *nameAnalysis) VisitReadStatement(rs ast.ReadStatement) {
 	rs.Variable().Accept(a)
 	rs.Variable().SetUsageMode(rs.Variable().UsageMode() | ast.Write)
 }
 
 // Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
-func (a *nameAnalyzer) VisitWriteStatement(ws ast.WriteStatement) {
+func (a *nameAnalysis) VisitWriteStatement(ws ast.WriteStatement) {
 	ws.Expression().Accept(a)
 	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
-func (a *nameAnalyzer) VisitCallStatement(cs ast.CallStatement) {
+func (a *nameAnalysis) VisitCallStatement(cs ast.CallStatement) {
 	cs.Function().Accept(a)
 	cs.Function().SetUsageMode(cs.Function().UsageMode() | ast.Execute)
 }
 
 // Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
-func (a *nameAnalyzer) VisitIfStatement(is ast.IfStatement) {
+func (a *nameAnalysis) VisitIfStatement(is ast.IfStatement) {
 	is.Condition().Accept(a)
 	is.Statement().Accept(a)
 	ast.Walk(is.Condition(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
-func (a *nameAnalyzer) VisitWhileStatement(ws ast.WhileStatement) {
+func (a *nameAnalysis) VisitWhileStatement(ws ast.WhileStatement) {
 	ws.Condition().Accept(a)
 	ws.Statement().Accept(a)
 	ast.Walk(ws.Condition(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the compound statement node by visiting all its statements.
-func (a *nameAnalyzer) VisitCompoundStatement(cs ast.CompoundStatement) {
+func (a *nameAnalysis) VisitCompoundStatement(cs ast.CompoundStatement) {
 	for _, statement := range cs.Statements() {
 		statement.Accept(a)
 	}
 }
 
-// Append an error from the name analyzer to the token handler's error list.
-func (a *nameAnalyzer) appendError(code eh.Failure, value any, index int) {
+// Append an error from the name analysis to the token handler's error list.
+func (a *nameAnalysis) appendError(code eh.Failure, value any, index int) {
 	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(eh.Error, code, value, index))
 }
 
