@@ -30,7 +30,7 @@ type (
 	}
 )
 
-// String representation of the structure type.
+// String representation of the structure type descriptor.
 func (d *structureTypeDescriptor) String() string {
 	var fields []string
 
@@ -71,6 +71,11 @@ func (d *structureTypeDescriptor) Alignment() int {
 
 // Check if the structure type descriptor is equal to another type descriptor.
 func (d *structureTypeDescriptor) Equal(other TypeDescriptor) bool {
+	// if either type descriptor is nil, they are not equal
+	if d == nil || other == nil {
+		return false
+	}
+
 	// detect self-comparison early and indicate equality to avoid unnecessary work
     if d == other {
         return true

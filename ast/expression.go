@@ -14,15 +14,15 @@ const (
 	Negate
 )
 
-// Operators with two operands.
+// Arithmetic operators with two operands.
 const (
-	Plus BinaryOperator = iota
+	Plus ArithmeticOperator = iota
 	Minus
 	Times
 	Divide
 )
 
-// Operators for comparison.
+// Comparison operators with two operands.
 const (
 	Equal ComparisonOperator = iota
 	NotEqual
@@ -32,15 +32,26 @@ const (
 	GreaterEqual
 )
 
+// Categories of operators that define their data type requirements.
+const (
+	Arithmetic OperatorCategory = iota
+	Comparison
+	Logical
+	Bitwise
+)
+
 type (
 	// Take one operand and perform an operation on it.
 	UnaryOperator int
 
-	// Take two operands and perform an operation on them.
-	BinaryOperator int
+	// Take two operands and perform an arithmetic operation on them.
+	ArithmeticOperator int
 
-	// Take two operands and perform a comparison on them.
+	// Take two operands and perform a comparison operation on them.
 	ComparisonOperator int
+
+	// Each operator belongs to a category, which is used to define their data type requirements.
+	OperatorCategory int
 
 	// An unary operation node in the abstract syntax tree.
 	UnaryOperation interface {
@@ -49,10 +60,10 @@ type (
 		Operand() Expression
 	}
 
-	// A binary operation node in the abstract syntax tree.
-	BinaryOperation interface {
+	// An arithmetic operation node in the abstract syntax tree.
+	ArithmeticOperation interface {
 		Expression
-		Operation() BinaryOperator
+		Operation() ArithmeticOperator
 		Left() Expression
 		Right() Expression
 	}
@@ -83,9 +94,9 @@ func NewUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 	return newUnaryOperation(operation, operand, index)
 }
 
-// Create a new binary operation node in the abstract syntax tree.
-func NewBinaryOperation(operation BinaryOperator, left, right Expression, index int) BinaryOperation {
-	return newBinaryOperation(operation, left, right, index)
+// Create a new arithmetic operation node in the abstract syntax tree.
+func NewArithmeticOperation(operation ArithmeticOperator, left, right Expression, index int) ArithmeticOperation {
+	return newArithmeticOperation(operation, left, right, index)
 }
 
 // Create a new comparison operation node in the abstract syntax tree.

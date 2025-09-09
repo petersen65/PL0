@@ -411,9 +411,9 @@ func (g *generator) VisitUnaryOperation(uo ast.UnaryOperation) {
 	}
 }
 
-// Generate code for a binary arithmetic operation.
-func (g *generator) VisitBinaryOperation(bo ast.BinaryOperation) {
-	// determine block where the binary operation is located
+// Generate code for an arithmetic operation.
+func (g *generator) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
+	// determine block where the arithmetic operation is located
 	cb := bo.CurrentBlock()
 
 	// load the results of the left and right expressions from the results-list
@@ -422,12 +422,12 @@ func (g *generator) VisitBinaryOperation(bo ast.BinaryOperation) {
 	right := g.popResult()
 	left := g.popResult()
 
-	// perform the binary arithmetic operation on the left- and right-hand-side results
+	// perform the arithmetic operation on the left- and right-hand-side results
 	switch bo.Operation() {
 	case ast.Plus, ast.Minus, ast.Times, ast.Divide:
 		var operation ic.Operation
 
-		// map the AST binary operation to the corresponding three-address code binary arithmetic operation
+		// map the AST arithmetic operation to the corresponding three-address code arithmetic operation
 		switch bo.Operation() {
 		case ast.Plus:
 			operation = ic.Plus
@@ -442,7 +442,7 @@ func (g *generator) VisitBinaryOperation(bo ast.BinaryOperation) {
 			operation = ic.Divide
 		}
 
-		// create a binary arithmetic operation instruction to perform the operation on the left- and right-hand-side results
+		// create an arithmetic operation instruction to perform the operation on the left- and right-hand-side results
 		instruction := ic.NewInstruction(
 			operation,
 			left,  // consumed left-hand-side result
@@ -455,11 +455,11 @@ func (g *generator) VisitBinaryOperation(bo ast.BinaryOperation) {
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownBinaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownArithmeticOperation, nil, nil))
 	}
 }
 
-// Generate code for a binary comparison operation.
+// Generate code for a comparison operation.
 func (g *generator) VisitComparisonOperation(co ast.ComparisonOperation) {
 	// load the results of the left and right expressions from the results-list
 	co.Left().Accept(g)
@@ -467,12 +467,12 @@ func (g *generator) VisitComparisonOperation(co ast.ComparisonOperation) {
 	right := g.popResult()
 	left := g.popResult()
 
-	// perform the binary comparison operation on the left- and right-hand-side results
+	// perform the comparison operation on the left- and right-hand-side results
 	switch co.Operation() {
 	case ast.Equal, ast.NotEqual, ast.Less, ast.LessEqual, ast.Greater, ast.GreaterEqual:
 		var operation ic.Operation
 
-		// map the AST binary operation to the corresponding three-address code binary comparison operation
+		// map the AST comparison operation to the corresponding three-address code comparison operation
 		switch co.Operation() {
 		case ast.Equal:
 			operation = ic.Equal
@@ -495,7 +495,7 @@ func (g *generator) VisitComparisonOperation(co ast.ComparisonOperation) {
 
 		// append the instruction to the intermediate code unit (boolean results are not stored on the results-list)
 		g.intermediateCode.AppendInstruction(
-			operation,  // create a binary comparison operation instruction to perform the operation on the left- and right-hand-side results
+			operation,  // create a comparison operation instruction to perform the operation on the left- and right-hand-side results
 			left,       // consumed left-hand-side result
 			right,      // consumed right-hand-side result
 			noAddress,  // consumed results are checked in-place, boolean result must be hold externally

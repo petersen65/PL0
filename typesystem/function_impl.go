@@ -23,7 +23,7 @@ var parameterModeNames = map[ParameterPassingMode]string{
 	OutputParameter:      "out",
 }
 
-// String representation of the function or procedure type.
+// String representation of the function or procedure type descriptor.
 func (d *functionTypeDescriptor) String() string {
 	var parameters []string
 
@@ -50,6 +50,11 @@ func (d *functionTypeDescriptor) Alignment() int {
 
 // Check if the function type descriptor is equal to another type descriptor.
 func (d *functionTypeDescriptor) Equal(other TypeDescriptor) bool {
+	// if either type descriptor is nil, they are not equal
+	if d == nil || other == nil {
+		return false
+	}
+
 	// detect self-comparison early and indicate equality to avoid unnecessary work
     if d == other {
         return true

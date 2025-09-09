@@ -29,7 +29,7 @@ func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType, builtIn bool) Type
 
 	return &simpleTypeDescriptor{
 		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeSimple, BuiltIn: builtIn},
-		PrimitiveType:        primitiveType,
+		PrimitiveDataType_:   primitiveType,
 	}
 }
 
@@ -41,9 +41,4 @@ func (t PrimitiveDataType) String() string {
 // String representation of a primitive data type as a pointer type.
 func (t PrimitiveDataType) PointerString() string {
 	return pointerPrefix + primitiveDataTypeNames[t]
-}
-
-// String representation of a primitive data type as a reference type.
-func (t PrimitiveDataType) ReferenceString() string {
-	return referencePrefix + primitiveDataTypeNames[t]
 }

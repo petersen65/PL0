@@ -10,7 +10,7 @@ const (
 	_ eh.Failure = iota + 3000
 	unknownIdentifierKind
 	unknownUnaryOperation
-	unknownBinaryOperation
+	unknownArithmeticOperation
 	unknownComparisonOperation
 	cannotWalkOnNilNode
 	walkRequiresVisitorOrFunction
@@ -25,7 +25,7 @@ const (
 var failureMap = map[eh.Failure]string{
 	unknownIdentifierKind:           "unknown identifier kind: %v",
 	unknownUnaryOperation:           "unknown unary operation: %v",
-	unknownBinaryOperation:          "unknown binary operation: %v",
+	unknownArithmeticOperation:      "unknown arithmetic operation: %v",
 	unknownComparisonOperation:      "unknown comparison operation: %v",
 	cannotWalkOnNilNode:             "cannot walk on nil node",
 	walkRequiresVisitorOrFunction:   "cannot walk without a visitor or visit function",

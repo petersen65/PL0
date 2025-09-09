@@ -13,7 +13,7 @@ const (
 	unsupportedDataTypeInVariableDeclaration
 	invalidContextInIdentifierUse
 	unknownUnaryOperation
-	unknownBinaryOperation
+	unknownArithmeticOperation
 	unknownComparisonOperation
 	unexpectedIntermediateCodeResult
 )
@@ -25,7 +25,7 @@ var failureMap = map[eh.Failure]string{
 	unsupportedDataTypeInVariableDeclaration: "unsupported datatype in variable declaration: %v",
 	invalidContextInIdentifierUse:            "invalid context in identifier use",
 	unknownUnaryOperation:                    "unknown unary operation",
-	unknownBinaryOperation:                   "unknown binary operation",
+	unknownArithmeticOperation:               "unknown arithmetic operation",
 	unknownComparisonOperation:               "unknown comparison operation",
 	unexpectedIntermediateCodeResult:         "unexpected intermediate code result",
 }

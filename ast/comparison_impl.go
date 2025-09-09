@@ -10,11 +10,12 @@ import (
 
 // The comparison operation node represents a comparison operation in the abstract syntax tree.
 type comparisonOperationNode struct {
-	expressionNode                    // embedded expression node
-	DataType_      ts.TypeDescriptor  `json:"data_type"`            // data type of the comparison operation (always boolean if operands are valid)
-	Operation_     ComparisonOperator `json:"comparison_operation"` // comparison operation
-	Left_          Expression         `json:"left_operand"`         // left operand of the comparison operation
-	Right_         Expression         `json:"right_operand"`        // right operand of the comparison operation
+	expressionNode                       // embedded expression node
+	Requirements   ts.DataTypeCapability `json:"comparison_requirements"` // required data type capabilities
+	DataType_      ts.TypeDescriptor     `json:"data_type"`               // data type of the comparison operation (always boolean if operands are valid)
+	Operation_     ComparisonOperator    `json:"comparison_operation"`    // comparison operation
+	Left_          Expression            `json:"left_operand"`            // left operand of the comparison operation
+	Right_         Expression            `json:"right_operand"`           // right operand of the comparison operation
 }
 
 // Formats for the string representation of comparison operation nodes.
@@ -40,8 +41,24 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 		Right_:     right,
 	}
 
+	// the parent of the left and right operand is the comparison operation node
 	left.SetParent(comparisonNode)
 	right.SetParent(comparisonNode)
+
+	// define data type requirements for the comparison operation
+	switch operation {
+	case Equal, NotEqual:
+		// equality operations require equality-comparable data types
+		comparisonNode.Requirements = ts.Equality
+
+	case Less, LessEqual, Greater, GreaterEqual:
+		// ordering operations require orderable data types
+		comparisonNode.Requirements = ts.Ordered
+
+	default:
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, operation, nil))
+	}
+
 	return comparisonNode
 }
 
@@ -79,17 +96,24 @@ func (e *comparisonOperationNode) IsConstant() bool {
 }
 
 // Determine the data type of the comparison operation node which is always boolean.
-// If the data types of the left and right operands do not match, nil is returned.
 // If the data type of the operands cannot be determined, nil is returned.
+// If the data types of the left and right operands do not match, nil is returned.
 func (n *comparisonOperationNode) DataType() ts.TypeDescriptor {
 	left := n.Left_.DataType()
 	right := n.Right_.DataType()
 
-	if left == nil || left != right {
+	// if either operand's data type cannot be determined, return nil
+	if left == nil || right == nil {
 		return nil
 	}
 
-	return n.DataType_
+	// if the data types of the left and right operands do not match, return nil
+	if !left.Equal(right) {
+		return nil
+	}
+
+	// take the data type of the left operand as the data type of the comparison operation
+	return left
 }
 
 // Comparison operation of the comparison operation node.

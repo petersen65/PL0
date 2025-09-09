@@ -699,9 +699,9 @@ func (p *parser) expression(anchors tok.Tokens) ast.Expression {
 		right := p.term(set(anchors, tok.Plus, tok.Minus))
 
 		if plusOrMinus == tok.Plus {
-			operation = ast.NewBinaryOperation(ast.Plus, left, right, plusOrMinusIndex)
+			operation = ast.NewArithmeticOperation(ast.Plus, left, right, plusOrMinusIndex)
 		} else {
-			operation = ast.NewBinaryOperation(ast.Minus, left, right, plusOrMinusIndex)
+			operation = ast.NewArithmeticOperation(ast.Minus, left, right, plusOrMinusIndex)
 		}
 
 		left = operation
@@ -731,10 +731,10 @@ func (p *parser) term(anchors tok.Tokens) ast.Expression {
 		right := p.factor(set(anchors, tok.Times, tok.Divide))
 
 		if timesOrDevide == tok.Times {
-			operation = ast.NewBinaryOperation(ast.Times, left, right, timesOrDevideIndex)
+			operation = ast.NewArithmeticOperation(ast.Times, left, right, timesOrDevideIndex)
 
 		} else {
-			operation = ast.NewBinaryOperation(ast.Divide, left, right, timesOrDevideIndex)
+			operation = ast.NewArithmeticOperation(ast.Divide, left, right, timesOrDevideIndex)
 		}
 
 		left = operation

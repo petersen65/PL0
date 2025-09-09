@@ -35,13 +35,13 @@ var (
 		Odd:    {{Arg1: Temporary, Arg2: Empty, Result: Empty}},
 		Negate: {{Arg1: Temporary, Arg2: Empty, Result: Temporary}},
 
-		// binary arithmetic operation
+		// arithmetic operation
 		Plus:   {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 		Minus:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 		Times:  {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 		Divide: {{Arg1: Temporary, Arg2: Temporary, Result: Temporary}},
 
-		// binary comparison operation
+		// comparison operation
 		Equal:        {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
 		NotEqual:     {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
 		Less:         {{Arg1: Temporary, Arg2: Temporary, Result: Empty}},
@@ -90,13 +90,13 @@ var (
 		Odd:    "odd",
 		Negate: "negate",
 
-		// binary arithmetic operation
+		// arithmetic operation
 		Plus:   "add",
 		Minus:  "subtract",
 		Times:  "multiply",
 		Divide: "divide",
 
-		// binary comparison operation
+		// comparison operation
 		Equal:        "equal",
 		NotEqual:     "notEqual",
 		Less:         "less",

@@ -13,7 +13,7 @@ const (
 	KindLiteralUse
 	KindIdentifierUse
 	KindUnaryOperation
-	KindBinaryOperation
+	KindArithmeticOperation
 	KindComparisonOperation
 	KindAssignmentStatement
 	KindReadStatement
@@ -63,7 +63,7 @@ type (
 		VisitLiteralUse(use LiteralUse)
 		VisitIdentifierUse(use IdentifierUse)
 		VisitUnaryOperation(operation UnaryOperation)
-		VisitBinaryOperation(operation BinaryOperation)
+		VisitArithmeticOperation(operation ArithmeticOperation)
 		VisitComparisonOperation(operation ComparisonOperation)
 		VisitAssignmentStatement(assignment AssignmentStatement)
 		VisitReadStatement(read ReadStatement)

@@ -25,7 +25,7 @@ var nodeKindNames = map[NodeKind]string{
 	KindLiteralUse:          "literal_use",
 	KindIdentifierUse:       "identifier_use",
 	KindUnaryOperation:      "unary_operation",
-	KindBinaryOperation:     "binary_operation",
+	KindArithmeticOperation: "binary_operation",
 	KindComparisonOperation: "comparison_operation",
 	KindAssignmentStatement: "assignment_statement",
 	KindReadStatement:       "read_statement",

@@ -209,8 +209,8 @@ func (a *nameAnalyzer) VisitUnaryOperation(uo ast.UnaryOperation) {
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
-// Visit the binary operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (a *nameAnalyzer) VisitBinaryOperation(bo ast.BinaryOperation) {
+// Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+func (a *nameAnalyzer) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
 	bo.Left().Accept(a)
 	bo.Right().Accept(a)
 	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
