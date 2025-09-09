@@ -50,30 +50,51 @@ func (d *functionTypeDescriptor) Alignment() int {
 
 // Check if the function type descriptor is equal to another type descriptor.
 func (d *functionTypeDescriptor) Equal(other TypeDescriptor) bool {
-	o, ok := other.(*functionTypeDescriptor)
-	if !ok {
-		return false
-	}
-	if len(d.Parameters) != len(o.Parameters) {
-		return false
-	}
-	for i := range d.Parameters {
-		p1, p2 := d.Parameters[i], o.Parameters[i]
-		if p1.Mode != p2.Mode {
+	// detect self-comparison early and indicate equality to avoid unnecessary work
+    if d == other {
+        return true
+    }
+
+	// check if the other type descriptor is also a function type descriptor
+	if o, ok := other.(*functionTypeDescriptor); ok {
+		// the function signatures are equal if they have the same number of parameters with the same passing modes and types, and the same return type
+		if len(d.Parameters) != len(o.Parameters) {
 			return false
 		}
-		if (p1.Type == nil) != (p2.Type == nil) {
+
+		// compare each parameter in order
+		for i := range d.Parameters {
+			descriptor, other := d.Parameters[i], o.Parameters[i]
+
+			// passing modes must match
+			if descriptor.Mode != other.Mode {
+				return false
+			}
+
+			// parameter types must match (both nil or both non-nil and equal)
+			if (descriptor.Type == nil) != (other.Type == nil) {
+				return false
+			}
+
+			// parameter types must match if both are non-nil
+			if descriptor.Type != nil && !descriptor.Type.Equal(other.Type) {
+				return false
+			}
+		}
+
+		// return types must match (both nil or both non-nil and equal)
+		if (d.ReturnType == nil) != (o.ReturnType == nil) {
 			return false
 		}
-		if p1.Type != nil && !p1.Type.Equal(p2.Type) {
+
+		// return types must match if both are non-nil
+		if d.ReturnType != nil && !d.ReturnType.Equal(o.ReturnType) {
 			return false
 		}
+
+		return true
 	}
-	if (d.ReturnType == nil) != (o.ReturnType == nil) {
-		return false
-	}
-	if d.ReturnType != nil && !d.ReturnType.Equal(o.ReturnType) {
-		return false
-	}
-	return true
+
+	// data types are not equal if they are of different type descriptors
+	return false
 }

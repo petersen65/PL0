@@ -30,7 +30,7 @@ func (d *commonTypeDescriptor) Kind() DataTypeKind {
 
 // Check if the common type descriptor represents a pointer data type.
 func (d *commonTypeDescriptor) IsPointer() bool {
-	return d.Kind_ == DataTypePointer || d.Kind_ == DataTypeFunction || d.Kind_ == DataTypeProcedure
+	return d.Kind_ == DataTypePointer
 }
 
 // Check if the common type descriptor represents a reference data type.

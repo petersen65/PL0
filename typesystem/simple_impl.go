@@ -43,6 +43,11 @@ func (d *simpleTypeDescriptor) Alignment() int {
 
 // Check if the simple type descriptor is equal to another type descriptor.
 func (d *simpleTypeDescriptor) Equal(other TypeDescriptor) bool {
+	// detect self-comparison early and indicate equality to avoid unnecessary work
+    if d == other {
+        return true
+    }
+
 	// check if the other type descriptor is also a simple type descriptor
 	if o, ok := other.(*simpleTypeDescriptor); ok {
 		return d.PrimitiveType == o.PrimitiveType

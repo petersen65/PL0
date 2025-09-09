@@ -36,6 +36,11 @@ func (d *pointerTypeDescriptor) Alignment() int {
 
 // Check if the pointer type descriptor is equal to another type descriptor.
 func (d *pointerTypeDescriptor) Equal(other TypeDescriptor) bool {
+	// detect self-comparison early and indicate equality to avoid unnecessary work
+    if d == other {
+        return true
+    }
+
 	// check if the other type descriptor is also a pointer type descriptor and has the same kind (pointer or reference)
 	if o, ok := other.(*pointerTypeDescriptor); ok && d.Kind_ == o.Kind_{
 		return d.ValueType.Equal(o.ValueType)
