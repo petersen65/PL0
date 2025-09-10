@@ -89,7 +89,7 @@ type (
 
 // An empty expression is a 0 literal, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyExpression() Expression {
-	return newLiteralUse(int64(0), NoHint, tok.NoTokenStreamIndex)
+	return newLiteralUse("0", IntegerHint, NoSign, tok.NoTokenStreamIndex)
 }
 
 // Create a new unary operation node in the abstract syntax tree.

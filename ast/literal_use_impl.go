@@ -10,25 +10,28 @@ import (
 )
 
 // Format for the string representation of a literal-use node.
-const literalUseFormat = "use(kind=%v,value=%v)"
+const literalUseFormat = "use(kind=%v,literal=%v)"
 
 // Represents a single use of a literal value.
 type literalUseNode struct {
 	expressionNode                   // embedded expression node
-	Value_         any               `json:"literal_value"` // value of the literal
-	Hint_          LiteralHint       `json:"literal_hint"`  // hint for the literal (e.g., character literal)
-	DataType_      ts.TypeDescriptor `json:"data_type"`     // data type of the literal, might be nil if it was not or cannot be inferred
+	Literal_       string            `json:"literal"`       // the original literal string
+	Hint_          LiteralHint       `json:"literal_hint"`  // hint for the literal (e.g., character literal or integer literal)
+	Sign_          LiteralSign       `json:"literal_sign"`  // sign of the literal (e.g., unary plus or minus)
+	Value_         any               `json:"literal_value"` // inferred value of the literal, might be nil if it was not or cannot be inferred
+	DataType_      ts.TypeDescriptor `json:"data_type"`     // inferred data type of the literal, might be nil if it was not or cannot be inferred
 }
 
 // Create a new literal-use node in the abstract syntax tree.
-func newLiteralUse(value any, hint LiteralHint, index int) LiteralUse {
+func newLiteralUse(literal string, hint LiteralHint, sign LiteralSign, index int) LiteralUse {
 	return &literalUseNode{
 		expressionNode: expressionNode{
 			commonNode:       commonNode{NodeKind: KindLiteralUse},
 			TokenStreamIndex: index,
 		},
-		Value_: value,
-		Hint_:  hint,
+		Literal_: literal,
+		Hint_:    hint,
+		Sign_:    sign,
 	}
 }
 
@@ -39,7 +42,7 @@ func (n *literalUseNode) Children() []Node {
 
 // String representation of the literal-use node.
 func (n *literalUseNode) String() string {
-	return fmt.Sprintf(literalUseFormat, n.Kind(), n.Value_)
+	return fmt.Sprintf(literalUseFormat, n.Kind(), n.Literal_)
 }
 
 // Accept the visitor for the literal-use node.
@@ -57,18 +60,24 @@ func (n *literalUseNode) IsConstant() bool {
 	return true
 }
 
-// Value of the literal in the literal-use node.
-func (n *literalUseNode) Value() any {
-	return n.Value_
-}
-
 // Hint for the literal in the literal-use node (e.g., character literal).
 func (n *literalUseNode) Hint() LiteralHint {
 	return n.Hint_
 }
 
-// Determine the data type of the literal used by this literal-use node.
-// The used literal might not have a data type if it cannot be inferred. In that case, nil is returned.
+// Sign of the literal in the literal-use node (e.g., unary plus or minus).
+func (n *literalUseNode) Sign() LiteralSign {
+	return n.Sign_
+}
+
+// Determine the value of the literal in this literal-use node.
+// The literal might not have a value if it cannot be inferred. In that case, nil is returned.
+func (n *literalUseNode) Value() any {
+	return n.Value_
+}
+
+// Determine the data type of the literal in this literal-use node.
+// The literal might not have a data type if it cannot be inferred. In that case, nil is returned.
 func (n *literalUseNode) DataType() ts.TypeDescriptor {
 	// if there is no value, there is no data type
 	if n.Value_ == nil {

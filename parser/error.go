@@ -30,7 +30,7 @@ const (
 	expectedRightParenthesis
 	expectedStatementsIdentifiers
 	expectedStatementsIdentifiersProcedures
-	expectedIdentifiersNumbersExpressions
+	expectedIdentifiersLiteralsExpressions
 	expectedConstantsVariables
 	unexpectedTokensAfterStatement
 	unexpectedTokens
@@ -57,7 +57,7 @@ var failureMap = map[eh.Failure]string{
 	expectedEnd:                             "expected end keyword, found %v",
 	expectedRightParenthesis:                "expected right parenthesis, found %v",
 	expectedStatementsIdentifiersProcedures: "expected statements, identifiers or procedures, found %v",
-	expectedIdentifiersNumbersExpressions:   "expected identifiers, numbers or expressions surrounded by parentheses, found %v",
+	expectedIdentifiersLiteralsExpressions:  "expected identifiers, literals or expressions surrounded by parentheses, found %v",
 	expectedConstantsVariables:              "expected constants or variables, found %v",
 	unexpectedTokensAfterStatement:          "unexpected set of tokens after statement, found %v",
 	unexpectedTokens:                        "unexpected set of tokens, found %v",

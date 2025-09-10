@@ -4,16 +4,11 @@
 package parser
 
 import (
-	"strconv"
-
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
-
-// Number of bits of a signed integer.
-const integerBitSize = 64
 
 // If no identifier can be found, it is set to this value.
 const noIdentifier = ""
@@ -48,6 +43,9 @@ var (
 	factors = tok.Tokens{
 		tok.Identifier,
 		tok.Integer,
+		tok.FloatingPoint,
+		tok.String,
+		tok.Character,
 		tok.LeftParenthesis,
 	}
 )
@@ -748,10 +746,11 @@ func (p *parser) term(anchors tok.Tokens) ast.Expression {
 	return operation
 }
 
-// A factor is either an identifier, a number, or an expression surrounded by parentheses.
+// A factor is either an identifier, a literal, or an expression surrounded by parentheses.
 func (p *parser) factor(anchors tok.Tokens) ast.Expression {
-	var sign tok.Token
-	var signIndex int
+	sign := tok.Unknown
+	signIndex := 0
+	literalSign := ast.NoSign
 
 	// in case of a parsing error, return an empty declaration
 	operand := ast.NewEmptyExpression()
@@ -761,23 +760,53 @@ func (p *parser) factor(anchors tok.Tokens) ast.Expression {
 		sign = p.lastToken()
 		signIndex = p.lastTokenIndex()
 		p.nextToken()
+
+		// remember the sign for a literal factor
+		if sign == tok.Minus {
+			literalSign = ast.NegativeSign
+		} else {
+			literalSign = ast.PositiveSign
+		}
 	}
 
 	// at the beginning of a factor
-	//   the expected tokens are identifiers, numbers, and left parentheses
+	//   the expected tokens are identifier, literal, and left parentheses
 	//   or the parser would fall back to all block-tokens as anchors in the case of a syntax error
-	p.tokenHandler.Recover(expectedIdentifiersNumbersExpressions, factors, anchors)
+	p.tokenHandler.Recover(expectedIdentifiersLiteralsExpressions, factors, anchors)
 
+	// an identifier, a literal, or an expression surrounded by parentheses
 	for p.lastToken().In(factors) {
-		if p.lastToken() == tok.Identifier {
+		switch p.lastToken() {
+		case tok.Identifier:
 			// the factor can be a constant or a variable
 			operand = ast.NewIdentifierUse(p.lastTokenValue(), ast.Constant|ast.Variable, p.lastTokenIndex())
 			p.nextToken()
-		} else if p.lastToken() == tok.Integer {
-			operand = ast.NewLiteralUse(p.numberValue(sign, p.lastTokenValue()), ast.NoHint, p.lastTokenIndex())
+
+		case tok.Integer:
+			// the factor is an integer literal that can have a leading plus or minus sign
+			operand = ast.NewLiteralUse(p.lastTokenValue(), ast.IntegerHint, literalSign, p.lastTokenIndex())
 			sign = tok.Unknown
 			p.nextToken()
-		} else if p.lastToken() == tok.LeftParenthesis {
+
+		case tok.FloatingPoint:
+			// the factor is a floating point literal that can have a leading plus or minus sign
+			operand = ast.NewLiteralUse(p.lastTokenValue(), ast.FloatingPointHint, literalSign, p.lastTokenIndex())
+			sign = tok.Unknown
+			p.nextToken()
+
+		case tok.String:
+			// the factor is a string literal that should not have a leading plus or minus sign (semantic decision)
+			operand = ast.NewLiteralUse(p.lastTokenValue(), ast.StringHint, literalSign, p.lastTokenIndex())
+			sign = tok.Unknown
+			p.nextToken()
+
+		case tok.Character:
+			// the factor is a character literal that should not have a leading plus or minus sign (semantic decision)
+			operand = ast.NewLiteralUse(p.lastTokenValue(), ast.CharacterHint, literalSign, p.lastTokenIndex())
+			sign = tok.Unknown
+			p.nextToken()
+
+		case tok.LeftParenthesis:
 			p.nextToken()
 			operand = p.expression(set(anchors, tok.RightParenthesis))
 
@@ -838,19 +867,4 @@ func (p *parser) appendError(code eh.Failure, values ...any) {
 // Wrapper to get joined slice of all tokens within the given TokenSet interfaces.
 func set(tss ...tok.TokenSet) tok.Tokens {
 	return tok.Set(tss...)
-}
-
-// Analyze a number and convert it to an Integer64 value (-9223372036854775808 to 9223372036854775807).
-func (e *parser) numberValue(sign tok.Token, number string) int64 {
-	if sign == tok.Minus {
-		number = "-" + number
-	}
-
-	value, err := strconv.ParseInt(number, 10, integerBitSize)
-
-	if err != nil {
-		e.appendError(illegalInteger, number)
-	}
-
-	return value
 }
