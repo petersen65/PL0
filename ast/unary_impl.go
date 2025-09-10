@@ -47,7 +47,7 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 		unaryNode.Requirements_ = ts.Negatable
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, operation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, operation))
 	}
 
 	return unaryNode
@@ -65,7 +65,7 @@ func (n *unaryOperationNode) String() string {
 		return unaryOperationFormats[n.Operation_]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, n.Operation_, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, n.Operation_))
 	}
 }
 

@@ -99,11 +99,11 @@ func newErrorHandler() ErrorHandler {
 }
 
 // Create a new Go error with an optional value that can be used to format the error message based on failure code and map.
-func newGoError(failureMap map[Failure]string, code Failure, value any) error {
+func newGoError(failureMap map[Failure]string, code Failure, values ...any) error {
 	var message string
 
-	if value != nil {
-		message = fmt.Sprintf(failureMap[code], value)
+	if len(values) > 0 {
+		message = fmt.Sprintf(failureMap[code], values...)
 	} else {
 		message = failureMap[code]
 	}
@@ -112,8 +112,9 @@ func newGoError(failureMap map[Failure]string, code Failure, value any) error {
 }
 
 // Create a new general error with a severity level (a general error can wrap any other error).
-func newGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
-	err := newGoError(failureMap, code, value)
+func newGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, inner error, values ...any) error {
+	err := newGoError(failureMap, code, values...)
+
 	return &generalError{
 		componentError: componentError{
 			Err:       err,
@@ -126,8 +127,9 @@ func newGeneralError(component Component, failureMap map[Failure]string, severit
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
-	err := newGoError(failureMap, code, value)
+func newLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, line, column int, values ...any) error {
+	err := newGoError(failureMap, code, values...)
+
 	return &lineColumnError{
 		componentError: componentError{
 			Err:       err,
@@ -141,8 +143,9 @@ func newLineColumnError(component Component, failureMap map[Failure]string, seve
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
-	err := newGoError(failureMap, code, value)
+func newSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, line, column int, sourceCode []byte, values ...any) error {
+	err := newGoError(failureMap, code, values...)
+
 	return &sourceError{
 		componentError: componentError{
 			Err:       err,
@@ -415,39 +418,39 @@ func (e *errorHandler) Print(print io.Writer, args ...any) error {
 
 	// print the title text message for the error report
 	if _, err := fmt.Fprintln(print, textErrorReport); err != nil {
-		return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+		return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 	}
 
 	// print errors in the error report
 	if e.Count(Fatal|Error, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textErrors); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 
 		if err := printErrors(e.iterate(Fatal|Error, AllComponents), print); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 	}
 
 	// print warnings in the error report
 	if e.Count(Warning, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textWarnings); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 
 		if err := printErrors(e.iterate(Warning, AllComponents), print); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 	}
 
 	// print remarks in the error report
 	if e.Count(Remark, AllComponents) > 0 {
 		if _, err := fmt.Fprintln(print, textRemarks); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 
 		if err := printErrors(e.iterate(Remark, AllComponents), print); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		}
 	}
 
@@ -466,12 +469,12 @@ func (e *errorHandler) Export(format exp.ExportFormat, print io.Writer) error {
 		if raw, err := json.MarshalIndent(struct {
 			Report errorReport `json:"error_report"`
 		}{Report: e.errorReport}, "", "  "); err != nil {
-			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+			return newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = newGeneralError(Errors, failureMap, Error, errorReportExportFailed, nil, err)
+				err = newGeneralError(Errors, failureMap, Error, errorReportExportFailed, err)
 			}
 
 			return err
@@ -482,7 +485,7 @@ func (e *errorHandler) Export(format exp.ExportFormat, print io.Writer) error {
 		return e.Print(print)
 
 	default:
-		panic(newGeneralError(Errors, failureMap, Fatal, unknownExportFormat, format, nil))
+		panic(newGeneralError(Errors, failureMap, Fatal, unknownExportFormat, nil, format))
 	}
 }
 
@@ -495,9 +498,9 @@ func (e *errorHandler) iterate(severity Severity, component Component) <-chan er
 		for _, err := range e.errorReport {
 			// only send errors that match the severity and component
 			if err == nil {
-				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
+				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, err, reflect.TypeOf(err).Name()))
 			} else if ce, ok := err.(ComponentError); !ok {
-				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, reflect.TypeOf(err).Name(), err))
+				panic(newGeneralError(Errors, failureMap, Fatal, errorKindNotSupported, err, reflect.TypeOf(err).Name()))
 			} else if ce.HasSeverity(severity) && ce.FromComponent(component) {
 				errors <- err
 			}

@@ -190,6 +190,6 @@ var (
 // Enforce that the current application binary interface has been specified and panic if not.
 func enforceSpecifiedApplicationBinaryInterface() {
 	if currentABI == plt.ABI_NotSpecified {
-		panic(eh.NewGeneralError(eh.TypeSystem, failureMap, eh.Fatal, applicationBinaryInterfaceNotSpecified, nil, nil))
+		panic(eh.NewGeneralError(eh.TypeSystem, failureMap, eh.Fatal, applicationBinaryInterfaceNotSpecified, nil))
 	}
 }

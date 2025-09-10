@@ -262,7 +262,7 @@ func (u *intermediateCodeUnit) Print(print io.Writer, args ...any) error {
 	// enumerate all instructions in the unit and print them to the writer
 	for e := u.Instructions.Front(); e != nil; e = e.Next() {
 		if _, err := fmt.Fprintf(print, "%v\n", e.Value); err != nil {
-			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, err)
 		}
 	}
 
@@ -278,12 +278,12 @@ func (u *intermediateCodeUnit) Export(format exp.ExportFormat, print io.Writer) 
 	case exp.Json:
 		// export the intermediate code unit as a JSON object
 		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
-			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.Intermediate, failureMap, eh.Error, intermediateCodeExportFailed, err)
 			}
 
 			return err
@@ -294,7 +294,7 @@ func (u *intermediateCodeUnit) Export(format exp.ExportFormat, print io.Writer) 
 		return u.Print(print)
 
 	default:
-		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, unknownExportFormat, nil, format))
 	}
 }
 
@@ -310,7 +310,7 @@ func (q *Quadruple) ValidateAddressesContract() AddressesContract {
 		}
 	}
 
-	panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidAddressesContract, q, nil))
+	panic(eh.NewGeneralError(eh.Intermediate, failureMap, eh.Fatal, invalidAddressesContract, nil, q))
 }
 
 // Get the instruction at the current position in the list.

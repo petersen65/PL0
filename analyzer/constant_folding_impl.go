@@ -118,6 +118,6 @@ func (c *constantFolding) VisitCompoundStatement(cs ast.CompoundStatement) {
 }
 
 // Append an error from the type checking to the token handler's error list.
-func (c *constantFolding) appendError(code eh.Failure, value any, index int) {
-	c.tokenHandler.AppendError(c.tokenHandler.NewErrorOnIndex(eh.Error, code, value, index))
+func (c *constantFolding) appendError(code eh.Failure, index int, values ...any) {
+	c.tokenHandler.AppendError(c.tokenHandler.NewErrorOnIndex(eh.Error, code, index, values...))
 }

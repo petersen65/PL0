@@ -25,7 +25,7 @@ func newAnalyzer(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) Analyz
 func (a *semanticAnalyzer) PerformSemanticAnalysis() {
 	// validate the state of the semantic analyzer and panic if it is invalid
 	if a.abstractSyntax == nil || a.tokenHandler == nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil, nil))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidNameAnalysisState, nil))
 	}
 
 	// perform name analysis, enrich the abstract syntax tree, and fill in symbols from declarations into the scope of their blocks
@@ -36,7 +36,7 @@ func (a *semanticAnalyzer) PerformSemanticAnalysis() {
 	// note: this must be done after name analysis so that all identifier uses refer to their declarations and symbols
 	// note: even after name analysis, there might be identifier uses that do not refer to any declaration or symbol (i.e., undeclared identifiers)
 	if err := ast.Walk(nameAnalyzer.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, capturedVariableDeterminationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, capturedVariableDeterminationFailed, err))
 	}
 }
 

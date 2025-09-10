@@ -59,8 +59,8 @@ func newTokenHandler(tokenStream TokenStream, errorHandler eh.ErrorHandler, comp
 }
 
 // Create a new token error with a severity level and a token stream that is used to connect errors to a location in the source code.
-func newTokenError(component eh.Component, failureMap map[eh.Failure]string, severity eh.Severity, code eh.Failure, value any, tokenStream TokenStream, index int) error {
-	err := eh.NewGoError(failureMap, code, value)
+func newTokenError(component eh.Component, failureMap map[eh.Failure]string, severity eh.Severity, code eh.Failure, tokenStream TokenStream, index int, values ...any) error {
+	err := eh.NewGoError(failureMap, code, values...)
 	return &tokenError{Err: err, Code: code, Component: component, Severity: severity, TokenStreamIndex: int64(index), TokenStream: tokenStream}
 }
 
@@ -141,12 +141,12 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 		if td.Line != previousLine {
 			if previousLine != 0 {
 				if _, err := fmt.Fprintln(print); err != nil {
-					return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+					return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 				}
 			}
 
 			if _, err := fmt.Fprintf(print, "%v: %v\n", td.Line, strings.TrimLeft(string(td.CurrentLine), " \n")); err != nil {
-				return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+				return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 			}
 
 			previousLine = td.Line
@@ -154,7 +154,7 @@ func (ts TokenStream) Print(print io.Writer, args ...any) error {
 
 		// print token description below the line number and line content
 		if _, err := fmt.Fprintf(print, "%v,%-5v %v %v\n", td.Line, td.Column, td.TokenName, td.TokenValue); err != nil {
-			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 		}
 	}
 
@@ -169,12 +169,12 @@ func (ts TokenStream) Export(format exp.ExportFormat, print io.Writer) error {
 		if raw, err := json.MarshalIndent(struct {
 			Stream TokenStream `json:"token_stream"`
 		}{Stream: ts}, "", "  "); err != nil {
-			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 			}
 
 			return err
@@ -189,16 +189,16 @@ func (ts TokenStream) Export(format exp.ExportFormat, print io.Writer) error {
 
 		// encode the raw bytes of the token stream into a binary buffer
 		if err := gob.NewEncoder(&buffer).Encode(ts); err != nil {
-			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 		}
 
 		// transfer the binary buffer to the print writer
 		if _, err := buffer.WriteTo(print); err != nil {
-			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Token, failureMap, eh.Error, tokenStreamExportFailed, err)
 		}
 
 	default:
-		panic(eh.NewGeneralError(eh.Token, failureMap, eh.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.Token, failureMap, eh.Fatal, unknownExportFormat, nil, format))
 	}
 
 	return nil
@@ -284,13 +284,13 @@ func (t *tokenHandler) GetTokenDescription(tokenStreamIndex int) (TokenDescripti
 }
 
 // Create a new error by mapping the error code to its corresponding error message.
-func (t *tokenHandler) NewError(severity eh.Severity, code eh.Failure, value any) error {
-	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, t.tokenStreamIndex-1)
+func (t *tokenHandler) NewError(severity eh.Severity, code eh.Failure, values ...any) error {
+	return newTokenError(t.component, t.failureMap, severity, code, t.tokenStream, t.tokenStreamIndex-1, values...)
 }
 
 // Create a new error by mapping the error code to its corresponding error message and provide a token stream index for the error location.
-func (t *tokenHandler) NewErrorOnIndex(severity eh.Severity, code eh.Failure, value any, index int) error {
-	return newTokenError(t.component, t.failureMap, severity, code, value, t.tokenStream, index)
+func (t *tokenHandler) NewErrorOnIndex(severity eh.Severity, code eh.Failure, index int, values ...any) error {
+	return newTokenError(t.component, t.failureMap, severity, code, t.tokenStream, index, values...)
 }
 
 // Append an error to the error report of the underlying error handler which is used to store all errors that occured during parsing.

@@ -56,7 +56,7 @@ func newComparisonOperation(operation ComparisonOperator, left, right Expression
 		comparisonNode.Requirements_ = ts.Ordered
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, operation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, nil, operation))
 	}
 
 	return comparisonNode
@@ -74,7 +74,7 @@ func (e *comparisonOperationNode) String() string {
 		return comparisonOperationFormats[e.Operation_]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, e.Operation_, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, nil, e.Operation_))
 
 	}
 }

@@ -64,12 +64,12 @@ func newParser(tokenStream tok.TokenStream, errorHandler eh.ErrorHandler) Parser
 func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 	// check if the parser is in a valid state to start parsing
 	if p.errorHandler == nil || p.tokenHandler == nil || p.abstractSyntax != nil {
-		panic(eh.NewGeneralError(eh.Parser, failureMap, eh.Fatal, invalidParserState, nil, nil))
+		panic(eh.NewGeneralError(eh.Parser, failureMap, eh.Fatal, invalidParserState, nil))
 	}
 
 	// the parser expects a token stream to be available
 	if !p.nextToken() {
-		p.errorHandler.AppendError(eh.NewGeneralError(eh.Parser, failureMap, eh.Error, eofReached, nil, nil))
+		p.errorHandler.AppendError(eh.NewGeneralError(eh.Parser, failureMap, eh.Error, eofReached, nil))
 		return nil, p.tokenHandler
 	}
 
@@ -87,7 +87,7 @@ func (p *parser) Parse() (ast.Block, tok.TokenHandler) {
 	// the program must comply with the syntax rules of the programming language
 	if !p.tokenHandler.IsFullyParsed() {
 		p.tokenHandler.SetFullyParsed()
-		p.appendError(notFullyParsed, nil)
+		p.appendError(notFullyParsed)
 	}
 
 	// return the abstract syntax tree of the program and the token handler
@@ -831,8 +831,8 @@ func (p *parser) lastTokenIndex() int {
 }
 
 // Append parser error to the token handler.
-func (p *parser) appendError(code eh.Failure, value any) {
-	p.tokenHandler.AppendError(p.tokenHandler.NewError(eh.Error, code, value))
+func (p *parser) appendError(code eh.Failure, values ...any) {
+	p.tokenHandler.AppendError(p.tokenHandler.NewError(eh.Error, code, values...))
 }
 
 // Wrapper to get joined slice of all tokens within the given TokenSet interfaces.

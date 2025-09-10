@@ -124,13 +124,13 @@ func (cfg *controlFlowGraph) Print(print io.Writer, args ...any) error {
 	for i, block := range cfg.Blocks {
 		// print the basic block to the writer
 		if _, err := print.Write([]byte(block.String())); err != nil {
-			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
+			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, err)
 		}
 
 		// print a newline character between basic blocks
 		if i < len(cfg.Blocks)-1 {
 			if _, err := print.Write([]byte("\n")); err != nil {
-				return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
+				return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, err)
 			}
 		}
 	}
@@ -144,12 +144,12 @@ func (cfg *controlFlowGraph) Export(format exp.ExportFormat, print io.Writer) er
 	case exp.Json:
 		// export the control flow graph as a JSON object
 		if raw, err := json.MarshalIndent(cfg, "", "  "); err != nil {
-			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
+			return eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Error, controlFlowGraphExportFailed, err)
 			}
 
 			return err
@@ -160,7 +160,7 @@ func (cfg *controlFlowGraph) Export(format exp.ExportFormat, print io.Writer) er
 		return cfg.Print(print)
 
 	default:
-		panic(eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.ControlFlowGraph, failureMap, eh.Fatal, unknownExportFormat, nil, format))
 	}
 }
 

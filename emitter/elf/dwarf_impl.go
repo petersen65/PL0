@@ -593,12 +593,12 @@ func DecodeSleb128(b []byte) (int64, int, error) {
 
 		// check for overflow: cannot shift more than 64 bits for int64
 		if shift >= uint(size) {
-			return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, sleb128DecodingOverflow, len(b), nil)
+			return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, sleb128DecodingOverflow, nil, len(b))
 		}
 	}
 
 	// if all bytes were exhausted without finding a terminating byte (continuation bit = 0), the decoding is incomplete
-	return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, sleb128DecodingIncomplete, len(b), nil)
+	return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, sleb128DecodingIncomplete, nil, len(b))
 }
 
 // DecodeUleb128 decodes an unsigned LEB128 value from a given byte sequence.
@@ -622,10 +622,10 @@ func DecodeUleb128(b []byte) (uint64, int, error) {
 
 		// check for overflow: cannot shift more than 64 bits for uint64
 		if shift >= size {
-			return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, uleb128DecodingOverflow, len(b), nil)
+			return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, uleb128DecodingOverflow, nil, len(b))
 		}
 	}
 
 	// if all bytes were exhausted without finding a terminating byte (continuation bit = 0), the decoding is incomplete
-	return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, uleb128DecodingIncomplete, len(b), nil)
+	return 0, 0, eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Error, uleb128DecodingIncomplete, nil, len(b))
 }

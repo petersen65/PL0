@@ -48,7 +48,7 @@ func newArithmeticOperation(operation ArithmeticOperator, left, right Expression
 		binaryNode.Requirements_ = ts.Numeric
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, operation, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, nil, operation))
 	}
 
 	return binaryNode
@@ -66,7 +66,7 @@ func (e *arithmeticOperationNode) String() string {
 		return arithmeticOperationFormats[e.Operation_]
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, e.Operation_, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, nil, e.Operation_))
 	}
 }
 

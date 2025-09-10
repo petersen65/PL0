@@ -49,8 +49,8 @@ type (
 		IsFullyParsed() bool
 		SetFullyParsed()
 		GetTokenDescription(tokenStreamIndex int) (TokenDescription, bool)
-		NewError(severity eh.Severity, code eh.Failure, value any) error
-		NewErrorOnIndex(severity eh.Severity, code eh.Failure, value any, index int) error
+		NewError(severity eh.Severity, code eh.Failure, values ...any) error
+		NewErrorOnIndex(severity eh.Severity, code eh.Failure, index int, values ...any) error
 		AppendError(err error) error
 		ReplaceComponent(component eh.Component, failureMap map[eh.Failure]string)
 	}

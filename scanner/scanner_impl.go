@@ -263,7 +263,7 @@ func (s *scanner) comment() tok.Token {
 		}
 
 		if s.isEndOfContent() {
-			return s.appendError(eofComment, nil, line, column)
+			return s.appendError(eofComment, line, column)
 		}
 	} else {
 		s.nextCharacter()
@@ -274,7 +274,7 @@ func (s *scanner) comment() tok.Token {
 		}
 
 		if s.isEndOfContent() {
-			return s.appendError(eofComment, nil, line, column)
+			return s.appendError(eofComment, line, column)
 		}
 
 		s.nextCharacter()
@@ -370,7 +370,7 @@ func (s *scanner) numberLiteral() tok.Token {
 			}
 
 			// invalid scientific notation for floating point number
-			return s.appendError(invalidScientificNotation, builder.String(), line, column)
+			return s.appendError(invalidScientificNotation, line, column, builder.String())
 		}
 	}
 
@@ -383,7 +383,7 @@ func (s *scanner) numberLiteral() tok.Token {
 
 		// floating point suffix without decimal point or scientific notation
 		if !isFloatingPoint {
-			return s.appendError(floatingPointSuffixWithoutDecimalPoint, builder.String(), line, column)
+			return s.appendError(floatingPointSuffixWithoutDecimalPoint, line, column, builder.String())
 		}
 
 		isFloatingPoint = true
@@ -393,7 +393,7 @@ func (s *scanner) numberLiteral() tok.Token {
 
 	// check for malformed patterns in floating point numbers
 	if isFloatingPoint && isMalformedFloatingPointNumber(s.lastValue) {
-		return s.appendError(malformedFloatingPointNumber, s.lastValue, line, column)
+		return s.appendError(malformedFloatingPointNumber, line, column, s.lastValue)
 	}
 
 	if isFloatingPoint {
@@ -421,7 +421,7 @@ func (s *scanner) stringLiteral() tok.Token {
 	}
 
 	if s.isEndOfContent() {
-		return s.appendError(eofString, nil, line, column)
+		return s.appendError(eofString, line, column)
 	}
 
 	s.nextCharacter()
@@ -447,11 +447,11 @@ func (s *scanner) characterLiteral() tok.Token {
 	}
 
 	if s.isEndOfContent() {
-		return s.appendError(eofCharacter, nil, line, column)
+		return s.appendError(eofCharacter, line, column)
 	} else if builder.Len() == 0 {
-		return s.appendError(characterLiteralEmpty, nil, line, column)
+		return s.appendError(characterLiteralEmpty, line, column)
 	} else if builder.Len() > 1 {
-		return s.appendError(characterLiteralContainsMultipleCharacters, nil, line, column)
+		return s.appendError(characterLiteralContainsMultipleCharacters, line, column)
 	}
 
 	s.nextCharacter()
@@ -489,8 +489,8 @@ func (s *scanner) operatorOrStatement() tok.Token {
 }
 
 // Append an error from the scanner to the error handler's error list and return the error token.
-func (s *scanner) appendError(code eh.Failure, value any, line, column int) tok.Token {
-	s.errorHandler.AppendError(eh.NewLineColumnError(eh.Scanner, failureMap, eh.Error, code, value, line, column))
+func (s *scanner) appendError(code eh.Failure, line, column int, values ...any) tok.Token {
+	s.errorHandler.AppendError(eh.NewLineColumnError(eh.Scanner, failureMap, eh.Error, code, line, column, values...))
 	return tok.Error
 }
 

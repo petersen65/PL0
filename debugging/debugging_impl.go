@@ -295,7 +295,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 		case *CompositeDataType:
 			// check for circular reference
 			if processing[dt.Name()] {
-				panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, circularDependencyInCompositeDataType, dt.Name(), nil))
+				panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, circularDependencyInCompositeDataType, nil, dt.Name()))
 			}
 
 			// processing of this composite data type is running
@@ -317,7 +317,7 @@ func (d *debugInformation) UpdateCompositeDataTypeSizes() bool {
 			return dt.ByteSize
 
 		default:
-			panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, unexpectedDataTypeKind, dt.Kind(), nil))
+			panic(eh.NewGeneralError(eh.Debugging, failureMap, eh.Fatal, unexpectedDataTypeKind, nil, dt.Kind()))
 		}
 	}
 

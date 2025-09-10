@@ -92,7 +92,7 @@ func (n *identifierUseNode) String() string {
 		return fmt.Sprintf(identifierUseFormat, n.IdentifierKind_, n.IdentifierName_, n.UsageMode_)
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, n.IdentifierKind_, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownIdentifierKind, nil, n.IdentifierKind_))
 	}
 }
 

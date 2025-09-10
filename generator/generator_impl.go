@@ -116,12 +116,12 @@ func newSymbolMetaData(name string) *symbolMetaData {
 func (g *generator) Generate() {
 	// pre-create symbol table for intermediate code by providing a visit function that is called for each node
 	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.intermediateCode, configureSymbols); err != nil {
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, err))
 	}
 
 	// collect the debug string table by providing a visit function that is called for each node
 	if err := ast.Walk(g.abstractSyntax, ast.PreOrder, g.debugInformation, collectDebugStringTable); err != nil {
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, nil, err))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, intermediateCodeGenerationFailed, err))
 	}
 
 	// generate intermediate code for the abstract syntax tree by using the visitor pattern of the abstract syntax tree
@@ -372,7 +372,7 @@ func (g *generator) VisitIdentifierUse(iu ast.IdentifierUse) {
 		// not required for code generation
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, invalidContextInIdentifierUse, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, invalidContextInIdentifierUse, nil))
 	}
 }
 
@@ -407,7 +407,7 @@ func (g *generator) VisitUnaryOperation(uo ast.UnaryOperation) {
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil))
 	}
 }
 
@@ -455,7 +455,7 @@ func (g *generator) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
 		g.intermediateCode.AppendExistingInstruction(instruction)
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownArithmeticOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownArithmeticOperation, nil))
 	}
 }
 
@@ -502,7 +502,7 @@ func (g *generator) VisitComparisonOperation(co ast.ComparisonOperation) {
 			co.Index()) // comparison operation in the token stream
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil))
 	}
 }
 
@@ -723,7 +723,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpEqual, noAddress, noAddress, address, condition.Index())
 			}
 		} else {
-			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil, nil))
+			panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownUnaryOperation, nil))
 		}
 
 	// comparison operation node with the equal, not equal, less, less equal, greater, or greater equal operation
@@ -750,7 +750,7 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpGreaterEqual, noAddress, noAddress, address, condition.Index())
 
 			default:
-				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
+				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil))
 			}
 		} else {
 			// jump if the condition is false
@@ -774,12 +774,12 @@ func (g *generator) jumpConditional(expression ast.Expression, jumpIfCondition b
 				jump = ic.NewInstruction(ic.JumpLess, noAddress, noAddress, address, condition.Index())
 
 			default:
-				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
+				panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil))
 			}
 		}
 
 	default:
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unknownComparisonOperation, nil))
 	}
 
 	// append the conditional jump instruction to the intermediate code unit
@@ -796,7 +796,7 @@ func (g *generator) popResult() *ic.Address {
 	result := g.results.Back()
 
 	if result == nil {
-		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unexpectedIntermediateCodeResult, nil, nil))
+		panic(eh.NewGeneralError(eh.Generator, failureMap, eh.Fatal, unexpectedIntermediateCodeResult, nil))
 	}
 
 	g.results.Remove(result)

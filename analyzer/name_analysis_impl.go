@@ -27,36 +27,38 @@ func newNameAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *n
 }
 
 // Analyze the abstract syntax tree for declaration and use errors and fill in symbols into into the scope of blocks.
-func (a *nameAnalysis) Accept() {
+func (na *nameAnalysis) Accept() {
 	// ensure that all used identifiers are declared before use and store all identifier symbols into each block's scope
-	a.abstractSyntax.Accept(a)
+	na.abstractSyntax.Accept(na)
 
 	// report a warning for all declared but unused identifiers
-	if err := ast.Walk(a.abstractSyntax, ast.PreOrder, a.tokenHandler, reportWarningsForUnusedIdentifiers); err != nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, usageValidationFailed, nil, err))
+	if err := ast.Walk(na.abstractSyntax, ast.PreOrder, na.tokenHandler, reportWarningsForUnusedIdentifiers); err != nil {
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, usageValidationFailed, err))
 	}
 }
 
 // Walk the block abstract syntax tree by visiting all declarations and the block statement.
-func (a *nameAnalysis) VisitBlock(b ast.Block) {
+func (na *nameAnalysis) VisitBlock(b ast.Block) {
 	for _, decl := range b.Declarations() {
-		decl.Accept(a)
+		decl.Accept(na)
 	}
 
-	b.Statement().Accept(a)
+	b.Statement().Accept(na)
 }
 
 // Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
+func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	cb := cd.CurrentBlock()             // current block
 	s := cb.Lookup(cd.IdentifierName()) // constant symbol
 	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
-	if s != nil {
-		a.appendError(identifierAlreadyDeclared, cd.IdentifierName(), cd.Index())
+	if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
+		na.appendError(constantIdentifierHasBuiltInName, cd.IdentifierName(), cd.Index())
+	} else if s != nil {
+		na.appendError(identifierAlreadyDeclared, cd.IdentifierName(), cd.Index())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		a.appendError(constantDataTypeNotFound, cd.DataTypeName(), cd.Index())
+		na.appendError(constantDataTypeNotFound, cd.DataTypeName(), cd.Index())
 	} else {
 		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, cd.Value())
 		cb.Insert(cd.IdentifierName(), symbol)
@@ -65,16 +67,19 @@ func (a *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 }
 
 // Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalysis) VisitVariableDeclaration(vd ast.VariableDeclaration) {
+func (na *nameAnalysis) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 	cb := vd.CurrentBlock()             // current block
 	s := cb.Lookup(vd.IdentifierName()) // variable symbol
 	dts := cb.Lookup(vd.DataTypeName()) // variable data type symbol
 
 	// in the case of no errors, insert the variable symbol into the current block's scope
-	if s != nil {
-		a.appendError(identifierAlreadyDeclared, vd.IdentifierName(), vd.Index())
+	if vd.CurrentBlock().BuiltInDataType(vd.IdentifierName()) != nil {
+		na.appendError(variableIdentifierHasBuiltInName, vd.IdentifierName(), vd.Index())
+	} else if s != nil {
+		na.appendError(identifierAlreadyDeclared, vd.IdentifierName(), vd.Index())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		a.appendError(variableDataTypeNotFound, vd.DataTypeName(), vd.Index())
+		_, typeIndex := vd.IndexPair()
+		na.appendError(variableDataTypeNotFound, vd.DataTypeName(), typeIndex)
 	} else {
 		symbol := sym.NewSymbol(vd.IdentifierName(), sym.VariableEntry, dts.DataType, nil)
 		cb.Insert(vd.IdentifierName(), symbol)
@@ -83,7 +88,7 @@ func (a *nameAnalysis) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 }
 
 // Enter the function declaration as a symbol into the block's scope and check for redeclaration.
-func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
+func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	cb := fd.CurrentBlock()             // current block
 	s := cb.Lookup(fd.IdentifierName()) // function symbol
 
@@ -95,7 +100,7 @@ func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 		symbolEntry = sym.FunctionEntry
 
 		if rts := cb.Lookup(fd.ReturnTypeName()); rts == nil || rts.Kind != sym.DataTypeEntry {
-			a.appendError(functionReturnTypeNotFound, fd.ReturnTypeName(), fd.Index())
+			na.appendError(functionReturnTypeNotFound, fd.ReturnTypeName(), fd.Index())
 		} else {
 			returnType = rts.DataType
 		}
@@ -105,9 +110,9 @@ func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	for _, parameter := range fd.Parameters() {
 		if pts := cb.Lookup(parameter.TypeName); pts == nil || pts.Kind != sym.DataTypeEntry {
 			if fd.IsProcedure() {
-				a.appendError(procedureParameterTypeNotFound, parameter.TypeName, fd.Index())
+				na.appendError(procedureParameterTypeNotFound, parameter.TypeName, fd.Index())
 			} else {
-				a.appendError(functionParameterTypeNotFound, parameter.TypeName, fd.Index())
+				na.appendError(functionParameterTypeNotFound, parameter.TypeName, fd.Index())
 			}
 		} else {
 			parameter.Type = pts.DataType
@@ -115,8 +120,14 @@ func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	}
 
 	// append an error if the function was already declared
-	if s != nil {
-		a.appendError(identifierAlreadyDeclared, fd.IdentifierName(), fd.Index())
+	if fd.CurrentBlock().BuiltInDataType(fd.IdentifierName()) != nil {
+		if fd.IsFunction() {
+			na.appendError(functionIdentifierHasBuiltInName, fd.IdentifierName(), fd.Index())
+		} else {
+			na.appendError(procedureIdentifierHasBuiltInName, fd.IdentifierName(), fd.Index())
+		}
+	} else if s != nil {
+		na.appendError(identifierAlreadyDeclared, fd.IdentifierName(), fd.Index())
 	} else {
 		// create a data type for a function or procedure with a predefined list of parameters and an optional return type
 		functionType := ts.NewFunctionTypeDescriptor(fd.Parameters(), returnType, false)
@@ -137,19 +148,19 @@ func (a *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	}
 
 	// visit the block of the function or procedure declaration
-	fd.Block().Accept(a)
+	fd.Block().Accept(na)
 }
 
 // Visit the literal-use node.
-func (a *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
+func (na *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
 	// nothing to do because a literal does not have any identifier names
 }
 
 // Check if the used identifier is declared and if it is used correctly according to its symbol kind. Record the usage of the identifier in its declaration.
-func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
+func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 	// if the identifier used does not have a declaration or symbol, report an error
 	if iu.Declaration() == nil || iu.Declaration().Symbol() == nil {
-		a.appendError(identifierNotFound, iu.IdentifierName(), iu.Index())
+		na.appendError(identifierNotFound, iu.IdentifierName(), iu.Index())
 		return
 	}
 
@@ -165,7 +176,7 @@ func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Constant)
 			declaration.AddUsage(iu)
 		} else {
-			a.appendError(expectedConstantIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedConstantIdentifier, iu.IdentifierName(), iu.Index())
 		}
 
 	case sym.VariableEntry:
@@ -175,7 +186,7 @@ func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Variable)
 			declaration.AddUsage(iu)
 		} else {
-			a.appendError(expectedVariableIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedVariableIdentifier, iu.IdentifierName(), iu.Index())
 		}
 
 	case sym.FunctionEntry:
@@ -185,7 +196,7 @@ func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Function)
 			declaration.AddUsage(iu)
 		} else {
-			a.appendError(expectedFunctionIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedFunctionIdentifier, iu.IdentifierName(), iu.Index())
 		}
 
 	case sym.ProcedureEntry:
@@ -195,85 +206,85 @@ func (a *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Procedure)
 			declaration.AddUsage(iu)
 		} else {
-			a.appendError(expectedProcedureIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedProcedureIdentifier, iu.IdentifierName(), iu.Index())
 		}
 
 	default:
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownSymbolKind, nil, nil))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownSymbolKind, nil))
 	}
 }
 
 // Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
-func (a *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
-	uo.Operand().Accept(a)
+func (na *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
+	uo.Operand().Accept(na)
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (a *nameAnalysis) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
-	bo.Left().Accept(a)
-	bo.Right().Accept(a)
+func (na *nameAnalysis) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
+	bo.Left().Accept(na)
+	bo.Right().Accept(na)
 	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 	ast.Walk(bo.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (a *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
-	co.Left().Accept(a)
-	co.Right().Accept(a)
+func (na *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
+	co.Left().Accept(na)
+	co.Right().Accept(na)
 	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
-func (a *nameAnalysis) VisitAssignmentStatement(as ast.AssignmentStatement) {
-	as.Variable().Accept(a)
-	as.Expression().Accept(a)
+func (na *nameAnalysis) VisitAssignmentStatement(as ast.AssignmentStatement) {
+	as.Variable().Accept(na)
+	as.Expression().Accept(na)
 	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
 }
 
 // Visit the read statement node and set the usage mode bit to write for the variable that is read into.
-func (a *nameAnalysis) VisitReadStatement(rs ast.ReadStatement) {
-	rs.Variable().Accept(a)
+func (na *nameAnalysis) VisitReadStatement(rs ast.ReadStatement) {
+	rs.Variable().Accept(na)
 	rs.Variable().SetUsageMode(rs.Variable().UsageMode() | ast.Write)
 }
 
 // Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
-func (a *nameAnalysis) VisitWriteStatement(ws ast.WriteStatement) {
-	ws.Expression().Accept(a)
+func (na *nameAnalysis) VisitWriteStatement(ws ast.WriteStatement) {
+	ws.Expression().Accept(na)
 	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
-func (a *nameAnalysis) VisitCallStatement(cs ast.CallStatement) {
-	cs.Function().Accept(a)
+func (na *nameAnalysis) VisitCallStatement(cs ast.CallStatement) {
+	cs.Function().Accept(na)
 	cs.Function().SetUsageMode(cs.Function().UsageMode() | ast.Execute)
 }
 
 // Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
-func (a *nameAnalysis) VisitIfStatement(is ast.IfStatement) {
-	is.Condition().Accept(a)
-	is.Statement().Accept(a)
+func (na *nameAnalysis) VisitIfStatement(is ast.IfStatement) {
+	is.Condition().Accept(na)
+	is.Statement().Accept(na)
 	ast.Walk(is.Condition(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
-func (a *nameAnalysis) VisitWhileStatement(ws ast.WhileStatement) {
-	ws.Condition().Accept(a)
-	ws.Statement().Accept(a)
+func (na *nameAnalysis) VisitWhileStatement(ws ast.WhileStatement) {
+	ws.Condition().Accept(na)
+	ws.Statement().Accept(na)
 	ast.Walk(ws.Condition(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
 // Visit the compound statement node by visiting all its statements.
-func (a *nameAnalysis) VisitCompoundStatement(cs ast.CompoundStatement) {
+func (na *nameAnalysis) VisitCompoundStatement(cs ast.CompoundStatement) {
 	for _, statement := range cs.Statements() {
-		statement.Accept(a)
+		statement.Accept(na)
 	}
 }
 
 // Append an error from the name analysis to the token handler's error list.
-func (a *nameAnalysis) appendError(code eh.Failure, value any, index int) {
-	a.tokenHandler.AppendError(a.tokenHandler.NewErrorOnIndex(eh.Error, code, value, index))
+func (na *nameAnalysis) appendError(code eh.Failure, value any, index int) {
+	na.tokenHandler.AppendError(na.tokenHandler.NewErrorOnIndex(eh.Error, code, index, value))
 }
 
 // This is a visitor function. For all occurrences of a constant or variable usage, set the usage mode bit to read.
@@ -297,7 +308,7 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 
 		// if the constant declaration has no usages, report a warning
 		if len(cd.Usage()) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, cd.IdentifierName(), cd.Index()))
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedConstantIdentifier, cd.Index(), cd.IdentifierName()))
 		}
 
 	case ast.KindVariableDeclaration:
@@ -305,7 +316,7 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 
 		// if the variable declaration has no usages, report a warning
 		if len(vd.Usage()) == 0 {
-			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, vd.IdentifierName(), vd.Index()))
+			th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedVariableIdentifier, vd.Index(), vd.IdentifierName()))
 		}
 
 	case ast.KindFunctionDeclaration:
@@ -314,9 +325,9 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 		// if the function or procedure declaration has no usages, report a warning
 		if len(fd.Usage()) == 0 {
 			if fd.IsFunction() {
-				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, fd.IdentifierName(), fd.Index()))
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedFunctionIdentifier, fd.Index(), fd.IdentifierName()))
 			} else {
-				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, fd.IdentifierName(), fd.Index()))
+				th.AppendError(th.NewErrorOnIndex(eh.Warning, unusedProcedureIdentifier, fd.Index(), fd.IdentifierName()))
 			}
 		}
 	}

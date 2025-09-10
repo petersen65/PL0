@@ -67,21 +67,21 @@ func NewErrorHandler() ErrorHandler {
 }
 
 // Create a new Go error with an optional value that can be used to format the error message based on failure code and map.
-func NewGoError(failureMap map[Failure]string, code Failure, value any) error {
-	return newGoError(failureMap, code, value)
+func NewGoError(failureMap map[Failure]string, code Failure, values ...any) error {
+	return newGoError(failureMap, code, values...)
 }
 
 // Create a new general error with a severity level (a general error can wrap any other error).
-func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, inner error) error {
-	return newGeneralError(component, failureMap, severity, code, value, inner)
+func NewGeneralError(component Component, failureMap map[Failure]string, severity Severity, code Failure, inner error, values ...any) error {
+	return newGeneralError(component, failureMap, severity, code, inner, values...)
 }
 
 // Create a new line-column error with a severity level and a line and column number.
-func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int) error {
-	return newLineColumnError(component, failureMap, severity, code, value, line, column)
+func NewLineColumnError(component Component, failureMap map[Failure]string, severity Severity, code Failure, line, column int, values ...any) error {
+	return newLineColumnError(component, failureMap, severity, code, line, column, values...)
 }
 
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
-func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, value any, line, column int, sourceCode []byte) error {
-	return newSourceError(component, failureMap, severity, code, value, line, column, sourceCode)
+func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, line, column int, sourceCode []byte, values ...any) error {
+	return newSourceError(component, failureMap, severity, code, line, column, sourceCode, values...)
 }

@@ -287,7 +287,7 @@ func newAssemblyCodeUnit(buildConfiguration plt.BuildConfiguration, debugInforma
 		))
 
 	default:
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownOutputKind, buildConfiguration.OutputKind, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownOutputKind, nil, buildConfiguration.OutputKind))
 	}
 
 	// check for debugging information completeness by validating the total number of functions
@@ -295,7 +295,7 @@ func newAssemblyCodeUnit(buildConfiguration plt.BuildConfiguration, debugInforma
 		dstab := unit.debugInformation.GetDebugStringTable()
 
 		if len(dstab.Functions) == 0 {
-			panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, debuggingInformationIncomplete, len(dstab.Functions), nil))
+			panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, debuggingInformationIncomplete, nil, len(dstab.Functions)))
 		}
 	}
 
@@ -325,7 +325,7 @@ func newMemoryOperand(register Register, size OperandSize, displacements ...any)
 				operand.Memory.Offset = d
 
 			default:
-				panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, illegalDisplacementInMemoryOperand, displacement, nil))
+				panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, illegalDisplacementInMemoryOperand, nil, displacement))
 			}
 		}
 	}
@@ -370,7 +370,7 @@ func (o *Operand) String() string {
 		return o.Label
 
 	default:
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfOperandInCpuOperation, o.Kind, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfOperandInCpuOperation, nil, o.Kind))
 	}
 }
 
@@ -455,7 +455,7 @@ func (u *assemblyCodeUnit) AppendReadOnlyDataItem(kind elf.ReadOnlyDataKind, lab
 		u.RoStrDescSection.Append(elf.NewReadOnlyDataItem(kind, labels, values))
 
 	default:
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfReadOnlyData, kind, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfReadOnlyData, nil, kind))
 	}
 }
 
@@ -477,14 +477,14 @@ func (u *assemblyCodeUnit) AppendExistingReadOnlyDataItem(item *elf.ReadOnlyData
 		u.RoStrDescSection.Append(item)
 
 	default:
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfReadOnlyData, item.Kind, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownKindOfReadOnlyData, nil, item.Kind))
 	}
 }
 
 // Append a set of instructions to create all runtime functions.
 func (u *assemblyCodeUnit) AppendRuntime() {
 	if u.HasDebugInformation() {
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, optimizationDebugNotSupportedInRuntime, u.BuildConfiguration.Optimization, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, optimizationDebugNotSupportedInRuntime, nil, u.BuildConfiguration.Optimization))
 	}
 
 	loopCondition := fmt.Sprintf("%v.1", FollowStaticLinkLabel)
@@ -703,40 +703,40 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 			header += elf.NewFile(id, name).String() + "\n"
 		} else {
 			inner := eh.NewGoError(failureMap, invalidAttributeForDirective, elf.NewFile(id, name).String())
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, name, inner)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, inner, name)
 		}
 	}
 
 	// write the assembly code header to the print writer
 	if _, err := fmt.Fprint(print, header); err != nil {
-		return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+		return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 	}
 
 	// write the read-only UTF-32 strings data section to the print writer
 	if len(u.RoUtf32Section.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.RoUtf32Section); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 	}
 
 	// write the read-only 64-bit integer data section to the print writer
 	if len(u.RoInt64Section.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.RoInt64Section); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 	}
 
 	// write the read-only string descriptor data section to the print writer
 	if len(u.RoStrDescSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.RoStrDescSection); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 	}
 
 	// write the text section to the print writer
 	if len(u.TextSection.Content) > 0 {
 		if _, err := fmt.Fprintf(print, "%v\n", u.TextSection); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 	}
 
@@ -762,17 +762,17 @@ func (u *assemblyCodeUnit) Print(print io.Writer, args ...any) error {
 
 		// write the DWARF debug abbreviation section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugAbbrevSection); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 
 		// write the DWARF debug information section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugInfoSection); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 
 		// write the DWARF debug strings section to the print writer
 		if _, err := fmt.Fprintf(print, "%v\n", u.DebugStrSection); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		}
 	}
 
@@ -788,12 +788,12 @@ func (u *assemblyCodeUnit) Export(format exp.ExportFormat, print io.Writer) erro
 	case exp.Json:
 		// export the assembly code unit as a JSON object
 		if raw, err := json.MarshalIndent(u, prefix, indent); err != nil {
-			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+			return eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.Intel, failureMap, eh.Error, assemblyCodeExportFailed, err)
 			}
 
 			return err
@@ -804,7 +804,7 @@ func (u *assemblyCodeUnit) Export(format exp.ExportFormat, print io.Writer) erro
 		return u.Print(print)
 
 	default:
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unknownExportFormat, nil, format))
 	}
 }
 
@@ -958,7 +958,7 @@ func (u *assemblyCodeUnit) updateDebugAbbrevSection() {
 func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *dbg.DebugStringTable) {
 	// the predefined string composite data type must exist
 	if stringType := dstab.FindDataType(dstab.String); stringType == nil || stringType.Kind() != dbg.DataTypeComposite {
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, predefinedDataTypeRequired, dstab.String, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, predefinedDataTypeRequired, nil, dstab.String))
 	}
 
 	// find predefined string composite data type in the debug string table
@@ -1039,7 +1039,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *dbg.DebugStringTable) {
 			))
 
 		default:
-			panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unexpectedDataTypeKind, dt, nil))
+			panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, unexpectedDataTypeKind, nil, dt))
 		}
 	}
 
@@ -1191,7 +1191,7 @@ func (u *assemblyCodeUnit) updateDebugInfoSection(dstab *dbg.DebugStringTable) {
 func (u *assemblyCodeUnit) updateDebugStrSection(dstab *dbg.DebugStringTable) {
 	// compilation details and producer are required for the .debug_str section
 	if len(dstab.CompilationUnit) == 0 || len(dstab.CompilationDirectory) == 0 || len(dstab.Producer) == 0 {
-		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, compilationDetailsAndProducerRequired, nil, nil))
+		panic(eh.NewGeneralError(eh.Intel, failureMap, eh.Fatal, compilationDetailsAndProducerRequired, nil))
 	}
 
 	// add the compilation details and producer to the debug string section

@@ -138,7 +138,7 @@ func newEmitter(intermediateCodeUnit ic.IntermediateCodeUnit, buildConfiguration
 		targetPlatform.InstructionSet != plt.ISA_SSE2 ||
 		targetPlatform.StringEncoding != plt.UTF32 ||
 		targetPlatform.ApplicationBinaryInterface != plt.ABI_SystemV_AMD64 {
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedTargetPlatform, targetPlatform, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedTargetPlatform, nil, targetPlatform))
 	}
 
 	return &emitter{
@@ -192,7 +192,7 @@ func (e *emitter) Emit() {
 
 			// it is required that the first and second value are of the same data type
 			if dataType != i.Quadruple.Arg2.DataType {
-				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeInArithmeticOperation, dataType, nil))
+				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeInArithmeticOperation, nil, dataType))
 			}
 
 			// emit assembly code to perform the arithmetic operation on the top two elements of the call stack
@@ -211,7 +211,7 @@ func (e *emitter) Emit() {
 
 			// it is required that the first and second value are of the same data type
 			if dataType != i.Quadruple.Arg2.DataType {
-				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeInComparisonOperation, dataType, nil))
+				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeInComparisonOperation, nil, dataType))
 			}
 
 			// emit assembly code to compare the top two elements of the call stack and remember the comparison type
@@ -365,7 +365,7 @@ func (e *emitter) Emit() {
 			debugger &^= elf.DebuggerPrologueEnd
 
 		default:
-			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unknownIntermediateCodeOperation, i.Quadruple.Operation, nil))
+			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unknownIntermediateCodeOperation, nil, i.Quadruple.Operation))
 		}
 
 		// collected branch target labels must be used by the directly following instruction (one instruction consumes all collected labels)
@@ -420,7 +420,7 @@ func (e *emitter) odd(dataType ic.DataType, btLabels []string, debugger elf.Debu
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 }
 
@@ -502,7 +502,7 @@ func (e *emitter) negate(dataType ic.DataType, btLabels []string, debugger elf.D
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 }
 
@@ -645,7 +645,7 @@ func (e *emitter) arithmeticOperation(dataType ic.DataType, operation ic.Operati
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 }
 
@@ -698,7 +698,7 @@ func (e *emitter) divideInteger(dataType ic.DataType, btLabels []string, debugge
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 }
 
@@ -726,7 +726,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, debugger e
 
 		default:
 			// panic if the data type is not supported for the intermediate code operation
-			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 		}
 	}
 
@@ -812,7 +812,7 @@ func (e *emitter) comparison(dataType ic.DataType, btLabels []string, debugger e
 
 		default:
 			// panic if the data type is not supported for the intermediate code operation
-			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 		}
 	}
 
@@ -894,7 +894,7 @@ func (e *emitter) conditionalJump(comparisonType x64.ComparisonType, jump ic.Ope
 
 	default:
 		// panic if the jump operation is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedJumpOperationForConditionalJump, jump, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedJumpOperationForConditionalJump, nil, jump))
 	}
 
 	// emit assembly code for the conditional jump instruction
@@ -983,7 +983,7 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 
 			default:
 				// panic if the data type is not supported for the intermediate code operation
-				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+				panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 			}
 
 			// only use labels for the first instruction
@@ -1001,7 +1001,7 @@ func (e *emitter) returnFromFunction(dataType ic.DataType, btLabels []string, en
 		}
 	} else if !dataType.IsUntyped() {
 		// if the data type of the return value is not a pointer, reference, supported data type, or untyped, then it is unexpected
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 
 	// return from the function
@@ -1266,7 +1266,7 @@ func (e *emitter) copyLiteral(dataType ic.DataType, value any, ldLabel string, b
 
 	default:
 		// panic if the data type is not supported for the intermediate code operation
-		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+		panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 	}
 }
 
@@ -1387,7 +1387,7 @@ func (e *emitter) loadVariable(dataType ic.DataType, offset, depthDifference int
 
 		default:
 			// panic if the data type is not supported for the intermediate code operation
-			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 		}
 	}
 }
@@ -1461,7 +1461,7 @@ func (e *emitter) storeVariable(dataType ic.DataType, offset, depthDifference in
 
 		default:
 			// panic if the data type is not supported for the intermediate code operation
-			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, dataType, nil))
+			panic(eh.NewGeneralError(eh.Emitter, failureMap, eh.Fatal, unsupportedDataTypeForIntermediateCodeOperation, nil, dataType))
 		}
 	}
 }

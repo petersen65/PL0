@@ -269,7 +269,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 
 	// check if the values are nil, which is not allowed for read-only data items
 	if rdi.Values == nil {
-		panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, nil, nil))
+		panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, nil))
 	}
 
 	// encode different kinds of read-only data
@@ -286,7 +286,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 			utf32 = values
 
 		default:
-			panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
+			panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, nil, rdi.Values))
 		}
 
 		// write all code points with a newline after each item (expect the last one)
@@ -325,7 +325,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 			}
 
 		default:
-			panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, rdi.Values, nil))
+			panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, nil, rdi.Values))
 		}
 
 	case ReadOnlyStrDesc:
@@ -347,7 +347,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 					builder.WriteString(fmt.Sprintf("%v%v %#016x", DefaultIndentation, Quad, desc))
 
 				default:
-					panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, value, nil))
+					panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, invalidReadOnlyDataValue, nil, value))
 				}
 
 				if i < len(values)-1 {
@@ -357,7 +357,7 @@ func (rdi *ReadOnlyDataItem) String() string {
 		}
 
 	default:
-		panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, unknownKindOfReadOnlyData, rdi.Kind, nil))
+		panic(eh.NewGeneralError(eh.ExecutableLinkableFormat, failureMap, eh.Fatal, unknownKindOfReadOnlyData, nil, rdi.Kind))
 	}
 
 	// the read-only data item string representation does not end with a newline

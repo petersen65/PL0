@@ -193,7 +193,7 @@ func (s *blockNode) BuiltInDataType(name string) ts.TypeDescriptor {
 func (n *blockNode) Print(print io.Writer, args ...any) error {
 	// traverse the abstract syntax tree and print each node
 	if err := printAbstractSyntaxTree(n, "", true, print); err != nil {
-		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
+		return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, err)
 	}
 
 	return nil
@@ -208,12 +208,12 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 	case exp.Json:
 		// export the abstract syntax tree as a JSON object
 		if raw, err := json.MarshalIndent(n, prefix, indent); err != nil {
-			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
+			return eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, err)
 		} else {
 			_, err = print.Write(raw)
 
 			if err != nil {
-				err = eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, nil, err)
+				err = eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Error, abstractSyntaxExportFailed, err)
 			}
 
 			return err
@@ -224,7 +224,7 @@ func (n *blockNode) Export(format exp.ExportFormat, print io.Writer) error {
 		return n.Print(print)
 
 	default:
-		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownExportFormat, format, nil))
+		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownExportFormat, nil, format))
 	}
 }
 
