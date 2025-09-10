@@ -255,10 +255,10 @@ func (na *nameAnalysis) VisitWriteStatement(ws ast.WriteStatement) {
 	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
-// Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
+// Visit the call statement node and set the usage mode bit to execute for the called procedure.
 func (na *nameAnalysis) VisitCallStatement(cs ast.CallStatement) {
-	cs.Function().Accept(na)
-	cs.Function().SetUsageMode(cs.Function().UsageMode() | ast.Execute)
+	cs.Procedure().Accept(na)
+	cs.Procedure().SetUsageMode(cs.Procedure().UsageMode() | ast.Execute)
 }
 
 // Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.

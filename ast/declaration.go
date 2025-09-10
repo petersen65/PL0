@@ -49,12 +49,12 @@ type (
 
 // An empty declaration is a 0 constant with special name, should only be used in the context of parser errors, and is free from any side-effect.
 func NewEmptyDeclaration() Declaration {
-	return newConstantDeclaration(emptyConstantName, ts.Integer64.String(), int64(0), tok.NoTokenStreamIndex)
+	return newConstantDeclaration(emptyConstantName, NewEmptyExpression(), tok.NoTokenStreamIndex)
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func NewConstantDeclaration(identifierName, dataTypeName string, value any, index int) ConstantDeclaration {
-	return newConstantDeclaration(identifierName, dataTypeName, value, index)
+func NewConstantDeclaration(identifierName string, expression Expression, index int) ConstantDeclaration {
+	return newConstantDeclaration(identifierName, expression, index)
 }
 
 // Create a new variable declaration node in the abstract syntax tree.

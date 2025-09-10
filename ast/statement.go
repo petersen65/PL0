@@ -28,7 +28,7 @@ type (
 	// A call statement node in the abstract syntax tree.
 	CallStatement interface {
 		Statement
-		Function() IdentifierUse
+		Procedure() IdentifierUse
 	}
 
 	// An if-then statement node in the abstract syntax tree.
@@ -80,8 +80,8 @@ func NewWriteStatement(expression Expression, beginIndex, endIndex int) WriteSta
 }
 
 // Create a new call statement node in the abstract syntax tree.
-func NewCallStatement(functionUse IdentifierUse, beginIndex, endIndex int) CallStatement {
-	return newCallStatement(functionUse, beginIndex, endIndex)
+func NewCallStatement(procedureUse IdentifierUse, beginIndex, endIndex int) CallStatement {
+	return newCallStatement(procedureUse, beginIndex, endIndex)
 }
 
 // Create a new if-then statement node in the abstract syntax tree.

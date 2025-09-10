@@ -7,7 +7,6 @@ import (
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
 	tok "github.com/petersen65/pl0/v3/token"
-	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
 // If no identifier can be found, it is set to this value.
@@ -161,7 +160,7 @@ func (p *parser) constWord() []ast.Declaration {
 	declarations := make([]ast.Declaration, 0)
 	p.nextToken()
 
-	// all constants are declared in a sequence of identifier equal number
+	// all constants are declared in a sequence of identifier equals expression and are grouped by a semicolon
 	for {
 		// first constant declaration
 		declarations = append(declarations, p.constantIdentifier())
@@ -317,9 +316,9 @@ func (p *parser) procedureWord(parent ast.Block, blockNestingDepth int, anchors 
 // An assignment is an identifier followed by becomes followed by an expression.
 func (p *parser) assignment(anchors tok.Tokens) ast.Statement {
 	var becomesIndex int
-	name := p.lastTokenValue()
-	nameIndex := p.lastTokenIndex()
 
+	identifier := p.lastTokenValue()
+	identifierIndex := p.lastTokenIndex()
 	p.nextToken()
 
 	if p.lastToken() == tok.Becomes {
@@ -338,7 +337,7 @@ func (p *parser) assignment(anchors tok.Tokens) ast.Statement {
 	right := p.expression(anchors)
 
 	// the left side of an assignment is an identifier
-	left := ast.NewIdentifierUse(name, ast.Variable, nameIndex)
+	left := ast.NewIdentifierUse(identifier, ast.Variable, identifierIndex)
 
 	endIndex := p.lastTokenIndex()
 	return ast.NewAssignmentStatement(left, right, becomesIndex, endIndex)
@@ -549,7 +548,7 @@ func (p *parser) statement(anchors tok.Tokens) (ast.Statement, bool) {
 	return statement, false
 }
 
-// A constant identifier is an identifier followed by an equal sign followed by a number and is stored in a constant declaration of the abstract syntax tree
+// A constant identifier is an identifier followed by an equal sign followed by an expression and is stored in a constant declaration of the abstract syntax tree.
 func (p *parser) constantIdentifier() ast.Declaration {
 	// in case of a parsing error, return an empty declaration
 	declaration := ast.NewEmptyDeclaration()
@@ -563,42 +562,27 @@ func (p *parser) constantIdentifier() ast.Declaration {
 	constantNameIndex := p.lastTokenIndex()
 	p.nextToken()
 
-	// parse the equal token and the number of the constant, accept non-valid becomes token as equal token
-	if p.lastToken().In(set(tok.Equal, tok.Becomes)) {
-		if p.lastToken() == tok.Becomes {
-			p.appendError(expectedEqual, p.lastTokenName())
-		}
-
+	if p.lastToken() == tok.Equal {
 		p.nextToken()
-		var sign tok.Token
-
-		// support leading plus or minus sign of a number
-		if p.lastToken() == tok.Plus || p.lastToken() == tok.Minus {
-			sign = p.lastToken()
-			p.nextToken()
-		}
-
-		if p.lastToken() != tok.Integer {
-			p.appendError(expectedNumber, p.lastTokenName())
-
-			// skip the next token if it is an identifier to continue parsing
-			if p.lastToken() == tok.Identifier {
-				p.nextToken()
-			}
-		} else {
-			// create a new constant declaration with the identifier name, data type name, and the number value
-			declaration = ast.NewConstantDeclaration(
-				constantName,
-				ts.Integer64.String(),
-				p.numberValue(sign, p.lastTokenValue()),
-				constantNameIndex)
-
-			p.nextToken()
-		}
 	} else {
 		p.appendError(expectedEqual, p.lastTokenName())
+
+		// skip the next token if it is a becomes to continue parsing
+		if p.lastToken() == tok.Becomes {
+			p.nextToken()
+		}
 	}
 
+	// the right side of a constant identifier is an expression
+	right := p.expression(set(declarations, tok.Comma, tok.Semicolon))
+
+	// create a new constant declaration with the identifier name and the expression
+	declaration = ast.NewConstantDeclaration(
+		constantName,
+		right,
+		constantNameIndex)
+
+	p.nextToken()
 	return declaration
 }
 

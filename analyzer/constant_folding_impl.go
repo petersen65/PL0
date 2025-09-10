@@ -95,7 +95,7 @@ func (c *constantFolding) VisitWriteStatement(ws ast.WriteStatement) {
 
 // Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
 func (c *constantFolding) VisitCallStatement(cs ast.CallStatement) {
-	cs.Function().Accept(c)
+	cs.Procedure().Accept(c)
 }
 
 // Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.

@@ -26,7 +26,6 @@ func newFunctionDeclaration(identifierName string, block Block, parameters []*ts
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindFunctionDeclaration},
 			IdentifierName_:            identifierName,
-			DataTypeName_:              "",
 			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: index,
 		},

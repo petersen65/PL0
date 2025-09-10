@@ -163,7 +163,7 @@ func (tc *typeChecking) VisitWriteStatement(ws ast.WriteStatement) {
 
 // x
 func (tc *typeChecking) VisitCallStatement(cs ast.CallStatement) {
-	cs.Function().Accept(tc)
+	cs.Procedure().Accept(tc)
 }
 
 // x

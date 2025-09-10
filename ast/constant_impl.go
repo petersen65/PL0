@@ -10,21 +10,21 @@ const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 
 // The node represents a constant declaration in the abstract syntax tree.
 type constantDeclarationNode struct {
-	declarationNode     // embedded declaration node
-	Value_          any `json:"constant_value"` // value of the constant
+	declarationNode            // embedded declaration node
+	Value_          any        `json:"constant_value"` // inferred value of the constant, might be nil if it was not or cannot be inferred
+	Expression_     Expression `json:"expression"`     // expression on the right side of the constant identifier
 }
 
 // Create a new constant declaration node in the abstract syntax tree.
-func newConstantDeclaration(identifierName, dataTypeName string, value any, index int) ConstantDeclaration {
+func newConstantDeclaration(identifierName string, expression Expression, index int) ConstantDeclaration {
 	return &constantDeclarationNode{
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindConstantDeclaration},
 			IdentifierName_:            identifierName,
-			DataTypeName_:              dataTypeName,
 			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: index,
 		},
-		Value_: value,
+		Expression_: expression,
 	}
 }
 
