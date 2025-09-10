@@ -54,11 +54,11 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
-		na.appendError(constantIdentifierHasBuiltInName, cd.IdentifierName(), cd.Index())
+		na.appendError(constantIdentifierHasBuiltInName, cd.Index(), cd.IdentifierName())
 	} else if s != nil {
-		na.appendError(identifierAlreadyDeclared, cd.IdentifierName(), cd.Index())
+		na.appendError(identifierAlreadyDeclared, cd.Index(), cd.IdentifierName())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		na.appendError(constantDataTypeNotFound, cd.DataTypeName(), cd.Index())
+		na.appendError(constantDataTypeNotFound, cd.Index(), cd.DataTypeName())
 	} else {
 		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, cd.Value())
 		cb.Insert(cd.IdentifierName(), symbol)
@@ -74,12 +74,12 @@ func (na *nameAnalysis) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 
 	// in the case of no errors, insert the variable symbol into the current block's scope
 	if vd.CurrentBlock().BuiltInDataType(vd.IdentifierName()) != nil {
-		na.appendError(variableIdentifierHasBuiltInName, vd.IdentifierName(), vd.Index())
+		na.appendError(variableIdentifierHasBuiltInName, vd.Index(), vd.IdentifierName())
 	} else if s != nil {
-		na.appendError(identifierAlreadyDeclared, vd.IdentifierName(), vd.Index())
+		na.appendError(identifierAlreadyDeclared, vd.Index(), vd.IdentifierName())
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
 		_, typeIndex := vd.IndexPair()
-		na.appendError(variableDataTypeNotFound, vd.DataTypeName(), typeIndex)
+		na.appendError(variableDataTypeNotFound, typeIndex, vd.DataTypeName())
 	} else {
 		symbol := sym.NewSymbol(vd.IdentifierName(), sym.VariableEntry, dts.DataType, nil)
 		cb.Insert(vd.IdentifierName(), symbol)
@@ -100,7 +100,7 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 		symbolEntry = sym.FunctionEntry
 
 		if rts := cb.Lookup(fd.ReturnTypeName()); rts == nil || rts.Kind != sym.DataTypeEntry {
-			na.appendError(functionReturnTypeNotFound, fd.ReturnTypeName(), fd.Index())
+			na.appendError(functionReturnTypeNotFound, fd.Index(), fd.ReturnTypeName())
 		} else {
 			returnType = rts.DataType
 		}
@@ -110,9 +110,9 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	for _, parameter := range fd.Parameters() {
 		if pts := cb.Lookup(parameter.TypeName); pts == nil || pts.Kind != sym.DataTypeEntry {
 			if fd.IsProcedure() {
-				na.appendError(procedureParameterTypeNotFound, parameter.TypeName, fd.Index())
+				na.appendError(procedureParameterTypeNotFound, fd.Index(), parameter.TypeName)
 			} else {
-				na.appendError(functionParameterTypeNotFound, parameter.TypeName, fd.Index())
+				na.appendError(functionParameterTypeNotFound, fd.Index(), parameter.TypeName)
 			}
 		} else {
 			parameter.Type = pts.DataType
@@ -122,12 +122,12 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	// append an error if the function was already declared
 	if fd.CurrentBlock().BuiltInDataType(fd.IdentifierName()) != nil {
 		if fd.IsFunction() {
-			na.appendError(functionIdentifierHasBuiltInName, fd.IdentifierName(), fd.Index())
+			na.appendError(functionIdentifierHasBuiltInName, fd.Index(), fd.IdentifierName())
 		} else {
-			na.appendError(procedureIdentifierHasBuiltInName, fd.IdentifierName(), fd.Index())
+			na.appendError(procedureIdentifierHasBuiltInName, fd.Index(), fd.IdentifierName())
 		}
 	} else if s != nil {
-		na.appendError(identifierAlreadyDeclared, fd.IdentifierName(), fd.Index())
+		na.appendError(identifierAlreadyDeclared, fd.Index(), fd.IdentifierName())
 	} else {
 		// create a data type for a function or procedure with a predefined list of parameters and an optional return type
 		functionType := ts.NewFunctionTypeDescriptor(fd.Parameters(), returnType, false)
@@ -160,7 +160,7 @@ func (na *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
 func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 	// if the identifier used does not have a declaration or symbol, report an error
 	if iu.Declaration() == nil || iu.Declaration().Symbol() == nil {
-		na.appendError(identifierNotFound, iu.IdentifierName(), iu.Index())
+		na.appendError(identifierNotFound, iu.Index(), iu.IdentifierName())
 		return
 	}
 
@@ -176,7 +176,7 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Constant)
 			declaration.AddUsage(iu)
 		} else {
-			na.appendError(expectedConstantIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedConstantIdentifier, iu.Index(), iu.IdentifierName())
 		}
 
 	case sym.VariableEntry:
@@ -186,7 +186,7 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Variable)
 			declaration.AddUsage(iu)
 		} else {
-			na.appendError(expectedVariableIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedVariableIdentifier, iu.Index(), iu.IdentifierName())
 		}
 
 	case sym.FunctionEntry:
@@ -196,7 +196,7 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Function)
 			declaration.AddUsage(iu)
 		} else {
-			na.appendError(expectedFunctionIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedFunctionIdentifier, iu.Index(), iu.IdentifierName())
 		}
 
 	case sym.ProcedureEntry:
@@ -206,7 +206,7 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 			iu.SetIdentifierKind(ast.Procedure)
 			declaration.AddUsage(iu)
 		} else {
-			na.appendError(expectedProcedureIdentifier, iu.IdentifierName(), iu.Index())
+			na.appendError(expectedProcedureIdentifier, iu.Index(), iu.IdentifierName())
 		}
 
 	default:
@@ -283,8 +283,8 @@ func (na *nameAnalysis) VisitCompoundStatement(cs ast.CompoundStatement) {
 }
 
 // Append an error from the name analysis to the token handler's error list.
-func (na *nameAnalysis) appendError(code eh.Failure, value any, index int) {
-	na.tokenHandler.AppendError(na.tokenHandler.NewErrorOnIndex(eh.Error, code, index, value))
+func (na *nameAnalysis) appendError(code eh.Failure, index int, values ...any) {
+	na.tokenHandler.AppendError(na.tokenHandler.NewErrorOnIndex(eh.Error, code, index, values...))
 }
 
 // This is a visitor function. For all occurrences of a constant or variable usage, set the usage mode bit to read.

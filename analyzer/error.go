@@ -13,6 +13,7 @@ const (
 	usageValidationFailed
 	capturedVariableDeterminationFailed
 	unknownSymbolKind
+	unknownUnaryOperation
 	identifierNotFound
 	identifierAlreadyDeclared
 	constantDataTypeNotFound
@@ -32,34 +33,45 @@ const (
 	unusedVariableIdentifier
 	unusedFunctionIdentifier
 	unusedProcedureIdentifier
-	incompatibleTypesInArithmeticOperation
+	incompatibleDataTypesInArithmeticOperation
+	dataTypeCannotBeUsedInArithmeticOperation
+	incompatibleDataTypesInComparisonOperation
+	dataTypeCannotBeUsedInComparisonOperation
+	dataTypeCannotBeUsedInNegateOperation
+	dataTypeCannotBeUsedInOddOperation
 )
 
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
-	invalidNameAnalysisState:               "name analysis is in an undefined state and cannot continue parsing",
-	declarationValidationFailed:            "identifier declaration validation failed",
-	usageValidationFailed:                  "identifier usage validation failed",
-	capturedVariableDeterminationFailed:    "captured variable determination failed",
-	unknownSymbolKind:                      "unknown symbol kind: %v",
-	identifierNotFound:                     "identifier not found: %v",
-	identifierAlreadyDeclared:              "identifier already declared: %v",
-	constantDataTypeNotFound:               "constant data type not found: %v",
-	variableDataTypeNotFound:               "variable data type not found: %v",
-	constantIdentifierHasBuiltInName:       "constant identifier uses a built-in reserved name: %v",
-	variableIdentifierHasBuiltInName:       "variable identifier uses a built-in reserved name: %v",
-	functionIdentifierHasBuiltInName:       "function identifier uses a built-in reserved name: %v",
-	procedureIdentifierHasBuiltInName:      "procedure identifier uses a built-in reserved name: %v",
-	functionReturnTypeNotFound:             "function return data type not found: %v",
-	functionParameterTypeNotFound:          "function parameter data type not found: %v",
-	procedureParameterTypeNotFound:         "procedure parameter data type not found: %v",
-	expectedConstantIdentifier:             "expected constant identifier, found %v",
-	expectedVariableIdentifier:             "expected variable identifier, found %v",
-	expectedFunctionIdentifier:             "expected function identifier, found %v",
-	expectedProcedureIdentifier:            "expected procedure identifier, found %v",
-	unusedConstantIdentifier:               "constant declared but not used: %v",
-	unusedVariableIdentifier:               "variable declared but not used: %v",
-	unusedFunctionIdentifier:               "function declared but not used: %v",
-	unusedProcedureIdentifier:              "procedure declared but not used: %v",
-	incompatibleTypesInArithmeticOperation: "incompatible data types in arithmetic operation %v: %v and %v",
+	invalidNameAnalysisState:                   "name analysis is in an undefined state and cannot continue parsing",
+	declarationValidationFailed:                "identifier declaration validation failed",
+	usageValidationFailed:                      "identifier usage validation failed",
+	capturedVariableDeterminationFailed:        "captured variable determination failed",
+	unknownSymbolKind:                          "unknown symbol kind: %v",
+	unknownUnaryOperation:                      "unknown unary operation: %v",
+	identifierNotFound:                         "identifier not found: %v",
+	identifierAlreadyDeclared:                  "identifier already declared: %v",
+	constantDataTypeNotFound:                   "constant data type not found: %v",
+	variableDataTypeNotFound:                   "variable data type not found: %v",
+	constantIdentifierHasBuiltInName:           "constant identifier uses a built-in reserved name: %v",
+	variableIdentifierHasBuiltInName:           "variable identifier uses a built-in reserved name: %v",
+	functionIdentifierHasBuiltInName:           "function identifier uses a built-in reserved name: %v",
+	procedureIdentifierHasBuiltInName:          "procedure identifier uses a built-in reserved name: %v",
+	functionReturnTypeNotFound:                 "function return data type not found: %v",
+	functionParameterTypeNotFound:              "function parameter data type not found: %v",
+	procedureParameterTypeNotFound:             "procedure parameter data type not found: %v",
+	expectedConstantIdentifier:                 "expected constant identifier, found %v",
+	expectedVariableIdentifier:                 "expected variable identifier, found %v",
+	expectedFunctionIdentifier:                 "expected function identifier, found %v",
+	expectedProcedureIdentifier:                "expected procedure identifier, found %v",
+	unusedConstantIdentifier:                   "constant declared but not used: %v",
+	unusedVariableIdentifier:                   "variable declared but not used: %v",
+	unusedFunctionIdentifier:                   "function declared but not used: %v",
+	unusedProcedureIdentifier:                  "procedure declared but not used: %v",
+	incompatibleDataTypesInArithmeticOperation: "incompatible operand data types in arithmetic operation %v: %v and %v",
+	dataTypeCannotBeUsedInArithmeticOperation:  "operand data type cannot be used in arithmetic operation %v [%v]: %v",
+	incompatibleDataTypesInComparisonOperation: "incompatible operand data types in comparison operation %v: %v and %v",
+	dataTypeCannotBeUsedInComparisonOperation:  "operand data type cannot be used in comparison operation %v [%v]: %v",
+	dataTypeCannotBeUsedInNegateOperation:      "operand data type cannot be used in negate operation [%v]: %v",
+	dataTypeCannotBeUsedInOddOperation:         "operand data type cannot be used in odd operation [%v]: %v",
 }

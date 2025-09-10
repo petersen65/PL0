@@ -107,6 +107,11 @@ func (n *arithmeticOperationNode) DataType() ts.TypeDescriptor {
 	return left
 }
 
+// Data type requirements of both operands for the arithmetic operation node.
+func (n *arithmeticOperationNode) Requirements() ts.DataTypeCapability {
+	return n.Requirements_
+}
+
 // Binary operation of the arithmetic operation node.
 func (n *arithmeticOperationNode) Operation() ArithmeticOperator {
 	return n.Operation_

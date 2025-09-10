@@ -4,8 +4,13 @@
 package typesystem
 
 import (
+	"strings"
+
 	plt "github.com/petersen65/pl0/v3/platform"
 )
+
+// Separator for the string representation of a bit-mask.
+const bitMaskSeparator = "|"
 
 // Common fields shared by all type descriptors.
 type commonTypeDescriptor struct {
@@ -23,7 +28,33 @@ var (
 		DataTypeFunction:  "function",
 		DataTypeProcedure: "procedure",
 	}
+
+	// Map data type capabilities to their string representation.
+	dataTypeCapabilityNames = map[DataTypeCapability]string{
+		Numeric:         "numeric",
+		Ordered:         "ordered",
+		Equality:        "equality",
+		Logical:         "logical",
+		Bitwise:         "bitwise",
+		Integral:        "integral",
+		Fractional:      "fractional",
+		Dereferenceable: "dereferenceable",
+		Negatable:       "negatable",
+	}
 )
+
+// String representation of the data type capabilities bit-mask.
+func (c DataTypeCapability) String() string {
+	var parts []string
+
+	for capability, name := range dataTypeCapabilityNames {
+		if c&capability != 0 {
+			parts = append(parts, name)
+		}
+	}
+
+	return strings.Join(parts, bitMaskSeparator)
+}
 
 // Kind of data type represented by the common type descriptor.
 func (d *commonTypeDescriptor) Kind() DataTypeKind {
@@ -62,7 +93,17 @@ func (d *commonTypeDescriptor) IsUnsigned() bool {
 
 // Check if the common type descriptor has the specified capability.
 func (d *commonTypeDescriptor) HasCapability(capability DataTypeCapability) bool {
-	return d.Capabilities()&capability != 0
+	return d.Capabilities()&capability == capability
+}
+
+// Check if the common type descriptor has all of the specified capabilities.
+func (d *commonTypeDescriptor) HasAllCapabilities(capabilities DataTypeCapability) bool {
+	return d.Capabilities()&capabilities == capabilities
+}
+
+// Check if the common type descriptor has any of the specified capabilities.
+func (d *commonTypeDescriptor) HasAnyCapability(capabilities DataTypeCapability) bool {
+	return d.Capabilities()&capabilities != 0
 }
 
 // Default data type capabilities of the common type descriptor.

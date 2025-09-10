@@ -31,14 +31,13 @@ const (
 	Fractional                                     // operations on decimal numbers with fractional parts (floating-point)
 	Dereferenceable                                // supports dereferencing operation *
 	Negatable                                      // supports negation operation only for signed numeric types
-	OddCheckable                                   // supports odd operation
 )
 
 type (
 	// Kind of data type (e.g., simple, composite, pointer).
 	DataTypeKind int
 
-	// DataTypeCapability represents what operations a type supports
+	// DataTypeCapability is a bit-mask that represents what operations a type supports.
 	DataTypeCapability uint64
 
 	// The type checker interface provides checks for the characteristics of a type descriptor.
@@ -48,8 +47,10 @@ type (
 		IsIntegral() bool
 		IsFractional() bool
 		IsSigned() bool
-		IsUnsigned() bool
+		IsUnsigned() bool	
 		HasCapability(cap DataTypeCapability) bool
+		HasAllCapabilities(capabilities DataTypeCapability) bool
+		HasAnyCapability(capabilities DataTypeCapability) bool
 	}
 
 	// The type descriptor is the interface for all specific type descriptions.

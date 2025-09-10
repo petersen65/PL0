@@ -116,6 +116,11 @@ func (n *comparisonOperationNode) DataType() ts.TypeDescriptor {
 	return left
 }
 
+// Data type requirements of both operands for the comparison operation node.
+func (n *comparisonOperationNode) Requirements() ts.DataTypeCapability {
+	return n.Requirements_
+}
+
 // Comparison operation of the comparison operation node.
 func (n *comparisonOperationNode) Operation() ComparisonOperator {
 	return n.Operation_

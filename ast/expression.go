@@ -56,6 +56,7 @@ type (
 	// An unary operation node in the abstract syntax tree.
 	UnaryOperation interface {
 		Expression
+		Requirements() ts.DataTypeCapability
 		Operation() UnaryOperator
 		Operand() Expression
 	}
@@ -63,6 +64,7 @@ type (
 	// An arithmetic operation node in the abstract syntax tree.
 	ArithmeticOperation interface {
 		Expression
+		Requirements() ts.DataTypeCapability
 		Operation() ArithmeticOperator
 		Left() Expression
 		Right() Expression
@@ -71,6 +73,7 @@ type (
 	// A comparison operation node in the abstract syntax tree.
 	ComparisonOperation interface {
 		Expression
+		Requirements() ts.DataTypeCapability
 		Operation() ComparisonOperator
 		Left() Expression
 		Right() Expression

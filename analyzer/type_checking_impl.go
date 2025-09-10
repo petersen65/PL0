@@ -38,101 +38,147 @@ func (tc *typeChecking) VisitBlock(b ast.Block) {
 	b.Statement().Accept(tc)
 }
 
-// Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (tc *typeChecking) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 }
 
-// Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (tc *typeChecking) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 }
 
-// Enter the function declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (tc *typeChecking) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	// visit the block of the function or procedure declaration
 	fd.Block().Accept(tc)
 }
 
-// Visit the literal-use node.
+// x
 func (tc *typeChecking) VisitLiteralUse(lu ast.LiteralUse) {
 }
 
-// Check if the used identifier is declared and if it is used correctly according to its symbol kind. Record the usage of the identifier in its declaration.
+// x
 func (tc *typeChecking) VisitIdentifierUse(iu ast.IdentifierUse) {
 }
 
-// Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
+// Visit the unary operation node and verify that the operand type supports the unary operator.
+// Checks that the operand's data type has the required capabilities for the specific operation (negate or odd).
 func (tc *typeChecking) VisitUnaryOperation(uo ast.UnaryOperation) {
 	uo.Operand().Accept(tc)
+
+	// get data type of the operand
+	operandType := uo.Operand().DataType()
+
+	// if the data type is nil, errors have already been reported so just return
+	if operandType == nil {
+		return
+	}
+
+	switch uo.Operation() {
+	case ast.Negate:
+		// check if the data type of the unary operation operand meets all requirements of the negate operation
+		if !operandType.HasAllCapabilities(uo.Requirements()) {
+			tc.appendError(dataTypeCannotBeUsedInNegateOperation, uo.Index(), uo, uo.Requirements(), operandType)
+		}
+
+	case ast.Odd:
+		// check if the data type of the unary operation operand meets all requirements of the odd operation
+		if !operandType.HasAllCapabilities(uo.Requirements()) {
+			tc.appendError(dataTypeCannotBeUsedInOddOperation, uo.Index(), uo, uo.Requirements(), operandType)
+		}
+
+	default:
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownUnaryOperation, nil))
+	}
 }
 
-// Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// Visit the arithmetic operation node and verify type compatibility for binary arithmetic operators.
+// Ensures both operands have matching types and that the type supports numeric operations.
 func (tc *typeChecking) VisitArithmeticOperation(ao ast.ArithmeticOperation) {
 	ao.Left().Accept(tc)
 	ao.Right().Accept(tc)
 
-    // get types of both operands
-    leftType := ao.Left().DataType()
-    rightType := ao.Right().DataType()
+	// get data types of both operands
+	leftType := ao.Left().DataType()
+	rightType := ao.Right().DataType()
 
-	// if either type is nil, errors have already been reported so just return
-    if leftType == nil || rightType == nil {
-        return
-    }
+	// if either data type is nil, errors have already been reported so just return
+	if leftType == nil || rightType == nil {
+		return
+	}
 
-	// check if types match
-    if !leftType.Equal(rightType) {
-		// errorMessage := fmt.Sprintf(incompatibleTypesInArithmeticOperation, ao, leftType, rightType)
+	// check if the data types of both arithmetic operation operands are equal
+	if !leftType.Equal(rightType) {
+		tc.appendError(incompatibleDataTypesInArithmeticOperation, ao.Index(), ao, leftType, rightType)
+		return
+	}
 
-		// 	tc.appendError(expectedVariableIdentifier, left, iu.Index())
-
-
-        // tc.appendError(eh.TypeMismatch, 
-        //     fmt.Sprintf("incompatible types: %s and %s", leftType.String(), rightType.String()), 
-        //     ao.TokenIndex())
-        // return
-    }
+	// check if the data type of the left operand meets all requirements of the arithmetic operation
+	if !leftType.HasAllCapabilities(ao.Requirements()) {
+		tc.appendError(dataTypeCannotBeUsedInArithmeticOperation, ao.Index(), ao, ao.Requirements(), leftType)
+	}
 }
 
-// Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// Visit the comparison operation node and verify type compatibility for comparison operators.
+// Ensures both operands have matching types and that the type supports the specific comparison operation (equality for == and !=, ordering for <, <=, >, >=).
 func (tc *typeChecking) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Left().Accept(tc)
 	co.Right().Accept(tc)
+
+	// get data types of both operands
+	leftType := co.Left().DataType()
+	rightType := co.Right().DataType()
+
+	// if either data type is nil, errors have already been reported so just return
+	if leftType == nil || rightType == nil {
+		return
+	}
+
+	// check if the data types of both comparison operation operands are equal
+	if !leftType.Equal(rightType) {
+		tc.appendError(incompatibleDataTypesInComparisonOperation, co.Index(), co, leftType, rightType)
+		return
+	}
+
+	// check if the data type of the left operand meets all requirements of the comparison operation
+	if !leftType.HasAllCapabilities(co.Requirements()) {
+		tc.appendError(dataTypeCannotBeUsedInComparisonOperation, co.Index(), co, co.Requirements(), leftType)
+	}
 }
 
-// Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
+// x
 func (tc *typeChecking) VisitAssignmentStatement(as ast.AssignmentStatement) {
 	as.Variable().Accept(tc)
 	as.Expression().Accept(tc)
 }
 
-// Visit the read statement node and set the usage mode bit to write for the variable that is read into.
+// x
 func (tc *typeChecking) VisitReadStatement(rs ast.ReadStatement) {
 	rs.Variable().Accept(tc)
 }
 
-// Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
+// x
 func (tc *typeChecking) VisitWriteStatement(ws ast.WriteStatement) {
 	ws.Expression().Accept(tc)
 }
 
-// Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
+// x
 func (tc *typeChecking) VisitCallStatement(cs ast.CallStatement) {
 	cs.Function().Accept(tc)
 }
 
-// Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
+// x
 func (tc *typeChecking) VisitIfStatement(is ast.IfStatement) {
 	is.Condition().Accept(tc)
 	is.Statement().Accept(tc)
 }
 
-// Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
+// x
 func (tc *typeChecking) VisitWhileStatement(ws ast.WhileStatement) {
 	ws.Condition().Accept(tc)
 	ws.Statement().Accept(tc)
 }
 
-// Visit the compound statement node by visiting all its statements.
+// x
 func (tc *typeChecking) VisitCompoundStatement(cs ast.CompoundStatement) {
 	for _, statement := range cs.Statements() {
 		statement.Accept(tc)

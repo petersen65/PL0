@@ -35,13 +35,13 @@ func (a *semanticAnalyzer) PerformSemanticAnalysis() {
 	// determine captured declarations for all blocks in the abstract syntax tree
 	// note: this must be done after name analysis so that all identifier uses refer to their declarations and symbols
 	// note: even after name analysis, there might be identifier uses that do not refer to any declaration or symbol (i.e., undeclared identifiers)
-	if err := ast.Walk(nameAnalyzer.abstractSyntax, ast.PreOrder, nil, addVariableToBlockClosure); err != nil {
+	if err := ast.Walk(nameAnalyzer.abstractSyntax, ast.PreOrder, nil, addVariableToBlockCapturedDeclarations); err != nil {
 		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, capturedVariableDeterminationFailed, err))
 	}
 }
 
 // This is a visitor function. It adds all variables that are used in this block but declared in a lexical parent to the captured declarations of the use-block.
-func addVariableToBlockClosure(node ast.Node, _ any) {
+func addVariableToBlockCapturedDeclarations(node ast.Node, _ any) {
 	// only process identifier use nodes
 	if node.Kind() != ast.KindIdentifierUse {
 		return

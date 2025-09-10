@@ -39,8 +39,8 @@ func newUnaryOperation(operation UnaryOperator, operand Expression, index int) U
 	// define data type requirements for the unary operation
 	switch operation {
 	case Odd:
-		// the odd operation requires an odd-checkable data type
-		unaryNode.Requirements_ = ts.OddCheckable
+		// the odd operation requires an integral data type
+		unaryNode.Requirements_ = ts.Integral
 
 	case Negate:
 		// the negate operation requires a negatable data type
@@ -88,6 +88,11 @@ func (n *unaryOperationNode) IsConstant() bool {
 // Determine the data type of the unary operation node. If the data type of the operand cannot be determined, nil is returned.
 func (n *unaryOperationNode) DataType() ts.TypeDescriptor {
 	return n.Operand_.DataType()
+}
+
+// Data type requirements of the operand for the unary operation node.
+func (n *unaryOperationNode) Requirements() ts.DataTypeCapability {
+	return n.Requirements_
 }
 
 // Unary operation of the unary operation node.
