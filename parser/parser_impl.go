@@ -582,7 +582,6 @@ func (p *parser) constantIdentifier() ast.Declaration {
 		right,
 		constantNameIndex)
 
-	p.nextToken()
 	return declaration
 }
 
