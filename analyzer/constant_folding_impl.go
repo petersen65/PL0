@@ -38,86 +38,86 @@ func (c *constantFolding) VisitBlock(b ast.Block) {
 	b.Statement().Accept(c)
 }
 
-// Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (c *constantFolding) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 }
 
-// Enter the variable declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (c *constantFolding) VisitVariableDeclaration(vd ast.VariableDeclaration) {
 }
 
-// Enter the function declaration as a symbol into the block's scope and check for redeclaration.
+// x
 func (c *constantFolding) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	// visit the block of the function or procedure declaration
 	fd.Block().Accept(c)
 }
 
-// Visit the literal-use node.
+// x
 func (c *constantFolding) VisitLiteralUse(lu ast.LiteralUse) {
 }
 
-// Check if the used identifier is declared and if it is used correctly according to its symbol kind. Record the usage of the identifier in its declaration.
+// x
 func (c *constantFolding) VisitIdentifierUse(iu ast.IdentifierUse) {
 }
 
-// Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
+// x
 func (c *constantFolding) VisitUnaryOperation(uo ast.UnaryOperation) {
 	uo.Operand().Accept(c)
 }
 
-// Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// x
 func (c *constantFolding) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
 	bo.Left().Accept(c)
 	bo.Right().Accept(c)
 }
 
-// Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// x
 func (c *constantFolding) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Left().Accept(c)
 	co.Right().Accept(c)
 }
 
-// Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
+// x
 func (c *constantFolding) VisitAssignmentStatement(as ast.AssignmentStatement) {
 	as.Variable().Accept(c)
 	as.Expression().Accept(c)
 }
 
-// Visit the read statement node and set the usage mode bit to write for the variable that is read into.
+// x
 func (c *constantFolding) VisitReadStatement(rs ast.ReadStatement) {
 	rs.Variable().Accept(c)
 }
 
-// Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
+// x
 func (c *constantFolding) VisitWriteStatement(ws ast.WriteStatement) {
 	ws.Expression().Accept(c)
 }
 
-// Visit the call statement node and set the usage mode bit to execute for the called function or procedure.
+// x
 func (c *constantFolding) VisitCallStatement(cs ast.CallStatement) {
 	cs.Procedure().Accept(c)
 }
 
-// Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
+// x
 func (c *constantFolding) VisitIfStatement(is ast.IfStatement) {
 	is.Condition().Accept(c)
 	is.Statement().Accept(c)
 }
 
-// Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
+// x
 func (c *constantFolding) VisitWhileStatement(ws ast.WhileStatement) {
 	ws.Condition().Accept(c)
 	ws.Statement().Accept(c)
 }
 
-// Visit the compound statement node by visiting all its statements.
+// x
 func (c *constantFolding) VisitCompoundStatement(cs ast.CompoundStatement) {
 	for _, statement := range cs.Statements() {
 		statement.Accept(c)
 	}
 }
 
-// Append an error from the type checking to the token handler's error list.
+// Append an error from the constant folding to the token handler's error list.
 func (c *constantFolding) appendError(code eh.Failure, index int, values ...any) {
 	c.tokenHandler.AppendError(c.tokenHandler.NewErrorOnIndex(eh.Error, code, index, values...))
 }

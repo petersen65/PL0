@@ -39,8 +39,8 @@ func (na *nameAnalysis) Accept() {
 
 // Walk the block abstract syntax tree by visiting all declarations and the block statement.
 func (na *nameAnalysis) VisitBlock(b ast.Block) {
-	for _, decl := range b.Declarations() {
-		decl.Accept(na)
+	for _, declaration := range b.Declarations() {
+		declaration.Accept(na)
 	}
 
 	b.Statement().Accept(na)
@@ -48,6 +48,10 @@ func (na *nameAnalysis) VisitBlock(b ast.Block) {
 
 // Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
 func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
+	cb := cd.CurrentBlock()             // current block
+	s := cb.Lookup(cd.IdentifierName()) // constant symbol
+	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
+
 	e := cd.Expression() // expression on the right side of the constant identifier
 	e.Accept(na)         // visit the expression of the constant declaration
 	dte := e.DataType()  // trigger the data type inference of the expression
@@ -56,10 +60,6 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	if dte != nil {
 		cd.SetDataTypeName(dte.String())
 	}
-
-	cb := cd.CurrentBlock()             // current block
-	s := cb.Lookup(cd.IdentifierName()) // constant symbol
-	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if dte == nil {
@@ -164,9 +164,9 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	fd.Block().Accept(na)
 }
 
-// Visit the literal-use node and trigger the data type inference of the literal.
+// Visit the literal-use node.
 func (na *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
-	// trigger the data type inference of the literal
+	// trigger the value determination and the data type inference of the literal
 	lu.DataType()
 }
 
@@ -232,14 +232,59 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 func (na *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
 	uo.Operand().Accept(na)
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
+
+	// get data type of the operand
+	operandType := uo.Operand().DataType()
+
+	// if the data type is nil, errors have already been reported so just return
+	if operandType == nil {
+		return
+	}
+
+	switch uo.Operation() {
+	case ast.Negate:
+		// check if the data type of the unary operation operand meets all requirements of the negate operation
+		if !operandType.HasAllCapabilities(uo.Requirements()) {
+			na.appendError(dataTypeCannotBeUsedInNegateOperation, uo.Index(), uo, uo.Requirements(), operandType)
+		}
+
+	case ast.Odd:
+		// check if the data type of the unary operation operand meets all requirements of the odd operation
+		if !operandType.HasAllCapabilities(uo.Requirements()) {
+			na.appendError(dataTypeCannotBeUsedInOddOperation, uo.Index(), uo, uo.Requirements(), operandType)
+		}
+
+	default:
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownUnaryOperation, nil))
+	}
 }
 
 // Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
-func (na *nameAnalysis) VisitArithmeticOperation(bo ast.ArithmeticOperation) {
-	bo.Left().Accept(na)
-	bo.Right().Accept(na)
-	ast.Walk(bo.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
-	ast.Walk(bo.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
+func (na *nameAnalysis) VisitArithmeticOperation(ao ast.ArithmeticOperation) {
+	ao.Left().Accept(na)
+	ao.Right().Accept(na)
+	ast.Walk(ao.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
+	ast.Walk(ao.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
+
+	// get data types of both operands
+	leftType := ao.Left().DataType()
+	rightType := ao.Right().DataType()
+
+	// if either data type is nil, errors have already been reported so just return
+	if leftType == nil || rightType == nil {
+		return
+	}
+
+	// check if the data types of both arithmetic operation operands are equal
+	if !leftType.Equal(rightType) {
+		na.appendError(incompatibleDataTypesInArithmeticOperation, ao.Index(), ao, leftType, rightType)
+		return
+	}
+
+	// check if the data type of the left operand meets all requirements of the arithmetic operation
+	if !leftType.HasAllCapabilities(ao.Requirements()) {
+		na.appendError(dataTypeCannotBeUsedInArithmeticOperation, ao.Index(), ao, ao.Requirements(), leftType)
+	}
 }
 
 // Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
@@ -248,6 +293,27 @@ func (na *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Right().Accept(na)
 	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
+
+
+	// get data types of both operands
+	leftType := co.Left().DataType()
+	rightType := co.Right().DataType()
+
+	// if either data type is nil, errors have already been reported so just return
+	if leftType == nil || rightType == nil {
+		return
+	}
+
+	// check if the data types of both comparison operation operands are equal
+	if !leftType.Equal(rightType) {
+		na.appendError(incompatibleDataTypesInComparisonOperation, co.Index(), co, leftType, rightType)
+		return
+	}
+
+	// check if the data type of the left operand meets all requirements of the comparison operation
+	if !leftType.HasAllCapabilities(co.Requirements()) {
+		na.appendError(dataTypeCannotBeUsedInComparisonOperation, co.Index(), co, co.Requirements(), leftType)
+	}
 }
 
 // Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
