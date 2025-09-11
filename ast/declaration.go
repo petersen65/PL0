@@ -13,7 +13,9 @@ type (
 	// A constant declaration node in the abstract syntax tree.
 	ConstantDeclaration interface {
 		Declaration
+		Expression() Expression
 		Value() any
+		SetDataTypeName(dataTypeName string)
 	}
 
 	// A variable declaration node in the abstract syntax tree.

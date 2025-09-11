@@ -18,6 +18,8 @@ const (
 	identifierAlreadyDeclared
 	constantDataTypeNotFound
 	variableDataTypeNotFound
+	constantDataTypeCannotBeInferred
+	constantExpressionMustBeConstant
 	constantIdentifierHasBuiltInName
 	variableIdentifierHasBuiltInName
 	functionIdentifierHasBuiltInName
@@ -53,6 +55,8 @@ var failureMap = map[eh.Failure]string{
 	identifierAlreadyDeclared:                  "identifier already declared: %v",
 	constantDataTypeNotFound:                   "constant data type not found: %v",
 	variableDataTypeNotFound:                   "variable data type not found: %v",
+	constantDataTypeCannotBeInferred:           "constant data type cannot be inferred for: %v",
+	constantExpressionMustBeConstant:           "constant expression must be a constant at compile time: %v",
 	constantIdentifierHasBuiltInName:           "constant identifier uses a built-in reserved name: %v",
 	variableIdentifierHasBuiltInName:           "variable identifier uses a built-in reserved name: %v",
 	functionIdentifierHasBuiltInName:           "function identifier uses a built-in reserved name: %v",

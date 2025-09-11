@@ -4,6 +4,9 @@
 // Package ast implements the abstract syntax tree (AST) produced in the parsing compiler phase.
 package ast
 
+// Default name for a data type name that is unknown. It is used when a data type has not been inferred or cannot be inferred.
+const DataTypeUnknown = "unknown"
+
 // Kind of nodes in the abstract syntax tree.
 const (
 	KindBlock NodeKind = iota

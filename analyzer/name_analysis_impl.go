@@ -48,12 +48,25 @@ func (na *nameAnalysis) VisitBlock(b ast.Block) {
 
 // Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
 func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
+	e := cd.Expression() // expression on the right side of the constant identifier
+	e.Accept(na)         // visit the expression of the constant declaration
+	dte := e.DataType()  // trigger the data type inference of the expression
+
+	// set the data type name of the constant declaration from the inferred data type of the expression
+	if dte != nil {
+		cd.SetDataTypeName(dte.String())
+	}
+
 	cb := cd.CurrentBlock()             // current block
 	s := cb.Lookup(cd.IdentifierName()) // constant symbol
 	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
-	if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
+	if dte == nil {
+		na.appendError(constantDataTypeCannotBeInferred, cd.Index(), cd.IdentifierName())
+	} else if !e.IsConstant() {
+		na.appendError(constantExpressionMustBeConstant, cd.Index(), cd.IdentifierName())
+	} else if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
 		na.appendError(constantIdentifierHasBuiltInName, cd.Index(), cd.IdentifierName())
 	} else if s != nil {
 		na.appendError(identifierAlreadyDeclared, cd.Index(), cd.IdentifierName())
@@ -151,9 +164,10 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	fd.Block().Accept(na)
 }
 
-// Visit the literal-use node.
+// Visit the literal-use node and trigger the data type inference of the literal.
 func (na *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
-	// nothing to do because a literal does not have any identifier names
+	// trigger the data type inference of the literal
+	lu.DataType()
 }
 
 // Check if the used identifier is declared and if it is used correctly according to its symbol kind. Record the usage of the identifier in its declaration.

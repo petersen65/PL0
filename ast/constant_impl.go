@@ -9,7 +9,7 @@ import "fmt"
 const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 
 // Format for the string representation of a constant declaration node with missing value and type.
-const constantErrorFormat = "declaration(%v,name=%v,used=%v)"
+const constantErrorFormat = "declaration(%v,name=%v,type=%v,used=%v)"
 
 // The node represents a constant declaration in the abstract syntax tree.
 type constantDeclarationNode struct {
@@ -24,6 +24,7 @@ func newConstantDeclaration(identifierName string, expression Expression, index 
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindConstantDeclaration},
 			IdentifierName_:            identifierName,
+			DataTypeName_:              DataTypeUnknown,
 			Usage_:                     make([]Expression, 0),
 			TokenStreamIndexIdentifier: index,
 		},
@@ -38,8 +39,8 @@ func (n *constantDeclarationNode) Children() []Node {
 
 // String representation of the constant declaration node.
 func (n *constantDeclarationNode) String() string {
-	if n.Value_ == nil || n.DataTypeName_ == "" {
-		return fmt.Sprintf(constantErrorFormat, n.NodeKind, n.IdentifierName_, len(n.Usage_))
+	if n.Value_ == nil {
+		return fmt.Sprintf(constantErrorFormat, n.NodeKind, n.IdentifierName_, n.DataTypeName_, len(n.Usage_))
 	}
 
 	return fmt.Sprintf(constantFormat, n.NodeKind, n.IdentifierName_, n.Value_, n.DataTypeName_, len(n.Usage_))
@@ -60,7 +61,17 @@ func (n *constantDeclarationNode) Depth() int {
 	return n.CurrentBlock().Depth()
 }
 
+// Expression on the right side of the constant identifier in the constant declaration node.
+func (n *constantDeclarationNode) Expression() Expression {
+	return n.Expression_
+}
+
 // Value of the constant in the constant declaration node.
 func (n *constantDeclarationNode) Value() any {
 	return n.Value_
+}
+
+// The data type name of the constant declaration will be set by the semantic analyzer after a data type for the constant has been determined.
+func (n *constantDeclarationNode) SetDataTypeName(dataTypeName string) {
+	n.DataTypeName_ = dataTypeName
 }
