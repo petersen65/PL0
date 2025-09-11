@@ -74,7 +74,7 @@ func walk(parent Node, order TraversalOrder, visitor any, visit func(node Node, 
 	}
 
 	// if a filter function is provided, use it to determine if the current node should be processed
-	if filter != nil && !filter(parent) {
+	if filter != nil && filter(parent) {
 		return nil
 	}
 

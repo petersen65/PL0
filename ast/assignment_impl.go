@@ -15,7 +15,7 @@ type assignmentStatementNode struct {
 
 // Create a new assignment statement node in the abstract syntax tree.
 func newAssignmentStatement(variableUse IdentifierUse, expression Expression, beginIndex, endIndex int) AssignmentStatement {
-	assignationNode := &assignmentStatementNode{
+	assignmentNode := &assignmentStatementNode{
 		statementNode: statementNode{
 			commonNode:            commonNode{NodeKind: KindAssignmentStatement},
 			TokenStreamIndexBegin: beginIndex,
@@ -25,9 +25,9 @@ func newAssignmentStatement(variableUse IdentifierUse, expression Expression, be
 		Expression_: expression,
 	}
 
-	variableUse.SetParent(assignationNode)
-	expression.SetParent(assignationNode)
-	return assignationNode
+	variableUse.SetParent(assignmentNode)
+	expression.SetParent(assignmentNode)
+	return assignmentNode
 }
 
 // Children nodes of the assignment statement node.

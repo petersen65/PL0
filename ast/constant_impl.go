@@ -20,7 +20,7 @@ type constantDeclarationNode struct {
 
 // Create a new constant declaration node in the abstract syntax tree.
 func newConstantDeclaration(identifierName string, expression Expression, index int) ConstantDeclaration {
-	return &constantDeclarationNode{
+	constantNode := &constantDeclarationNode{
 		declarationNode: declarationNode{
 			commonNode:                 commonNode{NodeKind: KindConstantDeclaration},
 			IdentifierName_:            identifierName,
@@ -30,6 +30,9 @@ func newConstantDeclaration(identifierName string, expression Expression, index 
 		},
 		Expression_: expression,
 	}
+
+	expression.SetParent(constantNode)
+	return constantNode
 }
 
 // Children nodes of the constant declaration node.

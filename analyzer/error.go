@@ -39,8 +39,7 @@ const (
 	dataTypeCannotBeUsedInArithmeticOperation
 	incompatibleDataTypesInComparisonOperation
 	dataTypeCannotBeUsedInComparisonOperation
-	dataTypeCannotBeUsedInNegateOperation
-	dataTypeCannotBeUsedInOddOperation
+	dataTypeCannotBeUsedInUnaryOperation
 )
 
 // Map failure codes to error messages.
@@ -76,6 +75,5 @@ var failureMap = map[eh.Failure]string{
 	dataTypeCannotBeUsedInArithmeticOperation:  "operand data type cannot be used in arithmetic operation %v [%v]: %v",
 	incompatibleDataTypesInComparisonOperation: "incompatible operand data types in comparison operation %v: %v and %v",
 	dataTypeCannotBeUsedInComparisonOperation:  "operand data type cannot be used in comparison operation %v [%v]: %v",
-	dataTypeCannotBeUsedInNegateOperation:      "operand data type cannot be used in negate operation [%v]: %v",
-	dataTypeCannotBeUsedInOddOperation:         "operand data type cannot be used in odd operation [%v]: %v",
+	dataTypeCannotBeUsedInUnaryOperation:       "operand data type cannot be used in unary operation %v [%v]: %v",
 }
