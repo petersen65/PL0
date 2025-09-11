@@ -1,6 +1,6 @@
 { provide playground for trying out PL/0 }
 
-const a = 99, b = 'A', c = "aaa";
+const a = 99, b = 'A', c = "aaa", d = (1 + 2) * 3 + 4 * ((1 + 2) * (3 + 4) - 2 * ((1 + (3 + (2 * 2))) * (3 + 4)));
 var x, y, z, r : int64;
 
 procedure P;

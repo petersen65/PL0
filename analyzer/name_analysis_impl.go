@@ -50,30 +50,30 @@ func (na *nameAnalysis) VisitBlock(b ast.Block) {
 func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	e := cd.Expression() // expression on the right side of the constant identifier
 	e.Accept(na)         // visit the expression of the constant declaration
-	// dte := e.DataType()  // trigger the data type inference of the expression
+	dte := e.DataType()  // trigger the data type inference of the expression
 
-	// // set the data type name of the constant declaration from the inferred data type of the expression
-	// if dte != nil {
-	// 	cd.SetDataTypeName(dte.String())
-	// }
+	// set the data type name of the constant declaration from the inferred data type of the expression
+	if dte != nil {
+		cd.SetDataTypeName(dte.String())
+	}
 
 	cb := cd.CurrentBlock()             // current block
 	s := cb.Lookup(cd.IdentifierName()) // constant symbol
-	// dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
+	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
-	// if dte == nil {
-	// 	na.appendError(constantDataTypeCannotBeInferred, cd.Index(), cd.IdentifierName())
-	// } else if !e.IsConstant() {
-	// 	na.appendError(constantExpressionMustBeConstant, cd.Index(), cd.IdentifierName())
-	if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
+	if dte == nil {
+		na.appendError(constantDataTypeCannotBeInferred, cd.Index(), cd.IdentifierName())
+	} else if !e.IsConstant() {
+		na.appendError(constantExpressionMustBeConstant, cd.Index(), cd.IdentifierName())
+	} else if cd.CurrentBlock().BuiltInDataType(cd.IdentifierName()) != nil {
 		na.appendError(constantIdentifierHasBuiltInName, cd.Index(), cd.IdentifierName())
 	} else if s != nil {
 		na.appendError(identifierAlreadyDeclared, cd.Index(), cd.IdentifierName())
-		// } else if dts == nil || dts.Kind != sym.DataTypeEntry {
-		// 	na.appendError(constantDataTypeNotFound, cd.Index(), cd.DataTypeName())
+	} else if dts == nil || dts.DataType == nil || dts.Kind != sym.DataTypeEntry {
+		na.appendError(constantDataTypeNotFound, cd.Index(), cd.DataTypeName())
 	} else {
-		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, nil, nil)
+		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, nil)
 		cb.Insert(cd.IdentifierName(), symbol)
 		cd.SetSymbol(symbol)
 	}
