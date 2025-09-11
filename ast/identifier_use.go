@@ -28,6 +28,7 @@ type (
 	// An identifier-use node in the abstract syntax tree.
 	IdentifierUse interface {
 		Expression
+		Value() any
 		Depth() int
 		IdentifierName() string
 		IdentifierKind() IdentifierKind

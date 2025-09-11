@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	eh "github.com/petersen65/pl0/v3/errors"
+	sym "github.com/petersen65/pl0/v3/symbol"
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
@@ -110,6 +111,27 @@ func (n *identifierUseNode) CurrentBlock() Block {
 func (n *identifierUseNode) IsConstant() bool {
 	// an identifier use is constant if it is a constant identifier
 	return n.IdentifierKind_ == Constant
+}
+
+// Determine the value of the identifier used by this identifier-use node.
+// The used identifier might not have a value if it was never declared or if it is not a constant. In that case, nil is returned.
+func (n *identifierUseNode) Value() any {
+	declaration := n.Declaration()
+
+	// there is no declaration for the used identifier
+	if declaration == nil {
+		return nil
+	}
+
+	symbol := declaration.Symbol()
+
+	// there is no symbol for the declaration or the declaration is not a constant
+	if symbol == nil || symbol.Kind != sym.ConstantEntry || !n.IsConstant() {
+		return nil
+	}
+
+	// return the value of the constant symbol entry
+	return symbol.Value
 }
 
 // Block nesting depth of the identifier use.
