@@ -48,10 +48,6 @@ func (na *nameAnalysis) VisitBlock(b ast.Block) {
 
 // Enter the constant declaration as a symbol into the block's scope and check for redeclaration.
 func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
-	cb := cd.CurrentBlock()             // current block
-	s := cb.Lookup(cd.IdentifierName()) // constant symbol
-	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
-
 	e := cd.Expression() // expression on the right side of the constant identifier
 	e.Accept(na)         // visit the expression of the constant declaration
 	dte := e.DataType()  // trigger the data type inference of the expression
@@ -60,6 +56,10 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	if dte != nil {
 		cd.SetDataTypeName(dte.String())
 	}
+
+	cb := cd.CurrentBlock()             // current block
+	s := cb.Lookup(cd.IdentifierName()) // constant symbol
+	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if dte == nil {
@@ -73,7 +73,7 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	} else if dts == nil || dts.Kind != sym.DataTypeEntry {
 		na.appendError(constantDataTypeNotFound, cd.Index(), cd.DataTypeName())
 	} else {
-		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, cd.Value())
+		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, nil)
 		cb.Insert(cd.IdentifierName(), symbol)
 		cd.SetSymbol(symbol)
 	}
@@ -293,7 +293,6 @@ func (na *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Right().Accept(na)
 	ast.Walk(co.Left(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 	ast.Walk(co.Right(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
-
 
 	// get data types of both operands
 	leftType := co.Left().DataType()
