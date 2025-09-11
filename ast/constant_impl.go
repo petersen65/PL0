@@ -8,6 +8,9 @@ import "fmt"
 // Format for the string representation of a constant declaration node.
 const constantFormat = "declaration(%v,name=%v,value=%v,type=%v,used=%v)"
 
+// Format for the string representation of a constant declaration node with missing value and type.
+const constantErrorFormat = "declaration(%v,name=%v,used=%v)"
+
 // The node represents a constant declaration in the abstract syntax tree.
 type constantDeclarationNode struct {
 	declarationNode            // embedded declaration node
@@ -35,6 +38,10 @@ func (n *constantDeclarationNode) Children() []Node {
 
 // String representation of the constant declaration node.
 func (n *constantDeclarationNode) String() string {
+	if n.Value_ == nil || n.DataTypeName_ == "" {
+		return fmt.Sprintf(constantErrorFormat, n.NodeKind, n.IdentifierName_, len(n.Usage_))
+	}
+
 	return fmt.Sprintf(constantFormat, n.NodeKind, n.IdentifierName_, n.Value_, n.DataTypeName_, len(n.Usage_))
 }
 
