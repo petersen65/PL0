@@ -14,9 +14,10 @@ const bitMaskSeparator = "|"
 
 // Common fields shared by all type descriptors.
 type commonTypeDescriptor struct {
-	Abi     plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
-	Kind_   DataTypeKind                   `json:"data_type_kind"`               // kind of data type (e.g., simple, structure, pointer)
-	BuiltIn bool                           `json:"built_in"`                     // indicates if this type is a built-in data type
+	Abi           plt.ApplicationBinaryInterface `json:"application_binary_interface"` // ABI governing size and alignment calculations
+	Kind_         DataTypeKind                   `json:"data_type_kind"`               // kind of data type (e.g., simple, structure, pointer)
+	BuiltIn       bool                           `json:"built_in"`                     // indicates if this type is a built-in data type
+	Capabilities_ DataTypeCapability             `json:"capabilities"`                 // bit-mask representing the capabilities of this data type
 }
 
 var (
@@ -40,6 +41,8 @@ var (
 		Fractional:      "fractional",
 		Dereferenceable: "dereferenceable",
 		Negatable:       "negatable",
+		Callable:        "callable",
+		Valued:          "valued",
 	}
 )
 
@@ -106,7 +109,7 @@ func (d *commonTypeDescriptor) HasAnyCapability(capabilities DataTypeCapability)
 	return d.Capabilities()&capabilities != 0
 }
 
-// Default data type capabilities of the common type descriptor.
+// Data type capabilities of the common type descriptor.
 func (d *commonTypeDescriptor) Capabilities() DataTypeCapability {
-	return 0
+	return d.Capabilities_
 }

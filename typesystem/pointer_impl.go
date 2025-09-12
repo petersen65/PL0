@@ -12,6 +12,21 @@ type pointerTypeDescriptor struct {
 	ValueType            TypeDescriptor `json:"value_type"` // type descriptor of the value that this pointer references
 }
 
+// Create a new pointer type descriptor with a value type.
+func newPointerTypeDescriptor(valueType TypeDescriptor, builtIn bool) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	return &pointerTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{
+			Abi:           currentABI,
+			Kind_:         DataTypePointer,
+			BuiltIn:       builtIn,
+			Capabilities_: Equality | Dereferenceable,
+		},
+		ValueType: valueType,
+	}
+}
+
 // String representation of the pointer type descriptor.
 func (d *pointerTypeDescriptor) String() string {
 	return pointerPrefix + d.ValueType.String()
@@ -46,9 +61,4 @@ func (d *pointerTypeDescriptor) Equal(other TypeDescriptor) bool {
 
 	// data types are not equal if they are of different type descriptors
 	return false
-}
-
-// Data type capabilities of the pointer type descriptor.
-func (d *pointerTypeDescriptor) Capabilities() DataTypeCapability {
-	return Equality | Dereferenceable
 }

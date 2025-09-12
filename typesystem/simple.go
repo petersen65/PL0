@@ -28,7 +28,12 @@ func NewSimpleTypeDescriptor(primitiveType PrimitiveDataType, builtIn bool) Type
 	enforceSpecifiedApplicationBinaryInterface()
 
 	return &simpleTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeSimple, BuiltIn: builtIn},
+		commonTypeDescriptor: commonTypeDescriptor{
+			Abi: currentABI, 
+			Kind_: DataTypeSimple, 
+			BuiltIn: builtIn,
+			Capabilities_: primitiveDataTypeCapabilities[primitiveType],
+		},
 		PrimitiveDataType_:   primitiveType,
 	}
 }

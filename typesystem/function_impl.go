@@ -23,6 +23,34 @@ var parameterModeNames = map[ParameterPassingMode]string{
 	OutputParameter:      "out",
 }
 
+// Create a new function type descriptor with parameters and a return type. The return type may be nil for procedures.
+func newFunctionTypeDescriptor(parameters []*FunctionParameter, returnType TypeDescriptor, builtIn bool) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	kind := DataTypeFunction
+	capabilities := Valued | Callable
+
+	if parameters == nil {
+		parameters = make([]*FunctionParameter, 0)
+	}
+
+	if returnType == nil {
+		kind = DataTypeProcedure
+		capabilities = Callable
+	}
+
+	return &functionTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{
+			Abi:           currentABI,
+			Kind_:         kind,
+			BuiltIn:       builtIn,
+			Capabilities_: capabilities,
+		},
+		Parameters: parameters,
+		ReturnType: returnType,
+	}
+}
+
 // String representation of the function or procedure type descriptor.
 func (d *functionTypeDescriptor) String() string {
 	var parameters []string
@@ -56,9 +84,9 @@ func (d *functionTypeDescriptor) Equal(other TypeDescriptor) bool {
 	}
 
 	// detect self-comparison early and indicate equality to avoid unnecessary work
-    if d == other {
-        return true
-    }
+	if d == other {
+		return true
+	}
 
 	// check if the other type descriptor is also a function type descriptor
 	if o, ok := other.(*functionTypeDescriptor); ok {

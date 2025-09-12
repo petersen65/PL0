@@ -80,8 +80,3 @@ func (d *simpleTypeDescriptor) Equal(other TypeDescriptor) bool {
 	// data types are not equal if they are of different type descriptors
 	return false
 }
-
-// Data type capabilities of the simple type descriptor.
-func (d *simpleTypeDescriptor) Capabilities() DataTypeCapability {
-	return primitiveDataTypeCapabilities[d.PrimitiveDataType_]
-}

@@ -13,28 +13,11 @@ type StructureField struct {
 
 // Create a new structure type descriptor with fields.
 func NewStructureTypeDescriptor(structureTypeName string, fields []*StructureField, isPacked, builtIn bool) TypeDescriptor {
-	enforceSpecifiedApplicationBinaryInterface()
-
-	if fields == nil {
-		fields = make([]*StructureField, 0)
-	}
-
-	return &structureTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypeStructure, BuiltIn: builtIn},
-		TypeName:             structureTypeName,
-		Fields:               fields,
-		IsPacked:             isPacked,
-		ByteSize:             byteSizeNotCalculated,
-		ByteAlignment:        byteAlignmentNotCalculated,
-	}
+	return newStructureTypeDescriptor(structureTypeName, fields, isPacked, builtIn)
 }
 
 // Create a new structure field with a name and field type information.
 // A structure field can either be used with a type name or a type descriptor or both. The type name can be empty or the type descriptor can be nil.
 func NewStructureField(fieldName string, fieldTypeName string, fieldType TypeDescriptor) *StructureField {
-	return &StructureField{
-		Name:     fieldName,
-		TypeName: fieldTypeName,
-		Type:     fieldType,
-	}
+	return &StructureField{Name: fieldName, TypeName: fieldTypeName, Type: fieldType}
 }

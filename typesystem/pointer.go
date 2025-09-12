@@ -3,12 +3,7 @@
 
 package typesystem
 
-// Create a new pointer type descriptor with a value type. The pointer can either be a regular pointer or a reference type.
+// Create a new pointer type descriptor with a value type.
 func NewPointerTypeDescriptor(valueType TypeDescriptor, builtIn bool) TypeDescriptor {
-	enforceSpecifiedApplicationBinaryInterface()
-
-	return &pointerTypeDescriptor{
-		commonTypeDescriptor: commonTypeDescriptor{Abi: currentABI, Kind_: DataTypePointer, BuiltIn: builtIn},
-		ValueType:            valueType,
-	}
+	return newPointerTypeDescriptor(valueType, builtIn)
 }

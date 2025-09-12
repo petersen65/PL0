@@ -30,6 +30,29 @@ type (
 	}
 )
 
+// Create a new structure type descriptor with fields.
+func newStructureTypeDescriptor(structureTypeName string, fields []*StructureField, isPacked, builtIn bool) TypeDescriptor {
+	enforceSpecifiedApplicationBinaryInterface()
+
+	if fields == nil {
+		fields = make([]*StructureField, 0)
+	}
+
+	return &structureTypeDescriptor{
+		commonTypeDescriptor: commonTypeDescriptor{
+			Abi:           currentABI,
+			Kind_:         DataTypeStructure,
+			BuiltIn:       builtIn,
+			Capabilities_: Equality,
+		},
+		TypeName:      structureTypeName,
+		Fields:        fields,
+		IsPacked:      isPacked,
+		ByteSize:      byteSizeNotCalculated,
+		ByteAlignment: byteAlignmentNotCalculated,
+	}
+}
+
 // String representation of the structure type descriptor.
 func (d *structureTypeDescriptor) String() string {
 	var fields []string

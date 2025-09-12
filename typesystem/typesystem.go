@@ -31,6 +31,8 @@ const (
 	Fractional                                     // operations on decimal numbers with fractional parts (floating-point)
 	Dereferenceable                                // supports dereferencing operation *
 	Negatable                                      // supports negation operation only for signed numeric types
+	Callable                                       // supports procedure call statement
+	Valued                                         // supports return value in function call expression
 )
 
 type (
@@ -47,7 +49,7 @@ type (
 		IsIntegral() bool
 		IsFractional() bool
 		IsSigned() bool
-		IsUnsigned() bool	
+		IsUnsigned() bool
 		HasCapability(cap DataTypeCapability) bool
 		HasAllCapabilities(capabilities DataTypeCapability) bool
 		HasAnyCapability(capabilities DataTypeCapability) bool
