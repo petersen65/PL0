@@ -9,9 +9,10 @@ import eh "github.com/petersen65/pl0/v3/errors"
 const (
 	_ eh.Failure = iota + 4000
 	invalidNameAnalysisState
-	declarationValidationFailed
-	usageValidationFailed
-	capturedVariableDeterminationFailed
+	usageValidationWalkFailed
+	constantDeclarationWalkFailed
+	capturedVariableDeterminationWalkFailed
+	stackUnderflowInExpressionEvaluation
 	unknownSymbolKind
 	unknownExpressionKind
 	unknownUnaryOperation
@@ -21,6 +22,8 @@ const (
 	variableDataTypeNotFound
 	constantDataTypeCannotBeInferred
 	constantExpressionMustBeConstant
+	constantExpressionEvaluationFailed
+	invalidConstantExpressionEvaluationResult
 	constantIdentifierHasBuiltInName
 	variableIdentifierHasBuiltInName
 	functionIdentifierHasBuiltInName
@@ -46,9 +49,10 @@ const (
 // Map failure codes to error messages.
 var failureMap = map[eh.Failure]string{
 	invalidNameAnalysisState:                   "name analysis is in an undefined state and cannot continue parsing",
-	declarationValidationFailed:                "identifier declaration validation failed",
-	usageValidationFailed:                      "identifier usage validation failed",
-	capturedVariableDeterminationFailed:        "captured variable determination failed",
+	usageValidationWalkFailed:                  "identifier usage validation walk failed",
+	constantDeclarationWalkFailed:              "constant declaration walk failed",
+	capturedVariableDeterminationWalkFailed:    "captured variable determination walk failed",
+	stackUnderflowInExpressionEvaluation:       "stack underflow in expression evaluation: %v",
 	unknownSymbolKind:                          "unknown symbol kind: %v",
 	unknownExpressionKind:                      "unknown kind of expression: %v",
 	unknownUnaryOperation:                      "unknown unary operation: %v",
@@ -58,6 +62,8 @@ var failureMap = map[eh.Failure]string{
 	variableDataTypeNotFound:                   "variable data type not found: %v",
 	constantDataTypeCannotBeInferred:           "constant data type cannot be inferred for: %v",
 	constantExpressionMustBeConstant:           "constant expression must be a constant at compile time: %v",
+	constantExpressionEvaluationFailed:         "constant expression evaluation failed for %v: %v",
+	invalidConstantExpressionEvaluationResult:  "invalid constant expression evaluation result: %v %v",
 	constantIdentifierHasBuiltInName:           "constant identifier uses a built-in reserved name: %v",
 	variableIdentifierHasBuiltInName:           "variable identifier uses a built-in reserved name: %v",
 	functionIdentifierHasBuiltInName:           "function identifier uses a built-in reserved name: %v",

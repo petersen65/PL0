@@ -4,8 +4,6 @@
 package analyzer
 
 import (
-	"fmt"
-
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
@@ -13,12 +11,21 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// Name analysis validates the correctness of identifier declarations and creates a symbol table with type name information provided by the abstract syntax tree.
-// Herby, the analyzer checks for duplicate declarations and verifies that identifiers are declared before use.
-type nameAnalysis struct {
-	abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
-	tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
-}
+type (
+	// Name analysis validates the correctness of identifier declarations and creates a symbol table with type name information provided by the abstract syntax tree.
+	// Herby, the name analyzer checks for duplicate declarations and verifies that identifiers are declared before use.
+	// The type checking phase of semantic analysis is integrated into the name analysis phase, where expressions are checked for type compatibility and correctness.
+	nameAnalysis struct {
+		abstractSyntax ast.Block        // abstract syntax tree to run semantic analysis on
+		tokenHandler   tok.TokenHandler // token handler that manages the tokens of the token stream
+	}
+
+	// A calculation result holds the result of evaluating a constant expression and any error that occurred during the evaluation.
+	calculationResult struct {
+		error error // error that occurred during the evaluation of the expression, or nil if no error occurred
+		stack []any // stack for intermediate results during expression evaluation and the final result as the only remaining value on the stack
+	}
+)
 
 // Return the interface of the name analysis implementation.
 func newNameAnalysis(abstractSyntax ast.Block, tokenHandler tok.TokenHandler) *nameAnalysis {
@@ -35,7 +42,7 @@ func (na *nameAnalysis) Accept() {
 
 	// report a warning for all declared but unused identifiers
 	if err := ast.Walk(na.abstractSyntax, ast.PreOrder, na.tokenHandler, reportWarningsForUnusedIdentifiers); err != nil {
-		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, usageValidationFailed, err))
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, usageValidationWalkFailed, err))
 	}
 }
 
@@ -52,16 +59,17 @@ func (na *nameAnalysis) VisitBlock(b ast.Block) {
 func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 	e := cd.Expression() // expression on the right side of the constant identifier
 	e.Accept(na)         // visit the expression of the constant declaration
-	dte := e.DataType()  // trigger the data type inference of the expression
+	dte := e.DataType()  // trigger value determination and data type inference within the expression
 
 	// set the data type name of the constant declaration from the inferred data type of the expression
 	if dte != nil {
 		cd.SetDataTypeName(dte.String())
 	}
 
-	cb := cd.CurrentBlock()             // current block
-	s := cb.Lookup(cd.IdentifierName()) // constant symbol
-	dts := cb.Lookup(cd.DataTypeName()) // constant data type symbol
+	cb := cd.CurrentBlock()                         // current block
+	s := cb.Lookup(cd.IdentifierName())             // constant symbol
+	dts := cb.Lookup(cd.DataTypeName())             // constant data type symbol
+	cr := &calculationResult{stack: make([]any, 0)} // constant expression evaluation
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if dte == nil {
@@ -74,24 +82,18 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 		na.appendError(identifierAlreadyDeclared, cd.Index(), cd.IdentifierName())
 	} else if dts == nil || dts.DataType == nil || dts.Kind != sym.DataTypeEntry {
 		na.appendError(constantDataTypeNotFound, cd.Index(), cd.DataTypeName())
+	} else if err := ast.Walk(e, ast.PostOrder, cr, calculateConstantExpressionValue); err != nil {
+		panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, constantDeclarationWalkFailed, err))
+	} else if cr.error != nil || len(cr.stack) != 1 || cr.stack[0] == nil {
+		if cr.error == nil {
+			cr.error = eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, invalidConstantExpressionEvaluationResult, err, len(cr.stack), cr.stack[0] == nil)
+		}
+
+		na.appendError(constantExpressionEvaluationFailed, cd.Index(), cd.IdentifierName(), cr.error)
 	} else {
-		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, nil)
+		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, cr.stack[0])
 		cb.Insert(cd.IdentifierName(), symbol)
 		cd.SetSymbol(symbol)
-
-		result := &calculationResult{}
-        if e.IsConstant() {
-            ast.Walk(e, ast.PostOrder, result, calculateConstantExpressionValue)
-            if result.valid != nil {
-                // Handle error - constant expression evaluation failed
-                //na.appendError(constantExpressionEvaluationFailed, cd.Index(), cd.IdentifierName(), result.valid)
-            } else {
-                // Store the calculated value in the symbol or constant declaration
-                symbol.Value = result.value
-                //cd.SetValue(result.value)
-                fmt.Println("Constant", cd.IdentifierName(), "=", result.value)
-            }
-        }
 	}
 }
 
@@ -180,9 +182,8 @@ func (na *nameAnalysis) VisitFunctionDeclaration(fd ast.FunctionDeclaration) {
 	fd.Block().Accept(na)
 }
 
-// Visit the literal-use node.
+// Trigger the value determination and the data type inference of the literal.
 func (na *nameAnalysis) VisitLiteralUse(lu ast.LiteralUse) {
-	// trigger the value determination and the data type inference of the literal
 	lu.DataType()
 }
 
@@ -244,7 +245,7 @@ func (na *nameAnalysis) VisitIdentifierUse(iu ast.IdentifierUse) {
 	}
 }
 
-// Visit the unary operation node and set the usage mode bit to read for all constants and variables in the operand expression.
+// Perform type checking and set the usage mode bit to read for all constants and variables in the operand expression.
 func (na *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
 	uo.Operand().Accept(na)
 	ast.Walk(uo.Operand(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
@@ -275,7 +276,7 @@ func (na *nameAnalysis) VisitUnaryOperation(uo ast.UnaryOperation) {
 	}
 }
 
-// Visit the arithmetic operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// Perform type checking and set the usage mode bit to read for all constants and variables in the left and right expressions.
 func (na *nameAnalysis) VisitArithmeticOperation(ao ast.ArithmeticOperation) {
 	ao.Left().Accept(na)
 	ao.Right().Accept(na)
@@ -303,7 +304,7 @@ func (na *nameAnalysis) VisitArithmeticOperation(ao ast.ArithmeticOperation) {
 	}
 }
 
-// Visit the comparison operation node and set the usage mode bit to read for all constants and variables in the left and right expressions.
+// Perform type checking and set the usage mode bit to read for all constants and variables in the left and right expressions.
 func (na *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
 	co.Left().Accept(na)
 	co.Right().Accept(na)
@@ -331,39 +332,39 @@ func (na *nameAnalysis) VisitComparisonOperation(co ast.ComparisonOperation) {
 	}
 }
 
-// Visit the assignment statement node and set the usage mode bit to write for the variable that is assigned to.
+// Set the usage mode bit to write for the variable that is assigned to.
 func (na *nameAnalysis) VisitAssignmentStatement(as ast.AssignmentStatement) {
 	as.Variable().Accept(na)
 	as.Expression().Accept(na)
 	as.Variable().SetUsageMode(as.Variable().UsageMode() | ast.Write)
 }
 
-// Visit the read statement node and set the usage mode bit to write for the variable that is read into.
+// Set the usage mode bit to write for the variable that is read into.
 func (na *nameAnalysis) VisitReadStatement(rs ast.ReadStatement) {
 	rs.Variable().Accept(na)
 	rs.Variable().SetUsageMode(rs.Variable().UsageMode() | ast.Write)
 }
 
-// Visit the write statement node and set the usage mode bit to read for all constants and variables in the write expression.
+// Set the usage mode bit to read for all constants and variables in the write expression.
 func (na *nameAnalysis) VisitWriteStatement(ws ast.WriteStatement) {
 	ws.Expression().Accept(na)
 	ast.Walk(ws.Expression(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
-// Visit the call statement node and set the usage mode bit to execute for the called procedure.
+// Set the usage mode bit to execute for the called procedure.
 func (na *nameAnalysis) VisitCallStatement(cs ast.CallStatement) {
 	cs.Procedure().Accept(na)
 	cs.Procedure().SetUsageMode(cs.Procedure().UsageMode() | ast.Execute)
 }
 
-// Visit the if statement node and set the usage mode bit to read for all constants and variables in the condition.
+// Set the usage mode bit to read for all constants and variables in the condition.
 func (na *nameAnalysis) VisitIfStatement(is ast.IfStatement) {
 	is.Condition().Accept(na)
 	is.Statement().Accept(na)
 	ast.Walk(is.Condition(), ast.PreOrder, nil, setConstantVariableUsageModeAsRead)
 }
 
-// Visit the while statement node and set the usage mode bit to read for all constants and variables in the condition.
+// Set the usage mode bit to read for all constants and variables in the condition.
 func (na *nameAnalysis) VisitWhileStatement(ws ast.WhileStatement) {
 	ws.Condition().Accept(na)
 	ws.Statement().Accept(na)
@@ -382,7 +383,7 @@ func (na *nameAnalysis) appendError(code eh.Failure, index int, values ...any) {
 	na.tokenHandler.AppendError(na.tokenHandler.NewErrorOnIndex(eh.Error, code, index, values...))
 }
 
-// This is a visitor function. For all occurrences of a constant or variable usage, set the usage mode bit to read.
+// This is a pre-order visitor function. For all occurrences of a constant or variable usage, set the usage mode bit to read.
 func setConstantVariableUsageModeAsRead(node ast.Node, _ any) {
 	// only set the usage mode bit to read for constants or variables
 	if iu, ok := node.(ast.IdentifierUse); ok {
@@ -392,7 +393,7 @@ func setConstantVariableUsageModeAsRead(node ast.Node, _ any) {
 	}
 }
 
-// This is a visitor function. Visit all identifier declarations and check if they are used. If not, report a warning.
+// This is a pre-order visitor function. Visit all identifier declarations and check if they are used. If not, report a warning.
 func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 	th := tokenHandler.(tok.TokenHandler)
 
@@ -428,119 +429,93 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 	}
 }
 
-
-
-// This is a visitor function. Calculate the value of a constant expression for all data types and operations.
-// This function assumes that the starting node is a constant expression and that all unary and binary operation requirements regarding data types have been met.
-// ...existing code...
-
-type calculationResult struct {
-    value any
-    valid error
-}
-
-// This is a visitor function. Calculate the value of a constant expression for all data types and operations.
+// This is a post-order visitor function. Calculate the value of a constant expression for all data types and operations.
 // This function assumes that the starting node is a constant expression and that all unary and binary operation requirements regarding data types have been met.
 func calculateConstantExpressionValue(node ast.Node, result any) {
-    e := node.(ast.Expression)
-    cr := result.(*calculationResult)
+	// assert the node is an expression and the result is a calculation result
+	e := node.(ast.Expression)
+	cr := result.(*calculationResult)
 
-    // if an error has already occurred, do nothing and delegate the error to the caller
-    if cr.valid != nil {
-        return
-    }
+	// if an error has already occurred, do nothing and delegate the error to the caller
+	if cr.error != nil {
+		return
+	}
 
-    // safely switch on the kind of the expression node and then cast it to the appropriate expression kind
-    switch e.Kind() {
-    case ast.KindLiteralUse:
-        lu := e.(ast.LiteralUse)
-        // For literals, directly set the value
-        cr.value = lu.Value()
+	// safely switch on the kind of the expression node and then cast it to the appropriate expression kind
+	switch e.Kind() {
+	case ast.KindLiteralUse:
+		// push literal value onto the stack
+		cr.stack = append(cr.stack, e.(ast.LiteralUse).Value())
 
-    case ast.KindIdentifierUse:
-        iu := e.(ast.IdentifierUse)
-        // For identifier uses (constants), get the value
-        cr.value = iu.Value()
+	case ast.KindIdentifierUse:
+		// push constant value onto the stack
+		cr.stack = append(cr.stack, e.(ast.IdentifierUse).Value())
 
-    case ast.KindUnaryOperation:
-        uo := e.(ast.UnaryOperation)
-        
-        // Create a new result for the operand
-        operandResult := &calculationResult{}
-        ast.Walk(uo.Operand(), ast.PostOrder, operandResult, calculateConstantExpressionValue)
-        
-        // Check for errors from operand evaluation
-        if operandResult.valid != nil {
-            cr.valid = operandResult.valid
-            return
-        }
-        
-        // Perform the unary operation
-        cr.value, cr.valid = performUnaryOperation(uo.Operation(), operandResult.value)
+	case ast.KindUnaryOperation:
+		if len(cr.stack) < 1 {
+			panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, stackUnderflowInExpressionEvaluation, nil, ast.KindUnaryOperation))
+		}
 
-    case ast.KindArithmeticOperation:
-        ao := e.(ast.ArithmeticOperation)
-        
-        // Create results for both operands
-        leftResult := &calculationResult{}
-        rightResult := &calculationResult{}
-        
-        // Evaluate left operand
-        ast.Walk(ao.Left(), ast.PostOrder, leftResult, calculateConstantExpressionValue)
-        if leftResult.valid != nil {
-            cr.valid = leftResult.valid
-            return
-        }
-        
-        // Evaluate right operand
-        ast.Walk(ao.Right(), ast.PostOrder, rightResult, calculateConstantExpressionValue)
-        if rightResult.valid != nil {
-            cr.valid = rightResult.valid
-            return
-        }
-        
-        // Perform the arithmetic operation
-        cr.value, cr.valid = performArithmeticOperation(ao.Operation(), leftResult.value, rightResult.value)
+		// pop operand from stack (it was already pushed by a child visit)
+		operand := cr.stack[len(cr.stack)-1]
+		cr.stack = cr.stack[:len(cr.stack)-1]
 
-    case ast.KindComparisonOperation:
-        co := e.(ast.ComparisonOperation)
-        
-        // Create results for both operands
-        leftResult := &calculationResult{}
-        rightResult := &calculationResult{}
-        
-        // Evaluate left operand
-        ast.Walk(co.Left(), ast.PostOrder, leftResult, calculateConstantExpressionValue)
-        if leftResult.valid != nil {
-            cr.valid = leftResult.valid
-            return
-        }
-        
-        // Evaluate right operand
-        ast.Walk(co.Right(), ast.PostOrder, rightResult, calculateConstantExpressionValue)
-        if rightResult.valid != nil {
-            cr.valid = rightResult.valid
-            return
-        }
-        
-        // Perform the comparison operation
-        cr.value, cr.valid = performComparisonOperation(co.Operation(), leftResult.value, rightResult.value)
+		// perform unary operation on the operand and push the result onto the stack
+		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
+		if result, err := performUnaryOperation(e.(ast.UnaryOperation).Operation(), operand); err != nil {
+			cr.error = err
+		} else {
+			cr.stack = append(cr.stack, result)
+		}
 
-    default:
-        cr.valid = eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownExpressionKind, nil)
-    }
+	case ast.KindArithmeticOperation:
+		if len(cr.stack) < 2 {
+			panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, stackUnderflowInExpressionEvaluation, nil, ast.KindArithmeticOperation))
+		}
+
+		// pop both operands from stack (a child visit pushed right last, so pop it first)
+		right := cr.stack[len(cr.stack)-1]
+		left := cr.stack[len(cr.stack)-2]
+		cr.stack = cr.stack[:len(cr.stack)-2]
+
+		// perform the arithmetic operation on both operands and push the result onto the stack
+		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
+		if result, err := performArithmeticOperation(e.(ast.ArithmeticOperation).Operation(), left, right); err != nil {
+			cr.error = err
+		} else {
+			cr.stack = append(cr.stack, result)
+		}
+
+	case ast.KindComparisonOperation:
+		if len(cr.stack) < 2 {
+			panic(eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, stackUnderflowInExpressionEvaluation, nil, ast.KindComparisonOperation))
+		}
+
+		// pop both operands from stack (a child visit pushed right last, so pop it first)
+		right := cr.stack[len(cr.stack)-1]
+		left := cr.stack[len(cr.stack)-2]
+		cr.stack = cr.stack[:len(cr.stack)-2]
+
+		// perform the comparison operation on both operands and push the result onto the stack
+		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
+		if result, err := performComparisonOperation(e.(ast.ComparisonOperation).Operation(), left, right);err != nil {
+			cr.error = err
+		} else {
+			cr.stack = append(cr.stack, result)
+		}
+
+	default:
+		cr.error = eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownExpressionKind, nil)
+	}
 }
 
-// ...existing code...
-
+// Perform the unary operation on the operand for all data types and return the result or an error.
 func performUnaryOperation(op ast.UnaryOperator, operand any) (any, error) {
-	fmt.Println(op, operand)
 	return nil, nil
 }
 
+// Perform the arithmetic operation on both operands for all data types and return the result or an error.
 func performArithmeticOperation(op ast.ArithmeticOperator, left, right any) (any, error) {
-	fmt.Println(op, left, right)
-
 	l := left.(int64)
 	r := right.(int64)
 
@@ -561,7 +536,7 @@ func performArithmeticOperation(op ast.ArithmeticOperator, left, right any) (any
 	return nil, nil
 }
 
+// Perform the comparison operation on both operands for all data types and return the result or an error.
 func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any, error) {
-	fmt.Println(op, left, right)
 	return nil, nil
 }
