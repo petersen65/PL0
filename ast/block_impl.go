@@ -20,14 +20,14 @@ const blockFormat = "%v(depth=%v)"
 
 // The block node represents a block in the AST.
 type blockNode struct {
-	commonNode                    // embedded common node
-	NestingDepth    int           `json:"depth"`        // block nesting depth
-	Scope           sym.Scope     `json:"scope"`        // scope with the symbol table of the block
-	AllDeclarations []Declaration `json:"declarations"` // all declarations of the block
-	AllCaptures     []Declaration `json:"captures"`     // all captured declarations from lexical parents of the block
-	BlockStatement  Statement     `json:"statement"`    // statement of the block
-	UniqueId        int           `json:"unique_id"`    // each block needs to be uniquely identifiable
-	Counter         map[rune]uint `json:"name_counter"` // counter for compiler-generated unique names
+	commonNode                  // embedded common node
+	NestingDepth  int           `json:"depth"`        // block nesting depth
+	Scope         sym.Scope     `json:"scope"`        // scope with the symbol table of the block
+	Declarations_ []Declaration `json:"declarations"` // all declarations of the block
+	Captures_     []Declaration `json:"captures"`     // all captured declarations from lexical parents of the block
+	Statement_    Statement     `json:"statement"`    // statement of the block
+	UniqueId      int           `json:"unique_id"`    // each block needs to be uniquely identifiable
+	Counter       map[rune]uint `json:"name_counter"` // counter for compiler-generated unique names
 }
 
 // Prepare a new block node in the abstract syntax tree. The parent can be nil, if the new block is the root block.
@@ -43,41 +43,41 @@ func prepareBlock(parent Block, depth int, id int) Block {
 	// return a prepared block node with an initialized scope hierarchy
 	// note: the parent node of the block node is set by the parser to its function declaration node
 	return &blockNode{
-		commonNode:      commonNode{NodeKind: KindBlock},
-		NestingDepth:    depth,
-		Scope:           sym.NewScope(outerScope),
-		AllDeclarations: make([]Declaration, 0),
-		AllCaptures:     make([]Declaration, 0),
-		BlockStatement:  NewEmptyStatement(),
-		UniqueId:        id,
-		Counter:         make(map[rune]uint),
+		commonNode:    commonNode{NodeKind: KindBlock},
+		NestingDepth:  depth,
+		Scope:         sym.NewScope(outerScope),
+		Declarations_: make([]Declaration, 0),
+		Captures_:     make([]Declaration, 0),
+		Statement_:    NewEmptyStatement(),
+		UniqueId:      id,
+		Counter:       make(map[rune]uint),
 	}
 }
 
 // Finish the prepared block by adding all its declarations and its statement.
 func finishBlock(blockNode *blockNode, declarations []Declaration, statement Statement) {
 	// add all declarations and the statement to this block node
-	blockNode.AllDeclarations = declarations
-	blockNode.BlockStatement = statement
+	blockNode.Declarations_ = declarations
+	blockNode.Statement_ = statement
 
 	// ensure that all declarations belong to this block node
-	for _, declaration := range blockNode.AllDeclarations {
+	for _, declaration := range blockNode.Declarations_ {
 		declaration.SetParent(blockNode)
 	}
 
 	// ensure that the statement is the statement of this block node
-	blockNode.BlockStatement.SetParent(blockNode)
+	blockNode.Statement_.SetParent(blockNode)
 }
 
 // Children nodes of the block node.
 func (n *blockNode) Children() []Node {
-	children := make([]Node, 0, len(n.AllDeclarations)+1)
+	children := make([]Node, 0, len(n.Declarations_)+1)
 
-	for _, declaration := range n.AllDeclarations {
+	for _, declaration := range n.Declarations_ {
 		children = append(children, declaration)
 	}
 
-	return append(children, n.BlockStatement)
+	return append(children, n.Statement_)
 }
 
 // String representation of the block node.
@@ -92,11 +92,11 @@ func (n *blockNode) Accept(visitor Visitor) {
 
 // Index returns the token stream index of the block node.
 func (n *blockNode) Index() int {
-	if len(n.AllDeclarations) > 0 {
-		return n.AllDeclarations[0].Index()
+	if len(n.Declarations_) > 0 {
+		return n.Declarations_[0].Index()
 	}
 
-	return n.BlockStatement.Index()
+	return n.Statement_.Index()
 }
 
 // The nesting depth of the block node.
@@ -115,23 +115,23 @@ func (n *blockNode) Function() FunctionDeclaration {
 
 // All declarations contained in the block node.
 func (n *blockNode) Declarations() []Declaration {
-	return n.AllDeclarations
+	return n.Declarations_
 }
 
 // The statement contained in the block node.
 func (n *blockNode) Statement() Statement {
-	return n.BlockStatement
+	return n.Statement_
 }
 
 // All captured declarations from lexical parents of the block.
 func (n *blockNode) CapturedDeclarations() []Declaration {
-	return n.AllCaptures
+	return n.Captures_
 }
 
 // Add a captured declaration from a lexical parent to the block.
 func (n *blockNode) AddCapturedDeclaration(declaration Declaration) {
-	if !slices.Contains(n.AllCaptures, declaration) {
-		n.AllCaptures = append(n.AllCaptures, declaration)
+	if !slices.Contains(n.Captures_, declaration) {
+		n.Captures_ = append(n.Captures_, declaration)
 	}
 }
 
@@ -181,7 +181,7 @@ func (s *blockNode) BuiltInDataType(name string) ts.TypeDescriptor {
 	rb := s.RootBlock()
 
 	// look for the built-in data type in the root block's scope
-	if symbol := rb.Lookup(name); symbol != nil && symbol.Kind == sym.DataTypeEntry && symbol.DataType.IsBuiltIn(){
+	if symbol := rb.Lookup(name); symbol != nil && symbol.Kind == sym.DataTypeEntry && symbol.DataType.IsBuiltIn() {
 		return symbol.DataType
 	}
 

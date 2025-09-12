@@ -13,6 +13,7 @@ const (
 	usageValidationFailed
 	capturedVariableDeterminationFailed
 	unknownSymbolKind
+	unknownExpressionKind
 	unknownUnaryOperation
 	identifierNotFound
 	identifierAlreadyDeclared
@@ -49,6 +50,7 @@ var failureMap = map[eh.Failure]string{
 	usageValidationFailed:                      "identifier usage validation failed",
 	capturedVariableDeterminationFailed:        "captured variable determination failed",
 	unknownSymbolKind:                          "unknown symbol kind: %v",
+	unknownExpressionKind:                      "unknown kind of expression: %v",
 	unknownUnaryOperation:                      "unknown unary operation: %v",
 	identifierNotFound:                         "identifier not found: %v",
 	identifierAlreadyDeclared:                  "identifier already declared: %v",

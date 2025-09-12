@@ -37,7 +37,7 @@ func newConstantDeclaration(identifierName string, expression Expression, index 
 
 // Children nodes of the constant declaration node.
 func (n *constantDeclarationNode) Children() []Node {
-	return make([]Node, 0)
+	return []Node{n.Expression_}
 }
 
 // String representation of the constant declaration node.

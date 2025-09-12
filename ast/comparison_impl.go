@@ -18,8 +18,8 @@ type comparisonOperationNode struct {
 	Right_         Expression            `json:"right_operand"`           // right operand of the comparison operation
 }
 
-// Formats for the string representation of comparison operation nodes.
-var comparisonOperationFormats = map[ComparisonOperator]string{
+// Map comparison operators to their string representation.
+var comparisonOperationNames = map[ComparisonOperator]string{
 	Equal:        "equal",
 	NotEqual:     "not equal",
 	Less:         "less",
@@ -71,7 +71,7 @@ func (e *comparisonOperationNode) Children() []Node {
 func (e *comparisonOperationNode) String() string {
 	switch e.Operation_ {
 	case Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual:
-		return comparisonOperationFormats[e.Operation_]
+		return comparisonOperationNames[e.Operation_]
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownComparisonOperation, nil, e.Operation_))

@@ -17,8 +17,8 @@ type arithmeticOperationNode struct {
 	Right_         Expression            `json:"right_operand"`           // right operand of the arithmetic operation
 }
 
-// Formats for the string representation of arithmetic operation nodes.
-var arithmeticOperationFormats = map[ArithmeticOperator]string{
+// Map arithmetic operators to their string representation.
+var arithmeticOperationNames = map[ArithmeticOperator]string{
 	Plus:   "addition",
 	Minus:  "subtraction",
 	Times:  "multiplication",
@@ -63,7 +63,7 @@ func (e *arithmeticOperationNode) Children() []Node {
 func (e *arithmeticOperationNode) String() string {
 	switch e.Operation_ {
 	case Plus, Minus, Times, Divide:
-		return arithmeticOperationFormats[e.Operation_]
+		return arithmeticOperationNames[e.Operation_]
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownArithmeticOperation, nil, e.Operation_))

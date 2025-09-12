@@ -4,6 +4,8 @@
 package analyzer
 
 import (
+	"fmt"
+
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
 	sym "github.com/petersen65/pl0/v3/symbol"
@@ -76,6 +78,20 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 		symbol := sym.NewSymbol(cd.IdentifierName(), sym.ConstantEntry, dts.DataType, nil)
 		cb.Insert(cd.IdentifierName(), symbol)
 		cd.SetSymbol(symbol)
+
+		result := &calculationResult{}
+        if e.IsConstant() {
+            ast.Walk(e, ast.PostOrder, result, calculateConstantExpressionValue)
+            if result.valid != nil {
+                // Handle error - constant expression evaluation failed
+                //na.appendError(constantExpressionEvaluationFailed, cd.Index(), cd.IdentifierName(), result.valid)
+            } else {
+                // Store the calculated value in the symbol or constant declaration
+                symbol.Value = result.value
+                //cd.SetValue(result.value)
+                fmt.Println("Constant", cd.IdentifierName(), "=", result.value)
+            }
+        }
 	}
 }
 
@@ -410,4 +426,142 @@ func reportWarningsForUnusedIdentifiers(node ast.Node, tokenHandler any) {
 			}
 		}
 	}
+}
+
+
+
+// This is a visitor function. Calculate the value of a constant expression for all data types and operations.
+// This function assumes that the starting node is a constant expression and that all unary and binary operation requirements regarding data types have been met.
+// ...existing code...
+
+type calculationResult struct {
+    value any
+    valid error
+}
+
+// This is a visitor function. Calculate the value of a constant expression for all data types and operations.
+// This function assumes that the starting node is a constant expression and that all unary and binary operation requirements regarding data types have been met.
+func calculateConstantExpressionValue(node ast.Node, result any) {
+    e := node.(ast.Expression)
+    cr := result.(*calculationResult)
+
+    // if an error has already occurred, do nothing and delegate the error to the caller
+    if cr.valid != nil {
+        return
+    }
+
+    // safely switch on the kind of the expression node and then cast it to the appropriate expression kind
+    switch e.Kind() {
+    case ast.KindLiteralUse:
+        lu := e.(ast.LiteralUse)
+        // For literals, directly set the value
+        cr.value = lu.Value()
+
+    case ast.KindIdentifierUse:
+        iu := e.(ast.IdentifierUse)
+        // For identifier uses (constants), get the value
+        cr.value = iu.Value()
+
+    case ast.KindUnaryOperation:
+        uo := e.(ast.UnaryOperation)
+        
+        // Create a new result for the operand
+        operandResult := &calculationResult{}
+        ast.Walk(uo.Operand(), ast.PostOrder, operandResult, calculateConstantExpressionValue)
+        
+        // Check for errors from operand evaluation
+        if operandResult.valid != nil {
+            cr.valid = operandResult.valid
+            return
+        }
+        
+        // Perform the unary operation
+        cr.value, cr.valid = performUnaryOperation(uo.Operation(), operandResult.value)
+
+    case ast.KindArithmeticOperation:
+        ao := e.(ast.ArithmeticOperation)
+        
+        // Create results for both operands
+        leftResult := &calculationResult{}
+        rightResult := &calculationResult{}
+        
+        // Evaluate left operand
+        ast.Walk(ao.Left(), ast.PostOrder, leftResult, calculateConstantExpressionValue)
+        if leftResult.valid != nil {
+            cr.valid = leftResult.valid
+            return
+        }
+        
+        // Evaluate right operand
+        ast.Walk(ao.Right(), ast.PostOrder, rightResult, calculateConstantExpressionValue)
+        if rightResult.valid != nil {
+            cr.valid = rightResult.valid
+            return
+        }
+        
+        // Perform the arithmetic operation
+        cr.value, cr.valid = performArithmeticOperation(ao.Operation(), leftResult.value, rightResult.value)
+
+    case ast.KindComparisonOperation:
+        co := e.(ast.ComparisonOperation)
+        
+        // Create results for both operands
+        leftResult := &calculationResult{}
+        rightResult := &calculationResult{}
+        
+        // Evaluate left operand
+        ast.Walk(co.Left(), ast.PostOrder, leftResult, calculateConstantExpressionValue)
+        if leftResult.valid != nil {
+            cr.valid = leftResult.valid
+            return
+        }
+        
+        // Evaluate right operand
+        ast.Walk(co.Right(), ast.PostOrder, rightResult, calculateConstantExpressionValue)
+        if rightResult.valid != nil {
+            cr.valid = rightResult.valid
+            return
+        }
+        
+        // Perform the comparison operation
+        cr.value, cr.valid = performComparisonOperation(co.Operation(), leftResult.value, rightResult.value)
+
+    default:
+        cr.valid = eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownExpressionKind, nil)
+    }
+}
+
+// ...existing code...
+
+func performUnaryOperation(op ast.UnaryOperator, operand any) (any, error) {
+	fmt.Println(op, operand)
+	return nil, nil
+}
+
+func performArithmeticOperation(op ast.ArithmeticOperator, left, right any) (any, error) {
+	fmt.Println(op, left, right)
+
+	l := left.(int64)
+	r := right.(int64)
+
+	switch op {
+	case ast.Plus:
+		return l + r, nil
+
+	case ast.Minus:
+		return l - r, nil
+
+	case ast.Times:
+		return l * r, nil
+
+	case ast.Divide:
+		return l / r, nil
+	}
+
+	return nil, nil
+}
+
+func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any, error) {
+	fmt.Println(op, left, right)
+	return nil, nil
 }

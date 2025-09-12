@@ -8,8 +8,8 @@ import (
 	ts "github.com/petersen65/pl0/v3/typesystem"
 )
 
-// Formats for the string representation of unary operation nodes.
-var unaryOperationFormats = map[UnaryOperator]string{
+// Map unary operators to their string representation.
+var unaryOperationNames = map[UnaryOperator]string{
 	Odd:    "odd",
 	Negate: "negate",
 }
@@ -62,7 +62,7 @@ func (n *unaryOperationNode) Children() []Node {
 func (n *unaryOperationNode) String() string {
 	switch n.Operation_ {
 	case Odd, Negate:
-		return unaryOperationFormats[n.Operation_]
+		return unaryOperationNames[n.Operation_]
 
 	default:
 		panic(eh.NewGeneralError(eh.AbstractSyntaxTree, failureMap, eh.Fatal, unknownUnaryOperation, nil, n.Operation_))

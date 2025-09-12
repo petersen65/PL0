@@ -106,3 +106,18 @@ func NewArithmeticOperation(operation ArithmeticOperator, left, right Expression
 func NewComparisonOperation(operation ComparisonOperator, left, right Expression, index int) ComparisonOperation {
 	return newComparisonOperation(operation, left, right, index)
 }
+
+// String representation of a unary operator.
+func (op UnaryOperator) String() string {
+	return unaryOperationNames[op]
+}
+
+// String representation of an arithmetic operator.
+func (op ArithmeticOperator) String() string {
+	return arithmeticOperationNames[op]
+}
+
+// String representation of a comparison operator.
+func (op ComparisonOperator) String() string {
+	return comparisonOperationNames[op]
+}
