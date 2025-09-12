@@ -508,35 +508,3 @@ func calculateConstantExpressionValue(node ast.Node, result any) {
 		cr.error = eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownExpressionKind, nil)
 	}
 }
-
-// Perform the unary operation on the operand for all data types and return the result or an error.
-func performUnaryOperation(op ast.UnaryOperator, operand any) (any, error) {
-	return nil, nil
-}
-
-// Perform the arithmetic operation on both operands for all data types and return the result or an error.
-func performArithmeticOperation(op ast.ArithmeticOperator, left, right any) (any, error) {
-	l := left.(int64)
-	r := right.(int64)
-
-	switch op {
-	case ast.Plus:
-		return l + r, nil
-
-	case ast.Minus:
-		return l - r, nil
-
-	case ast.Times:
-		return l * r, nil
-
-	case ast.Divide:
-		return l / r, nil
-	}
-
-	return nil, nil
-}
-
-// Perform the comparison operation on both operands for all data types and return the result or an error.
-func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any, error) {
-	return nil, nil
-}
