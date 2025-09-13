@@ -7,7 +7,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the analyzer.
 const (
-	_ eh.Failure = iota + 4000
+	_ eh.Failure = iota + 5000
 	invalidNameAnalysisState
 	float32EpsilonMustBeBetween0And1
 	float64EpsilonMustBeBetween0And1

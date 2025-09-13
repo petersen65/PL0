@@ -1,19 +1,13 @@
 // Copyright 2024-2025 Michael Petersen. All rights reserved.
 // Use of this source code is governed by an Apache license that can be found in the LICENSE file.
 
-package analyzer
+package evaluation
 
 import (
 	"math"
 
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
-)
-
-// Division modes for the integer division.
-const (
-	Truncate DivisionMode = iota
-	Floor
 )
 
 // Signed integers overflow values used in error messages.
@@ -30,40 +24,6 @@ const (
 	inf = "Inf"
 )
 
-type (
-	// Mode of division for all integer data types, either truncate or floor.
-	DivisionMode int
-
-	// Configuration for all constant arithmetic evaluations.
-	ArithmeticConfiguration struct {
-		Float32Epsilon      float64
-		Float64Epsilon      float64
-		TreatNaNAsWarning   bool
-		TreatInfAsWarning   bool
-		IntegerDivisionMode DivisionMode
-	}
-
-	// Type constraint for signed integers.
-	SignedInteger interface {
-		~int8 | ~int16 | ~int32 | ~int64
-	}
-
-	// Type constraint for unsigned integers.
-	UnsignedInteger interface {
-		~uint8 | ~uint16 | ~uint32 | ~uint64
-	}
-
-	// Type constraint for floating-point numbers.
-	Float interface {
-		~float32 | ~float64
-	}
-
-	// Type constraint for all numeric types.
-	Numeric interface {
-		SignedInteger | UnsignedInteger | Float
-	}
-)
-
 // Default configuration for all constant arithmetic evaluations.
 var arithmeticConfiguration = ArithmeticConfiguration{
 	Float32Epsilon:      1e-7,
@@ -73,28 +33,18 @@ var arithmeticConfiguration = ArithmeticConfiguration{
 	IntegerDivisionMode: Truncate,
 }
 
-// Set the global arithmetic configuration for all constant arithmetic evaluations.
-func SetArithmeticConfiguration(config ArithmeticConfiguration) error {
-	if err := config.Validate(); err != nil {
-		return err
-	}
-
-	arithmeticConfiguration = config
-	return nil
-}
-
 // Validate the arithmetic configuration and return an error if it is invalid.
 func (c *ArithmeticConfiguration) Validate() error {
 	if c.Float32Epsilon <= 0 || c.Float32Epsilon > 1 {
-		return eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, float32EpsilonMustBeBetween0And1, nil, c.Float32Epsilon)
+		return eh.NewGeneralError(eh.Evaluation, failureMap, eh.Fatal, float32EpsilonMustBeBetween0And1, nil, c.Float32Epsilon)
 	}
 
 	if c.Float64Epsilon <= 0 || c.Float64Epsilon > 1 {
-		return eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, float64EpsilonMustBeBetween0And1, nil, c.Float64Epsilon)
+		return eh.NewGeneralError(eh.Evaluation, failureMap, eh.Fatal, float64EpsilonMustBeBetween0And1, nil, c.Float64Epsilon)
 	}	
 
 	if c.Float32Epsilon > c.Float64Epsilon {
-		return eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, float32EpsilonShouldNotBeGreaterThanFloat64Epsilon, nil, c.Float32Epsilon, c.Float64Epsilon)
+		return eh.NewGeneralError(eh.Evaluation, failureMap, eh.Fatal, float32EpsilonShouldNotBeGreaterThanFloat64Epsilon, nil, c.Float32Epsilon, c.Float64Epsilon)
 	}
 
 	return nil
@@ -125,7 +75,7 @@ func performUnaryOperation(op ast.UnaryOperator, operand any) (any, error) {
 
 		default:
 			uo := ast.NewUnaryOperation(ast.Negate, nil, 0)
-			return nil, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, dataTypeCannotBeUsedInUnaryOperation, nil, ast.Negate, uo.Requirements(), operand)
+			return nil, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, dataTypeCannotBeUsedInUnaryOperation, nil, ast.Negate, uo.Requirements(), operand)
 		}
 
 	case ast.Odd:
@@ -156,11 +106,11 @@ func performUnaryOperation(op ast.UnaryOperator, operand any) (any, error) {
 
 		default:
 			uo := ast.NewUnaryOperation(ast.Odd, nil, 0)
-			return nil, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, dataTypeCannotBeUsedInUnaryOperation, nil, ast.Odd, uo.Requirements(), operand)
+			return nil, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, dataTypeCannotBeUsedInUnaryOperation, nil, ast.Odd, uo.Requirements(), operand)
 		}
 
 	default:
-		return nil, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Fatal, unknownUnaryOperation, nil)
+		return nil, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Fatal, unknownUnaryOperation, nil)
 	}
 }
 
@@ -363,7 +313,7 @@ func performArithmeticOperation(op ast.ArithmeticOperator, left, right any) (any
 	}
 
 	ao := ast.NewArithmeticOperation(op, nil, nil, 0)
-	return nil, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, dataTypeCannotBeUsedInArithmeticOperation, nil, op, ao.Requirements(), left)
+	return nil, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, dataTypeCannotBeUsedInArithmeticOperation, nil, op, ao.Requirements(), left)
 }
 
 // Perform the comparison operation on both operands for all data types and return the result or an error.
@@ -558,7 +508,7 @@ func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any
 			// check for NaN operands and report as warning if configured
 			if arithmeticConfiguration.TreatNaNAsWarning {
 				if math.IsNaN(float64(l)) || math.IsNaN(float64(r)) {
-					return false, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, op, l, r, nan)
+					return false, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, op, l, r, nan)
 				}
 			}
 
@@ -588,7 +538,7 @@ func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any
 			// check for NaN operands and report as warning if configured
 			if arithmeticConfiguration.TreatNaNAsWarning {
 				if math.IsNaN(l) || math.IsNaN(r) {
-					return false, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, op, l, r, nan)
+					return false, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, op, l, r, nan)
 				}
 			}
 
@@ -615,7 +565,7 @@ func performComparisonOperation(op ast.ComparisonOperator, left, right any) (any
 	}
 
 	co := ast.NewComparisonOperation(op, nil, nil, 0)
-	return nil, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, dataTypeCannotBeUsedInComparisonOperation, nil, op, co.Requirements(), left)
+	return nil, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, dataTypeCannotBeUsedInComparisonOperation, nil, op, co.Requirements(), left)
 }
 
 // Generic negate operation for signed integers and floats with overflow checking for signed integers.
@@ -624,22 +574,22 @@ func negate[T SignedInteger | Float](value T) (T, error) {
 	switch v := any(value).(type) {
 	case int8:
 		if v == math.MinInt8 {
-			return 0, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt8)
+			return 0, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt8)
 		}
 
 	case int16:
 		if v == math.MinInt16 {
-			return 0, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt16)
+			return 0, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt16)
 		}
 
 	case int32:
 		if v == math.MinInt32 {
-			return 0, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt32)
+			return 0, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt32)
 		}
 
 	case int64:
 		if v == math.MinInt64 {
-			return 0, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt64)
+			return 0, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Negate, value, overflowInt64)
 		}
 	}
 
@@ -662,72 +612,72 @@ func add[T Numeric](left, right T) (T, error) {
 		l, r := any(left).(int8), any(right).(int8)
 
 		if r > 0 && l > math.MaxInt8-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		if r < 0 && l < math.MinInt8-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case int16:
 		l, r := any(left).(int16), any(right).(int16)
 
 		if r > 0 && l > math.MaxInt16-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		if r < 0 && l < math.MinInt16-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case int32:
 		l, r := any(left).(int32), any(right).(int32)
 
 		if r > 0 && l > math.MaxInt32-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		if r < 0 && l < math.MinInt32-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case int64:
 		l, r := any(left).(int64), any(right).(int64)
 
 		if r > 0 && l > math.MaxInt64-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		if r < 0 && l < math.MinInt64-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case uint8:
 		l, r := any(left).(uint8), any(right).(uint8)
 
 		if l > math.MaxUint8-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case uint16:
 		l, r := any(left).(uint16), any(right).(uint16)
 
 		if l > math.MaxUint16-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case uint32:
 		l, r := any(left).(uint32), any(right).(uint32)
 
 		if l > math.MaxUint32-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case uint64:
 		l, r := any(left).(uint64), any(right).(uint64)
 
 		if l > math.MaxUint64-r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 	case float32:
@@ -736,11 +686,11 @@ func add[T Numeric](left, right T) (T, error) {
 		if math.IsInf(float64(any(result).(float32)), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		return result, nil
@@ -751,11 +701,11 @@ func add[T Numeric](left, right T) (T, error) {
 		if math.IsInf(any(result).(float64), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Plus, left, right)
 		}
 
 		return result, nil
@@ -775,72 +725,72 @@ func subtract[T Numeric](left, right T) (T, error) {
 		l, r := any(left).(int8), any(right).(int8)
 
 		if r < 0 && l > math.MaxInt8+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		if r > 0 && l < math.MinInt8+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case int16:
 		l, r := any(left).(int16), any(right).(int16)
 
 		if r < 0 && l > math.MaxInt16+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		if r > 0 && l < math.MinInt16+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case int32:
 		l, r := any(left).(int32), any(right).(int32)
 
 		if r < 0 && l > math.MaxInt32+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		if r > 0 && l < math.MinInt32+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case int64:
 		l, r := any(left).(int64), any(right).(int64)
 
 		if r < 0 && l > math.MaxInt64+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		if r > 0 && l < math.MinInt64+r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case uint8:
 		l, r := any(left).(uint8), any(right).(uint8)
 
 		if l < r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case uint16:
 		l, r := any(left).(uint16), any(right).(uint16)
 
 		if l < r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case uint32:
 		l, r := any(left).(uint32), any(right).(uint32)
 
 		if l < r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case uint64:
 		l, r := any(left).(uint64), any(right).(uint64)
 
 		if l < r {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticUnderflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 	case float32:
@@ -849,11 +799,11 @@ func subtract[T Numeric](left, right T) (T, error) {
 		if math.IsInf(float64(any(result).(float32)), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		return result, nil
@@ -864,11 +814,11 @@ func subtract[T Numeric](left, right T) (T, error) {
 		if math.IsInf(any(result).(float64), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Minus, left, right)
 		}
 
 		return result, nil
@@ -894,19 +844,19 @@ func multiply[T Numeric](left, right T) (T, error) {
 
 		if l > 0 {
 			if r > 0 && l > math.MaxInt8/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && r < math.MinInt8/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		} else if l < 0 {
 			if r > 0 && l < math.MinInt8/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && l != 0 && r < math.MaxInt8/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		}
 
@@ -915,19 +865,19 @@ func multiply[T Numeric](left, right T) (T, error) {
 
 		if l > 0 {
 			if r > 0 && l > math.MaxInt16/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && r < math.MinInt16/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		} else if l < 0 {
 			if r > 0 && l < math.MinInt16/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && l != 0 && r < math.MaxInt16/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		}
 
@@ -936,19 +886,19 @@ func multiply[T Numeric](left, right T) (T, error) {
 
 		if l > 0 {
 			if r > 0 && l > math.MaxInt32/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && r < math.MinInt32/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		} else if l < 0 {
 			if r > 0 && l < math.MinInt32/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && l != 0 && r < math.MaxInt32/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		}
 
@@ -957,19 +907,19 @@ func multiply[T Numeric](left, right T) (T, error) {
 
 		if l > 0 {
 			if r > 0 && l > math.MaxInt64/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && r < math.MinInt64/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		} else if l < 0 {
 			if r > 0 && l < math.MinInt64/r {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			if r < 0 && l != 0 && r < math.MaxInt64/l {
-				return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 		}
 
@@ -977,28 +927,28 @@ func multiply[T Numeric](left, right T) (T, error) {
 		l, r := any(left).(uint8), any(right).(uint8)
 
 		if l > 0 && r > math.MaxUint8/l {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 	case uint16:
 		l, r := any(left).(uint16), any(right).(uint16)
 
 		if l > 0 && r > math.MaxUint16/l {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 	case uint32:
 		l, r := any(left).(uint32), any(right).(uint32)
 
 		if l > 0 && r > math.MaxUint32/l {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 	case uint64:
 		l, r := any(left).(uint64), any(right).(uint64)
 
 		if l > 0 && r > math.MaxUint64/l {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 	case float32:
@@ -1007,11 +957,11 @@ func multiply[T Numeric](left, right T) (T, error) {
 		if math.IsInf(float64(any(result).(float32)), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 		return result, nil
@@ -1022,11 +972,11 @@ func multiply[T Numeric](left, right T) (T, error) {
 		if math.IsInf(any(result).(float64), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return the infinity result with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Times, left, right)
 		}
 
 		return result, nil
@@ -1041,7 +991,7 @@ func divide[T Numeric](left, right T) (T, error) {
 	var zero T
 
 	if right == zero {
-		return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, divisionByZeroInConstantExpression, nil, ast.Divide, left, right)
+		return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, divisionByZeroInConstantExpression, nil, ast.Divide, left, right)
 	}
 
 	// check for signed integer overflow: MIN / -1
@@ -1050,7 +1000,7 @@ func divide[T Numeric](left, right T) (T, error) {
 		r := any(right).(int8)
 
 		if l == math.MinInt8 && r == -1 {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
 		}
 
 		// apply configured division mode for integers
@@ -1065,7 +1015,7 @@ func divide[T Numeric](left, right T) (T, error) {
 		r := any(right).(int16)
 
 		if l == math.MinInt16 && r == -1 {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
 		}
 
 		// apply configured division mode for integers
@@ -1080,7 +1030,7 @@ func divide[T Numeric](left, right T) (T, error) {
 		r := any(right).(int32)
 
 		if l == math.MinInt32 && r == -1 {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
 		}
 
 		// apply configured division mode for integers
@@ -1095,7 +1045,7 @@ func divide[T Numeric](left, right T) (T, error) {
 		r := any(right).(int64)
 
 		if l == math.MinInt64 && r == -1 {
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, arithmeticOverflowOnConstantExpression, nil, ast.Divide, left, right)
 		}
 
 		// apply configured division mode for integers
@@ -1118,22 +1068,22 @@ func divide[T Numeric](left, right T) (T, error) {
 		if math.IsNaN(float64(any(result).(float64))) {
 			if arithmeticConfiguration.TreatNaNAsWarning {
 				// return NaN with a warning (IEEE 754 compliant)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, ast.Divide, left, right, nan)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, invalidFloatingPointOperationNaN, nil, ast.Divide, left, right, nan)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, invalidFloatingPointOperationNaN, nil, ast.Divide, left, right, nan)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, invalidFloatingPointOperationNaN, nil, ast.Divide, left, right, nan)
 		}
 
 		// check for infinity result (x/0 where x != 0)
 		if math.IsInf(float64(any(result).(float64)), 0) {
 			if arithmeticConfiguration.TreatInfAsWarning {
 				// return infinity with a warning (IEEE 754 compliant for x/0)
-				return result, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Warning, invalidFloatingPointOperationInf, nil, ast.Divide, left, right, inf)
+				return result, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Warning, invalidFloatingPointOperationInf, nil, ast.Divide, left, right, inf)
 			}
 
 			// return error and don't allow the operation
-			return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, invalidFloatingPointOperationInf, nil, ast.Divide, left, right, inf)
+			return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, invalidFloatingPointOperationInf, nil, ast.Divide, left, right, inf)
 		}
 
 		return result, nil
@@ -1162,7 +1112,7 @@ func modulo[T SignedInteger | UnsignedInteger](left, right T) (T, error) {
 	var zero T
 
 	if right == zero {
-		return zero, eh.NewGeneralError(eh.Analyzer, failureMap, eh.Error, divisionByZeroInConstantExpression, nil, ast.Modulo, left, right)
+		return zero, eh.NewGeneralError(eh.Evaluation, failureMap, eh.Error, divisionByZeroInConstantExpression, nil, ast.Modulo, left, right)
 	}
 
 	// check for signed integer overflow: MIN % -1 (result is 0, but we check for consistency)

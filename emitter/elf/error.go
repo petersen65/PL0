@@ -7,7 +7,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for ELF.
 const (
-	_ eh.Failure = iota + 10000
+	_ eh.Failure = iota + 8500
 	invalidReadOnlyDataValue
 	unknownKindOfReadOnlyData
 	sleb128DecodingOverflow

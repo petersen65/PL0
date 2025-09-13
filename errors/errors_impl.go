@@ -83,6 +83,7 @@ var (
 		Scanner:                  "scanner",
 		Parser:                   "parser",
 		AbstractSyntaxTree:       "ast",
+		Evaluation:               "evaluation",
 		Analyzer:                 "analyzer",
 		Generator:                "generator",
 		Intermediate:             "intermediate",
@@ -183,6 +184,32 @@ func (c Component) String() string {
 	}
 
 	return strings.Join(parts, bitMaskSeparator)
+}
+
+// Check if the given error has the specified severity level. Returns false if the error is nil or not a component error.
+func hasSeverity(err error, severity Severity) bool {
+	if err == nil {
+		return false
+	}
+
+	if ce, ok := err.(ComponentError); ok {
+		return ce.HasSeverity(severity)
+	}
+
+	return false
+}
+
+// Check if the given error originated from the specified component. Returns false if the error is nil or not a component error.
+func fromComponent(err error, component Component) bool {
+	if err == nil {
+		return false
+	}
+
+	if ce, ok := err.(ComponentError); ok {
+		return ce.FromComponent(component)
+	}
+	
+	return false
 }
 
 // Check if the error has a specific severity level.

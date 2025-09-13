@@ -20,6 +20,7 @@ import (
 	// emi "github.com/petersen65/pl0/v3/emitter"
 	x64 "github.com/petersen65/pl0/v3/emitter/x86_64"
 	eh "github.com/petersen65/pl0/v3/errors"
+	eval "github.com/petersen65/pl0/v3/evaluation"
 	exp "github.com/petersen65/pl0/v3/export"
 
 	// gen "github.com/petersen65/pl0/v3/generator"
@@ -207,6 +208,15 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization pl
 		}
 	}
 
+	// setup arithmetic configuration for compile-time expression evaluations
+	arithmeticConfiguration := eval.ArithmeticConfiguration{
+		Float32Epsilon:      1e-7,
+		Float64Epsilon:      1e-15,
+		TreatNaNAsWarning:   true,
+		TreatInfAsWarning:   true,
+		IntegerDivisionMode: eval.Truncate,
+	}
+
 	// only Linux with x86_64 CPU, SSE2 instruction set, UTF-32 string encoding, and SystemV_AMD64 application binary interface is supported for now
 	targetPlatform := plt.TargetPlatform{
 		OperatingSystem:            plt.Linux,
@@ -259,7 +269,7 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization pl
 		}
 
 		// compile source code to compilation unit and return I/O errors
-		compilationUnit, err = CompileSourceToCompilationUnit(buildConfiguration)
+		compilationUnit, err = CompileSourceToCompilationUnit(arithmeticConfiguration, buildConfiguration)
 
 		// print error message if an I/O error occurred during compilation
 		if err != nil {
@@ -323,19 +333,22 @@ func Driver(options DriverOption, sourcePath, targetPath string, optimization pl
 }
 
 // Compile source code and return compilation unit with all intermediate results and error handler.
-func CompileSourceToCompilationUnit(buildConfiguration plt.BuildConfiguration) (CompilationUnit, error) {
+func CompileSourceToCompilationUnit(arithmeticConfiguration eval.ArithmeticConfiguration, buildConfiguration plt.BuildConfiguration) (CompilationUnit, error) {
 	if content, err := os.ReadFile(buildConfiguration.SourcePath); err != nil {
 		return CompilationUnit{}, err
 	} else {
-		return CompileContent(content, buildConfiguration), nil
+		return CompileContent(content, arithmeticConfiguration, buildConfiguration), nil
 	}
 }
 
 // Compile UTF-8 encoded content and return a compilation unit with all intermediate results and error handler.
-func CompileContent(content []byte, buildConfiguration plt.BuildConfiguration) CompilationUnit {
+func CompileContent(content []byte, arithmeticConfiguration eval.ArithmeticConfiguration, buildConfiguration plt.BuildConfiguration) CompilationUnit {
+	// set the global arithmetic configuration for all constant arithmetic evaluations at compile-time
+	eval.SetArithmeticConfiguration(arithmeticConfiguration)
+
 	// set the current application binary interface required for the type system to be functional
 	ts.SetCurrentApplicationBinaryInterface(buildConfiguration.TargetPlatform.ApplicationBinaryInterface)
-	
+
 	// create the error handler for the compilation process
 	errorHandler := eh.NewErrorHandler()
 

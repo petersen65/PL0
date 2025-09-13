@@ -7,7 +7,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the intermediate code.
 const (
-	_ eh.Failure = iota + 6000
+	_ eh.Failure = iota + 6300
 	invalidAddressesContract
 	invalidIntermediateCodeAddress
 	unexceptedVariantInIntermediateCodeAddress

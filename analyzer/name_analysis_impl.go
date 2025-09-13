@@ -6,6 +6,7 @@ package analyzer
 import (
 	ast "github.com/petersen65/pl0/v3/ast"
 	eh "github.com/petersen65/pl0/v3/errors"
+	eval "github.com/petersen65/pl0/v3/evaluation"
 	sym "github.com/petersen65/pl0/v3/symbol"
 	tok "github.com/petersen65/pl0/v3/token"
 	ts "github.com/petersen65/pl0/v3/typesystem"
@@ -22,8 +23,9 @@ type (
 
 	// A calculation result holds the result of evaluating a constant expression and any error that occurred during the evaluation.
 	calculationResult struct {
-		error error // error that occurred during the evaluation of the expression, or nil if no error occurred
-		stack []any // stack for intermediate results during expression evaluation and the final result as the only remaining value on the stack
+		error        error            // error that occurred during the evaluation of the expression, or nil if no error occurred
+		tokenHandler tok.TokenHandler // token handler that manages the tokens of the token stream
+		stack        []any            // stack for intermediate results during expression evaluation and the final result as the only remaining value on the stack
 	}
 )
 
@@ -66,10 +68,10 @@ func (na *nameAnalysis) VisitConstantDeclaration(cd ast.ConstantDeclaration) {
 		cd.SetDataTypeName(dte.String())
 	}
 
-	cb := cd.CurrentBlock()                         // current block
-	s := cb.Lookup(cd.IdentifierName())             // constant symbol
-	dts := cb.Lookup(cd.DataTypeName())             // constant data type symbol
-	cr := &calculationResult{stack: make([]any, 0)} // constant expression evaluation
+	cb := cd.CurrentBlock()                                                        // current block
+	s := cb.Lookup(cd.IdentifierName())                                            // constant symbol
+	dts := cb.Lookup(cd.DataTypeName())                                            // constant data type symbol
+	cr := &calculationResult{tokenHandler: na.tokenHandler, stack: make([]any, 0)} // constant expression evaluation
 
 	// in the case of no errors, insert the constant symbol into the current block's scope
 	if dte == nil {
@@ -462,9 +464,14 @@ func calculateConstantExpressionValue(node ast.Node, result any) {
 
 		// perform unary operation on the operand and push the result onto the stack
 		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
-		if result, err := performUnaryOperation(e.(ast.UnaryOperation).Operation(), operand); err != nil {
+		if result, err := eval.PerformUnaryOperation(e.(ast.UnaryOperation).Operation(), operand); err != nil && eh.HasSeverity(err, eh.Error) {
 			cr.error = err
 		} else {
+			// if the error is a warning, append it to the token handler's error list and continue
+			if err != nil && eh.HasSeverity(err, eh.Warning) {
+				cr.tokenHandler.AppendError(err)
+			}
+
 			cr.stack = append(cr.stack, result)
 		}
 
@@ -480,9 +487,14 @@ func calculateConstantExpressionValue(node ast.Node, result any) {
 
 		// perform the arithmetic operation on both operands and push the result onto the stack
 		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
-		if result, err := performArithmeticOperation(e.(ast.ArithmeticOperation).Operation(), left, right); err != nil {
+		if result, err := eval.PerformArithmeticOperation(e.(ast.ArithmeticOperation).Operation(), left, right); err != nil && eh.HasSeverity(err, eh.Error) {
 			cr.error = err
 		} else {
+			// if the error is a warning, append it to the token handler's error list and continue
+			if err != nil && eh.HasSeverity(err, eh.Warning) {
+				cr.tokenHandler.AppendError(err)
+			}
+
 			cr.stack = append(cr.stack, result)
 		}
 
@@ -498,9 +510,14 @@ func calculateConstantExpressionValue(node ast.Node, result any) {
 
 		// perform the comparison operation on both operands and push the result onto the stack
 		// note: if an error occurs during the operation, it is stored in the calculation result and no result is pushed onto the stack
-		if result, err := performComparisonOperation(e.(ast.ComparisonOperation).Operation(), left, right);err != nil {
+		if result, err := eval.PerformComparisonOperation(e.(ast.ComparisonOperation).Operation(), left, right); err != nil && eh.HasSeverity(err, eh.Error) {
 			cr.error = err
 		} else {
+			// if the error is a warning, append it to the token handler's error list and continue
+			if err != nil && eh.HasSeverity(err, eh.Warning) {
+				cr.tokenHandler.AppendError(err)
+			}
+
 			cr.stack = append(cr.stack, result)
 		}
 

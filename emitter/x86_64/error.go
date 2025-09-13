@@ -7,7 +7,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the assembly code.
 const (
-	_ eh.Failure = iota + 9000
+	_ eh.Failure = iota + 8300
 	unknownKindOfOperandInCpuOperation
 	illegalDisplacementInMemoryOperand
 	unknownKindOfReadOnlyData

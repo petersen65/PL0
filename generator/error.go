@@ -7,7 +7,7 @@ import eh "github.com/petersen65/pl0/v3/errors"
 
 // Failure codes for the intermediate code generator.
 const (
-	_ eh.Failure = iota + 5000
+	_ eh.Failure = iota + 6000
 	intermediateCodeGenerationFailed
 	unsupportedDataTypeInConstantDeclaration
 	unsupportedDataTypeInVariableDeclaration

@@ -24,6 +24,7 @@ const (
 	Scanner
 	Parser
 	AbstractSyntaxTree
+	Evaluation
 	Analyzer
 	Generator
 	Intermediate
@@ -84,4 +85,14 @@ func NewLineColumnError(component Component, failureMap map[Failure]string, seve
 // Create a new source error with a severity level, a line and column number, and the source code where the error occurred.
 func NewSourceError(component Component, failureMap map[Failure]string, severity Severity, code Failure, line, column int, sourceCode []byte, values ...any) error {
 	return newSourceError(component, failureMap, severity, code, line, column, sourceCode, values...)
+}
+
+// Check if the given error has the specified severity level. Returns false if the error is nil or not a component error.
+func HasSeverity(err error, severity Severity) bool {
+	return hasSeverity(err, severity)
+}
+
+// Check if the given error originated from the specified component. Returns false if the error is nil or not a component error.
+func FromComponent(err error, component Component) bool {
+	return fromComponent(err, component)
 }
