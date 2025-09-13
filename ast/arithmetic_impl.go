@@ -23,6 +23,7 @@ var arithmeticOperationNames = map[ArithmeticOperator]string{
 	Minus:  "subtraction",
 	Times:  "multiplication",
 	Divide: "division",
+	Modulo: "modulo",
 }
 
 // Create a new arithmetic operation node in the abstract syntax tree.

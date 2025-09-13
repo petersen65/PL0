@@ -108,7 +108,7 @@ func newGoError(failureMap map[Failure]string, code Failure, values ...any) erro
 		message = failureMap[code]
 	}
 
-	return errors.New(message)
+	return errors.New(strings.TrimSpace(message))
 }
 
 // Create a new general error with a severity level (a general error can wrap any other error).

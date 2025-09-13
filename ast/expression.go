@@ -20,6 +20,7 @@ const (
 	Minus
 	Times
 	Divide
+	Modulo
 )
 
 // Comparison operators with two operands.
